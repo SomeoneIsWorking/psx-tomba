@@ -54,7 +54,7 @@ psx::present::RecordKey keyOf(Core &core, std::uint32_t object) {
     core.mem_w32(kPacket, 0x00FFFFFFu);
     core.mem_w32(kPacket + 4u, 0x20000000u);
   }
-  const auto key = core.emission.keyFor(kPacket);
+  const auto key = core.emission.identityFor(kPacket);
   return key.value_or(psx::present::RecordKey{});
 }
 

@@ -155,8 +155,8 @@ void testKeys(Core &core, std::optional<psx::cpu::ImageIdentity> &mode) {
     check(call(core, pair.gt3), "the GT3 emitter returns");
     check(core.r[2] == kRecords + 3u * 0x24u && PacketPool(core).cursor() == kPool + 2u * 0x28u,
           "two of three triangles are on screen; v0 is past the list");
-    check(core.emission.keyFor(kPool) == RecordKey{pair.gt3, kRecords, modelElement(ModelList::Gt3, 0u), 0u} &&
-              core.emission.keyFor(kPool + 0x28u) ==
+    check(core.emission.identityFor(kPool) == RecordKey{pair.gt3, kRecords, modelElement(ModelList::Gt3, 0u), 0u} &&
+              core.emission.identityFor(kPool + 0x28u) ==
                   RecordKey{pair.gt3, kRecords, modelElement(ModelList::Gt3, 2u), 0u},
           "each packet is keyed by its record's index, whatever was culled before it");
     check(core.r[29] == kStack, "sp is restored");
@@ -167,7 +167,7 @@ void testKeys(Core &core, std::optional<psx::cpu::ImageIdentity> &mode) {
     arguments(core, 2u, kLightIntensity);
     check(call(core, pair.gt4), "the GT4 emitter returns");
     check(PacketPool(core).cursor() == kPool + 2u * 0x34u &&
-              core.emission.keyFor(kPool + 0x34u) ==
+              core.emission.identityFor(kPool + 0x34u) ==
                   RecordKey{pair.gt4, kRecords, modelElement(ModelList::Gt4, 1u), 0u},
           "each GT4 packet is keyed by its record's index");
     check(core.mem_r32(kPool) >> 24 == 12u && (core.mem_r32(kPool + 4u) >> 24) == 0x3Cu,

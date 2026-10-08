@@ -93,8 +93,8 @@ void testSopTileGrid(Core &core) {
   check(call(core, kEntry), "the SOP tile grid returns");
   const std::uint32_t firstX = core.mem_r16(kPool + 8u);
   const std::uint32_t secondX = core.mem_r16(kPool + 16u + 8u);
-  check(core.emission.keyFor(kPool) == RecordKey{kEntry, kTiles, 0u, 0u} &&
-            core.emission.keyFor(kPool + 16u) == RecordKey{kEntry, kTiles + 2u, 0u, 0u},
+  check(core.emission.identityFor(kPool) == RecordKey{kEntry, kTiles, 0u, 0u} &&
+            core.emission.identityFor(kPool + 16u) == RecordKey{kEntry, kTiles + 2u, 0u, 0u},
         "each tile sprite is keyed by its map cell");
   check(core.mem_r8(0x8010D390u) == 7u && core.mem_r32(0x8010D2FCu) == kScript + 2u && core.mem_r8(0x8010D391u) == 8u,
         "an expired palette cycle reloads its countdown and advances its script; the others count down");
@@ -103,7 +103,7 @@ void testSopTileGrid(Core &core) {
   core.mem_w16(kNode + 0x28u, 176u);
   core.r[4] = kNode;
   check(call(core, kEntry), "the scrolled SOP tile grid returns");
-  check(core.emission.keyFor(kPool) == RecordKey{kEntry, kTiles + 2u, 0u, 0u} &&
+  check(core.emission.identityFor(kPool) == RecordKey{kEntry, kTiles + 2u, 0u, 0u} &&
             core.mem_r16(kPool + 8u) == ((secondX - 16u) & 0xFFFFu) && firstX != secondX,
         "after a 16 px scroll the same cell keeps its key at its moved position");
 }
@@ -134,10 +134,10 @@ void testTileGridMargin(Game &game) {
     check(tomba2::render::PacketPool(core).cursor() == kPool + columns * kRows * kTileBytes + kHeaderBytes,
           margin == 0 ? "4:3 walks the guest's 22 columns" : "16:9 walks 29 columns across the canvas");
     if (margin == 0) {
-      check(core.emission.keyFor(kPool) == RecordKey{kEntry, kTiles, 0u, 0u} && core.mem_r16s(kPool + 8u) == -8,
+      check(core.emission.identityFor(kPool) == RecordKey{kEntry, kTiles, 0u, 0u} && core.mem_r16s(kPool + 8u) == -8,
             "4:3 starts at map column 0, 8 px left of the screen");
     } else {
-      check(core.emission.keyFor(kPool) == RecordKey{kEntry, kTiles + 28u * 2u, kPreviousLap, 0u} &&
+      check(core.emission.identityFor(kPool) == RecordKey{kEntry, kTiles + 28u * 2u, kPreviousLap, 0u} &&
                 core.mem_r16s(kPool + 8u) == -72,
             "16:9 starts at map column 28 of the previous lap (column -4), across the left margin");
     }
@@ -157,18 +157,18 @@ void testTileGridMargin(Game &game) {
   check(call(core, kEntry), "the narrow SOP tile grid returns");
   std::set<std::tuple<std::uint32_t, std::uint32_t>> keys;
   for (std::uint32_t tile = 0; tile < kCanvasColumns * kRows; tile++) {
-    const auto key = core.emission.keyFor(kPool + tile * kTileBytes);
+    const auto key = core.emission.identityFor(kPool + tile * kTileBytes);
     keys.emplace(key ? key->object : 0u, key ? key->element : 0u);
   }
   check(keys.size() == kCanvasColumns * kRows, "every tile of a wrapped map has its own key");
-  check(core.emission.keyFor(kPool) == RecordKey{kEntry, kTiles + 18u * 2u, kPreviousLap, 0u} &&
-            core.emission.keyFor(kPool + 26u * kTileBytes) == RecordKey{kEntry, kTiles, 1u, 0u},
+  check(core.emission.identityFor(kPool) == RecordKey{kEntry, kTiles + 18u * 2u, kPreviousLap, 0u} &&
+            core.emission.identityFor(kPool + 26u * kTileBytes) == RecordKey{kEntry, kTiles, 1u, 0u},
         "column -4 is cell 18 of the previous lap and column 22 is cell 0 of the next");
   beginFrame(core);
   core.mem_w16(kNode + 0x28u, 176u);
   core.r[4] = kNode;
   check(call(core, kEntry), "the scrolled narrow SOP tile grid returns");
-  check(core.emission.keyFor(kPool + 25u * kTileBytes) == RecordKey{kEntry, kTiles, 1u, 0u},
+  check(core.emission.identityFor(kPool + 25u * kTileBytes) == RecordKey{kEntry, kTiles, 1u, 0u},
         "a repeated cell keeps its lap as it scrolls");
   core.mem_w8(kNode + 0x10u, mapWidth);
   game.guestDisplay.latch(GuestProjectionPlan{});
@@ -193,9 +193,9 @@ void testSopGround(Core &core) {
   core.r[4] = kList;
   check(call(core, kEntry), "the SOP ground returns");
   check(core.mem_r32(kBlockA + 4u) == 3u && core.mem_r32(kBlockA + 0x104u) == 2u &&
-            core.emission.keyFor(kBlockA) == RecordKey{kEntry, kBlockA, 0u, 0u} &&
-            core.emission.keyFor(kBlockA + 0x100u) == RecordKey{kEntry, kBlockA, 0u, 0u} &&
-            core.emission.keyFor(kBlockB) == RecordKey{kEntry, kBlockB, 0u, 0u},
+            core.emission.identityFor(kBlockA) == RecordKey{kEntry, kBlockA, 0u, 0u} &&
+            core.emission.identityFor(kBlockA + 0x100u) == RecordKey{kEntry, kBlockA, 0u, 0u} &&
+            core.emission.identityFor(kBlockB) == RecordKey{kEntry, kBlockB, 0u, 0u},
         "both lists of a visible block are drawn under that block");
 
   beginFrame(core);
@@ -203,7 +203,7 @@ void testSopGround(Core &core) {
   core.mem_w16(kList + 0x10u, 0x40u);
   core.r[4] = kList;
   check(call(core, kEntry), "the SOP ground returns with one block");
-  check(core.emission.keyFor(kBlockB) == RecordKey{kEntry, kBlockB, 0u, 0u},
+  check(core.emission.identityFor(kBlockB) == RecordKey{kEntry, kBlockB, 0u, 0u},
         "a block keeps its key when it moves to another list slot");
 }
 
@@ -225,8 +225,8 @@ void testGlyphs(Core &core) {
   core.r[31] = kReturn;
   check(psx::cpu::dispatchGuest(core, kEntry, psx::cpu::ExecutionBudget::fromCycles(1000000u)).returned(),
         "the glyph emitter returns");
-  check(core.emission.keyFor(kPool) == RecordKey{kEntry, kString, 0u, 0u} &&
-            core.emission.keyFor(kPool + 20u) == RecordKey{kEntry, kString, 2u, 0u},
+  check(core.emission.identityFor(kPool) == RecordKey{kEntry, kString, 0u, 0u} &&
+            core.emission.identityFor(kPool + 20u) == RecordKey{kEntry, kString, 2u, 0u},
         "each glyph is keyed by its string and its byte offset in it");
 }
 
@@ -258,9 +258,9 @@ void testRain(Core &core) {
     core.r[4] = kNode;
     check(call(core, kEntry), "the rain returns");
     check(core.mem_r32(kPacketPool) == kPool + 32u * kDropBytes, "every drop with a trail draws");
-    check(core.emission.keyFor(kPool) == RecordKey{kEntry, kNode, 0u, 0u} &&
-              core.emission.keyFor(kPool + 5u * kDropBytes) == RecordKey{kEntry, kNode, 5u, 0u} &&
-              core.emission.keyFor(kPool + 31u * kDropBytes) == RecordKey{kEntry, kNode, 31u, 0u},
+    check(core.emission.identityFor(kPool) == RecordKey{kEntry, kNode, 0u, 0u} &&
+              core.emission.identityFor(kPool + 5u * kDropBytes) == RecordKey{kEntry, kNode, 5u, 0u} &&
+              core.emission.identityFor(kPool + 31u * kDropBytes) == RecordKey{kEntry, kNode, 31u, 0u},
           "drop i's streak is element i of the rain node in every frame");
   }
 }

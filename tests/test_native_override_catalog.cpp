@@ -134,8 +134,8 @@ int main() {
   check(produced.returned() && core.r[2] == 73u && core.nativeDispatcher().isProducer(kProducerEntry) &&
             !core.nativeDispatcher().isProducer(kEntry),
         "a catalog declaration with a producer installs a producer override");
-  check(core.emission.keyFor(kListPacket) == listKey && core.emission.keyFor(kRecordPacket) == recordKey &&
-            !core.emission.keyFor(kUnscopedPacket) && !core.emission.isOpen(),
+  check(core.emission.identityFor(kListPacket) == listKey && core.emission.identityFor(kRecordPacket) == recordKey &&
+            !core.emission.identityFor(kUnscopedPacket) && !core.emission.isOpen(),
         "producer stores are keyed by the a0 object and by each walked instance, others stay unkeyed");
   core.r[31] = kReturn;
   auto result = psx::cpu::dispatchGuest(core, kEntry, budget);
