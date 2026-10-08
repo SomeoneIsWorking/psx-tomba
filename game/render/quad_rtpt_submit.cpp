@@ -1,0 +1,243 @@
+// game/render/quad_rtpt_submit.cpp — see quad_rtpt_submit.h. Faithful substrate-mirror bodies of
+// FUN_8003B054 and FUN_8003B320, RE'd instruction-by-instruction from the recorded binary evidence's
+// translation (authenticated executable/overlay evidence guest 0x8003B054, authenticated executable/overlay evidence
+// guest 0x8003B320 — ground truth per CLAUDE.md for GTE-bearing code; Ghidra's COP2 decompile of FUN_8003B320 renders
+// the GTE data-register writes as synthetic setCopReg/getCopReg/copFunction "bus" pseudo-calls that
+// do not resolve to plain register indices, so it was cross-checked against, not relied on, for the
+// GTE portion — FUN_8003B054 has no GTE so Ghidra's decompile of it was already reliable and is
+// reproduced 1:1 below).
+//
+// WIRED + SBS-gated 2026-07-08. Two bugs found by re-diffing the draft against guest 0x8003B320
+// and fixed here:
+//   (1) the on-screen test was `&&` (ALL 4 corners in range) — ground truth is `||` (ANY corner in
+//       range; it jumps to "keep" the instant one corner passes, only drops if all 4 fail), same
+//       convention as OverlayGt3Gt4/OverlayGroundGt3Gt4's "any1"/"any2" gates.
+//   (2) the real `addiu sp,-16` guest stack frame (pure scratch: FLAG/z0/otz working values) was
+//       not mirrored at all — fixed per CLAUDE.md's "MIRROR THE GUEST STACK" directive.
+// Also added the NCLIP call guest 0x8003B320 performs between RTPT and the 4th-corner RTPS —
+// its only output (MAC0) is provably clobbered by the RTPS flag store before ever being read, so
+// it has zero effect on any surviving register/RAM byte, but it's a real executed op and this
+// leaf's contract is op-exact transcription.
+#include "quad_rtpt_submit.h"
+#include "core.h"
+#include "core/entry/game_ctx.h"
+#include "core/overrides/native_override_catalog.h"
+#include "game.h"
+#include "horizontal_visibility_cull.h"
+#include "ordering_table.h"
+#include "render_node.h"
+#include <cstdint>
+#include <cstdio>
+#include <lucent/log.h>
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// FUN_8003B054 — rotate the 4 corner fields of a quad record from `src` into `dst`'s reserved
+// vertex-index/extent slots (+0xC/+0x14/+0x1C/+0x24, each a u16; a shared 2nd word at +0xE/+0x16
+// filled from src+2/src+6 in the SAME order for every non-zero index). `idx` selects which
+// physical corner of `src` becomes dst's "first" corner (a cyclic rotation) and, for idx 1..3,
+// applies a small "-1" shrink to specific BYTES of the 4 written u16s (idx1: low byte of all 4;
+// idx2: high byte of all 4; idx3: both bytes of all 4) — idx 0 does no byte adjustment and writes
+// all 4 fields as FULL 32-bit words (src's next word, not just its low u16) with an early return
+// that SKIPS the shared +0xE/+0x16 tail (traced exactly from guest 0x8003B054's control flow —
+// this asymmetry is real, not an RE artifact: idx0 is qualitatively different from 1/2/3).
+void QuadRtptSubmit::rotateQuadCorners(Core *c) {
+  const uint32_t dst = c->r[4];         // a0
+  const uint32_t src = c->r[5];         // a1
+  const int32_t idx = (int32_t)c->r[6]; // a2: corner/orientation selector
+
+  if (idx == 1) {
+    c->mem_w16(dst + 0x0C, c->mem_r16(src + 4));
+    c->mem_w16(dst + 0x14, c->mem_r16(src + 0));
+    c->mem_w16(dst + 0x1C, c->mem_r16(src + 12));
+    c->mem_w16(dst + 0x24, c->mem_r16(src + 8));
+    c->mem_w8(dst + 0x0C, (uint8_t)(c->mem_r8(dst + 0x0C) - 1)); // low byte of each corner -1
+    c->mem_w8(dst + 0x14, (uint8_t)(c->mem_r8(dst + 0x14) - 1));
+    c->mem_w8(dst + 0x1C, (uint8_t)(c->mem_r8(dst + 0x1C) - 1));
+    c->mem_w8(dst + 0x24, (uint8_t)(c->mem_r8(dst + 0x24) - 1));
+  } else if (idx < 2) {
+    if (idx != 0) {
+      return;
+    }
+    c->mem_w32(dst + 0x0C, c->mem_r32(src + 0));
+    c->mem_w32(dst + 0x14, c->mem_r32(src + 4));
+    c->mem_w16(dst + 0x1C, c->mem_r16(src + 8));
+    c->mem_w16(dst + 0x24, c->mem_r16(src + 12));
+    return; // idx==0 skips the shared tail below — faithful to guest 0x8003B054
+  } else if (idx == 2) {
+    c->mem_w16(dst + 0x0C, c->mem_r16(src + 8));
+    c->mem_w16(dst + 0x14, c->mem_r16(src + 12));
+    c->mem_w16(dst + 0x1C, c->mem_r16(src + 0));
+    c->mem_w16(dst + 0x24, c->mem_r16(src + 4));
+    c->mem_w8(dst + 0x0D, (uint8_t)(c->mem_r8(dst + 0x0D) - 1)); // high byte of each corner -1
+    c->mem_w8(dst + 0x15, (uint8_t)(c->mem_r8(dst + 0x15) - 1));
+    c->mem_w8(dst + 0x1D, (uint8_t)(c->mem_r8(dst + 0x1D) - 1));
+    c->mem_w8(dst + 0x25, (uint8_t)(c->mem_r8(dst + 0x25) - 1));
+  } else {
+    if (idx != 3) {
+      return;
+    }
+    c->mem_w16(dst + 0x0C, c->mem_r16(src + 12));
+    c->mem_w16(dst + 0x14, c->mem_r16(src + 8));
+    c->mem_w16(dst + 0x1C, c->mem_r16(src + 4));
+    c->mem_w16(dst + 0x24, c->mem_r16(src + 0));
+    // both bytes of each of the 4 corners -1 (two independent byte-decrements each, NOT a u16 -=1 —
+    // matches guest 0x8003B054's per-byte store order exactly, borrow behaviour included).
+    c->mem_w8(dst + 0x0C, (uint8_t)(c->mem_r8(dst + 0x0C) - 1));
+    c->mem_w8(dst + 0x0D, (uint8_t)(c->mem_r8(dst + 0x0D) - 1));
+    c->mem_w8(dst + 0x14, (uint8_t)(c->mem_r8(dst + 0x14) - 1));
+    c->mem_w8(dst + 0x15, (uint8_t)(c->mem_r8(dst + 0x15) - 1));
+    c->mem_w8(dst + 0x1C, (uint8_t)(c->mem_r8(dst + 0x1C) - 1));
+    c->mem_w8(dst + 0x1D, (uint8_t)(c->mem_r8(dst + 0x1D) - 1));
+    c->mem_w8(dst + 0x24, (uint8_t)(c->mem_r8(dst + 0x24) - 1));
+    c->mem_w8(dst + 0x25, (uint8_t)(c->mem_r8(dst + 0x25) - 1));
+  }
+
+  // shared tail (idx 1/2/3 only): second word's two halves, UNROTATED (always src+2/src+6).
+  c->mem_w16(dst + 0x16, c->mem_r16(src + 6));
+  c->mem_w16(dst + 0x0E, c->mem_r16(src + 2));
+}
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// FUN_8003B320 — project a quad through an already-composed GTE transform (RTPT the first 3
+// corners, RTPS the 4th) and, if it survives the on-screen + OT-range gates, bump-copy the
+// pre-built 10-word packet record into the packet pool and link it into the OT bucket for its
+// depth. Traced from guest 0x8003B320 (authenticated executable/overlay evidence) — same gte_op idiom as the already-
+// owned OverlayGt3Gt4::gt3/gt4 (game/render/overlay_gt3gt4.cpp), which this mirrors closely: RTPT
+// via 0x4A280030, an intervening NCLIP via 0x4B400006 (see below), RTPS via 0x4A180001, AVSZ4 via
+// 0x4B68002E, OTZ-bucket compute identical to overlay_gt_otz_index (z>>10 exponent-shift index,
+// valid range [4,0x7ff]).
+//
+// NCLIP: guest 0x8003B320 calls it between the RTPT and the VXY3/RTPS setup, storing its MAC0
+// result (data reg 24) to the same 4-byte FLAG scratch slot the RTPT/RTPS flag checks use — but
+// that slot is unconditionally overwritten by the POST-RTPS flag store before anything ever reads
+// it back (traced instruction-by-instruction: no branch, no other read, in between). So the call
+// is REAL (an actually-executed GTE op) but its only output is provably dead on every path. It is
+// reproduced anyway because this leaf's contract is op-exact transcription. A prior draft of this file both omitted the
+// call and mis-documented it as absent ("no NCLIP/backface test here"); fixed 2026-07-08.
+//
+// Real 16-byte guest stack frame (RE: `addiu sp,-16`, no saved registers — pure scratch: +0 = the
+// FLAG scratch shared by all three flag checks, +4 = the raw AVSZ4 z0, +8 = the OTZ working value
+// through its bias-add / shift-recombine / range-gate stages) MIRRORED per CLAUDE.md ("MIRROR THE
+// GUEST STACK... never revert/exclude a leaf because it pushes a frame") — a prior draft left this
+// frame entirely unmirrored (host C++ locals only, no c->r[29] descent at all).
+//
+// out            (a0): 10-word (40-byte) packet record. +4/+12/+20/+28/+36 = colour/uv/etc already
+//                       filled in by the caller (verbatim-copied, this leaf never reads their
+//                       meaning); +8/+16/+24/+32 = the 4 SXY slots THIS leaf fills via RTPT/RTPS.
+// composedXform  (a1): 6 packed words = GTE VXY0/VZ0/VXY1/VZ1/VXY2/VZ2 (MTC2-ready model-space
+//                       corner data for the RTPT), plus 2 more words at +24/+28 = VXY3/VZ3 for the
+//                       RTPS 4th corner. The caller composes this (un-RE'd, outside this band —
+//                       see quad_rtpt_submit.h); this leaf only consumes it.
+// otzBias        (a2): added to the AVSZ4 result before the OT-bucket index is derived.
+void QuadRtptSubmit::submitQuad(Core *c) {
+  const uint32_t out = c->r[4];             // a0
+  const uint32_t xf = c->r[5];              // a1: composedXform
+  const int32_t otzBias = (int32_t)c->r[6]; // a2
+  lucent::debug(
+      "quadrtpt", "submitQuad out={:08X} xf={:08X} otzBias={} node={:08X}", out, xf, otzBias, cur_render_node(c));
+
+  c->r[29] -= 16;
+  const uint32_t sp = c->r[29];
+  auto pop = [&] {
+    c->r[29] += 16;
+  };
+
+  gte_write_data(0, c->mem_r32(xf + 0));  // VXY0
+  gte_write_data(1, c->mem_r32(xf + 4));  // VZ0
+  gte_write_data(2, c->mem_r32(xf + 8));  // VXY1
+  gte_write_data(3, c->mem_r32(xf + 12)); // VZ1
+  gte_write_data(4, c->mem_r32(xf + 16)); // VXY2
+  gte_write_data(5, c->mem_r32(xf + 20)); // VZ2
+  gte_op(c, 0x4A280030u);                 // RTPT (corners 0..2)
+  c->mem_w32(sp + 0, gte_read_ctrl(31));
+  if ((int32_t)c->mem_r32(sp + 0) < 0) {
+    c->mem_w32(sp + 8, (uint32_t)-1);
+    pop();
+    return;
+  } // GTE FLAG error -> drop
+
+  c->mem_w32(out + 8, gte_read_data(12));  // SXY0
+  c->mem_w32(out + 16, gte_read_data(13)); // SXY1
+  c->mem_w32(out + 24, gte_read_data(14)); // SXY2
+
+  gte_op(c, 0x4B400006u);                // NCLIP (real, provably dead output — see banner)
+  c->mem_w32(sp + 0, gte_read_data(24)); // MAC0 (clobbered below before ever being read)
+
+  gte_write_data(0, c->mem_r32(xf + 24)); // VXY3
+  gte_write_data(1, c->mem_r32(xf + 28)); // VZ3
+  gte_op(c, 0x4A180001u);                 // RTPS (corner 3)
+  c->mem_w32(sp + 0, gte_read_ctrl(31));
+  if ((int32_t)c->mem_r32(sp + 0) < 0) {
+    c->mem_w32(sp + 8, (uint32_t)-1);
+    pop();
+    return;
+  } // GTE FLAG error -> drop
+  c->mem_w32(out + 32, gte_read_data(14)); // SXY3
+
+  gte_op(c, 0x4B68002Eu); // AVSZ4
+  c->mem_w32(sp + 4, gte_read_data(7));
+  int32_t z0 = (int32_t)c->mem_r32(sp + 4);
+  c->mem_w32(sp + 8, (uint32_t)z0);
+  if (z0 < 0) {
+    pop();
+    return;
+  } // raw AVSZ4 error -> drop (checked BEFORE bias, faithful)
+  int32_t z = z0 + otzBias;
+  c->mem_w32(sp + 8, (uint32_t)z);
+  if (z < 0) {
+    pop();
+    return;
+  } // biased z still must be non-negative
+
+  using tomba2::render::OrderingTable;
+  const int32_t otz = OrderingTable::compressDepth(z);
+  c->mem_w32(sp + 8, (uint32_t)otz);
+  if (!OrderingTable::inDepthRange(otz)) {
+    pop();
+    return;
+  }
+
+  // on-screen test: ANY of the 4 corners' SX in [0,320) (unsigned 16-bit compare — a negative/
+  // wrapped coordinate fails), then ANY corner's SY in [0,240) — an OR gate, not AND (FIX
+  // 2026-07-08: a prior draft used && here, dropping quads the substrate keeps whenever fewer
+  // than all 4 corners were on-screen; ground truth guest 0x8003B320 jumps to "keep" the instant
+  // one corner passes, same "any1"/"any2" convention as OverlayGt3Gt4/OverlayGroundGt3Gt4).
+  auto sx = [&](uint32_t off) {
+    return (uint16_t)c->mem_r16(out + off);
+  };
+  // X over the draw window: [0, 320) at 4:3.
+  const std::uint32_t xs[4] = {sx(8), sx(16), sx(24), sx(32)};
+  bool xok = tomba2::horizontal_cull::forDrawWindow(c).keepsX(xs, 4, tomba2::horizontal_cull::Domain::Packed16);
+  if (!xok) {
+    pop();
+    return;
+  }
+  bool yok = sx(10) < 240 || sx(18) < 240 || sx(26) < 240 || sx(34) < 240;
+  if (!yok) {
+    pop();
+    return;
+  }
+
+  // bump-copy the whole 10-word record into the packet pool, OT-link it.
+  const tomba2::render::PacketPool packets(*c);
+  const uint32_t pool = packets.cursor();
+  OrderingTable::active(*c).link(pool, 9u, (uint32_t)otz);
+  uint32_t dstw = pool + 4;
+  for (uint32_t off = 4; off <= 36; off += 4, dstw += 4) {
+    c->mem_w32(dstw, c->mem_r32(out + off));
+  }
+  packets.setCursor(pool + 40);
+
+  pop(); // ascend the real 16-byte frame
+}
+
+// Wiring (frontier, 2026-07-08): both leaves are reached only via direct C calls the recorded binary evidence
+// generates (`guest 0x8003B054(c)`/`guest 0x8003B320(c)`), which always route through the recorded binary evidence's
+// own per-Core image-qualified runtime dispatcher table. tomba::native::declareOverride
+// (runtime/psx/override_registry.h) installs into the ONE process-global override registry, which runs original guest
+// instructions on the oracle leg (core B) and the native handler everywhere else — NOT a raw
+// tomba::native::declareOverride, since these are engine/game natives and the oracle must run the pure guest body.
+void QuadRtptSubmit::registerOverrides(Game *) {
+  tomba::native::declareOverride(0x8003B054u, "&QuadRtptSubmit::rotateQuadCorners", &QuadRtptSubmit::rotateQuadCorners);
+  tomba::native::declareOverride(0x8003B320u, "&QuadRtptSubmit::submitQuad", &QuadRtptSubmit::submitQuad);
+}
