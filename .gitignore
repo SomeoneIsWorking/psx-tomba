@@ -1,0 +1,21 @@
+# Build and disposable runtime artifacts
+build/
+/build_clang/
+scratch/
+# User-supplied disc assets are provisioned locally, never committed
+*.chd
+.env
+/psxport_settings.ini
+# The framework submodule's own working-tree noise
+external/psxport/build/
+external/psxport/scratch/
+*.log
+
+# Python bytecode — never committed (compiled .pyc embed ABSOLUTE SOURCE PATHS,
+# i.e. a machine-path leak that a TEXT-only audit cannot see: they are binary).
+__pycache__/
+*.pyc
+
+# The framework. Not tracked: either a relative symlink to the workspace's live psxport checkout
+# (local) or a clone of its main (fresh machine, CI). Managed by tools/psxport_fetch.py.
+/external/psxport

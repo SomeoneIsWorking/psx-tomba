@@ -1,0 +1,9 @@
+[project]
+name = "tomba2engine-tools"
+version = "0.0.0"
+description = "Locked Python environment for Tomba2Engine tooling"
+requires-python = ">=3.11"
+dependencies = ["pillow>=10", "numpy>=1.26", "capstone>=5.0"]
+
+[tool.uv]
+package = false
