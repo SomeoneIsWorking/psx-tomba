@@ -31,7 +31,7 @@
 // more skips the UVs entirely and leaves whatever the packet already held — that is the guest's
 // behaviour, not an oversight.
 #include "core.h"
-#include "render/ordering_table.h"
+#include "render/guest_ordering_table.h"
 #include "ui/panel.h"
 
 namespace {

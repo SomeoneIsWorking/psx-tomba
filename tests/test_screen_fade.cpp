@@ -1,7 +1,7 @@
 // ScreenFade (FUN_8007E9C8): the fill and DR_MODE packets at 4:3 and across the record canvas.
 #include "core/overrides/native_override_catalog.h"
 #include "game.h"
-#include "ordering_table.h"
+#include "guest_ordering_table.h"
 #include "screen_fade.h"
 #include "stub_runtime.h"
 #include "wide_window.h"

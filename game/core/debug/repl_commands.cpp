@@ -1,10 +1,9 @@
-// repl_commands.cpp — the game-side REPL commands (GameHooks::replCommand).
+// repl_commands.cpp — the game-side developer commands (GameHooks::replCommand).
 //
-// The framework REPL (runtime/psx/repl.cpp) drives framework commands (memory/input/screenshot/
-// gate/render toggles) that touch only c->mem_*, c->game->pad/spu_audio, mods and cfg. For any command
-// it does NOT itself handle, it calls GameRuntime::replCommand; the legacy adapter forwards here.
-// Commands that reach Tomba! 2 classes or guest layouts live on this side so the framework names no
-// game type or address. Returns true iff the command was recognised and handled.
+// The framework's control channel handles framework commands (memory, input, screenshots, render
+// toggles); TombaRuntime::controlCommand hands every other command here. Commands that reach Tomba! 2
+// classes or guest layouts live on this side so the framework names no game type or address. Returns
+// true iff the command was recognised and handled.
 #include "audio/music_list.h" // class MusicList — `musictest`
 #include "cfg.h"
 #include "core.h"

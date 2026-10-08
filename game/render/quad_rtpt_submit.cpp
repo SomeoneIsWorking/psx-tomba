@@ -23,8 +23,8 @@
 #include "core/entry/game_ctx.h"
 #include "core/overrides/native_override_catalog.h"
 #include "game.h"
+#include "guest_ordering_table.h"
 #include "horizontal_visibility_cull.h"
-#include "ordering_table.h"
 #include "render_node.h"
 #include <cstdint>
 #include <cstdio>

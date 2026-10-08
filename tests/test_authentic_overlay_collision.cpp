@@ -2,7 +2,7 @@
 #include "core/overrides/native_override_catalog.h"
 #include "game.h"
 #include "lightrec_executor.h"
-#include "render/ordering_table.h"
+#include "render/guest_ordering_table.h"
 #include "stub_runtime.h"
 
 #include <cstdint>

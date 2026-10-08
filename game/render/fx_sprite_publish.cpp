@@ -1,7 +1,7 @@
 // game/render/fx_sprite_publish.cpp — scene camera load and anchor projection. See fx_sprite_publish.h.
 #include "fx_sprite_publish.h"
 #include "gte_registers.h"
-#include "ordering_table.h"
+#include "guest_ordering_table.h"
 
 namespace {
 

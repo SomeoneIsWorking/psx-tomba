@@ -27,7 +27,7 @@
 //                      override the CLUT half of the uv word
 #include "core.h"
 #include "guest_call.h"
-#include "render/ordering_table.h"
+#include "render/guest_ordering_table.h"
 #include "ui/ui_sprite.h"
 
 namespace {

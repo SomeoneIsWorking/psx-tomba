@@ -17,6 +17,7 @@ the capability rows below:
   replayed, at 4:3, 320x224; at 1x it is byte-identical to the Beetle `device` path. The display-time
   native renderer is deleted. Against the pre-migration hybrid it has no widescreen yet (S005), and 60
   fps interpolation (S006) covers only primitives a producer keys.
+- Startup: Tomba! 2 starts through psxport's multi-title host with the in-window picker (S026).
 - Platforms: Linux x86-64 (S019); Windows, macOS and Android are missing (S020-S022).
 
 ## Current focus
@@ -53,6 +54,7 @@ original guest body, before the recorded gameplay frontier is restored.
 | S023 | Tomba! 2 loads complete without loading-only waits or presentation | partial | — | G005 |
 | S024 | Tomba! 1 loads complete without loading-only waits or presentation | missing | — | G005 |
 | S025 | Tomba! 2 files in-app bug reports (B key) with a replayable reproduction | partial | — | — |
+| S026 | Tomba runs through psxport's multi-title host and in-window picker | partial | S010 | — |
 
 ### S001 — Tomba! 2 reaches representative gameplay as a native/Lightrec product
 
@@ -153,3 +155,7 @@ Missing capability: No load operation classified for Tomba! 1.
 ### S025 — Tomba! 2 files in-app bug reports (B key) with a replayable reproduction
 
 Gap: Headless REPL `bugreport` at pad frame 2400 saved the presented shot, the PSX render of the same ordering table (`Engine::captureBugReportReference`), `repro.pad` and its start card under `PSXPORT_BUG_REPORT_DIR`; replaying the report and filing again at 2400 was byte-identical. Measured before the native renderer was deleted; not re-run since. The windowed B key and form are unrun by an agent. Saved by default under `<user data>/tomba2/bug-reports/`.
+
+### S026 — Tomba runs through psxport's multi-title host and in-window picker
+
+Gap: Tomba! 2 is catalogued and boots, warps and returns to the picker headlessly; its panel holds the in-game attract-demo field after the 900-step pre-roll, not `OP.FMV` (the opening movie is Demo's blocking `fmv.play`). Tomba! 1 is not catalogued: its product aborts on the guest task fault at 0x800E7D5C (S010, issue 0008). The REPL-driven tools `tools/gate.py`, `tools/oracle_tomba2.py` and `tools/title_prompts.py` still assume the removed stdin REPL and are stale.

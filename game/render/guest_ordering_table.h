@@ -1,4 +1,4 @@
-// game/render/ordering_table.h — the guest's ordering table and packet pool, as its render code uses them.
+// game/render/guest_ordering_table.h — the guest's ordering table and packet pool, as its render code uses them.
 //
 // Every guest render leaf takes a packet from the bump pool whose cursor lives at 0x800BF544, and links
 // it into a bucket of the OT whose base the frame driver publishes at 0x800ED8C8. The link is libgpu's

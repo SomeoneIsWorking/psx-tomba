@@ -1,6 +1,6 @@
 // OrderingTable and PacketPool: the guest's AddPrim link, chain splice, pool bump and depth buckets.
 #include "game.h"
-#include "ordering_table.h"
+#include "guest_ordering_table.h"
 #include "stub_runtime.h"
 
 #include <cstdint>

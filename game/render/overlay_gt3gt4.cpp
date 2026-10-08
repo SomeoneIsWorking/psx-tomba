@@ -25,10 +25,10 @@
 #include "core/overrides/native_override_catalog.h" // tomba::native::declareOverride — declared, not locally extern'd
 #include "game.h"
 #include "guest_call.h"
+#include "guest_ordering_table.h"
 #include "horizontal_visibility_cull.h"
 #include "model_element.h"
 #include "model_packet.h"
-#include "ordering_table.h"
 #include <cstddef>
 #include <stdio.h>
 

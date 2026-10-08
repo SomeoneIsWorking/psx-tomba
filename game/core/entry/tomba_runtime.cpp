@@ -3,14 +3,19 @@
 #include "core.h"
 #include "engine/engine.h"
 #include "entry/game_ctx.h"
+#include "entry/main_handoff.h"
 #include "frame/frame_driver.h"
 #include "game.h"
+#include "game_tomba2.h"
 #include "guest_call.h"
+#include "memcard.h"
 #include "overrides/native_override_catalog.h"
 #include "overrides/register_overrides.h"
 #include "title_facts.h"
 
+#include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <lucent/log.h>
 
 namespace tomba {
@@ -26,12 +31,17 @@ void TombaRuntime::destroyContext(void *context) {
 }
 
 void TombaRuntime::registerOverrides(Game &game) {
+  // The host loaded the boot stub; its only job is the hand-off to MAIN.EXE, which the declarations
+  // below bind to.
+  loadMainExecutable(game);
+  games_tomba2_init();
+  card_overrides_init(&game);
   register_engine_overrides(game);
   bindLoadedResident(game.core);
 }
 
 void TombaRuntime::bindLoadedResident(Core &core) {
-  // Called only immediately after the two resident-load lifecycle boundaries.
+  // Called only immediately after the resident load.
   // Overlay activation must supply its own image-specific declarations instead.
   const auto *program = guestProgramImage();
   const auto resident = program ? core.currentImageIdentity(program->gameMainEntry) : std::nullopt;
@@ -65,9 +75,6 @@ bool TombaRuntime::sealedFrameIsCut(Core &core) const {
 
 void TombaRuntime::bootInit(Core &core) {
   Core *c = &core;
-  // BootStub reloads MAIN.EXE after splash presentation. Bind native declarations
-  // to that final image generation before any guest function can call them.
-  bindLoadedResident(core);
   lucent::info("native_boot", "FUN_80050b08 override: running init prefix");
 
   // FUN_80050b08's init prefix, without its scheduler loop. The guest calls and native engine
@@ -125,6 +132,24 @@ void TombaRuntime::bootInit(Core &core) {
 
 const GuestWidescreenProjection *TombaRuntime::guestWidescreenProjection() const {
   return &aspectPolicy_;
+}
+
+bool TombaRuntime::controlCommand(Core &core, const char *cmd, const char *line, FILE *out) {
+  if (std::strcmp(cmd, "warp") != 0) {
+    // The title's developer commands (bgm, invtest, ...) answer through the log.
+    const bool handled = replCommand(core, cmd, line);
+    if (handled) {
+      std::fprintf(out, "ok: %s\n", cmd);
+    }
+    return handled;
+  }
+  auto *driver = dynamic_cast<TombaFrameDriver *>(core.game->frameDriver.get());
+  if (driver == nullptr) {
+    lucent::error("tomba-native", "warp arrived with no Tomba! 2 frame driver");
+    std::abort();
+  }
+  std::fprintf(out, "%s\n", driver->devWarp().arm(core, line).c_str());
+  return true;
 }
 
 } // namespace tomba

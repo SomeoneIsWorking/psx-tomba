@@ -1,7 +1,7 @@
 // LetterboxBars (FUN_80026864): the bar height machine and the two rects, at 4:3 and with a margin.
 #include "game.h"
+#include "guest_ordering_table.h"
 #include "letterbox_bars.h"
-#include "ordering_table.h"
 #include "stub_runtime.h"
 
 #include <cstdint>

@@ -5,7 +5,7 @@
 #include "core/overrides/native_override_catalog.h"
 #include "game.h"
 #include "psx_exe_image.h"
-#include "render/ordering_table.h"
+#include "render/guest_ordering_table.h"
 #include "render/screen_fade.h"
 #include "render/wide_window.h"
 #include "stub_runtime.h"

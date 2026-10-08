@@ -1,5 +1,5 @@
-// game/render/ordering_table.cpp — OrderingTable and PacketPool. See ordering_table.h.
-#include "ordering_table.h"
+// game/render/guest_ordering_table.cpp — OrderingTable and PacketPool. See guest_ordering_table.h.
+#include "guest_ordering_table.h"
 
 #include "core.h"
 

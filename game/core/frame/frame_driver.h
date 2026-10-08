@@ -1,6 +1,8 @@
 #pragma once
 
 #include "debug/auto_drive.h"
+#include "debug/dev_warp.h"
+#include "frame/boot_cards.h"
 #include "frame/frame_diagnostics.h"
 #include "game_runtime.h"
 
@@ -37,9 +39,20 @@ public:
 
   void stepFrame(Core &core, uint32_t frame) override;
 
+  // The publisher cards precede the game's own first frame.
+  bool pastBootPrefix() const override {
+    return cards_.finished();
+  }
+
+  DevWarp &devWarp() {
+    return devWarp_;
+  }
+
 private:
   Game *game_;
+  BootCards cards_;
   AutoDrive autoDrive_;
+  DevWarp devWarp_;
   FrameDiagnostics diagnostics_;
 };
 

@@ -2,8 +2,8 @@
 #include "fx_sprite_publish.h"
 #include "game.h"
 #include "gte_registers.h"
+#include "guest_ordering_table.h"
 #include "hw_bind.h"
-#include "ordering_table.h"
 #include "stub_runtime.h"
 
 #include <cstdint>

@@ -68,8 +68,8 @@
 #include "core/overrides/native_override_catalog.h"
 #include "game.h"
 #include "guest_call.h"
+#include "guest_ordering_table.h"
 #include "horizontal_visibility_cull.h"
-#include "ordering_table.h"
 #include "render.h"
 // original guest-instruction fallbacks for the test-only substrate gate. The image-qualified runtime dispatcher is a
 // single PROCESS-GLOBAL table shared by EVERY Core (SBS core A AND core B), so the trampolines below MUST defer to the

@@ -41,6 +41,7 @@
 #include "core/entry/game_ctx.h"
 #include "core/overrides/guest_resume.h"
 #include "core/overrides/native_override_catalog.h" // DEMO image-scoped native declarations
+#include "frame/movie_policy.h"
 #include "game.h"
 #include "guest_call.h"
 #include "scheduler.h"       // native_task_spawn (FUN_80051F14 port) — Slip #4 s0 spawn
@@ -620,12 +621,7 @@ static uint32_t demo_menu_machine(Core *c) {
   // self-contained native .STR player (native_fmv.cpp — already plays LOGO/OP at boot), then replicate
   // state 7's teardown and return nonzero so s1 advances to s2 (the front-end/title proper).
   if (s4a >= 4) {
-    int skip = cfg_on("PSXPORT_NO_FMV") || cfg_on("PSXPORT_VK_HEADLESS");
-    const char *nf = cfg_str("PSXPORT_NO_FMV");
-    if (nf && atoi(nf) == 0 && *nf) {
-      skip = 0; // explicit PSXPORT_NO_FMV=0 forces FMV on
-    }
-    if (!skip) {
+    if (tomba::MoviePolicy::plays(true)) {
       c->game->fmv.play("MOVIE/OP.STR");
     } else if (cfg_dbg("demo")) {
       static int w = 0;

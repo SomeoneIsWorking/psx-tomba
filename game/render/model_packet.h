@@ -11,8 +11,8 @@
 
 #include "core.h"
 #include "gte_registers.h"
+#include "guest_ordering_table.h"
 #include "model_element.h"
-#include "ordering_table.h"
 
 #include <array>
 #include <cstddef>

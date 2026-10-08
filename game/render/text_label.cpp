@@ -25,8 +25,8 @@
 #include "core/overrides/native_override_catalog.h"
 #include "game.h"
 #include "guest_abi.h"
+#include "guest_ordering_table.h"
 #include "horizontal_visibility_cull.h"
-#include "ordering_table.h"
 #include "render.h"
 #include <stdint.h>
 

@@ -444,8 +444,8 @@ def provision_and_build_game(
     jobs: int,
     root: Path,
     env: dict[str, str],
-) -> Path:
-    main_exe = Path("scratch/bin/tomba2/MAIN.EXE")
+) -> None:
+    boot_stub = Path("scratch/bin/tomba2/SCUS_944.54")
     (root / "scratch/bin").mkdir(parents=True, exist_ok=True)
     run_checked(
         [
@@ -459,8 +459,8 @@ def provision_and_build_game(
         error="Tomba! 2 runtime-image provisioning failed",
         env=env,
     )
-    if not (root / main_exe).is_file():
-        raise LauncherError("Tomba! 2 provisioner did not produce MAIN.EXE")
+    if not (root / boot_stub).is_file():
+        raise LauncherError("Tomba! 2 provisioner did not produce the boot executable SCUS_944.54")
 
     say(f"building the native port (CMake -j{jobs})…")
     psxport_absolute = (
@@ -499,7 +499,6 @@ def provision_and_build_game(
         error="port build failed",
         env=env,
     )
-    return main_exe
 
 
 def main(arguments: Sequence[str] | None = None, *, root: Path = ROOT) -> int:
@@ -524,11 +523,11 @@ def main(arguments: Sequence[str] | None = None, *, root: Path = ROOT) -> int:
         discdump = configure_and_build(
             root, psxport, framework_build, cc, cxx, jobs, env
         )
-        main_exe = provision_and_build_game(
+        provision_and_build_game(
             disc, discdump, psxport, game_build, cc, cxx, jobs, root, env
         )
 
-        say("launching Tomba! 2 (native PC port)…")
+        say("launching Tomba (title selector)…")
         policy_root = psxport if psxport.is_absolute() else root / psxport
         policy = runpy.run_path(str(policy_root / "tools/port/launch_environment.py"))
         env = policy["player_environment"](env, product="tomba2")
@@ -539,7 +538,7 @@ def main(arguments: Sequence[str] | None = None, *, root: Path = ROOT) -> int:
         executable = game_build / "bin" / (
             "tomba2_port.exe" if platform.system() == "Windows" else "tomba2_port"
         )
-        exec_program(str(executable), [str(executable), str(main_exe)], env, root)
+        exec_program(str(executable), [str(executable)], env, root)
     except LauncherError as exc:
         print(f"{RED}[run] error:{RESET} {exc}", file=sys.stderr)
         return 1

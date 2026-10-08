@@ -88,8 +88,9 @@ baseline evidence; they are not Lightrec-product verification.
 
 Once the migration gate lands, `./run.sh` remains the slim locked launcher. With documented native
 dependencies, `uv`, a supported C/C++ compiler, and a user-supplied disc, zero arguments select the
-Tomba! 2 native/Lightrec product. `./run.sh tomba1` selects Tomba! 1 after that title reaches its own
-gate. Neither launcher path may emit guest source or invoke product tests.
+Tomba! 2 native/Lightrec product, started through psxport's multi-title host: one process, one window and
+the in-window title picker (`tomba2_port` with an executable argument runs that title directly). Tomba! 1
+joins the picker once its product runs past issue 0008; `./run.sh tomba1` still launches its own binary. Neither launcher path may emit guest source or invoke product tests.
 
 Disc resolution remains explicit argument, title-specific environment/`.env`, then exactly one
 repository-root CHD. The selected title validates disc and executable identity before publishing

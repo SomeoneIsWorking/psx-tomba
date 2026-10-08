@@ -27,6 +27,7 @@
 // callback the port never raises, that store was unreachable by anything — the counter is now
 // counted, which ends each logic frame at the same value for a stated reason.
 
+#include "game_tomba2.h"
 #include "animation.h"            // PC-native per-object animation-VM subsystem
 #include "audio/libsnd_globals.h" // kSeqTickFn — the tick slot the wrapper below dispatches
 #include "cfg.h"

@@ -2,7 +2,7 @@
 //
 // FUN_8007E9C8(color, blend, otSlot) links a full-screen fill (GP0 0x62) and a DR_MODE (tpage 0x40
 // subtractive for blend==0, 0x20 additive otherwise) into OT slot `otSlot` from the packet pool
-// (ordering_table.h). The guest fill is 320x240 at the origin; the native body spans the draw window
+// (guest_ordering_table.h). The guest fill is 320x240 at the origin; the native body spans the draw window
 // (wide_window.h), so on the record canvas the margins fade with the buffer. At 4:3 the packets are
 // the guest's.
 #pragma once

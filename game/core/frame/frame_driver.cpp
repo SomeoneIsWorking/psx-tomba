@@ -25,18 +25,6 @@ const GameConfig &requireMeasuredConfig(Core &core) {
   return *core.cfg;
 }
 
-void applyArmedStandaloneWarp(Core &core, uint32_t frame) {
-  Game &game = *core.game;
-  if (!game.repl.warpArmed) {
-    return;
-  }
-
-  game.repl.warpArmed = 0;
-  const uint32_t dest = game.repl.warpDest & 0x1fu;
-  applyColdWarp(core, static_cast<int>(dest), static_cast<int>(game.repl.warpSub & 0x3fu));
-  lucent::info("repl", "warp: cold area {} sub {} loaded at f{}", dest, game.repl.warpSub, frame);
-}
-
 void bindFrameHardware(Core &core) {
   gte_bind(&core);
   if (gpu_vk_wide_engine(&core)) {
@@ -125,6 +113,12 @@ void TombaFrameDriver::stepFrame(Core &core, uint32_t frame) {
     std::abort();
   }
 
+  if (!cards_.finished()) {
+    cards_.step(core);
+    game_->run.fieldDelivered();
+    return;
+  }
+
   Game &game = *game_;
   const GameConfig &cfg = requireMeasuredConfig(core);
 
@@ -156,8 +150,9 @@ void TombaFrameDriver::stepFrame(Core &core, uint32_t frame) {
   // Packet spans live as long as the record: the OT walked last pass is sealed by this commit.
   core.rsub.otAttr.beginLogicFrame(frame);
   game.perf.phaseEnd(GpuPerf::Phase::Present);
+  game.run.fieldDelivered();
 
-  applyArmedStandaloneWarp(core, frame);
+  devWarp_.applyArmed(core, frame);
   game.cd.audioTrace("post");
   game.perf.phaseBegin(GpuPerf::Phase::GameLogic);
   game.pcSched.step();

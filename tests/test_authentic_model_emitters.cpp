@@ -15,7 +15,7 @@
 #include "overlay_ground_gt3gt4.h"
 #include "overlay_gt3gt4.h"
 #include "psx_exe_image.h"
-#include "render/ordering_table.h"
+#include "render/guest_ordering_table.h"
 #include "stub_runtime.h"
 #include "sway_model_emitter.h"
 #include "unlit_model_emitter.h"

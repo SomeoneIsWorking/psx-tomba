@@ -23,7 +23,7 @@
 #include "game.h"
 #include "guest_abi.h"
 #include "guest_call.h"
-#include "render/ordering_table.h"
+#include "render/guest_ordering_table.h"
 #include <format>
 #include <lucent/log.h>
 #include <stdint.h>

@@ -22,7 +22,7 @@
 #include "core/entry/game_ctx.h" // eng()
 #include "core/overrides/native_override_catalog.h"
 #include "guest_call.h"
-#include "ordering_table.h"
+#include "guest_ordering_table.h"
 #include "render.h"
 
 namespace {

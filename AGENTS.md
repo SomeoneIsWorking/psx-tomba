@@ -23,3 +23,12 @@ Read [`CLAUDE.md`](CLAUDE.md) for still-valid title behavior, guest addresses, a
 contracts. Its offline CPU-source execution vocabulary and generated-symbol workflows are superseded
 by `docs/migration.md`; do not follow them. When this repository is inside the PSX workspace, also
 read [`../AGENTS.md`](../AGENTS.md) and [`external/psxport/AGENTS.md`](external/psxport/AGENTS.md).
+
+## How the product starts
+
+`game/core/entry/main.cpp` composes `psx::host::ProductHost` over `TombaCatalog`. Zero arguments open the
+picker; one executable argument runs that title. The catalog entry carries the disc's boot executable
+SCUS_944.54; `TombaRuntime::registerOverrides` loads and authenticates `MAIN.EXE` from the disc
+(`entry/main_handoff.cpp`) before the host's crt0 audit. The SCEA card and LOGO movie are stepped frames
+(`frame/boot_cards.cpp`). The dev `warp` command arrives through `TombaRuntime::controlCommand`.
+Tomba! 1 is not catalogued; its binary under `titles/tomba1/` is unchanged.

@@ -27,7 +27,7 @@
 #include "core/entry/game_ctx.h" // rend(c) — the Render instance
 #include "core/overrides/native_override_catalog.h"
 #include "guest_call.h"
-#include "ordering_table.h"
+#include "guest_ordering_table.h"
 #include "render.h"
 
 // Render::effectColorAdd, which already owns this address

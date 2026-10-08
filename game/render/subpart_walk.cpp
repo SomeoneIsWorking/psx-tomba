@@ -24,7 +24,7 @@
 #include "core/overrides/native_override_catalog.h"
 #include "game.h"
 #include "guest_call.h"
-#include "ordering_table.h"
+#include "guest_ordering_table.h"
 #include "render.h"
 
 // gte_write_ctrl is declared in core.h (uint32_t, uint32_t) — included above

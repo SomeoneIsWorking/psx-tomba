@@ -1,9 +1,9 @@
 // Producers key each drawn primitive by the guest record it belongs to, through the shipping overrides.
 #include "core/overrides/native_override_catalog.h"
 #include "game.h"
+#include "guest_ordering_table.h"
 #include "hw_bind.h"
 #include "lightrec_executor.h"
-#include "ordering_table.h"
 #include "rain_streaks.h"
 #include "sop_ground.h"
 #include "stub_runtime.h"

@@ -16,7 +16,7 @@
 #include "core/overrides/native_override_catalog.h"
 #include "game.h"
 #include "guest_abi.h"
-#include "ordering_table.h"
+#include "guest_ordering_table.h"
 #include <cstdint>
 #include <lucent/log.h>
 

@@ -4,11 +4,27 @@
   "images": {
     "MAIN.EXE": {
       "size": 716800,
-      "sha256": "cb580f5bd42895b1c452dffe53e1c8cb639a029e0afec194ae197fdfda9721ed"
+      "sha256": "cb580f5bd42895b1c452dffe53e1c8cb639a029e0afec194ae197fdfda9721ed",
+      "header": {
+        "entry": "0x800896E0",
+        "gp": "0x00000000",
+        "text_address": "0x80010000",
+        "text_size": "0x000AE800",
+        "stack_address": "0x801FFFF0",
+        "stack_offset": "0x00000000"
+      }
     },
     "SCUS_944.54": {
       "size": 167936,
-      "sha256": "1800c1e24ef8f7c139255c451f07326cc71522b56bec35df8e0e44a039405fdf"
+      "sha256": "1800c1e24ef8f7c139255c451f07326cc71522b56bec35df8e0e44a039405fdf",
+      "header": {
+        "entry": "0x80018B6C",
+        "gp": "0x00000000",
+        "text_address": "0x80010000",
+        "text_size": "0x00028800",
+        "stack_address": "0x801FFFF0",
+        "stack_offset": "0x00000000"
+      }
     },
     "BIN/START.BIN": {
       "size": 1648,

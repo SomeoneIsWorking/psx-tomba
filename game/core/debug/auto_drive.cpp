@@ -62,24 +62,6 @@ void AutoDrive::beforeFrame(Core &core, uint32_t frame) {
   case SkipPhase::Done:
     break;
   }
-
-  if (game.repl.navNewgame) {
-    if (stage != cfg.stageGame) {
-      if ((frame % 12u) == 0) {
-        game.pad.driveTap(kTapCross, 6);
-      }
-    }
-  }
-
-  if (game.repl.skipFrames > 0) {
-    if ((frame % 24u) == 0) {
-      game.pad.driveTap(kTapStart, 6);
-    }
-    if (--game.repl.skipFrames == 0) {
-      game.pad.driveRelease();
-      lucent::info("repl", "skip done at frame {}", frame);
-    }
-  }
 }
 
 void AutoDrive::afterFrame(Core &core, uint32_t frame) {
@@ -94,12 +76,6 @@ void AutoDrive::afterFrame(Core &core, uint32_t frame) {
   } else if (skipPhase_ == SkipPhase::AwaitCutscene && cutsceneActive) {
     skipPhase_ = SkipPhase::SkipCutscene;
     lucent::warn("autoskip", "intro cutscene up at frame {}; skipping (Start)", frame);
-  }
-
-  if (game.repl.navNewgame && stage == cfg.stageGame) {
-    lucent::info("repl", "newgame: reached GAME prologue at frame {}", frame);
-    game.repl.navNewgame = 0;
-    game.repl.requestPrompt();
   }
 }
 

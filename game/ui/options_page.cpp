@@ -2,7 +2,7 @@
 #include "options_page.h"
 #include "core.h"
 #include "core/overrides/native_override_catalog.h"
-#include "render/ordering_table.h"
+#include "render/guest_ordering_table.h"
 
 namespace {
 

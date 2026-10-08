@@ -31,11 +31,11 @@ where their bodies live.
 
 | Subdirectory | Owns |
 |---|---|
-| `entry/` | Process entry and the title's own facts: `main`, `TombaRuntime`, the `TombaCtx` aggregate, the measured `GameConfig` table, and the `GameHooks` table. |
+| `entry/` | Process entry and the title's own facts: `main` (composes `psx::host::ProductHost`), `TombaCatalog`, the boot-stub and MAIN.EXE identities, the MAIN.EXE handoff, `TombaRuntime`, the `TombaCtx` aggregate, the measured `GameConfig` table, and the `GameHooks` table. |
 | `engine/` | The stage driver `Engine` and its seven parts: field run, frame ticks, task machine, object leaves, state dispatch, scene frame, and the `TaskSm` lens. |
-| `frame/` | The per-frame turn: `TombaFrameDriver`'s transaction, the frame-rate decision (`FrameCadence`), and the after-frame probes (`FrameDiagnostics`). |
+| `frame/` | The per-frame turn: `TombaFrameDriver`'s transaction, the publisher cards (`BootCards`), the movie policy, the frame-rate decision (`FrameCadence`), and the after-frame probes (`FrameDiagnostics`). |
 | `overrides/` | The one native-override declaration catalog and registration, plus the guest call conventions (`guest_jal`, `guest_resume`). |
-| `debug/` | Developer control: dev warp, dev areas, `AutoDrive`, the title's REPL commands, and `VerificationCounters`. |
+| `debug/` | Developer control: dev warp (`DevWarp`), dev areas, `AutoDrive`, the title's control-channel commands, and `VerificationCounters`. |
 | `hle/` | `LibapiIntr` — the guest's libapi interrupt-mask primitives. |
 | `assets/` | `Asset` (LZ/texgroup/VRAM/stage preload) and `Str` (resident string leaves). |
 
@@ -43,7 +43,7 @@ where their bodies live.
 |---|---|
 | `Game` (global; from psxport) | The framework's per-session aggregate: `Pad`, `Cd`, `Fmv`, `DbgServer`, `presentation`, `runtime`, `frameDriver`. |
 | `TombaCtx` (`entry/game_ctx.{h,cpp}`) | The title's opaque per-`Core` subsystem aggregate; created by `createTombaContext`, reached from the framework as `Core::gameCtx`. |
-| `TombaRuntime` (`entry/tomba_runtime.{h,cpp}`) | The one `GameRuntime`: boot (`bootInit`), the frame driver, the title's REPL commands, renderer capability, temporal policy and widescreen declaration. |
+| `TombaRuntime` (`entry/tomba_runtime.{h,cpp}`) | The one `GameRuntime`: boot (`bootInit`), the frame driver, the control-channel commands (`controlCommand`: `warp`, then the title's commands), the MAIN.EXE handoff in `registerOverrides`, renderer capability, temporal policy and widescreen declaration. |
 | `tomba::title::measuredConfig()` / `hooks()` (`entry/title_facts.h`) | The measured Tomba!2 facts and the hook table, reachable by name from `TombaRuntime` and the tests. Replaces the deleted `tomba::legacy` shim, which psxport never named. |
 | `TombaFrameDriver` (`frame/frame_driver.{h,cpp}`) | One pass of the retail main loop FUN_80050B08 per frame (`stepFrame`; loop prologue `enterLoop`, called by `bootInit`): input, timing, task scheduling, the guest's double-buffered present, exactly one presentation fence. Retail loop facts: `docs/re/frame-loop.md`. |
 | `Engine` (`engine/engine.{h,cpp}` and `engine_*.cpp`) | The game's stage driver: field run, frame ticks, task machine, object leaves, state dispatch, `frameUpdate`, `drawOTag` (which hands a B-key bug report its ordering table: `captureBugReportReference`). |
@@ -54,9 +54,14 @@ where their bodies live.
 | `LibapiIntr` (`hle/libapi_intr.{h,cpp}`) | libapi interrupt-mask primitives; mirrors the host VBlank count to the guest word at the title frame boundary. |
 | `Asset` / `Str` (`assets/`) | LZ decompress, texture-group unpack, CPU→VRAM upload, the stage preload chain; and the resident native string leaves, registered image-aware. |
 | `tomba::native::declareOverride` / `declareOverlayOverride` / `bindResident` / `activateOverlay` / `activateModeOverlay` / `activateAreaSlotOverlay` / `retireOverlay` / `loadAreaSlotFile` (`overrides/native_override_catalog.*`) | The one native-override declaration catalog; a declaration is keyed by image identity plus guest address, never by address alone. |
+| `TombaCatalog` (`entry/tomba_catalog.{h,cpp}`) | The multi-title host's catalog: one entry, Tomba! 2, selected by the disc's boot executable SCUS_944.54. Tomba! 1 is not catalogued (its own binary still runs it). |
+| `tomba::title::bootStubIdentity()` / `mainExecutableIdentity()` (`entry/tomba_identity.{h,cpp}`) | The two executables' size, SHA-256 and PS-X EXE header facts, built from the compile definitions `cmake/tomba2_port.cmake` reads out of `config/tomba2-images.json`. |
+| `tomba::loadMainExecutable` (`entry/main_handoff.{h,cpp}`) | The stub-to-MAIN.EXE handoff: reads `\MAIN.EXE;1` from the disc, authenticates it against the manifest identity, loads it and sets the entry registers. |
+| `BootCards` (`frame/boot_cards.{h,cpp}`) | The SCEA card and the LOGO movie that precede the first game frame, stepped one frame per `stepFrame` so the picker never blocks. |
+| `MoviePolicy` (`frame/movie_policy.{h,cpp}`) | Whether a native movie plays (`PSXPORT_NO_FMV`, headless sink). One answer for the cards and Demo's OP.STR. |
 | `TombaConfig` (`entry/game_config.cpp`) | The measured Tomba! 2 compatibility facts (guest addresses and sizes) the frame driver requires. |
 | `VerificationCounters` (`debug/verification_counters.h`) | Title-owned verification tallies surfaced through the diagnostics channel. |
-| `tomba::applyColdWarp` (`debug/dev_warp.h`) | Dev warp arming: the control-channel request applied at a frame boundary through the engine's own transition owners. |
+| `DevWarp` / `tomba::applyColdWarp` (`debug/dev_warp.h`) | Dev warp arming (`arm` from the control channel, `applyArmed` from the frame driver): the control-channel request applied at a frame boundary through the engine's own transition owners. |
 | `StepReturn` (`engine/task_sm.h`) | The generic task state-machine vocabulary the engine's per-state dispatch is written against. |
 
 ### `game/input/`
@@ -210,7 +215,7 @@ scratchpad, packet pool, OT) that function writes. Those declared as producers k
 | Class | Responsibility |
 |---|---|
 | `Render` (`render.h`) | The per-Core umbrella for the render-walk, per-object, billboard, text-label, effect-modifier and libgpu ports. |
-| `tomba2::render::OrderingTable`, `PacketPool` (`ordering_table.h`) | The guest's OT and packet pool: the OT base global 0x800ED8C8 and pool cursor 0x800BF544 (and the register pages guest code addresses them from), the inlined AddPrim `link`, `chainToHead` for a prebuilt chain, the pool cursor and `allocate`, and the depth-to-bucket compression with its two gates (`inDepthRange` [4, 0x7FF]; `inDepthRangeExclusive` (4, 0x7FF), the A00 field GT3/GT4 pair only). Every native packet emitter in `render/` and `ui/` links and allocates through it; tested by `tests/test_ordering_table.cpp`. |
+| `tomba2::render::OrderingTable`, `PacketPool` (`guest_ordering_table.h`) | The guest's OT and packet pool: the OT base global 0x800ED8C8 and pool cursor 0x800BF544 (and the register pages guest code addresses them from), the inlined AddPrim `link`, `chainToHead` for a prebuilt chain, the pool cursor and `allocate`, and the depth-to-bucket compression with its two gates (`inDepthRange` [4, 0x7FF]; `inDepthRangeExclusive` (4, 0x7FF), the A00 field GT3/GT4 pair only). Every native packet emitter in `render/` and `ui/` links and allocates through it; tested by `tests/test_ordering_table.cpp`. |
 | `NodeXform` | The scene-node world-transform builder. |
 | `ObjModelView` | The shared model-view setup leaf every effect-mesh draw runs first. |
 | `Cull` | Visibility culling and LOD, with the widescreen re-include collection. |
@@ -361,7 +366,7 @@ mask. Engine per-VBlank pad edges are `Engine::frameUpdate`'s work.
 Render::frame / frameX                       render/render_frame.cpp — the guest render orchestrator;
                                                its walks reach the guest-time ports in game/render/,
                                                which write the packet pool and OT
-  → OrderingTable::link / PacketPool::allocate render/ordering_table.cpp — every native emitter's
+  → OrderingTable::link / PacketPool::allocate render/guest_ordering_table.cpp — every native emitter's
                                                AddPrim and pool bump
 Engine::drawOTag                             game/game_tomba2.cpp
   → gpu_dma2_linked_list                     (psxport) the guest OT goes to the GPU device as GP0
@@ -407,7 +412,9 @@ Engine::musicCoord.tick                     game/audio/music_coord.cpp — coord
 lucent::http::Server                         (psxport) — the loopback listener, always open
   → psx::dbg::DbgServer                      runtime/psx/dbg_server.* — the command surface
       → framework commands                   (psxport) — memory, input, screenshot, render toggles
-      → GameRuntime::replCommand → tomba::TombaRuntime::replCommand
+      → GameRuntime::controlCommand → tomba::TombaRuntime::controlCommand
+          → warp                          DevWarp::arm on the TombaFrameDriver; other commands fall through to replCommand
+          → GameRuntime::replCommand → tomba::TombaRuntime::replCommand
           → debug/repl_commands.cpp       the title's commands, which reach Tomba! 2 classes and
                                                guest layouts without the framework naming either
       → Debug warp / area selection          debug/dev_warp.* and debug/dev_areas.cpp — a

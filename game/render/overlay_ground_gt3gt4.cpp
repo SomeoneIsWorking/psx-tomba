@@ -58,10 +58,10 @@
 #include "core.h"
 #include "core/overrides/native_override_catalog.h"
 #include "game.h"
+#include "guest_ordering_table.h"
 #include "horizontal_visibility_cull.h"
 #include "model_element.h"
 #include "model_packet.h"
-#include "ordering_table.h"
 #include <cstdint>
 
 // -- the two fixed SCRATCHPAD words this leaf pair uses as spilled locals (0x1F800000/0x1F800004

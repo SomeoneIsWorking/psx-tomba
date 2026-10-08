@@ -154,7 +154,7 @@ public:
   //     any other non-zero byte (every ordinary printable glyph) -> the GLYPH-DRAW arm: computes
   //                    per-glyph pixel width/height into struct+12/+13 from the scratchpad advance
   //                    value (0x1F800180) and struct+16/+18, then PREPENDS a 4-word GP0 packet at the
-  //                    packet-pool cursor (render/ordering_table.h) into the OT
+  //                    packet-pool cursor (render/guest_ordering_table.h) into the OT
   //                    bucket colorArg, tagged with draw-mode bit
   //                    0x04000000, then falls into the same shared "advance cursor by 8" tail.
   //     FUN_80078988 calls (byte 0x01/0x02/0x03/0x04 arms) each pass (cursorX, cursorY, w, tablePtr)

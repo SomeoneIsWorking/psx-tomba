@@ -144,7 +144,7 @@
 #include "game.h"
 #include "guest_abi.h"
 #include "guest_call.h"
-#include "ordering_table.h"
+#include "guest_ordering_table.h"
 #include "render.h"
 #include "render_queue.h"
 #include "wide_window.h"

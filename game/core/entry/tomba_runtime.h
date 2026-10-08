@@ -21,6 +21,7 @@ public:
   bool guestVramIsPicture(const Game &game) const override;
   bool sealedFrameIsCut(Core &core) const override;
   const GuestWidescreenProjection *guestWidescreenProjection() const override;
+  bool controlCommand(Core &core, const char *cmd, const char *line, FILE *out) override;
 
 private:
   void bindLoadedResident(Core &core);

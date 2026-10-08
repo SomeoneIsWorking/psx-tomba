@@ -76,7 +76,7 @@ if(BUILD_TESTING)
       tests/test_authentic_screen_fade.cpp
       tests/authenticated_image.cpp
       game/render/screen_fade.cpp
-      game/render/ordering_table.cpp
+      game/render/guest_ordering_table.cpp
       game/render/wide_window.cpp
       game/core/overrides/native_override_catalog.cpp)
   target_include_directories(test_authentic_screen_fade PRIVATE game game/core tests)
@@ -91,7 +91,7 @@ if(BUILD_TESTING)
       game/render/sway_model_emitter.cpp
       game/render/overlay_gt3gt4.cpp
       game/render/overlay_ground_gt3gt4.cpp
-      game/render/ordering_table.cpp
+      game/render/guest_ordering_table.cpp
       game/render/horizontal_visibility_cull.cpp
       game/render/wide_window.cpp
       game/math/trig.cpp
@@ -121,6 +121,18 @@ if(BUILD_TESTING)
   target_link_libraries(test_native_override_unreachable_abort PRIVATE psxport)
   add_test(NAME tomba_native_override_unreachable_abort
            COMMAND test_native_override_unreachable_abort)
+
+  add_executable(test_title_host_owners
+      tests/test_title_host_owners.cpp
+      game/core/entry/tomba_identity.cpp
+      game/core/frame/movie_policy.cpp)
+  target_include_directories(test_title_host_owners PRIVATE game game/core)
+  target_compile_definitions(test_title_host_owners PRIVATE ${TOMBA2_IDENTITY_DEFINITIONS})
+  target_link_libraries(test_title_host_owners PRIVATE psxport)
+  add_test(NAME tomba_title_host_owners COMMAND test_title_host_owners)
+  foreach(mode IN ITEMS skip forced headless)
+    add_test(NAME tomba_movie_policy_${mode} COMMAND test_title_host_owners ${mode})
+  endforeach()
 
   add_executable(test_gpu_timeout_dispatch
       tests/test_gpu_timeout_dispatch.cpp game/core/entry/game_config.cpp)
@@ -199,13 +211,13 @@ if(BUILD_TESTING)
       game/render/wide_window.cpp
       game/render/sop_ground.cpp
       game/render/rain_streaks.cpp
-      game/render/ordering_table.cpp
+      game/render/guest_ordering_table.cpp
       game/ui/font.cpp)
   target_include_directories(test_producers PRIVATE game game/core game/math game/render game/scene tests)
   target_link_libraries(test_producers PRIVATE psxport)
   add_test(NAME tomba_producers COMMAND test_producers)
 
-  add_executable(test_ordering_table tests/test_ordering_table.cpp game/render/ordering_table.cpp)
+  add_executable(test_ordering_table tests/test_ordering_table.cpp game/render/guest_ordering_table.cpp)
   target_include_directories(test_ordering_table PRIVATE game game/core game/render tests)
   target_link_libraries(test_ordering_table PRIVATE psxport)
   add_test(NAME tomba_ordering_table COMMAND test_ordering_table)
@@ -213,7 +225,7 @@ if(BUILD_TESTING)
   add_executable(test_letterbox_bars
       tests/test_letterbox_bars.cpp
       game/render/letterbox_bars.cpp
-      game/render/ordering_table.cpp
+      game/render/guest_ordering_table.cpp
       game/render/wide_window.cpp
       game/ui/dialog_backdrop.cpp
       game/core/overrides/native_override_catalog.cpp)
@@ -224,7 +236,7 @@ if(BUILD_TESTING)
   add_executable(test_screen_fade
       tests/test_screen_fade.cpp
       game/render/screen_fade.cpp
-      game/render/ordering_table.cpp
+      game/render/guest_ordering_table.cpp
       game/render/wide_window.cpp
       game/core/overrides/native_override_catalog.cpp
       game/scene/level_load.cpp)
@@ -239,7 +251,7 @@ if(BUILD_TESTING)
       game/render/unlit_model_emitter.cpp
       game/render/sway_model_emitter.cpp
       game/render/overlay_gt3gt4.cpp
-      game/render/ordering_table.cpp
+      game/render/guest_ordering_table.cpp
       game/render/horizontal_visibility_cull.cpp
       game/render/wide_window.cpp
       game/math/trig.cpp
@@ -257,7 +269,7 @@ if(BUILD_TESTING)
   add_executable(test_fx_sprite_publish
       tests/test_fx_sprite_publish.cpp
       game/render/fx_sprite_publish.cpp
-      game/render/ordering_table.cpp)
+      game/render/guest_ordering_table.cpp)
   target_include_directories(test_fx_sprite_publish PRIVATE game game/core game/math game/render tests)
   target_link_libraries(test_fx_sprite_publish PRIVATE psxport)
   add_test(NAME tomba_fx_sprite_publish COMMAND test_fx_sprite_publish)

@@ -7,7 +7,7 @@
 #include "game.h"
 #include "guest_abi.h"
 #include "guest_call.h"
-#include "ordering_table.h"
+#include "guest_ordering_table.h"
 #include <cstdint>
 
 namespace {

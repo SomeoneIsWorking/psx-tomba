@@ -6,8 +6,8 @@
 #include "core/overrides/native_override_catalog.h"
 #include "gte_registers.h"
 #include "guest_abi.h"
+#include "guest_ordering_table.h"
 #include "native_dispatch.h"
-#include "ordering_table.h"
 
 namespace {
 

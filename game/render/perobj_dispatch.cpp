@@ -53,7 +53,7 @@
 #include "game.h"
 #include "guest_abi.h"
 #include "guest_call.h"
-#include "ordering_table.h"
+#include "guest_ordering_table.h"
 #include "render.h"
 namespace {
 // Guest-stack frame RAII, mirroring guest 0x8003CDD8's real `addiu sp,-56` prologue (spills
