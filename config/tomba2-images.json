@@ -1,0 +1,126 @@
+{
+  "title": "Tomba! 2 - The Evil Swine Return (USA)",
+  "boot": "SCUS_944.54",
+  "images": {
+    "MAIN.EXE": {
+      "size": 716800,
+      "sha256": "cb580f5bd42895b1c452dffe53e1c8cb639a029e0afec194ae197fdfda9721ed"
+    },
+    "SCUS_944.54": {
+      "size": 167936,
+      "sha256": "1800c1e24ef8f7c139255c451f07326cc71522b56bec35df8e0e44a039405fdf"
+    },
+    "BIN/START.BIN": {
+      "size": 1648,
+      "sha256": "1492da6b0a29ef40018b4da9059dfa3e5ec0edb13fa92592e2bacd353d2dbe36"
+    },
+    "BIN/DEMO.BIN": {
+      "size": 5372,
+      "sha256": "4886af583d2da08209f3eebd54a1e22166812a2cec2eeded0789f4127c6da405"
+    },
+    "BIN/GAME.BIN": {
+      "size": 11636,
+      "sha256": "de8e50da368f717087e9918b6c42efdeea05ecc9cf9adc5fe54fcc28a71bae41"
+    },
+    "BIN/SOP.BIN": {
+      "size": 17660,
+      "sha256": "e291b6c90e95b5cce142b690d9b23c7bfce5897f35fc3b4af413171ee0ebcda7"
+    },
+    "BIN/OPN.BIN": {
+      "size": 13596,
+      "sha256": "d461e9871763859ccbfcd969664c2fe12e15306ca0647ba72574af8ba4f9a43b"
+    },
+    "BIN/CRD.BIN": {
+      "size": 25060,
+      "sha256": "45cd62f146216042291c1663b54718d2912ac3b70ff8c0f2d527ef71c4824870"
+    },
+    "BIN/A00.BIN": {
+      "size": 285096,
+      "sha256": "afa7978b62a30ed8671b4b47605908050448c2624f8483459e49f8767cae94be"
+    },
+    "BIN/A01.BIN": {
+      "size": 202460,
+      "sha256": "f74dc548d7f6d056cd11582bd04d94a008dd5e302c1d5e85c05b8e7e318a5a8f"
+    },
+    "BIN/A02.BIN": {
+      "size": 201004,
+      "sha256": "ba3caba9c6904e33e4edde96cd9b053897ce5c9c27adc7da8ad016103600a2d8"
+    },
+    "BIN/A03.BIN": {
+      "size": 78444,
+      "sha256": "5e2b7324b3326cfe56abe82bea2b8df9644b8477e2d4dcb2330e2108c7d79b12"
+    },
+    "BIN/A04.BIN": {
+      "size": 250788,
+      "sha256": "0878af2f62702da06d3d16215d6491efc072002246bc93af01f562f0d8b74519"
+    },
+    "BIN/A05.BIN": {
+      "size": 234164,
+      "sha256": "53a1fabe2a13bbcad578cc9bc14b91827a39704b44d1696e331410c1db3fe4f8"
+    },
+    "BIN/A06.BIN": {
+      "size": 284348,
+      "sha256": "53d6fcfe4518423ee956ae59129234cb65d117762ee1952653a602cb5ef9447d"
+    },
+    "BIN/A07.BIN": {
+      "size": 229720,
+      "sha256": "846c4085c278d02c81f8521390da2073e538dc76e7e82343bfb9fd8a004024a7"
+    },
+    "BIN/A08.BIN": {
+      "size": 266124,
+      "sha256": "6873a21465cffeab325628398dbcb319c31f7b40c9db4aa9a269c81d7050e419"
+    },
+    "BIN/A09.BIN": {
+      "size": 22125,
+      "sha256": "7ef6ebb012270b178433c1bbb7a9e6c7fe13acd405a91445e9d568759e097905"
+    },
+    "BIN/A0A.BIN": {
+      "size": 126520,
+      "sha256": "a86e39b567a30e33d5143efbbea5e0d4b002fa8acfbcbc298ebe2347c616a0fb"
+    },
+    "BIN/A0B.BIN": {
+      "size": 115560,
+      "sha256": "659a6e8391600737f2bc89ecd035da6e3de4e834bc969aa45febf341640dc27c"
+    },
+    "BIN/A0C.BIN": {
+      "size": 123328,
+      "sha256": "2c72c32aaacca2d556775a58d5f43eec4b5ea9b94eb514a482f18187b46652a1"
+    },
+    "BIN/A0D.BIN": {
+      "size": 119592,
+      "sha256": "01915c7776a6bfd592a13cb04d03b652e35e688f041f36cfadf6747d946f87e4"
+    },
+    "BIN/A0E.BIN": {
+      "size": 124656,
+      "sha256": "f2dcc1cb7a6d4065ccc2a416303ddebf73daabbaced74ec61fd82da33124ef8f"
+    },
+    "BIN/A0F.BIN": {
+      "size": 135500,
+      "sha256": "a8bdf4b7d35c693934d9f78b9cc1c2496fede5f2aaf8e6cb20d929987d042e6a"
+    },
+    "BIN/A0G.BIN": {
+      "size": 17980,
+      "sha256": "50c4c4004421dad3ee74681f47d775f038d508fcb3353d79f29ed361478684ae"
+    },
+    "BIN/A0H.BIN": {
+      "size": 14016,
+      "sha256": "9d7431283e5b6dbe6ac56e8fb5637d16d76ea7038bac691a9d52c44fa2353254"
+    },
+    "BIN/A0I.BIN": {
+      "size": 15152,
+      "sha256": "d22d424b5079d08ae437e4ecfa73c96797a7409c70893605e0e6be29d11aec5e"
+    },
+    "BIN/A0J.BIN": {
+      "size": 19068,
+      "sha256": "87903a21cf11a0c82398ccb37b59ce5d6978262b6e4795216c38fbd954f639f5"
+    },
+    "BIN/A0K.BIN": {
+      "size": 93380,
+      "sha256": "6376f7faa0b6076e24def7c851320b7fb55e073275de3a3b295510ed2a1dc190"
+    },
+    "BIN/A0L.BIN": {
+      "size": 74832,
+      "sha256": "c38006726704a78ac301398170f9d901f06bb9bc5e95ab1eaace6ad378fe3927"
+    }
+  }
+}
