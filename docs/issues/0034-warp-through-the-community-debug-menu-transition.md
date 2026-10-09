@@ -17,3 +17,9 @@ state words it uses to start a transition. Compare with `tomba::applyColdWarp` (
 loads the destination synchronously and writes `sm[0x4c]`. Move the debug warp onto the transition the menu uses, so
 it runs through the game's own owners with the entry point the menu selects, and record the routines in
 `docs/re-frontier.md`.
+
+The same menu has INVENTORY TOOLS (grant every item), EVENT FLAGS (step through the event-flag table and edit values),
+FREE POSITION, SYSTEM TOOLS (freeze player or actors, game speed) and WORLD INFO (area, sub-area, level variable,
+player mode and state). Decode the item-grant and event-flag routines too: name the inventory and event-flag tables and
+how the menu writes them, and add them as title-owned debug commands beside `warp` (control channel and the Debug tab),
+applied at a frame boundary like the warp.
