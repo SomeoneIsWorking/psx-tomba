@@ -41,7 +41,7 @@ public:
   static void gt3(Core &core, const horizontal_cull::Visibility &visible, FlagBits flags);
   static void gt4(Core &core, const horizontal_cull::Visibility &visible, FlagBits flags);
   // The body over any memory; `call.sp` is the sp inside the guest frame. Returns the address past the list.
-  static std::uint32_t emit(const EmitMemory &memory,
+  static std::uint32_t emit(const psx::present::EmitMemory &memory,
                             const ListCall &call,
                             const horizontal_cull::Visibility &visible,
                             FlagBits flags,

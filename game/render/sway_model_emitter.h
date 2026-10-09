@@ -38,8 +38,10 @@ public:
   static void cueGt3(Core &core, const horizontal_cull::Visibility &visible);
   static void cueGt4(Core &core, const horizontal_cull::Visibility &visible);
   // The body over any memory; `call.sp` is the sp inside the guest frame. Returns the address past the list.
-  static std::uint32_t
-  emit(const EmitMemory &memory, const ListCall &call, const horizontal_cull::Visibility &visible, Kind kind);
+  static std::uint32_t emit(const psx::present::EmitMemory &memory,
+                            const ListCall &call,
+                            const horizontal_cull::Visibility &visible,
+                            Kind kind);
   static void registerOverrides();
   // The renders of the saved calls, at each of the four entries.
   static void registerStateRenders(Core &core);

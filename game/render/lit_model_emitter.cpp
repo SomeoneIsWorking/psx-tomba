@@ -45,7 +45,7 @@ constexpr std::uint32_t kDeepenFlag = 8u;
 constexpr std::int32_t kDeepenBias = 0x80;
 
 // Twice the corner's distance to the light, capped.
-std::int32_t lightIntensity(const EmitMemory &memory, std::uint32_t record, const ModelCorner &corner) {
+std::int32_t lightIntensity(const psx::present::EmitMemory &memory, std::uint32_t record, const ModelCorner &corner) {
   const std::int32_t length = Trig::vecLen(memory.mem_r16s(record + corner.x) - memory.mem_r16s(kLight + 0u),
                                            memory.mem_r16s(record + corner.y) - memory.mem_r16s(kLight + 2u),
                                            memory.mem_r16s(record + corner.z) - memory.mem_r16s(kLight + 4u));
@@ -53,7 +53,10 @@ std::int32_t lightIntensity(const EmitMemory &memory, std::uint32_t record, cons
   return intensity > kMaxIntensity ? kMaxIntensity : intensity;
 }
 
-void light(const EmitMemory &memory, const ModelShape &shape, const ModelPacket &packet, std::uint32_t fixedIntensity) {
+void light(const psx::present::EmitMemory &memory,
+           const ModelShape &shape,
+           const ModelPacket &packet,
+           std::uint32_t fixedIntensity) {
   std::array<std::int32_t, 4> intensity{};
   for (int corner = 0; corner < shape.cornerCount; ++corner) {
     intensity[corner] = fixedIntensity != 0u ? static_cast<std::int32_t>(fixedIntensity)
@@ -65,7 +68,7 @@ void light(const EmitMemory &memory, const ModelShape &shape, const ModelPacket 
 }
 
 // Depth, bucket, last UV, light and link once the record is on screen; false when it is dropped.
-bool finish(const EmitMemory &memory,
+bool finish(const psx::present::EmitMemory &memory,
             const ModelShape &shape,
             const ModelPacket &packet,
             LitModelEmitter::FlagBits bits,
@@ -119,7 +122,7 @@ public:
       : ListStateProducer(core), mBits(bits), mQuad(quad) {}
 
 protected:
-  void emit(const EmitMemory &memory, std::uint32_t, const ListCall &call) const override {
+  void emit(const psx::present::EmitMemory &memory, std::uint32_t, const ListCall &call) const override {
     LitModelEmitter::emit(memory, call, horizontal_cull::forDrawWindow(&core()), mBits, mQuad);
   }
 
@@ -167,13 +170,13 @@ constexpr Copy kCopies[] = {
 } // namespace
 
 std::uint32_t LitModelEmitter::emit(
-    const EmitMemory &memory, const ListCall &call, const Visibility &visible, FlagBits bits, bool quad) {
+    const psx::present::EmitMemory &memory, const ListCall &call, const Visibility &visible, FlagBits bits, bool quad) {
   const std::uint32_t sp = call.sp;
   const ModelShape &shape = quad ? kModelGt4 : kModelGt3;
   memory.mem_w32(sp + kOtArgument, call.ot);
   memory.mem_w32(sp + kIntensityArgument, call.a3);
   memory.mem_w32(sp + kSeedLocal, quad ? kGt4Seed : kGt3Seed);
-  gte_write_data(gte::kRgbc, sp + kSeedLocal);
+  gte_write_data(psx::gte::kRgbc, sp + kSeedLocal);
   if (call.count != 0u && quad) {
     memory.mem_w32(sp + kMaskLocal, kColourMask);
   }

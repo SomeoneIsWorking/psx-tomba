@@ -24,9 +24,9 @@ public:
   static constexpr std::int32_t kNoBucket = -1;
 
   // The OT the frame driver published.
-  static OrderingTable active(const EmitMemory &memory);
+  static OrderingTable active(const psx::present::EmitMemory &memory);
   // An OT whose base a caller handed over in a register.
-  OrderingTable(const EmitMemory &memory, std::uint32_t base);
+  OrderingTable(const psx::present::EmitMemory &memory, std::uint32_t base);
 
   std::uint32_t base() const {
     return mBase;
@@ -58,7 +58,7 @@ public:
   }
 
 private:
-  EmitMemory mMemory;
+  psx::present::EmitMemory mMemory;
   std::uint32_t mBase;
 };
 
@@ -71,7 +71,7 @@ public:
   // Guest code addresses kCursor as this page - 2748, with the page held in a register.
   static constexpr std::uint32_t kCursorPage = 0x800C0000u;
 
-  explicit PacketPool(const EmitMemory &memory);
+  explicit PacketPool(const psx::present::EmitMemory &memory);
 
   std::uint32_t cursor() const;
   void setCursor(std::uint32_t address) const;
@@ -79,7 +79,7 @@ public:
   std::uint32_t allocate(std::uint32_t bytes) const;
 
 private:
-  EmitMemory mMemory;
+  psx::present::EmitMemory mMemory;
 };
 
 static_assert(PacketPool::kCursorPage - 2748u == PacketPool::kCursor);

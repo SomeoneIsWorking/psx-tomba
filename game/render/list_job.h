@@ -8,6 +8,7 @@
 #pragma once
 
 #include "core.h"
+#include "gte_control.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -47,7 +48,7 @@ struct ListJobHeader {
   std::uint32_t table = 0;      // OT table and bucket of `call.ot`
   std::uint32_t slot = 0;
   std::uint32_t inputs = 0; // ranges that follow the header
-  std::uint32_t control[32] = {};
+  psx::present::GteControl control{};
 };
 
 // How an input between two calls of one list moves with t.
@@ -63,7 +64,7 @@ struct ListJobInput {
   std::uint32_t address = 0;
   InputBlend blend = InputBlend::Held;
   std::uint32_t modulus = 0;
-  std::span<const std::byte> bytes;
+  std::vector<std::byte> bytes;
 };
 
 class ListJobWriter {

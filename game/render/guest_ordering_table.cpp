@@ -5,11 +5,12 @@
 
 namespace tomba2::render {
 
-OrderingTable OrderingTable::active(const EmitMemory &memory) {
+OrderingTable OrderingTable::active(const psx::present::EmitMemory &memory) {
   return OrderingTable(memory, memory.mem_r32(kBasePointer));
 }
 
-OrderingTable::OrderingTable(const EmitMemory &memory, std::uint32_t base) : mMemory(memory), mBase(base) {}
+OrderingTable::OrderingTable(const psx::present::EmitMemory &memory, std::uint32_t base)
+    : mMemory(memory), mBase(base) {}
 
 std::uint32_t OrderingTable::head(std::uint32_t bucket) const {
   return mMemory.mem_r32(slot(bucket));
@@ -31,7 +32,7 @@ void OrderingTable::chainToHead(std::uint32_t lastPacket, std::uint32_t bucket) 
   mMemory.mem_w32(lastPacket, (mMemory.mem_r32(lastPacket) & 0xFF000000u) | oldHead);
 }
 
-PacketPool::PacketPool(const EmitMemory &memory) : mMemory(memory) {}
+PacketPool::PacketPool(const psx::present::EmitMemory &memory) : mMemory(memory) {}
 
 std::uint32_t PacketPool::cursor() const {
   return mMemory.mem_r32(kCursor);

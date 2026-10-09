@@ -83,7 +83,7 @@ static constexpr uint32_t kGt4ScrolledUv[] = {12u, 24u, 36u, 48u};
 
 template <std::size_t N>
 static void
-scrollUv(const tomba2::render::EmitMemory &memory, uint32_t pool, uint32_t uvScroll, const uint32_t (&halfwords)[N]) {
+scrollUv(const psx::present::EmitMemory &memory, uint32_t pool, uint32_t uvScroll, const uint32_t (&halfwords)[N]) {
   const int16_t offset = static_cast<int16_t>(memory.mem_r16(uvScroll));
   for (const uint32_t halfword : halfwords) {
     memory.mem_w16(pool + halfword,
@@ -179,7 +179,7 @@ void OverlayGt3Gt4::submitBlock(Core *c) {
 //   (unmasked — a real asymmetry vs the GT4 leaf below and vs submit.cpp's own GT3, verified by
 //   the guest instruction path: this record's colour0 word never passes through COL_MASK), +8 SXY0,
 //   +12 uv0|clut, +16 rgb1&MASK, +20 SXY1, +24 uv1|tpage, +28 rgb2&MASK, +32 SXY2, +36 uv2hi}.
-uint32_t OverlayGt3Gt4::emitGt3(const tomba2::render::EmitMemory &memory,
+uint32_t OverlayGt3Gt4::emitGt3(const psx::present::EmitMemory &memory,
                                 const tomba2::render::ListCall &call,
                                 uint32_t uvScroll,
                                 const tomba2::horizontal_cull::Visibility &visible) {
@@ -197,7 +197,7 @@ uint32_t OverlayGt3Gt4::emitGt3(const tomba2::render::EmitMemory &memory,
   uint32_t pool = tomba2::render::PacketPool(memory).cursor();
   const uint32_t list = rec;
   for (; count != 0; count--, rec += 36) {
-    const tomba2::render::ElementScope primitive(
+    const psx::present::ElementScope primitive(
         memory, tomba2::render::modelElement(tomba2::render::ModelList::Gt3, (rec - list) / 36));
     gte_write_data(0, memory.mem_r32(rec + 16)); // VXY0
     uint32_t vz01 = memory.mem_r32(rec + 20);
@@ -295,7 +295,7 @@ uint32_t OverlayGt3Gt4::emitGt3(const tomba2::render::EmitMemory &memory,
 //   +12 uv0|clut, +16 rgb1&MASK, +20 SXY1, +24 uv1|tpage, +28 rgb2&MASK, +32 SXY2, +36 uv2,
 //   +40 rgb3&MASK, +44 SXY3, +48 uv3}. Unlike the GT3 leaf above, rgb0 here IS masked — verified
 // against the guest instruction path, not "fixed" to match GT3 (the asymmetry is faithful, not a bug).
-uint32_t OverlayGt3Gt4::emitGt4(const tomba2::render::EmitMemory &memory,
+uint32_t OverlayGt3Gt4::emitGt4(const psx::present::EmitMemory &memory,
                                 const tomba2::render::ListCall &call,
                                 uint32_t uvScroll) {
   Core *const c = &memory.core();
@@ -306,7 +306,7 @@ uint32_t OverlayGt3Gt4::emitGt4(const tomba2::render::EmitMemory &memory,
   uint32_t pool = tomba2::render::PacketPool(memory).cursor();
   const uint32_t list = rec;
   for (; count != 0; count--, rec += 44) {
-    const tomba2::render::ElementScope primitive(
+    const psx::present::ElementScope primitive(
         memory, tomba2::render::modelElement(tomba2::render::ModelList::Gt4, (rec - list) / 44));
     gte_write_data(0, memory.mem_r32(rec + 20)); // VXY0
     uint32_t vz01 = memory.mem_r32(rec + 24);
@@ -416,7 +416,7 @@ void OverlayGt3Gt4::gt4(Core &core, uint32_t uvScroll) {
 
 namespace {
 
-using tomba2::render::EmitMemory;
+using psx::present::EmitMemory;
 using tomba2::render::ListCall;
 
 constexpr uint32_t kA08Gt3 = 0x80140FBCu;
@@ -468,7 +468,7 @@ public:
   LeafStateProducer(Core &core, bool quad, uint32_t scroll) : ListStateProducer(core), mQuad(quad), mScroll(scroll) {}
 
 protected:
-  void emit(const EmitMemory &memory, uint32_t, const ListCall &call) const override {
+  void emit(const psx::present::EmitMemory &memory, uint32_t, const ListCall &call) const override {
     if (mQuad) {
       OverlayGt3Gt4::emitGt4(memory, call, mScroll);
     } else {

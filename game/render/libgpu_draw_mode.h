@@ -9,7 +9,7 @@ namespace tomba2::render {
 
 // Fills the two-word packet at `packet` with a GP0(E1) draw mode (and GP0(E2) when `window` names a RECT).
 // Returns what the guest function leaves in v0.
-std::uint32_t setDrawMode(const EmitMemory &memory,
+std::uint32_t setDrawMode(const psx::present::EmitMemory &memory,
                           std::uint32_t packet,
                           std::uint32_t drawOnDisplay,
                           std::uint32_t dither,

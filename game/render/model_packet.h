@@ -50,8 +50,8 @@ inline constexpr ModelShape kModelGt3{ModelList::Gt3,
                                       9u,
                                       {{{0x10u, 0x12u, 0x14u}, {0x18u, 0x1Au, 0x16u}, {0x1Cu, 0x1Eu, 0x20u}, {}}},
                                       3,
-                                      gte::kSz1,
-                                      gte::kAvsz3,
+                                      psx::gte::kSz1,
+                                      psx::gte::kAvsz3,
                                       0x10u};
 inline constexpr ModelShape kModelGt4{
     ModelList::Gt4,
@@ -60,8 +60,8 @@ inline constexpr ModelShape kModelGt4{
     12u,
     {{{0x14u, 0x16u, 0x18u}, {0x1Cu, 0x1Eu, 0x1Au}, {0x20u, 0x22u, 0x24u}, {0x28u, 0x2Au, 0x26u}}},
     4,
-    gte::kSz0,
-    gte::kAvsz4,
+    psx::gte::kSz0,
+    psx::gte::kAvsz4,
     0x14u};
 
 // Scratch words the GTE flag/MAC0 and the OT bucket are staged through.
@@ -98,8 +98,11 @@ inline constexpr NearClamp kNoNearClamp{0, 0u};
 // One record's packet.
 class ModelPacket {
 public:
-  ModelPacket(
-      const EmitMemory &memory, const ModelShape &shape, std::uint32_t record, std::uint32_t packet, ModelStage stage);
+  ModelPacket(const psx::present::EmitMemory &memory,
+              const ModelShape &shape,
+              std::uint32_t record,
+              std::uint32_t packet,
+              ModelStage stage);
 
   std::uint32_t record() const {
     return mRecord;
@@ -146,7 +149,7 @@ public:
   // 0 average, 1 farthest, anything else nearest (the flagged overlay copy).
   static ModelDepth flaggedDepth(std::uint32_t flags);
   // `hideFlag` hides the record while the scratchpad word 0x1F80009C is set.
-  static bool hidden(const EmitMemory &memory, std::uint32_t flags, std::uint32_t hideFlag = kHideFlag);
+  static bool hidden(const psx::present::EmitMemory &memory, std::uint32_t flags, std::uint32_t hideFlag = kHideFlag);
 
   // Packet offsets of each corner's colour and SXY; a corner's SY is its SX + 2.
   static constexpr std::array<std::uint32_t, 4> kColour{4u, 0x10u, 0x1Cu, 0x28u};
@@ -162,7 +165,7 @@ private:
   void loadCornerThree() const;
   bool onScreen(const horizontal_cull::Visibility &visible) const;
 
-  EmitMemory mMemory;
+  psx::present::EmitMemory mMemory;
   const ModelShape &mShape;
   std::uint32_t mRecord;
   std::uint32_t mPacket;
@@ -172,13 +175,16 @@ private:
 // Runs `emit(packet)` for each record of the list in `call`, each the element of its list and index; the pool
 // advances past each packet `emit` linked. Returns the address past the list.
 template <typename Emit>
-std::uint32_t
-emitModelList(const EmitMemory &memory, const ListCall &call, const ModelShape &shape, ModelStage stage, Emit emit) {
+std::uint32_t emitModelList(const psx::present::EmitMemory &memory,
+                            const ListCall &call,
+                            const ModelShape &shape,
+                            ModelStage stage,
+                            Emit emit) {
   std::uint32_t record = call.list;
   const PacketPool pool(memory);
   std::uint32_t packet = pool.cursor();
   for (std::uint32_t index = 0; index != call.count; ++index, record += shape.recordBytes) {
-    const ElementScope element(memory, modelElement(shape.list, index));
+    const psx::present::ElementScope element(memory, modelElement(shape.list, index));
     if (emit(ModelPacket(memory, shape, record, packet, stage))) {
       packet += shape.packetBytes;
     }

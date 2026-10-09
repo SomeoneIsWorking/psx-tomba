@@ -186,7 +186,7 @@ entry point declared in `sequencer.h` and called from `Sequencer::registerOverri
 |---|---|
 | `Math` | The hot per-frame GTE-transform cluster: rotation-matrix compose and apply. |
 | `GteTransform3` | The three-axis GTE transform. |
-| `tomba2::gte` (`gte_registers.h`) | GTE register numbers and command words. |
+| `psx::gte` (psxport `gte_registers.h`) | GTE register numbers and command words; Tomba's emitters, the state producer (`list_state_producer.*`, over psxport `EmitMemory`, `GteControl` and `emitHostOrderingTable`) and `list_job.*` (psxport `StateWriter`/`StateReader`) share psxport's owners. |
 | `Mtx` | libgte matrix helpers. |
 | `Trig` | libgte trig helpers (rsin, rcos, ratan2, angle compare). |
 | `Rng` | The LFSR pseudo-random generator (guest `FUN_8009A450`). |

@@ -310,12 +310,8 @@ psx::present::FrameRecord drawGlyphFrame(Core &core, std::uint32_t x) {
   check(psx::cpu::dispatchGuest(core, kGlyphEntry, psx::cpu::ExecutionBudget::fromCycles(1000000u)).returned(),
         "the glyph emitter returns");
   constexpr std::uint32_t kGlyphPacketBytes = 0x14u;
-  tomba2::render::setDrawMode(tomba2::render::EmitMemory(core),
-                              kPool + 2u * kGlyphPacketBytes,
-                              0u,
-                              0u,
-                              tomba2::ui::GlyphState::kTexturePage,
-                              0u);
+  tomba2::render::setDrawMode(
+      psx::present::EmitMemory(core), kPool + 2u * kGlyphPacketBytes, 0u, 0u, tomba2::ui::GlyphState::kTexturePage, 0u);
   return tomba::test::walkOrderingTable(core, kOt);
 }
 
@@ -381,12 +377,12 @@ psx::present::FrameRecord drawRainFrame(Core &core, std::uint32_t node, std::uin
   for (std::uint32_t drop = 0; drop < kRainDrops; ++drop) {
     core.mem_w32(kRainTrails + drop * 4u, (10u << 16) | (10u + shift));
   }
-  gte_write_ctrl(tomba2::gte::kOfx, (160u + shift) << 16);
+  gte_write_ctrl(psx::gte::kOfx, (160u + shift) << 16);
   core.r[4] = node;
   check(call(core, kRainEntry), "the rain returns");
   // The stubbed SetDrawMode wrote nothing; each streak's DR_TPAGE packet follows its line.
   for (std::uint32_t drop = 0; drop < kRainDrops; ++drop) {
-    tomba2::render::setDrawMode(tomba2::render::EmitMemory(core), kPool + drop * 0x20u + 0x14u, 0u, 1u, 0x15u, 0u);
+    tomba2::render::setDrawMode(psx::present::EmitMemory(core), kPool + drop * 0x20u + 0x14u, 0u, 1u, 0x15u, 0u);
   }
   return tomba::test::walkOrderingTable(core, kOt);
 }
@@ -475,7 +471,7 @@ void testRain(Core &core) {
   gte_write_ctrl(5u, 0u);
   gte_write_ctrl(6u, 0u);
   gte_write_ctrl(7u, 1000u);
-  gte_write_ctrl(tomba2::gte::kH, 100u);
+  gte_write_ctrl(psx::gte::kH, 100u);
 
   for (int frame = 0; frame < 2; frame++) {
     beginFrame(core);

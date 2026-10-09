@@ -201,7 +201,7 @@ public:
   using ListStateProducer::ListStateProducer;
 
 protected:
-  void emit(const tomba2::render::EmitMemory &memory,
+  void emit(const psx::present::EmitMemory &memory,
             uint32_t tileVBias,
             const tomba2::render::ListCall &call) const override {
     TileGridLayer::emitGrid(memory, call.list, tileVBias);
@@ -314,10 +314,10 @@ void TileGridLayer::drawGrid(Core *c, uint32_t node, uint32_t tileVBias) {
     job.save(*c);
   }
   c->mem_w32(c->r[29] + 16u, 0u); // SetDrawMode's fifth argument
-  emitGrid(tomba2::render::EmitMemory(*c), node, tileVBias);
+  emitGrid(psx::present::EmitMemory(*c), node, tileVBias);
 }
 
-void TileGridLayer::emitGrid(const tomba2::render::EmitMemory &memory, uint32_t node, uint32_t tileVBias) {
+void TileGridLayer::emitGrid(const psx::present::EmitMemory &memory, uint32_t node, uint32_t tileVBias) {
   const int W = memory.mem_r8(node + 0x10u), H = memory.mem_r8(node + 0x11u);
   if (W == 0 || H == 0) {
     return;

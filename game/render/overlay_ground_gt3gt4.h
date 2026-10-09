@@ -56,9 +56,9 @@ public:
   static void leaf(Core *c, std::uint32_t entry, bool quad, const ListDepth &depth);
   // The bodies over any memory; each returns the address past its list.
   static std::uint32_t
-  emitGt3(const tomba2::render::EmitMemory &memory, const tomba2::render::ListCall &call, const ListDepth &depth);
+  emitGt3(const psx::present::EmitMemory &memory, const tomba2::render::ListCall &call, const ListDepth &depth);
   static std::uint32_t
-  emitGt4(const tomba2::render::EmitMemory &memory, const tomba2::render::ListCall &call, const ListDepth &depth);
+  emitGt4(const psx::present::EmitMemory &memory, const tomba2::render::ListCall &call, const ListDepth &depth);
   static void entityLoop(Core *c); // FUN_801401B8(list=a0) -> loads camera GTE ctrl regs 0..7 from
                                    // 0x1F8000F8, then walks list's u16 index array calling gt3()/gt4()
                                    // per referenced ground record group.

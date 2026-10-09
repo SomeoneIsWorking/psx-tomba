@@ -90,7 +90,8 @@ constexpr SwayCalls kCueGt3Calls{{0x8012FBDCu, 0x8012FC30u, 0x8012FC84u},
                                  {0x8012FBFCu, 0x8012FC50u, 0x8012FCA4u},
                                  {0x8012FCC4u, 0x8012FCE4u, 0x8012FD04u}};
 
-std::int32_t swayOffset(const EmitMemory &memory, bool cosine, std::uint32_t returnAddress, std::int32_t angle) {
+std::int32_t
+swayOffset(const psx::present::EmitMemory &memory, bool cosine, std::uint32_t returnAddress, std::int32_t angle) {
   Core &core = memory.core();
   std::int32_t value = 0;
   if (memory.hosted()) {
@@ -105,7 +106,7 @@ std::int32_t swayOffset(const EmitMemory &memory, bool cosine, std::uint32_t ret
   return value >> kSwayShift;
 }
 
-void sway(const EmitMemory &memory, const ModelPacket &packet, const SwayCalls &calls) {
+void sway(const psx::present::EmitMemory &memory, const ModelPacket &packet, const SwayCalls &calls) {
   const std::uint32_t record = packet.record();
   for (int corner = 0; corner < 3; ++corner) {
     const ModelCorner &model = kModelGt3.corners[corner];
@@ -126,7 +127,7 @@ void sway(const EmitMemory &memory, const ModelPacket &packet, const SwayCalls &
   }
 }
 
-void scrollUv(const EmitMemory &memory, const ModelShape &shape, const ModelPacket &packet) {
+void scrollUv(const psx::present::EmitMemory &memory, const ModelShape &shape, const ModelPacket &packet) {
   for (int corner = 0; corner < shape.cornerCount; ++corner) {
     const std::uint32_t uv = packet.packet() + ModelPacket::kUv[corner];
     memory.mem_w8(uv, static_cast<std::uint8_t>(memory.mem_r8(uv) + memory.mem_r8(kScrollU)));
@@ -134,12 +135,12 @@ void scrollUv(const EmitMemory &memory, const ModelShape &shape, const ModelPack
   }
 }
 
-std::int32_t stagedDepth(const EmitMemory &memory, int corner) {
+std::int32_t stagedDepth(const psx::present::EmitMemory &memory, int corner) {
   return static_cast<std::int32_t>(memory.mem_r32(kDepthStage + static_cast<std::uint32_t>(corner) * 4u));
 }
 
 // IR0 = SZ / 4 plus the next scratchpad LCG value's top 10 bits.
-void cueRandom(const EmitMemory &memory, const ModelPacket &packet, int corner) {
+void cueRandom(const psx::present::EmitMemory &memory, const ModelPacket &packet, int corner) {
   Core &core = memory.core();
   guest_mult(
       &core, static_cast<std::int32_t>(memory.mem_r32(kRandomSeed)), static_cast<std::int32_t>(kRandomMultiplier));
@@ -149,7 +150,10 @@ void cueRandom(const EmitMemory &memory, const ModelPacket &packet, int corner) 
 }
 
 // Every cue body cues its corners the same way; false when the record is hidden.
-bool cue(const EmitMemory &memory, const ModelShape &shape, const ModelPacket &packet, std::uint32_t flags) {
+bool cue(const psx::present::EmitMemory &memory,
+         const ModelShape &shape,
+         const ModelPacket &packet,
+         std::uint32_t flags) {
   if ((flags & kHideFlag) != 0u) {
     return !ModelPacket::hidden(memory, flags);
   }
@@ -164,7 +168,7 @@ bool cue(const EmitMemory &memory, const ModelShape &shape, const ModelPacket &p
 }
 
 // Projection through the bucket, the steps all four bodies share; false when the record is dropped.
-bool place(const EmitMemory &memory,
+bool place(const psx::present::EmitMemory &memory,
            const ModelShape &shape,
            const ModelPacket &packet,
            const Visibility &visible,
@@ -191,7 +195,7 @@ bool place(const EmitMemory &memory,
   return true;
 }
 
-std::uint32_t swayGt3Body(const EmitMemory &memory, const ListCall &call, const Visibility &visible) {
+std::uint32_t swayGt3Body(const psx::present::EmitMemory &memory, const ListCall &call, const Visibility &visible) {
   const std::uint32_t sp = call.sp;
   memory.mem_w32(sp + kSwayGt3OtArgument, call.ot);
   return emitModelList(memory, call, kModelGt3, kOverlayStage, [&](const ModelPacket &packet) {
@@ -210,7 +214,7 @@ std::uint32_t swayGt3Body(const EmitMemory &memory, const ListCall &call, const 
   });
 }
 
-std::uint32_t scrollGt4Body(const EmitMemory &memory, const ListCall &call, const Visibility &visible) {
+std::uint32_t scrollGt4Body(const psx::present::EmitMemory &memory, const ListCall &call, const Visibility &visible) {
   return emitModelList(memory, call, kModelGt4, kOverlayStage, [&](const ModelPacket &packet) {
     if (!place(memory, kModelGt4, packet, visible, true)) {
       return false;
@@ -223,7 +227,7 @@ std::uint32_t scrollGt4Body(const EmitMemory &memory, const ListCall &call, cons
   });
 }
 
-std::uint32_t cueGt3Body(const EmitMemory &memory, const ListCall &call, const Visibility &visible) {
+std::uint32_t cueGt3Body(const psx::present::EmitMemory &memory, const ListCall &call, const Visibility &visible) {
   const std::uint32_t sp = call.sp;
   memory.mem_w32(sp + kCueGt3OtArgument, call.ot);
   if (call.count != 0u) {
@@ -248,8 +252,8 @@ std::uint32_t cueGt3Body(const EmitMemory &memory, const ListCall &call, const V
   });
 }
 
-std::uint32_t cueGt4Body(const EmitMemory &memory, const ListCall &call, const Visibility &visible) {
-  gte_write_data(gte::kRgbc, kCueGt4Rgbc);
+std::uint32_t cueGt4Body(const psx::present::EmitMemory &memory, const ListCall &call, const Visibility &visible) {
+  gte_write_data(psx::gte::kRgbc, kCueGt4Rgbc);
   return emitModelList(memory, call, kModelGt4, kOverlayStage, [&](const ModelPacket &packet) {
     if (!place(memory, kModelGt4, packet, visible, false)) {
       return false;
@@ -295,7 +299,7 @@ public:
   using ListStateProducer::ListStateProducer;
 
 protected:
-  void emit(const EmitMemory &memory, std::uint32_t variant, const ListCall &call) const override {
+  void emit(const psx::present::EmitMemory &memory, std::uint32_t variant, const ListCall &call) const override {
     SwayModelEmitter::emit(
         memory, call, horizontal_cull::forDrawWindow(&core()), static_cast<SwayModelEmitter::Kind>(variant));
   }
@@ -303,8 +307,10 @@ protected:
 
 } // namespace
 
-std::uint32_t
-SwayModelEmitter::emit(const EmitMemory &memory, const ListCall &call, const Visibility &visible, Kind kind) {
+std::uint32_t SwayModelEmitter::emit(const psx::present::EmitMemory &memory,
+                                     const ListCall &call,
+                                     const Visibility &visible,
+                                     Kind kind) {
   switch (kind) {
   case Kind::SwayGt3:
     return swayGt3Body(memory, call, visible);

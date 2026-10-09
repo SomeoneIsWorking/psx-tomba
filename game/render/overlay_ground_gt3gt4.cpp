@@ -132,7 +132,7 @@ static int32_t sz4_minmax(bool want_max, int32_t a, int32_t b, int32_t e, int32_
 // Fix: uv0/uv1 moved to fire exactly where gen fires them (right after RTPT, unconditional).
 // ORACLE: overlay guest 0x8013FB88 (tools/dynamic differential evidence equivalence-gate marker; see
 // docs/port-framework.md)
-uint32_t OverlayGroundGt3Gt4::emitGt3(const tomba2::render::EmitMemory &memory,
+uint32_t OverlayGroundGt3Gt4::emitGt3(const psx::present::EmitMemory &memory,
                                       const tomba2::render::ListCall &call,
                                       const ListDepth &depth) {
   Core *const c = &memory.core();
@@ -146,7 +146,7 @@ uint32_t OverlayGroundGt3Gt4::emitGt3(const tomba2::render::EmitMemory &memory,
 
   const uint32_t list = rec;
   for (; count != 0; count--, rec += 36) {
-    const tomba2::render::ElementScope primitive(
+    const psx::present::ElementScope primitive(
         memory, tomba2::render::modelElement(tomba2::render::ModelList::Gt3, (rec - list) / 36));
     gte_write_data(0, memory.mem_r32(rec + 16)); // VXY0
     uint32_t vz01 = memory.mem_r32(rec + 20);
@@ -272,7 +272,7 @@ uint32_t OverlayGroundGt3Gt4::emitGt3(const tomba2::render::EmitMemory &memory,
 //   emitter or an adjacent one) that reuses that exact pool address inherits two different
 //   "leftover" byte patterns on the two engines. Fix: reordered to match gen's write timing
 //   exactly, gate for gate.
-uint32_t OverlayGroundGt3Gt4::emitGt4(const tomba2::render::EmitMemory &memory,
+uint32_t OverlayGroundGt3Gt4::emitGt4(const psx::present::EmitMemory &memory,
                                       const tomba2::render::ListCall &call,
                                       const ListDepth &depth) {
   Core *const c = &memory.core();
@@ -286,7 +286,7 @@ uint32_t OverlayGroundGt3Gt4::emitGt4(const tomba2::render::EmitMemory &memory,
 
   const uint32_t list = rec;
   for (; count != 0; count--, rec += 44) {
-    const tomba2::render::ElementScope primitive(
+    const psx::present::ElementScope primitive(
         memory, tomba2::render::modelElement(tomba2::render::ModelList::Gt4, (rec - list) / 44));
     gte_write_data(0, memory.mem_r32(rec + 20)); // VXY0
     uint32_t vz01 = memory.mem_r32(rec + 24);
@@ -532,7 +532,7 @@ public:
 
 protected:
   void
-  emit(const tomba2::render::EmitMemory &memory, std::uint32_t, const tomba2::render::ListCall &call) const override {
+  emit(const psx::present::EmitMemory &memory, std::uint32_t, const tomba2::render::ListCall &call) const override {
     if (mQuad) {
       OverlayGroundGt3Gt4::emitGt4(memory, call, mDepth);
     } else {

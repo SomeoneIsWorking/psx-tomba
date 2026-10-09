@@ -34,12 +34,12 @@ public:
   static void gt3(Core &c, std::uint32_t uvScroll, const tomba2::horizontal_cull::Visibility &visible);
   static void gt4(Core &c, std::uint32_t uvScroll);
   // The leaf bodies over any memory; each returns the address past its list.
-  static std::uint32_t emitGt3(const tomba2::render::EmitMemory &memory,
+  static std::uint32_t emitGt3(const psx::present::EmitMemory &memory,
                                const tomba2::render::ListCall &call,
                                std::uint32_t uvScroll,
                                const tomba2::horizontal_cull::Visibility &visible);
   static std::uint32_t
-  emitGt4(const tomba2::render::EmitMemory &memory, const tomba2::render::ListCall &call, std::uint32_t uvScroll);
+  emitGt4(const psx::present::EmitMemory &memory, const tomba2::render::ListCall &call, std::uint32_t uvScroll);
 
   // All addresses go into the ONE process-global registry via tomba::native::declareOverlayOverride, which
   // also lands the shared thunk in that overlay's image-qualified runtime dispatcher table, so direct

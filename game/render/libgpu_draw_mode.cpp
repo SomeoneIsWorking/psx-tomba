@@ -13,7 +13,7 @@ constexpr std::uint32_t kDrawOnDisplayBit = 0x400u;
 
 } // namespace
 
-std::uint32_t setDrawMode(const EmitMemory &memory,
+std::uint32_t setDrawMode(const psx::present::EmitMemory &memory,
                           std::uint32_t packet,
                           std::uint32_t drawOnDisplay,
                           std::uint32_t dither,

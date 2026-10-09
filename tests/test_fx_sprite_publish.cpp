@@ -12,7 +12,6 @@
 
 namespace {
 
-namespace gte = tomba2::gte;
 using tomba2::render::OrderingTable;
 
 constexpr std::uint32_t kSceneCamera = 0x1F8000F8u;
@@ -57,15 +56,16 @@ bool project(Core &core, std::uint32_t depth, std::int32_t otBias, std::uint32_t
 
 void testCameraLoad(Core &core) {
   parkCamera(core, 777u);
-  gte_write_ctrl(gte::kDqb, 99u);
+  gte_write_ctrl(psx::gte::kDqb, 99u);
   const FxSpritePublish publish{&core};
   publish.loadSceneCamera(4u);
   bool same = true;
   for (std::uint32_t i = 0; i < 8u; i++) {
-    same = same && gte_read_ctrl(gte::kRotation + i) == core.mem_r32(kSceneCamera + i * 4u);
+    same = same && gte_read_ctrl(psx::gte::kRotation + i) == core.mem_r32(kSceneCamera + i * 4u);
   }
   check(same, "the scratchpad camera lands in CR0-7");
-  check(gte_read_ctrl(gte::kDqa) == 4u && gte_read_ctrl(gte::kDqb) == 0u, "DQA is the emitter's, DQB is zero");
+  check(gte_read_ctrl(psx::gte::kDqa) == 4u && gte_read_ctrl(psx::gte::kDqb) == 0u,
+        "DQA is the emitter's, DQB is zero");
 }
 
 void testVisible(Core &core) {
@@ -73,7 +73,7 @@ void testVisible(Core &core) {
   check(core.mem_r32(fxpublish::kOtKey) == static_cast<std::uint32_t>(OrderingTable::compressDepth((1024 >> 2) + 10)),
         "the key is SZ3 >> 2 plus the bias, compressed");
   check(core.mem_r32(fxpublish::kScreenXY) == ((kOffsetY << 16) | kOffsetX), "the screen anchor is SXY2");
-  const std::uint32_t mac0 = gte_read_data(gte::kMac0);
+  const std::uint32_t mac0 = gte_read_data(psx::gte::kMac0);
   check(core.mem_r32(fxpublish::kScaleX) == mac0, "the scale is MAC0");
   check(project(core, 1024u, 10, 4u) && core.mem_r32(fxpublish::kScaleX) * 3u == mac0 * 2u && mac0 != 0u,
         "MAC0 is the divide times the emitter's DQA");
@@ -89,7 +89,7 @@ void testFlagCull(Core &core) {
   // SZ3 below H / 2 overflows the divide, which raises the FLAG error summary.
   check(!project(core, 8u, 0), "a divide overflow culls");
   check(static_cast<std::int32_t>(core.mem_r32(fxpublish::kOtKey)) < 0, "the key slot keeps the FLAG word");
-  check(core.mem_r32(fxpublish::kOtKey) == gte_read_ctrl(gte::kFlag), "the FLAG word is stored as read");
+  check(core.mem_r32(fxpublish::kOtKey) == gte_read_ctrl(psx::gte::kFlag), "the FLAG word is stored as read");
   check(core.mem_r32(fxpublish::kScreenXY) == kUntouched && core.mem_r32(fxpublish::kScaleX) == kUntouched,
         "a culled anchor publishes no position or scale");
 }
@@ -110,9 +110,9 @@ int main() {
   auto game = std::make_unique<Game>();
   Core &core = game->core;
   gte_bind(&core);
-  gte_write_ctrl(gte::kOfx, kOffsetX << 16);
-  gte_write_ctrl(gte::kOfy, kOffsetY << 16);
-  gte_write_ctrl(gte::kH, kScreenH);
+  gte_write_ctrl(psx::gte::kOfx, kOffsetX << 16);
+  gte_write_ctrl(psx::gte::kOfy, kOffsetY << 16);
+  gte_write_ctrl(psx::gte::kH, kScreenH);
   testCameraLoad(core);
   testVisible(core);
   testNearClamp(core);

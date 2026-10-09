@@ -12,8 +12,11 @@ constexpr std::int32_t kBucketCap = 0x800;
 
 } // namespace
 
-ModelPacket::ModelPacket(
-    const EmitMemory &memory, const ModelShape &shape, std::uint32_t record, std::uint32_t packet, ModelStage stage)
+ModelPacket::ModelPacket(const psx::present::EmitMemory &memory,
+                         const ModelShape &shape,
+                         std::uint32_t record,
+                         std::uint32_t packet,
+                         ModelStage stage)
     : mMemory(memory), mShape(shape), mRecord(record), mPacket(packet), mStage(stage) {}
 
 std::uint32_t ModelPacket::flags() const {
@@ -21,12 +24,12 @@ std::uint32_t ModelPacket::flags() const {
 }
 
 bool ModelPacket::transformFailed() const {
-  mMemory.mem_w32(mStage.gte, gte_read_ctrl(gte::kFlag));
+  mMemory.mem_w32(mStage.gte, gte_read_ctrl(psx::gte::kFlag));
   return static_cast<std::int32_t>(mMemory.mem_r32(mStage.gte)) < 0;
 }
 
 bool ModelPacket::facesAway() const {
-  mMemory.mem_w32(mStage.gte, gte_read_data(gte::kMac0));
+  mMemory.mem_w32(mStage.gte, gte_read_data(psx::gte::kMac0));
   return static_cast<std::int32_t>(mMemory.mem_r32(mStage.gte)) <= 0;
 }
 
@@ -34,24 +37,24 @@ bool ModelPacket::facesAway() const {
 void ModelPacket::loadTriangle() const {
   const std::uint32_t xy0 = mRecord + mShape.triangle;
   const std::uint32_t z01 = mMemory.mem_r32(xy0 + 4u);
-  gte_write_data(gte::kVxy0, mMemory.mem_r32(xy0));
-  gte_write_data(gte::kVz0, z01);
-  gte_write_data(gte::kVz1, z01 >> 16);
-  gte_write_data(gte::kVxy1, mMemory.mem_r32(xy0 + 8u));
-  gte_write_data(gte::kVxy2, mMemory.mem_r32(xy0 + 12u));
-  gte_write_data(gte::kVz2, mMemory.mem_r32(xy0 + 16u));
+  gte_write_data(psx::gte::kVxy0, mMemory.mem_r32(xy0));
+  gte_write_data(psx::gte::kVz0, z01);
+  gte_write_data(psx::gte::kVz1, z01 >> 16);
+  gte_write_data(psx::gte::kVxy1, mMemory.mem_r32(xy0 + 8u));
+  gte_write_data(psx::gte::kVxy2, mMemory.mem_r32(xy0 + 12u));
+  gte_write_data(psx::gte::kVz2, mMemory.mem_r32(xy0 + 16u));
 }
 
 void ModelPacket::storeTriangle() const {
   for (std::uint32_t corner = 0; corner < 3u; ++corner) {
-    mMemory.storeGteXy(mPacket + kScreen[corner], static_cast<int>(gte::kSxy0 + corner));
+    mMemory.storeGteXy(mPacket + kScreen[corner], static_cast<int>(psx::gte::kSxy0 + corner));
   }
 }
 
 // GT4 corner 3 into V0 for RTPS: VXY3 at record 0x28, VZ3 the top half of record 0x24.
 void ModelPacket::loadCornerThree() const {
-  gte_write_data(gte::kVxy0, mMemory.mem_r32(mRecord + 0x28u));
-  gte_write_data(gte::kVz0, mMemory.mem_r32(mRecord + 0x24u) >> 16);
+  gte_write_data(psx::gte::kVxy0, mMemory.mem_r32(mRecord + 0x28u));
+  gte_write_data(psx::gte::kVz0, mMemory.mem_r32(mRecord + 0x24u) >> 16);
 }
 
 bool ModelPacket::onScreen(const horizontal_cull::Visibility &visible) const {
@@ -68,14 +71,14 @@ bool ModelPacket::onScreen(const horizontal_cull::Visibility &visible) const {
 bool ModelPacket::projectGt3(std::uint32_t colourMask, const horizontal_cull::Visibility &visible) const {
   loadTriangle();
   mMemory.mem_w32(mPacket + 4u, mMemory.mem_r32(mRecord));
-  gte_op(&mMemory.core(), gte::kRtpt);
+  gte_op(&mMemory.core(), psx::gte::kRtpt);
   mMemory.mem_w32(mPacket + 0xCu, mMemory.mem_r32(mRecord + 8u));
   mMemory.mem_w32(mPacket + 0x18u, mMemory.mem_r32(mRecord + 0xCu));
   const std::uint32_t colour = mMemory.mem_r32(mRecord + 4u);
   if (transformFailed()) {
     return false;
   }
-  gte_op(&mMemory.core(), gte::kNclip);
+  gte_op(&mMemory.core(), psx::gte::kNclip);
   mMemory.mem_w32(mPacket + 0x10u, colour & colourMask);
   if (facesAway()) {
     return false;
@@ -94,13 +97,13 @@ bool ModelPacket::projectGt4(std::uint32_t firstColourMask,
   loadTriangle();
   const std::uint32_t colour01 = mMemory.mem_r32(mRecord);
   mMemory.mem_w32(mPacket + 4u, colour01 & firstColourMask);
-  gte_op(&mMemory.core(), gte::kRtpt);
+  gte_op(&mMemory.core(), psx::gte::kRtpt);
   mMemory.mem_w32(mPacket + 0x10u, (colour01 << 4) & colourMask);
   const std::uint32_t colour23 = mMemory.mem_r32(mRecord + 4u);
   if (transformFailed()) {
     return false;
   }
-  gte_op(&mMemory.core(), gte::kNclip);
+  gte_op(&mMemory.core(), psx::gte::kNclip);
   mMemory.mem_w32(mPacket + 0xCu, mMemory.mem_r32(mRecord + 8u));
   if (facesAway()) {
     return false;
@@ -108,13 +111,13 @@ bool ModelPacket::projectGt4(std::uint32_t firstColourMask,
   storeTriangle();
   loadCornerThree();
   mMemory.mem_w32(mPacket + 0x1Cu, colour23 & colourMask);
-  gte_op(&mMemory.core(), gte::kRtps);
+  gte_op(&mMemory.core(), psx::gte::kRtps);
   mMemory.mem_w32(mPacket + 0x28u, (colour23 << 4) & colourMask);
   mMemory.mem_w32(mPacket + 0x18u, mMemory.mem_r32(mRecord + 0xCu));
   if (transformFailed()) {
     return false;
   }
-  mMemory.storeGteXy(mPacket + kScreen[3], static_cast<int>(gte::kSxy2));
+  mMemory.storeGteXy(mPacket + kScreen[3], static_cast<int>(psx::gte::kSxy2));
   return onScreen(visible);
 }
 
@@ -123,22 +126,22 @@ bool ModelPacket::projectGt4CornerThreeFirst(std::uint32_t colourMask,
   loadCornerThree();
   const std::uint32_t colour23 = mMemory.mem_r32(mRecord + 4u);
   mMemory.mem_w32(mPacket + 0x1Cu, colour23 & colourMask);
-  gte_op(&mMemory.core(), gte::kRtps);
+  gte_op(&mMemory.core(), psx::gte::kRtps);
   mMemory.mem_w32(mPacket + 0x28u, (colour23 << 4) & colourMask);
   mMemory.mem_w32(mPacket + 0x18u, mMemory.mem_r32(mRecord + 0xCu));
   if (transformFailed()) {
     return false;
   }
-  mMemory.storeGteXy(mPacket + kScreen[3], static_cast<int>(gte::kSxy2));
+  mMemory.storeGteXy(mPacket + kScreen[3], static_cast<int>(psx::gte::kSxy2));
   loadTriangle();
   const std::uint32_t colour01 = mMemory.mem_r32(mRecord);
   mMemory.mem_w32(mPacket + 4u, colour01 & colourMask);
-  gte_op(&mMemory.core(), gte::kRtpt);
+  gte_op(&mMemory.core(), psx::gte::kRtpt);
   mMemory.mem_w32(mPacket + 0x10u, (colour01 << 4) & colourMask);
   if (transformFailed()) {
     return false;
   }
-  gte_op(&mMemory.core(), gte::kNclip);
+  gte_op(&mMemory.core(), psx::gte::kNclip);
   mMemory.mem_w32(mPacket + 0xCu, mMemory.mem_r32(mRecord + 8u));
   if (facesAway()) {
     return false;
@@ -157,7 +160,7 @@ void ModelPacket::stageDepths(std::uint32_t address) const {
 void ModelPacket::depth(ModelDepth mode, std::uint32_t staged) const {
   if (mode == ModelDepth::Average) {
     gte_op(&mMemory.core(), mShape.average);
-    mMemory.mem_w32(mStage.bucket, gte_read_data(gte::kOtz));
+    mMemory.mem_w32(mStage.bucket, gte_read_data(psx::gte::kOtz));
     return;
   }
   auto picked = static_cast<std::int32_t>(mMemory.mem_r32(staged));
@@ -217,10 +220,10 @@ void ModelPacket::storeLastUv() const {
 
 void ModelPacket::shade(int corner, std::int32_t intensity) const {
   const std::uint32_t colour = mPacket + kColour[corner];
-  gte_write_data(gte::kIr0, static_cast<std::uint32_t>(intensity));
-  gte_write_data(gte::kRgbc, mMemory.mem_r32(colour));
-  gte_op(&mMemory.core(), gte::kDpcs);
-  mMemory.mem_w32(colour, gte_read_data(gte::kRgb2));
+  gte_write_data(psx::gte::kIr0, static_cast<std::uint32_t>(intensity));
+  gte_write_data(psx::gte::kRgbc, mMemory.mem_r32(colour));
+  gte_op(&mMemory.core(), psx::gte::kDpcs);
+  mMemory.mem_w32(colour, gte_read_data(psx::gte::kRgb2));
 }
 
 void ModelPacket::cueByDepth(int corner, std::uint32_t staged) const {
@@ -265,7 +268,7 @@ ModelDepth ModelPacket::depthOf(std::uint32_t flags, std::uint32_t modeMask) {
   }
 }
 
-bool ModelPacket::hidden(const EmitMemory &memory, std::uint32_t flags, std::uint32_t hideFlag) {
+bool ModelPacket::hidden(const psx::present::EmitMemory &memory, std::uint32_t flags, std::uint32_t hideFlag) {
   return (flags & hideFlag) != 0u && memory.mem_r32(kHideWord) != 0u;
 }
 

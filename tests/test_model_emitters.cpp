@@ -82,9 +82,9 @@ void setUpGte(Core &core) {
   for (std::uint32_t reg = 5u; reg < 8u; ++reg) {
     gte_write_ctrl(reg, 0u);
   }
-  gte_write_ctrl(tomba2::gte::kOfx, 160u << 16);
-  gte_write_ctrl(tomba2::gte::kOfy, 120u << 16);
-  gte_write_ctrl(tomba2::gte::kH, static_cast<std::uint32_t>(kDepth));
+  gte_write_ctrl(psx::gte::kOfx, 160u << 16);
+  gte_write_ctrl(psx::gte::kOfy, 120u << 16);
+  gte_write_ctrl(psx::gte::kH, static_cast<std::uint32_t>(kDepth));
   gte_write_ctrl(29u, 0x555u); // ZSF3
   gte_write_ctrl(30u, 0x400u); // ZSF4
 }

@@ -44,7 +44,7 @@ public:
 
   // The grid walk both emitters share, over the guest or a render's host memory: the sprites of every tile the
   // draw window shows, chained under a draw mode packet at the background bucket.
-  static void emitGrid(const tomba2::render::EmitMemory &memory, std::uint32_t node, std::uint32_t tileVBias);
+  static void emitGrid(const psx::present::EmitMemory &memory, std::uint32_t node, std::uint32_t tileVBias);
 
 private:
   // Saves the grid's state, then draws it.

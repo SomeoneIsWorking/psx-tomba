@@ -211,7 +211,6 @@ set(GAME_SRC
   game/render/wide_re_gpu_putdrawenv.cpp
   game/render/libgpu_draw_env.cpp        # libgpu SetDrawEnv (0x80081FB0) — DRAWENV -> DR_ENV packet
   game/render/guest_ordering_table.cpp
-  game/render/emit_memory.cpp
   game/render/screen_fade.cpp
   game/render/margin_render.cpp
   game/render/quad_rtpt_submit.cpp

@@ -52,7 +52,7 @@ public:
       : ListStateProducer(core), mVariant(variant), mQuad(quad) {}
 
 protected:
-  void emit(const EmitMemory &memory, std::uint32_t, const ListCall &call) const override {
+  void emit(const psx::present::EmitMemory &memory, std::uint32_t, const ListCall &call) const override {
     UnlitModelEmitter::emit(memory, call, horizontal_cull::forDrawWindow(&core()), mVariant, mQuad);
   }
 
@@ -185,8 +185,11 @@ constexpr Copy kCopies[] = {
 
 } // namespace
 
-std::uint32_t UnlitModelEmitter::emit(
-    const EmitMemory &memory, const ListCall &call, const Visibility &visible, const Variant &variant, bool quad) {
+std::uint32_t UnlitModelEmitter::emit(const psx::present::EmitMemory &memory,
+                                      const ListCall &call,
+                                      const Visibility &visible,
+                                      const Variant &variant,
+                                      bool quad) {
   const ModelShape &shape = quad ? kModelGt4 : kModelGt3;
   const std::uint32_t frame = call.sp - (quad ? variant.gt4FrameBytes : variant.gt3FrameBytes);
   return emitModelList(memory, call, shape, variant.stage, [&](const ModelPacket &packet) {

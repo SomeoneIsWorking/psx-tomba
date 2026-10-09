@@ -64,7 +64,6 @@ constexpr std::uint32_t kApplyMatrixSv = 0x80084220u;
 constexpr std::uint32_t kSetTransMatrix = 0x80084690u;
 constexpr std::uint32_t kDrawMode = 0x80083DE0u;
 
-namespace gte = tomba2::gte;
 using tomba2::render::OrderingTable;
 
 // A drawn streak as the render needs it: where it links, and the screen points of its two ends.
@@ -173,17 +172,17 @@ void RainStreaks::draw(Core *c) {
     c->mem_w16(kDropVector + 0u, static_cast<std::uint16_t>(x & kLattice));
     c->mem_w16(kDropVector + 2u, static_cast<std::uint16_t>(y & kLattice));
     c->mem_w16(kDropVector + 4u, static_cast<std::uint16_t>(z & kLattice));
-    gte_write_data(gte::kVxy0, c->mem_r32(kDropVector + 0u));
-    gte_write_data(gte::kVz0, c->mem_r32(kDropVector + 4u));
+    gte_write_data(psx::gte::kVxy0, c->mem_r32(kDropVector + 0u));
+    gte_write_data(psx::gte::kVz0, c->mem_r32(kDropVector + 4u));
     seed = static_cast<std::uint32_t>(guest_mult(c, static_cast<std::int32_t>(seed), multiplier)) + 1u;
-    gte_op(c, gte::kRtps);
-    c->mem_w32(kScratchDepth, gte_read_ctrl(gte::kFlag));
+    gte_op(c, psx::gte::kRtps);
+    c->mem_w32(kScratchDepth, gte_read_ctrl(psx::gte::kFlag));
     if (static_cast<std::int32_t>(c->mem_r32(kScratchDepth)) < 0) {
       c->mem_w32(trail, kNoTrail);
       continue;
     }
-    gte_store_xy(c, pool + 8u, gte::kSxy2);
-    const std::int32_t otz = orderingIndex(static_cast<std::int32_t>(gte_read_data(gte::kSz3)));
+    gte_store_xy(c, pool + 8u, psx::gte::kSxy2);
+    const std::int32_t otz = orderingIndex(static_cast<std::int32_t>(gte_read_data(psx::gte::kSz3)));
     c->mem_w32(kScratchDepth, static_cast<std::uint32_t>(otz));
     const bool wrapped = (((x ^ (latticeX + lastX)) | (y ^ (latticeY + lastY)) | (z ^ (latticeZ + lastZ))) &
                           static_cast<std::int32_t>(kLatticeCell)) != 0;

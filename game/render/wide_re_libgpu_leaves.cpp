@@ -296,7 +296,7 @@ static void libgpuDmaStatusReset(Core *c) {
 static void libgpuSetDrawMode(Core *c) {
   // 5th arg: o32 outgoing-arg stack slot
   c->r[2] = tomba2::render::setDrawMode(
-      tomba2::render::EmitMemory(*c), c->r[4], c->r[5], c->r[6], c->r[7], c->mem_r32(c->r[29] + 16));
+      psx::present::EmitMemory(*c), c->r[4], c->r[5], c->r[6], c->r[7], c->mem_r32(c->r[29] + 16));
 }
 
 // vertexHeaderRepack (0x800847B0) — 20-byte SoA->AoS vertex-header REPACK. DRAFT. RE'd from authenticated

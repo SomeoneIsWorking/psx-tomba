@@ -29,7 +29,7 @@ protected:
     return core_;
   }
   // Runs emitter body `variant` over `memory`: the packets it links into the OT are the render.
-  virtual void emit(const EmitMemory &memory, std::uint32_t variant, const ListCall &call) const = 0;
+  virtual void emit(const psx::present::EmitMemory &memory, std::uint32_t variant, const ListCall &call) const = 0;
 
 private:
   Core &core_;
