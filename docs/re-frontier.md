@@ -68,8 +68,10 @@ Tomba! 2 representative gameplay is complete.
   into whichever MODE image owns the area, so a slot seeded for another area's code dispatches into the wrong image.
 - Tomba! 2 has no retail debug menu or warp in the 28 disc images or the MAIN.EXE strings (searched for debug,
   warp, select, stage, test, cheat; stage ids reach only START, DEMO, GAME, via `FUN_80052078`). The retail area travel is Magic Wings (item
-  text "fly to anywhere Tomba has been"), a player feature. The dev menu's area warp is the port's own: the Debug tab's
-  `psx::ui::WarpControl` arms the same `applyColdWarp` path as the `warp` command.
+  text "fly to anywhere Tomba has been"), a player feature. A community debug menu exists outside the disc: the Tomba
+  Club "Debug Menu (Press L3 to toggle)" GameShark/DuckStation code list for SCUS-94454 by unicorngoulash, carried
+  verbatim in `mstan/Tomba2Recomp` (`mods/sources/tomba2_debug_menu.cht`). It is MIPS written to `0x8000C000` with five
+  call sites in the gameplay overlay re-pointed at it; its WARP TOOLS page launches an area/entry transition (issue 0034).
 
 ## Render producers
 
