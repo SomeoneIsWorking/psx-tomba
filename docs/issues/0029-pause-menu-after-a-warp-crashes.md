@@ -1,23 +1,34 @@
 # 0029 — the pause menu after a warp crashes
 
-Status: open.
+Status: closed.
 
 ## Reproduction
 
-Record path, 4:3 or 16:9, fps60 off: `newgame`, `run 200`, `warp 8`, `run 300`, `tap start`, `run 10`.
+Record path, fps60 off: new game, 200 frames, `warp 8`, 300 frames, `tap start`, 10 to 60 frames.
 
-- Area 8: the process aborts. `host dispatch to 0xDEAD0000 FAILED`; the block that produced the target
-  began at 0x8011593C (`scratch/logs/gate-menu8ref-20261007-151109.log`).
-- Area 1 (`warp 1`): a budget exit resumes at pc 0x00000000 and the process aborts
-  (`scratch/logs/gate-menu1-20261007-151143.log`).
-
-The area 8 crash reproduces on a build of clean HEAD 196e370, so it predates the fade and emitter work.
+- Area 8: the process aborted. `host dispatch to 0xDEAD0000 FAILED`; the block began at 0x8011593C.
+- Area 1: a budget exit at pc 0x00000000 in `dispatchJalToReturn`.
 
 ## Cause
 
-Not traced. Untested hypothesis: 0xDEAD0000 is a sentinel return address reaching a `jr`, so the warp
-leaves some call state the menu relies on unset.
+Start was not the pause menu. A warp taken during the scripted opening left the load-mode byte `0x800BF89C` at 2, so
+the field ran in the opening's state (sm[0x4e] = 9) where Start skips the intro: `Engine::fieldRun` cases 9, 10, 7,
+8, 6 set the target area from `0x800BF83A` (0) and continue in area 0 without reloading the MODE overlay. Area 8's
+code stayed in the MODE slot while `FUN_800263E8` seeded the 8-slot array at `0x80100400` with area 0's object
+types; slot 2 (type 2) dispatched through `0x8009D314` to `0x801158E0`, which is area 0's tile-grid handler and the
+middle of a function in A08. Entered there, `sp` was unadjusted and the saved `ra` slot read 0xDEAD0000 (the
+scheduler's top-level return sentinel). Area 1 is the same skip with area 1's code, ending at pc 0.
 
-## Blocks
+`tomba::applyColdWarp` (`game/core/debug/dev_warp.cpp`) did not leave the scripted-sequence mode the way the
+skip (case 8) and the attract launch do.
 
-The 16:9 check of the menu backdrop `FUN_80034548` (0027).
+## Fix
+
+`applyColdWarp` writes load mode 4 before the area load. The load then skips the OPN image and the field starts
+in ordinary play, where Start opens the pause menu (Options / Load data / Quit game).
+
+## Verification
+
+`warp 1` and `warp 8`, 300 frames, `tap start`, 60 frames: the pause menu is on screen, no abort, record-path
+4:3 recordcheck 689 of 689 frames 0 mismatched each. A hermetic test needs the disc (area load); the evidence is
+the scripted run in `scratch/warp-crashes/scripts/f1.txt` and `f8.txt` through `scratch/warp-crashes/drive.py`.

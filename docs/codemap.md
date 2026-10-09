@@ -440,7 +440,8 @@ lucent::http::Server                         (psxport) — the loopback listener
       → Debug warp / area selection          debug/dev_warp.* and debug/dev_areas.cpp — a
                                                request is armed and the frame driver applies it at a
                                                frame boundary through the game's own transition and
-                                               load owners
+                                               load owners; it sets load mode 0x800BF89C = 4, leaving
+                                               the scripted opening, before the load
 ```
 
 ---

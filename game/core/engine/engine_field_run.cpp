@@ -361,13 +361,13 @@ void Engine::submode1() {
     eng(c).fieldRunX();
     break; // mid-transition running sub-machine 0x801070b4 — native
   case 4:
-    psx::cpu::dispatchGuestToReturn0(*c, 0x80107230u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    tomba::guest::dispatchHandlerToReturnResuming(*c, 0x80107230u, __func__);
     break;
   case 5:
-    psx::cpu::dispatchGuestToReturn0(*c, 0x8010766cu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    tomba::guest::dispatchHandlerToReturnResuming(*c, 0x8010766cu, __func__);
     break;
   case 6:
-    psx::cpu::dispatchGuestToReturn0(*c, 0x80107790u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    tomba::guest::dispatchHandlerToReturnResuming(*c, 0x80107790u, __func__);
     break;
   default:
     break; // >=7: no-op

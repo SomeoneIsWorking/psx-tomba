@@ -72,6 +72,12 @@ if(BUILD_TESTING)
   target_include_directories(test_authentic_resident_override PRIVATE game game/core tests)
   target_link_libraries(test_authentic_resident_override PRIVATE psxport)
 
+  add_executable(test_long_area_handler
+      tests/test_long_area_handler.cpp
+      tests/authenticated_image.cpp)
+  target_include_directories(test_long_area_handler PRIVATE game game/core tests)
+  target_link_libraries(test_long_area_handler PRIVATE psxport)
+
   add_executable(test_authentic_screen_fade
       tests/test_authentic_screen_fade.cpp
       tests/authenticated_image.cpp

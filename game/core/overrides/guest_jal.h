@@ -2,10 +2,12 @@
 
 #include "core.h"
 #include "guest_call.h"
+#include "resumable_guest_call.h"
 
 #include <array>
 #include <cstdint>
 #include <span>
+#include <string_view>
 
 namespace tomba::guest {
 
@@ -27,6 +29,12 @@ std::uint32_t dispatchLeafToReturn(Core &core, std::uint32_t address, Arguments.
   psx::cpu::dispatchGuestWithArgumentsToReturn(
       core, address, std::span<const std::uint32_t>{values}, psx::cpu::ExecutionBudget::currentTurn(core), __func__);
   return core.r[2];
+}
+
+// A guest handler whose work can exceed one display field (the area handlers' first state clears the
+// object pools): it is resumed across host turns until it returns to the caller's $ra.
+inline std::uint32_t dispatchHandlerToReturnResuming(Core &core, std::uint32_t address, std::string_view owner) {
+  return psx::cpu::callGuestToReturnResuming(core, owner, address, core.r[31]);
 }
 
 } // namespace tomba::guest

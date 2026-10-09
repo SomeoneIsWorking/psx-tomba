@@ -11,11 +11,21 @@
 
 namespace tomba {
 
+namespace {
+
+// 0x800BF89C: 2 while the scripted opening runs, 4 in ordinary play. The intro skip (fieldRun case 8) and the
+// attract launch both write 4 before loading the next area.
+constexpr uint32_t kLoadModeByte = 0x800bf89cu;
+constexpr uint8_t kPlayLoadMode = 4;
+
+} // namespace
+
 void applyColdWarp(Core &core, int area, int sub) {
   Core *c = &core;
   const uint32_t dest = static_cast<uint32_t>(area) & 0x1fu;
   const uint32_t wsm = c->mem_r32(0x1f800138u);
   psx::cpu::callGuestNow(*c, __func__, 0x80074E48u); // stop the current song, as every area transition does
+  c->mem_w8(kLoadModeByte, kPlayLoadMode);
   c->mem_w8(wsm + 0x6e, static_cast<uint8_t>(dest));
   c->mem_w8(wsm + 0x6d, 2);
   eng(c).sop.transitionAreaLoad();

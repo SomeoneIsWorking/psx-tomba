@@ -56,6 +56,21 @@ Tomba! 2 representative gameplay is complete.
 - where: absent by design; enforced by title CMake and provisioning boundaries
 - gap: None for removal. Fresh product build/launch evidence belongs to T2-01 through T2-05 and cannot fall back to the retired path.
 
+## Area machine facts
+
+- `0x80108F60[area]` selects the sm[0x4c] handler after a load: 2 field run, 4/5/6 the GAME-image handlers
+  `0x80107230` / `0x8010766C` / `0x80107790` (areas 2, 3, 7, 20). Their first state runs `FUN_8007B18C` and the
+  area init chain and needs 695,994 cycles (2 display fields); `Engine::submode1` resumes them.
+- `0x800BF89C`: 2 during the scripted opening, 4 in ordinary play. In mode 2 sm[0x4e] = 9 and Start skips to area 0
+  (`fieldRun` cases 9, 10, 7, 8, 6).
+- `0x80100400`: the 8-slot object array (stride 0x4C); `FUN_800263E8` fills it from the per-area type list at
+  `0x8009D414[area]`, `FUN_80026368` dispatches slot type through the handler table at `0x8009D314`. Types 2..35 point
+  into whichever MODE image owns the area, so a slot seeded for another area's code dispatches into the wrong image.
+- Tomba! 2 has no retail debug menu or warp in the 28 disc images or the MAIN.EXE strings (searched for debug,
+  warp, select, stage, test, cheat; stage ids reach only START, DEMO, GAME, via `FUN_80052078`). The retail area travel is Magic Wings (item
+  text "fly to anywhere Tomba has been"), a player feature. The dev menu's area warp is the port's own: the Debug tab's
+  `psx::ui::WarpControl` arms the same `applyColdWarp` path as the `warp` command.
+
 ## Render producers
 
 ### T2-R1 — Key the largest unkeyed draw submitters

@@ -146,7 +146,7 @@ Missing capability: No application, Gradle/NDK composition, `android-port` consu
 
 ### S023 — Tomba! 2 loads complete without loading-only waits or presentation
 
-Gap: Every reachable load is synchronous and presents no card: boot preloads, attract item launch, GAME prologue first area, the in-field area transition and cold warps all complete inside the caller's own display field, and the "Loading....." card and `Engine::submode1Faithful` are deleted. The card's only caller was `FUN_80044BD4`'s wait loop, and all 22 of its guest call sites are guest images of load paths already owned natively, so an override there is unreachable and was not landed. The area-transition 5 s minimum/cancel is open: no writer of `FUN_80127798`'s `node[5]=3` is reachable.
+Gap: Every reachable load is synchronous and presents no card: boot preloads, attract item launch, GAME prologue first area, the in-field area transition and cold warps all complete inside the caller's own display field, and the "Loading....." card and `Engine::submode1Faithful` are deleted. The card's only caller was `FUN_80044BD4`'s wait loop, and all 22 of its guest call sites are guest images of load paths already owned natively, so an override there is unreachable and was not landed. The area-transition 5 s minimum/cancel is open: no writer of `FUN_80127798`'s `node[5]=3` is reachable. Cold warps to areas 1, 2 and 8 run 300 to 600 fields and open the pause menu without an abort (area handlers 4/5/6 resume across host turns, `test_long_area_handler`; a warp leaves the scripted-opening load mode).
 
 ### S024 — Tomba! 1 loads complete without loading-only waits or presentation
 
