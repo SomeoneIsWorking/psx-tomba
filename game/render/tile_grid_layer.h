@@ -17,6 +17,7 @@
 // resolves to these two addresses at runtime).
 //
 #pragma once
+#include "emit_memory.h"
 #include <cstdint>
 
 struct Core;
@@ -38,11 +39,16 @@ public:
   static void emitUnbiased(Core *c);
 
   static void registerOverrides(Game *game);
+  // The grid as one object keyed by its node: its state render, at each of the six emitter entries.
+  static void registerStateRenders(Core &core);
+
+  // The grid walk both emitters share, over the guest or a render's host memory: the sprites of every tile the
+  // draw window shows, chained under a draw mode packet at the background bucket.
+  static void emitGrid(const tomba2::render::EmitMemory &memory, std::uint32_t node, std::uint32_t tileVBias);
 
 private:
-  // The grid walk both emitters share; each tile is keyed by its map cell. Runs inside the caller's
-  // guest frame (the trailing 0x80083DE0 call takes its 5th argument at sp+16).
-  static void emitGrid(Core *c, std::uint32_t node, std::uint32_t tileVBias);
+  // Saves the grid's state, then draws it.
+  static void drawGrid(Core *c, std::uint32_t node, std::uint32_t tileVBias);
   // FUN_8010C26C's tail: three palette-cycle scripts, each loading one 16x1 CLUT row when its
   // countdown runs out. Uses the caller's frame for the RECT at sp+0x18.
   static void cycleSopPalettes(Core *c);

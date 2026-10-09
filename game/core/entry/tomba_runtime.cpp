@@ -8,10 +8,18 @@
 #include "game.h"
 #include "game_tomba2.h"
 #include "guest_call.h"
+#include "lit_model_emitter.h"
 #include "memcard.h"
+#include "overlay_ground_gt3gt4.h"
+#include "overlay_gt3gt4.h"
 #include "overrides/native_override_catalog.h"
 #include "overrides/register_overrides.h"
+#include "rain_streaks.h"
+#include "sway_model_emitter.h"
+#include "tile_grid_layer.h"
 #include "title_facts.h"
+#include "ui/font.h"
+#include "unlit_model_emitter.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -38,6 +46,14 @@ void TombaRuntime::registerOverrides(Game &game) {
   card_overrides_init(&game);
   register_engine_overrides(game);
   bindLoadedResident(game.core);
+  tomba2::render::UnlitModelEmitter::registerStateRenders(game.core);
+  OverlayGt3Gt4::registerStateRenders(game.core);
+  tomba2::render::SwayModelEmitter::registerStateRenders(game.core);
+  tomba2::render::LitModelEmitter::registerStateRenders(game.core);
+  OverlayGroundGt3Gt4::registerStateRenders(game.core);
+  TileGridLayer::registerStateRenders(game.core);
+  RainStreaks::registerStateRenders(game.core);
+  Font::registerStateRenders(game.core);
 }
 
 void TombaRuntime::bindLoadedResident(Core &core) {

@@ -10,14 +10,15 @@
 #pragma once
 
 #include "core.h"
+#include "emit_memory.h"
 #include "gte_registers.h"
 #include "guest_ordering_table.h"
+#include "list_job.h"
 #include "model_element.h"
 
 #include <array>
 #include <cstddef>
 #include <cstdint>
-#include <new>
 
 namespace tomba2::horizontal_cull {
 class Visibility;
@@ -83,6 +84,7 @@ enum class ModelDepth { Average, Farthest, Nearest };
 
 // The flag bit that hides an A01 record while the scratchpad word 0x1F80009C is set.
 inline constexpr std::uint32_t kHideFlag = 0x40u;
+inline constexpr std::uint32_t kHideWord = 0x1F80009Cu;
 
 // The bucket depth a near record is pulled to.
 inline constexpr std::int32_t kNearDepth = 0x28;
@@ -93,34 +95,11 @@ struct NearClamp {
 };
 inline constexpr NearClamp kNoNearClamp{0, 0u};
 
-// The scene-entity walkers (A01 FUN_80132358, A08 FUN_8012A7CC) call the emitters outside any producer;
-// there the list is the drawn object, a table slot of the area's scenery.
-class ModelObjectScope {
-public:
-  ModelObjectScope(psx::present::EmissionScope &scope, std::uint32_t entry, std::uint32_t list) {
-    if (!scope.isOpen()) {
-      guard_ = new (storage_) psx::present::EmissionScope::Guard(scope, entry, list, 0);
-    }
-  }
-  ~ModelObjectScope() {
-    if (guard_ != nullptr) {
-      guard_->~Guard();
-    }
-  }
-  ModelObjectScope(const ModelObjectScope &) = delete;
-  ModelObjectScope &operator=(const ModelObjectScope &) = delete;
-  ModelObjectScope(ModelObjectScope &&) = delete;
-  ModelObjectScope &operator=(ModelObjectScope &&) = delete;
-
-private:
-  alignas(psx::present::EmissionScope::Guard) std::byte storage_[sizeof(psx::present::EmissionScope::Guard)];
-  psx::present::EmissionScope::Guard *guard_ = nullptr;
-};
-
 // One record's packet.
 class ModelPacket {
 public:
-  ModelPacket(Core &core, const ModelShape &shape, std::uint32_t record, std::uint32_t packet, ModelStage stage);
+  ModelPacket(
+      const EmitMemory &memory, const ModelShape &shape, std::uint32_t record, std::uint32_t packet, ModelStage stage);
 
   std::uint32_t record() const {
     return mRecord;
@@ -167,7 +146,7 @@ public:
   // 0 average, 1 farthest, anything else nearest (the flagged overlay copy).
   static ModelDepth flaggedDepth(std::uint32_t flags);
   // `hideFlag` hides the record while the scratchpad word 0x1F80009C is set.
-  static bool hidden(Core &core, std::uint32_t flags, std::uint32_t hideFlag = kHideFlag);
+  static bool hidden(const EmitMemory &memory, std::uint32_t flags, std::uint32_t hideFlag = kHideFlag);
 
   // Packet offsets of each corner's colour and SXY; a corner's SY is its SX + 2.
   static constexpr std::array<std::uint32_t, 4> kColour{4u, 0x10u, 0x1Cu, 0x28u};
@@ -183,28 +162,36 @@ private:
   void loadCornerThree() const;
   bool onScreen(const horizontal_cull::Visibility &visible) const;
 
-  Core &mCore;
+  EmitMemory mMemory;
   const ModelShape &mShape;
   std::uint32_t mRecord;
   std::uint32_t mPacket;
   ModelStage mStage;
 };
 
-// Runs `emit(packet)` for each record of the list in a0 (count a2), each the element of its list and index;
-// the pool advances past each packet `emit` linked. Returns the address past the list.
-template <typename Emit> std::uint32_t emitModelList(Core &core, const ModelShape &shape, ModelStage stage, Emit emit) {
-  std::uint32_t record = core.r[4];
-  const std::uint32_t count = core.r[6];
-  const PacketPool pool(core);
+// Runs `emit(packet)` for each record of the list in `call`, each the element of its list and index; the pool
+// advances past each packet `emit` linked. Returns the address past the list.
+template <typename Emit>
+std::uint32_t
+emitModelList(const EmitMemory &memory, const ListCall &call, const ModelShape &shape, ModelStage stage, Emit emit) {
+  std::uint32_t record = call.list;
+  const PacketPool pool(memory);
   std::uint32_t packet = pool.cursor();
-  for (std::uint32_t index = 0; index != count; ++index, record += shape.recordBytes) {
-    const auto element = core.emission.element(modelElement(shape.list, index));
-    if (emit(ModelPacket(core, shape, record, packet, stage))) {
+  for (std::uint32_t index = 0; index != call.count; ++index, record += shape.recordBytes) {
+    const ElementScope element(memory, modelElement(shape.list, index));
+    if (emit(ModelPacket(memory, shape, record, packet, stage))) {
       packet += shape.packetBytes;
     }
   }
   pool.setCursor(packet);
   return record;
+}
+
+// The saved call of a model list emitter: its records and the packets it may write.
+inline ListJobWriter modelListJob(Core &core, std::uint32_t variant, const ListCall &call, const ModelShape &shape) {
+  ListJobWriter job(core, variant, call, call.count * shape.packetBytes);
+  job.input(core, call.list, call.count * shape.recordBytes);
+  return job;
 }
 
 } // namespace tomba2::render

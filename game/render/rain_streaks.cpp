@@ -4,10 +4,17 @@
 #include "core.h"
 #include "core/overrides/guest_jal.h"
 #include "core/overrides/native_override_catalog.h"
+#include "gp0_primitive_decode.h"
 #include "gte_registers.h"
 #include "guest_abi.h"
 #include "guest_ordering_table.h"
 #include "native_dispatch.h"
+#include "state_producer.h"
+
+#include <array>
+#include <cmath>
+#include <cstring>
+#include <memory>
 
 namespace {
 
@@ -59,6 +66,44 @@ constexpr std::uint32_t kDrawMode = 0x80083DE0u;
 
 namespace gte = tomba2::gte;
 using tomba2::render::OrderingTable;
+
+// A drawn streak as the render needs it: where it links, and the screen points of its two ends.
+struct StreakState {
+  std::uint32_t table = 0;
+  std::uint32_t slot = 0; // OT slot of bucket 0
+  std::uint32_t bucket = 0;
+  std::int16_t x[2] = {};
+  std::int16_t y[2] = {};
+};
+
+std::int16_t lerpCoordinate(std::int16_t from, std::int16_t to, float t) {
+  return static_cast<std::int16_t>(std::lround(from + (to - from) * static_cast<double>(t)));
+}
+
+std::uint32_t packXy(std::int16_t x, std::int16_t y) {
+  return static_cast<std::uint16_t>(x) | (static_cast<std::uint32_t>(static_cast<std::uint16_t>(y)) << 16);
+}
+
+class StreakStateProducer final : public psx::present::StateProducer {
+public:
+  void render(std::span<const std::byte> from,
+              std::span<const std::byte> to,
+              float t,
+              psx::present::PrimitiveSink &sink) const override {
+    StreakState later;
+    StreakState earlier;
+    std::memcpy(&later, to.data(), sizeof(later));
+    std::memcpy(&earlier, from.data(), sizeof(earlier));
+    const std::array<std::uint32_t, kLineWords> words = {
+        kLineColour0,
+        packXy(lerpCoordinate(earlier.x[0], later.x[0], t), lerpCoordinate(earlier.y[0], later.y[0], t)),
+        kLineColour1,
+        packXy(lerpCoordinate(earlier.x[1], later.x[1], t), lerpCoordinate(earlier.y[1], later.y[1], t))};
+    auto streak = psx::gpu::decodePacketPrimitive(words);
+    psx::gpu::applyTexPageAttribute(streak->state, kTpageMode);
+    sink.emit(psx::present::OtSlot{static_cast<std::uint16_t>(later.table), later.slot + later.bucket}, *streak);
+  }
+};
 
 // FUN_80116904's OTZ: SZ3/4 compressed, kNoBucket outside [4, 0x800).
 std::int32_t orderingIndex(std::int32_t sz3) {
@@ -114,8 +159,8 @@ void RainStreaks::draw(Core *c) {
   const tomba2::render::PacketPool packets(*c);
   std::uint32_t pool = packets.cursor();
   for (std::uint32_t drop = 0; drop < kDropCount; drop++) {
-    const auto element = c->emission.element(drop);
     const std::uint32_t trail = kDropTrails + drop * 4u;
+    const auto streakScope = c->emission.instance(trail);
     const auto multiplier = static_cast<std::int32_t>(c->mem_r32(kLcgMultiplier));
     const std::int32_t latticeX = static_cast<std::int32_t>(seed) >> 16;
     seed = static_cast<std::uint32_t>(guest_mult(c, static_cast<std::int32_t>(seed), multiplier)) + 1u;
@@ -159,7 +204,19 @@ void RainStreaks::draw(Core *c) {
     const std::int32_t backY = (c->mem_r16s(trail + 2u) - static_cast<std::int16_t>(screenY)) * 2;
     c->mem_w16(pool + 16u, static_cast<std::uint16_t>(screenX + backX));
     c->mem_w16(pool + 18u, static_cast<std::uint16_t>(screenY + backY));
-    OrderingTable::active(*c).link(pool, kLineWords, static_cast<std::uint32_t>(otz));
+    const OrderingTable ot = OrderingTable::active(*c);
+    ot.link(pool, kLineWords, static_cast<std::uint32_t>(otz));
+    if (const auto slot = c->otTables.slotOf(ot.base())) {
+      StreakState streak;
+      streak.table = slot->table;
+      streak.slot = slot->index;
+      streak.bucket = static_cast<std::uint32_t>(otz);
+      streak.x[0] = static_cast<std::int16_t>(screenX);
+      streak.y[0] = static_cast<std::int16_t>(screenY);
+      streak.x[1] = static_cast<std::int16_t>(screenX + backX);
+      streak.y[1] = static_cast<std::int16_t>(screenY + backY);
+      c->frameStates.save(c->emission.current(), streak);
+    }
     c->mem_w16(trail + 0u, screenX);
     c->mem_w16(trail + 2u, screenY);
     pool += kLineBytes;
@@ -177,6 +234,10 @@ void RainStreaks::draw(Core *c) {
   c->mem_w16(node + kNodeLastOffset + 0u, static_cast<std::uint16_t>(offsetX));
   c->mem_w16(node + kNodeLastOffset + 2u, static_cast<std::uint16_t>(offsetY));
   c->mem_w16(node + kNodeLastOffset + 4u, static_cast<std::uint16_t>(offsetZ));
+}
+
+void RainStreaks::registerStateRenders(Core &core) {
+  core.stateProducers.install(kEntry, std::make_unique<StreakStateProducer>());
 }
 
 void RainStreaks::registerOverrides() {

@@ -145,10 +145,14 @@
 #include "guest_abi.h"
 #include "guest_call.h"
 #include "guest_ordering_table.h"
+#include "libgpu_draw_mode.h"
+#include "list_job.h"
+#include "list_state_producer.h"
 #include "render.h"
 #include "render_queue.h"
 #include "wide_window.h"
 #include <cstdint>
+#include <memory>
 #include <string_view>
 #include <utility>
 
@@ -172,16 +176,37 @@ constexpr uint32_t kClutRowBytes = 32u;       // 16 colours
 constexpr uint32_t kLoadImage = 0x80081218u;
 constexpr uint32_t kLoadImageReturn = 0x8010C624u;
 
-// Which repeat of a wrapped map a screen position falls in, counting tiles of `pixel` from map origin.
-uint32_t mapLap(int pixel, int tiles) {
-  const int tile = pixel >> 4;
-  return static_cast<uint32_t>(static_cast<uint16_t>((tile >= 0 ? tile : tile - (tiles - 1)) / tiles));
+constexpr uint32_t kNodeScrollX = 0x28u;
+constexpr uint32_t kNodeScrollY = 0x2Au;
+constexpr uint32_t kNodeTrailing = 0x2Cu; // from the wrap constants to the node's end
+constexpr uint32_t kNodeEnd = 0x3Cu;
+constexpr uint32_t kNodePitchX = 0x30u;
+constexpr uint32_t kNodePitchY = 0x32u;
+constexpr uint32_t kTileBytes = 16u;
+constexpr uint32_t kTileRows = 16u;
+constexpr uint32_t kHeaderBytes = 12u;
+constexpr uint32_t kSlackColumns = 2u; // the scroll between two frames shifts the walk by up to a tile
+constexpr uint32_t kScrollSlack = 32u;
+
+// The most packet bytes a grid walk writes: its tiles and the draw mode packet.
+uint32_t gridArenaBytes(Core &core) {
+  const tomba2::wide_window::Window window = tomba2::wide_window::drawWindow(&core);
+  const uint32_t columns =
+      (static_cast<uint32_t>(window.right - window.left) + kScrollSlack) / kTileBytes + kSlackColumns;
+  return (kTileRows + kSlackColumns) * columns * kTileBytes + kHeaderBytes;
 }
 
-// A wrapped map shows one cell more than once; the lap tells the repeats apart.
-uint32_t tileElement(int rowPixel, int columnPixel, int rows, int columns) {
-  return (mapLap(rowPixel, rows) << 16) | mapLap(columnPixel, columns);
-}
+class TileGridStateProducer final : public tomba2::render::ListStateProducer {
+public:
+  using ListStateProducer::ListStateProducer;
+
+protected:
+  void emit(const tomba2::render::EmitMemory &memory,
+            uint32_t tileVBias,
+            const tomba2::render::ListCall &call) const override {
+    TileGridLayer::emitGrid(memory, call.list, tileVBias);
+  }
+};
 } // namespace
 
 // FUN_8011534C
@@ -257,36 +282,56 @@ void TileGridLayer::scrollStep(Core *c) {
 // FUN_80115598
 void TileGridLayer::emit(Core *c) {
   GuestFrame<80, 10> frame(c, kA00EmitSpills);
-  emitGrid(c, c->r[4], kA00TileVBias);
+  drawGrid(c, c->r[4], kA00TileVBias);
 }
 
 void TileGridLayer::emitUnbiased(Core *c) {
   GuestFrame<80, 10> frame(c, kA00EmitSpills);
-  emitGrid(c, c->r[4], kNoTileVBias);
+  drawGrid(c, c->r[4], kNoTileVBias);
 }
 
 // SOP FUN_8010C26C
 void TileGridLayer::emitSop(Core *c) {
   GuestFrame<88, 10> frame(c, kSopEmitSpills);
-  emitGrid(c, c->r[4], kNoTileVBias);
+  drawGrid(c, c->r[4], kNoTileVBias);
   cycleSopPalettes(c);
 }
 
-void TileGridLayer::emitGrid(Core *c, uint32_t node, uint32_t tileVBias) {
-  const int W = c->mem_r8(node + 0x10u), H = c->mem_r8(node + 0x11u);
+void TileGridLayer::drawGrid(Core *c, uint32_t node, uint32_t tileVBias) {
+  const uint32_t pitchX = c->mem_r16(node + kNodePitchX);
+  const uint32_t pitchY = c->mem_r16(node + kNodePitchY);
+  if (pitchX != 0u && pitchY != 0u) {
+    tomba2::render::ListJobWriter job(
+        *c,
+        tileVBias,
+        tomba2::render::ListCall{node, c->mem_r32(tomba2::render::OrderingTable::kBasePointer), 0u, 0u, c->r[29]},
+        gridArenaBytes(*c));
+    job.input(*c, tomba2::render::OrderingTable::kBasePointer, sizeof(uint32_t));
+    job.input(*c, node, kNodeScrollX);
+    job.input(*c, node + kNodeScrollX, sizeof(uint16_t), tomba2::render::InputBlend::Wrapped, pitchX);
+    job.input(*c, node + kNodeScrollY, sizeof(uint16_t), tomba2::render::InputBlend::Wrapped, pitchY);
+    job.input(*c, node + kNodeTrailing, kNodeEnd - kNodeTrailing);
+    job.save(*c);
+  }
+  c->mem_w32(c->r[29] + 16u, 0u); // SetDrawMode's fifth argument
+  emitGrid(tomba2::render::EmitMemory(*c), node, tileVBias);
+}
+
+void TileGridLayer::emitGrid(const tomba2::render::EmitMemory &memory, uint32_t node, uint32_t tileVBias) {
+  const int W = memory.mem_r8(node + 0x10u), H = memory.mem_r8(node + 0x11u);
   if (W == 0 || H == 0) {
     return;
   } // never true in practice (init always sets both), guards the % below
   const int rowstride = W * 2, mapbytes = rowstride * H;
-  const int scrollX = c->mem_r16s(node + 0x28u), scrollY = c->mem_r16s(node + 0x2Au);
-  const uint32_t tileTable = c->mem_r32(node + 0x14u);
-  const uint16_t clutBase = c->mem_r16(node + 0x06u);
-  const uint16_t tpage = c->mem_r16(node + 0x04u);
+  const int scrollX = memory.mem_r16s(node + 0x28u), scrollY = memory.mem_r16s(node + 0x2Au);
+  const uint32_t tileTable = memory.mem_r32(node + 0x14u);
+  const uint16_t clutBase = memory.mem_r16(node + 0x06u);
+  const uint16_t tpage = memory.mem_r16(node + 0x04u);
 
   // The guest walks columns [0, 320 + 32) of the screen; the walk spans the draw window, and the map
   // column wraps modulo W as the guest's does, so at 4:3 the packets are the guest's.
   const int cx = 160, cy = 120, slack = 32;
-  const tomba2::wide_window::Window window = tomba2::wide_window::drawWindow(c);
+  const tomba2::wide_window::Window window = tomba2::wide_window::drawWindow(&memory.core());
   const int firstColumn = scrollX - cx + window.left;
   int rowtile = ((scrollY - cy) >> 4) % H;
   if (rowtile < 0) {
@@ -303,12 +348,10 @@ void TileGridLayer::emitGrid(Core *c, uint32_t node, uint32_t tileVBias) {
   const int outer_bound = (int16_t)(scrollY - cy) + 0x100;
   const int t5 = (int16_t)(scrollX - cx) + window.right + slack;
 
-  const tomba2::render::PacketPool packets(*c);
+  const tomba2::render::PacketPool packets(memory);
   uint32_t pool = packets.cursor();
   const uint32_t first = pool;
   uint32_t last = pool;
-  uint32_t lastCell = tileTable;
-  uint32_t lastElement = 0u;
 
   for (int t8 = scrollY - cy;;) {
     const int Y = (int16_t)((t8 & 0xFFF0) + yoff);
@@ -317,11 +360,7 @@ void TileGridLayer::emitGrid(Core *c, uint32_t node, uint32_t tileVBias) {
     for (int t1 = firstColumn;;) {
       const int X = (int16_t)((t1 & 0xFFF0) + xoff);
       const uint32_t cell = tileTable + (uint32_t)(t6 + t0);
-      // The tile's packet is keyed by its map cell and lap, so a scrolled tile pairs with itself.
-      const uint32_t element = tileElement(t8, t1, H, W);
-      const auto tileScope = c->emission.instance(cell);
-      const auto lapScope = c->emission.element(element);
-      const uint16_t tile = c->mem_r16(cell);
+      const uint16_t tile = memory.mem_r16(cell);
       const int u = (tile & 0xFu) << 4;
       const int v = (int)(tile & 0xF0u) + (int)tileVBias;
 
@@ -331,17 +370,15 @@ void TileGridLayer::emitGrid(Core *c, uint32_t node, uint32_t tileVBias) {
       // the canonical SPRT layout: [tag][color|code][xy][uv|clut]. A first draft copied the a2-based
       // literals as base-relative and shifted every field +16 (SBS f117 packet_pool divergence).
       const uint32_t thisAddr = pool;
-      c->mem_w32(thisAddr + 4u, 0x7D808080u);
-      c->mem_w8(thisAddr + 7u, 0x7Cu);
-      c->mem_w8(thisAddr + 3u, 3u);
-      c->mem_w32(thisAddr + 8u, (uint32_t)(uint16_t)X | ((uint32_t)(uint16_t)Y << 16));
-      c->mem_w16(thisAddr + 12u, (uint16_t)((u & 0xFF) | ((v & 0xFF) << 8)));
-      c->mem_w16(thisAddr + 14u, (uint16_t)(clutBase + ((tile & 0xF00u) >> 2)));
+      memory.mem_w32(thisAddr + 4u, 0x7D808080u);
+      memory.mem_w8(thisAddr + 7u, 0x7Cu);
+      memory.mem_w8(thisAddr + 3u, 3u);
+      memory.mem_w32(thisAddr + 8u, (uint32_t)(uint16_t)X | ((uint32_t)(uint16_t)Y << 16));
+      memory.mem_w16(thisAddr + 12u, (uint16_t)((u & 0xFF) | ((v & 0xFF) << 8)));
+      memory.mem_w16(thisAddr + 14u, (uint16_t)(clutBase + ((tile & 0xF00u) >> 2)));
       pool += 16u;
-      c->mem_w32(thisAddr + 0u, pool | 0x03000000u);
+      memory.mem_w32(thisAddr + 0u, pool | 0x03000000u);
       last = thisAddr;
-      lastCell = cell;
-      lastElement = element;
 
       t0 += 2;
       if (t0 >= rowstride) {
@@ -363,25 +400,15 @@ void TileGridLayer::emitGrid(Core *c, uint32_t node, uint32_t tileVBias) {
   }
 
   // Patch the last tile's tag: keep the length byte, splice in the pre-existing OT[0x7FF] head.
-  const auto ot = tomba2::render::OrderingTable::active(*c);
-  {
-    const auto tileScope = c->emission.instance(lastCell);
-    const auto lapScope = c->emission.element(lastElement);
-    ot.chainToHead(last, kOtBucketBg);
-  }
+  const auto ot = tomba2::render::OrderingTable::active(memory);
+  ot.chainToHead(last, kOtBucketBg);
 
-  // Trailing DR_TPAGE-reset header packet (guest 0x80083DE0, already RE'd — wide_re_libgpu_leaves.cpp;
-  // unowned/substrate, invoked via typed runtime address dispatch exactly like Font::glyphEmit's own tail call).
+  // The draw mode packet that sets the sprites' texture page leads the chain.
   const uint32_t header = pool;
-  c->r[4] = header;
-  c->r[5] = 0u;
-  c->r[6] = 0u;
-  c->r[7] = tpage;                // r7 unused by the callee (alias only)
-  c->mem_w32(c->r[29] + 16u, 0u); // 5th arg (stack): texWinSrc = 0
-  psx::cpu::dispatchGuestToReturn0(*c, 0x80083DE0u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
-  c->mem_w32(header + 0u, first | 0x02000000u);
+  tomba2::render::setDrawMode(memory, header, 0u, 0u, tpage, 0u);
+  memory.mem_w32(header + 0u, first | 0x02000000u);
   ot.setHead(kOtBucketBg, header);
-  pool = header + 12u;
+  pool = header + kHeaderBytes;
 
   packets.setCursor(pool);
 }
@@ -434,4 +461,10 @@ void TileGridLayer::registerOverrides(Game *) {
                                         "&TileGridLayer::emitSop",
                                         &TileGridLayer::emitSop,
                                         psx::present::Producer{psx::present::Arg::A0});
+}
+
+void TileGridLayer::registerStateRenders(Core &core) {
+  for (const uint32_t entry : {0x80115598u, 0x801142ECu, 0x801141B0u, 0x80116B9Cu, 0x80116778u, 0x8010C26Cu}) {
+    core.stateProducers.install(entry, std::make_unique<TileGridStateProducer>(core));
+  }
 }

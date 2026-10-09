@@ -48,6 +48,7 @@
 #include "core/entry/game_ctx.h"
 #include "core/overrides/native_override_catalog.h" // tomba::native::declareOverride — declared, not locally extern'd
 #include "guest_call.h"
+#include "libgpu_draw_mode.h"
 #include "render.h"
 #include <stdint.h>
 
@@ -293,41 +294,9 @@ static void libgpuDmaStatusReset(Core *c) {
 // the negated X offset otherwise). It is junk that a caller could still read, and it costs one
 // assignment to be exact instead of leaving whatever the previous call left in r2.
 static void libgpuSetDrawMode(Core *c) {
-  const uint32_t p = c->r[4];
-  const uint32_t dfe = c->r[5];
-  const uint32_t dtd = c->r[6];
-  const uint32_t tpage = c->r[7];
-  const uint32_t tw = c->mem_r32(c->r[29] + 16); // 5th arg, o32 outgoing-arg stack slot
-
-  c->mem_w8(p + 3, 2u); // packet length tag; unconditional (both arms write it before branching)
-
-  uint32_t mode = 0xE1000000u; // DR_TPAGE command tag
-  if (dtd != 0) {
-    mode |= 0x200u; // dither
-  }
-  uint32_t page = tpage & 0x9FFu; // tpage bits, from a3
-  if (dfe != 0) {
-    page |= 0x400u; // draw-to-display-area
-  }
-  mode |= page;
-  c->mem_w32(p + 4, mode);
-
-  if (tw == 0) {
-    c->mem_w32(p + 8, 0);
-    c->r[2] = mode; // v0 on this path (see banner)
-    return;
-  }
-
-  // PSX texture-window encoding, from the RECT at `tw`: {u8 maskX@+0, u8 maskY@+2, s16 offX@+4,
-  // s16 offY@+6}. Masks are in 8-pixel units, offsets are negated.
-  uint32_t twin = 0xE2000000u;                                 // DR_TWIN command tag
-  twin |= (c->mem_r8(tw + 2) >> 3) << 15;                      // maskY
-  twin |= (c->mem_r8(tw + 0) >> 3) << 10;                      // maskX
-  twin |= ((uint32_t)(0 - c->mem_r16s(tw + 6)) << 2) & 0x3E0u; // offY
-  const uint32_t negOffX = (uint32_t)((int32_t)((uint32_t)(0 - c->mem_r16s(tw + 4)) & 0xFFu) >> 3);
-  twin |= negOffX;
-  c->mem_w32(p + 8, twin);
-  c->r[2] = negOffX; // v0 on this path (see banner)
+  // 5th arg: o32 outgoing-arg stack slot
+  c->r[2] = tomba2::render::setDrawMode(
+      tomba2::render::EmitMemory(*c), c->r[4], c->r[5], c->r[6], c->r[7], c->mem_r32(c->r[29] + 16));
 }
 
 // vertexHeaderRepack (0x800847B0) — 20-byte SoA->AoS vertex-header REPACK. DRAFT. RE'd from authenticated

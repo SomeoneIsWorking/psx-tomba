@@ -17,6 +17,8 @@ inline constexpr uint32_t kBufferParityAddress = 0x1F800135u; // u8, 0 or 1
 inline constexpr uint32_t kPresentStateAddress = 0x1F80019Cu; // u8, see PresentState
 inline constexpr uint32_t kPutDispEnv = 0x8008179Cu;
 inline constexpr uint32_t kOtEntries = 0x800u;
+// The id both display buffers' ordering tables are named under for the frame record.
+inline constexpr uint16_t kOtTable = 0;
 inline constexpr uint32_t kDispEnvOffset = 0x2000u;
 inline constexpr uint32_t kDrawEnvOffset = 0x2014u;
 inline constexpr uint32_t kOtHeadOffset = 0x1FFCu;

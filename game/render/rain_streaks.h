@@ -11,7 +11,10 @@ public:
   // seed = seed * *(0x801450D8) + 1 from node+0x50 (0 in A08), so drop i is the same lattice point
   // every frame. Each visible drop draws a semi-transparent LINE from its screen position back
   // twice its last movement, kept per drop at 0x801485E8 + 4i, plus a DR_TPAGE. A drop whose
-  // lattice cell wrapped, or that fails RTPS, restarts its streak. Drop i is element i of the node.
+  // lattice cell wrapped, or that fails RTPS, restarts its streak. Drop i is an object of its own, named by its trail
+  // slot.
   static void draw(Core *c);
   static void registerOverrides();
+  // Each streak is an object saved as its two screen points and its bucket; the render moves the points.
+  static void registerStateRenders(Core &core);
 };

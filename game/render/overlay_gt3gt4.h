@@ -6,6 +6,9 @@
 // 0x80145A6E added to its packet's UV halfwords. Writes the guest's own GTE, OT and GP0 packet state
 // 1:1 with the guest MIPS.
 #pragma once
+#include "emit_memory.h"
+#include "list_job.h"
+
 #include <cstdint>
 
 struct Core;
@@ -30,6 +33,13 @@ public:
   // (rec=a0, ot_base=a1, count=a2) -> advanced rec ptr in v0. `uvScroll` names the overlay's scroll word.
   static void gt3(Core &c, std::uint32_t uvScroll, const tomba2::horizontal_cull::Visibility &visible);
   static void gt4(Core &c, std::uint32_t uvScroll);
+  // The leaf bodies over any memory; each returns the address past its list.
+  static std::uint32_t emitGt3(const tomba2::render::EmitMemory &memory,
+                               const tomba2::render::ListCall &call,
+                               std::uint32_t uvScroll,
+                               const tomba2::horizontal_cull::Visibility &visible);
+  static std::uint32_t
+  emitGt4(const tomba2::render::EmitMemory &memory, const tomba2::render::ListCall &call, std::uint32_t uvScroll);
 
   // All addresses go into the ONE process-global registry via tomba::native::declareOverlayOverride, which
   // also lands the shared thunk in that overlay's image-qualified runtime dispatcher table, so direct
@@ -37,4 +47,6 @@ public:
   // by direct call from this cluster's own dispatcher and from a tail-shared copy of the same call sequence
   // folded into FUN_80147FC4; A08's from the scenery walker FUN_8012A7CC.
   static void registerOverrides(Game *game);
+  // The renders of the leaves' saved calls.
+  static void registerStateRenders(Core &core);
 };

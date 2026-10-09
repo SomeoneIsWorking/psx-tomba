@@ -180,6 +180,7 @@ set(GAME_SRC
   game/audio/music_coord.cpp
   game/scene/startup.cpp
   game/ui/font.cpp
+  game/ui/glyph_state.cpp
   game/ui/panel.cpp
   game/ui/options_page.cpp
   game/scene/level_load.cpp
@@ -204,15 +205,19 @@ set(GAME_SRC
   game/math/gte_math.cpp
   game/math/wide_re_gte_transform3.cpp
   game/render/wide_re_libgpu_leaves.cpp
+  game/render/libgpu_draw_mode.cpp
   game/render/wide_re_gpu_dma_queue.cpp
   game/render/wide_re_gpu_loadimage_streamer.cpp
   game/render/wide_re_gpu_putdrawenv.cpp
   game/render/libgpu_draw_env.cpp        # libgpu SetDrawEnv (0x80081FB0) — DRAWENV -> DR_ENV packet
   game/render/guest_ordering_table.cpp
+  game/render/emit_memory.cpp
   game/render/screen_fade.cpp
   game/render/margin_render.cpp
   game/render/quad_rtpt_submit.cpp
   game/render/model_packet.cpp
+  game/render/list_job.cpp
+  game/render/list_state_producer.cpp
   game/render/lit_model_emitter.cpp
   game/render/unlit_model_emitter.cpp
   game/render/sway_model_emitter.cpp

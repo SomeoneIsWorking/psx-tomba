@@ -15,6 +15,9 @@
 // The screen cull goes through horizontal_visibility_cull.h, so at 4:3 the packets are the guest's.
 #pragma once
 
+#include "emit_memory.h"
+#include "list_job.h"
+
 #include <cstdint>
 
 class Core;
@@ -27,11 +30,19 @@ namespace tomba2::render {
 
 class SwayModelEmitter {
 public:
+  enum class Kind : std::uint32_t { SwayGt3, ScrollGt4, CueGt3, CueGt4 };
+
+  // The guest calls: the frame, the registers in, the end of the list in v0, the call saved under the open object.
   static void swayGt3(Core &core, const horizontal_cull::Visibility &visible);
   static void scrollGt4(Core &core, const horizontal_cull::Visibility &visible);
   static void cueGt3(Core &core, const horizontal_cull::Visibility &visible);
   static void cueGt4(Core &core, const horizontal_cull::Visibility &visible);
+  // The body over any memory; `call.sp` is the sp inside the guest frame. Returns the address past the list.
+  static std::uint32_t
+  emit(const EmitMemory &memory, const ListCall &call, const horizontal_cull::Visibility &visible, Kind kind);
   static void registerOverrides();
+  // The renders of the saved calls, at each of the four entries.
+  static void registerStateRenders(Core &core);
 };
 
 } // namespace tomba2::render

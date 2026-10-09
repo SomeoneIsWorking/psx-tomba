@@ -6,9 +6,9 @@
 // and the bucket's head becomes the packet. Depths reach a bucket through one log-scale compression.
 #pragma once
 
-#include <cstdint>
+#include "emit_memory.h"
 
-class Core;
+#include <cstdint>
 
 namespace tomba2::render {
 
@@ -24,9 +24,9 @@ public:
   static constexpr std::int32_t kNoBucket = -1;
 
   // The OT the frame driver published.
-  static OrderingTable active(Core &core);
+  static OrderingTable active(const EmitMemory &memory);
   // An OT whose base a caller handed over in a register.
-  OrderingTable(Core &core, std::uint32_t base);
+  OrderingTable(const EmitMemory &memory, std::uint32_t base);
 
   std::uint32_t base() const {
     return mBase;
@@ -58,7 +58,7 @@ public:
   }
 
 private:
-  Core *mCore;
+  EmitMemory mMemory;
   std::uint32_t mBase;
 };
 
@@ -71,7 +71,7 @@ public:
   // Guest code addresses kCursor as this page - 2748, with the page held in a register.
   static constexpr std::uint32_t kCursorPage = 0x800C0000u;
 
-  explicit PacketPool(Core &core);
+  explicit PacketPool(const EmitMemory &memory);
 
   std::uint32_t cursor() const;
   void setCursor(std::uint32_t address) const;
@@ -79,7 +79,7 @@ public:
   std::uint32_t allocate(std::uint32_t bytes) const;
 
 private:
-  Core *mCore;
+  EmitMemory mMemory;
 };
 
 static_assert(PacketPool::kCursorPage - 2748u == PacketPool::kCursor);

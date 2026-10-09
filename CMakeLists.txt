@@ -77,6 +77,7 @@ if(BUILD_TESTING)
       tests/authenticated_image.cpp
       game/render/screen_fade.cpp
       game/render/guest_ordering_table.cpp
+      game/render/emit_memory.cpp
       game/render/wide_window.cpp
       game/core/overrides/native_override_catalog.cpp)
   target_include_directories(test_authentic_screen_fade PRIVATE game game/core tests)
@@ -86,12 +87,15 @@ if(BUILD_TESTING)
       tests/test_authentic_model_emitters.cpp
       tests/authenticated_image.cpp
       game/render/model_packet.cpp
+      game/render/list_job.cpp
+      game/render/list_state_producer.cpp
       game/render/lit_model_emitter.cpp
       game/render/unlit_model_emitter.cpp
       game/render/sway_model_emitter.cpp
       game/render/overlay_gt3gt4.cpp
       game/render/overlay_ground_gt3gt4.cpp
       game/render/guest_ordering_table.cpp
+      game/render/emit_memory.cpp
       game/render/horizontal_visibility_cull.cpp
       game/render/wide_window.cpp
       game/math/trig.cpp
@@ -208,16 +212,22 @@ if(BUILD_TESTING)
       game/core/overrides/native_override_catalog.cpp
       game/scene/level_load.cpp
       game/render/tile_grid_layer.cpp
+      game/render/libgpu_draw_mode.cpp
+      game/render/list_job.cpp
+      game/render/list_state_producer.cpp
       game/render/wide_window.cpp
       game/render/sop_ground.cpp
       game/render/rain_streaks.cpp
       game/render/guest_ordering_table.cpp
-      game/ui/font.cpp)
+      game/render/emit_memory.cpp
+      game/ui/font.cpp
+      game/ui/glyph_state.cpp)
   target_include_directories(test_producers PRIVATE game game/core game/math game/render game/scene tests)
   target_link_libraries(test_producers PRIVATE psxport)
   add_test(NAME tomba_producers COMMAND test_producers)
 
-  add_executable(test_ordering_table tests/test_ordering_table.cpp game/render/guest_ordering_table.cpp)
+  add_executable(test_ordering_table tests/test_ordering_table.cpp game/render/guest_ordering_table.cpp
+      game/render/emit_memory.cpp)
   target_include_directories(test_ordering_table PRIVATE game game/core game/render tests)
   target_link_libraries(test_ordering_table PRIVATE psxport)
   add_test(NAME tomba_ordering_table COMMAND test_ordering_table)
@@ -226,6 +236,7 @@ if(BUILD_TESTING)
       tests/test_letterbox_bars.cpp
       game/render/letterbox_bars.cpp
       game/render/guest_ordering_table.cpp
+      game/render/emit_memory.cpp
       game/render/wide_window.cpp
       game/ui/dialog_backdrop.cpp
       game/core/overrides/native_override_catalog.cpp)
@@ -237,6 +248,7 @@ if(BUILD_TESTING)
       tests/test_screen_fade.cpp
       game/render/screen_fade.cpp
       game/render/guest_ordering_table.cpp
+      game/render/emit_memory.cpp
       game/render/wide_window.cpp
       game/core/overrides/native_override_catalog.cpp
       game/scene/level_load.cpp)
@@ -247,11 +259,15 @@ if(BUILD_TESTING)
   add_executable(test_model_emitters
       tests/test_model_emitters.cpp
       game/render/model_packet.cpp
+      game/render/list_job.cpp
+      game/render/list_state_producer.cpp
       game/render/lit_model_emitter.cpp
       game/render/unlit_model_emitter.cpp
       game/render/sway_model_emitter.cpp
       game/render/overlay_gt3gt4.cpp
+      game/render/overlay_ground_gt3gt4.cpp
       game/render/guest_ordering_table.cpp
+      game/render/emit_memory.cpp
       game/render/horizontal_visibility_cull.cpp
       game/render/wide_window.cpp
       game/math/trig.cpp
@@ -269,7 +285,8 @@ if(BUILD_TESTING)
   add_executable(test_fx_sprite_publish
       tests/test_fx_sprite_publish.cpp
       game/render/fx_sprite_publish.cpp
-      game/render/guest_ordering_table.cpp)
+      game/render/guest_ordering_table.cpp
+      game/render/emit_memory.cpp)
   target_include_directories(test_fx_sprite_publish PRIVATE game game/core game/math game/render tests)
   target_link_libraries(test_fx_sprite_publish PRIVATE psxport)
   add_test(NAME tomba_fx_sprite_publish COMMAND test_fx_sprite_publish)

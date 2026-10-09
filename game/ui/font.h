@@ -181,4 +181,6 @@ public:
   // Declares drawText, drawTextSmall, glyphEmit (a producer: its string in a3 is the drawn object)
   // and iconGlyphEmit.
   static void registerOverrides();
+  // Each glyph is an object saved as its sprite command words; the render moves its position.
+  static void registerStateRenders(Core &core);
 };

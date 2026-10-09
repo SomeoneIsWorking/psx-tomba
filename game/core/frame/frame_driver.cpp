@@ -100,6 +100,10 @@ TombaFrameDriver::TombaFrameDriver(Game &game) : game_(&game) {}
 
 void TombaFrameDriver::enterLoop(Core &core) {
   const GameConfig &cfg = requireMeasuredConfig(core);
+  for (uint32_t buffer = 0; buffer < 2u; ++buffer) {
+    const uint32_t base = cfg.otRegionBase + buffer * cfg.otRegionStride;
+    core.otTables.name(kOtTable, base, kOtEntries, sizeof(uint32_t), psx::gpu::OtWalk::HighToLow);
+  }
   const uint8_t parity = bufferParity(core);
   core.mem_w32(cfg.poolPtrCur, cfg.packetPoolBase + (1u - parity) * cfg.packetPoolStride);
   const uint32_t env = cfg.otRegionBase + parity * cfg.otRegionStride;

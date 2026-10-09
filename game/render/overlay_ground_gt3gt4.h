@@ -22,6 +22,9 @@
 // Copies: A02 0x801246A4/0x8012496C and A07 0x8012C7E0/0x8012CAA8 pick the farthest SZ for flag mode 2
 // too; A0L 0x8010AA4C/0x8010AD40 does as well and adds kModeBias to GT3's mode 1 and GT4's mode 2.
 #pragma once
+#include "emit_memory.h"
+#include "list_job.h"
+
 #include <cstdint>
 
 struct Core;
@@ -44,9 +47,18 @@ public:
   static constexpr Variant kFarthest{{false, 0u}, {false, 0u}};
   static constexpr Variant kA0L{{false, 1u}, {false, 2u}};
 
-  // FUN_8013FB88/FUN_8013FE58(rec=a0, ot_base=a1, count=a2) -> advanced rec ptr in v0
-  static void gt3(Core *c, const ListDepth &depth);
-  static void gt4(Core *c, const ListDepth &depth);
+  // The A00 pair's entries.
+  static constexpr std::uint32_t kA00Gt3 = 0x8013FB88u;
+  static constexpr std::uint32_t kA00Gt4 = 0x8013FE58u;
+
+  // FUN_8013FB88/FUN_8013FE58(rec=a0, ot_base=a1, count=a2) -> advanced rec ptr in v0: the call opens its own
+  // drawing object under `entry`, runs the body and saves the call for its render.
+  static void leaf(Core *c, std::uint32_t entry, bool quad, const ListDepth &depth);
+  // The bodies over any memory; each returns the address past its list.
+  static std::uint32_t
+  emitGt3(const tomba2::render::EmitMemory &memory, const tomba2::render::ListCall &call, const ListDepth &depth);
+  static std::uint32_t
+  emitGt4(const tomba2::render::EmitMemory &memory, const tomba2::render::ListCall &call, const ListDepth &depth);
   static void entityLoop(Core *c); // FUN_801401B8(list=a0) -> loads camera GTE ctrl regs 0..7 from
                                    // 0x1F8000F8, then walks list's u16 index array calling gt3()/gt4()
                                    // per referenced ground record group.
@@ -56,4 +68,6 @@ public:
   // dispatch, so wired via the overlay's own `A00 tomba::native::declareOverride` table (through the process-global
   // override registry's tomba::native::declareOverride, not a raw table poke).
   static void registerOverrides(Game *game);
+  // The renders of the leaves' saved calls, at every copy's entries.
+  static void registerStateRenders(Core &core);
 };

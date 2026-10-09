@@ -24,12 +24,15 @@
 #include "guest_abi.h"
 #include "guest_call.h"
 #include "render/guest_ordering_table.h"
+#include "ui/glyph_state.h"
 #include <format>
 #include <lucent/log.h>
 #include <stdint.h>
 #include <string>
 
 namespace {
+constexpr uint32_t kGlyphEmit = 0x80078CA8u;
+
 // Font-bank engine-state bytes (own leaves FUN_800963a0/FUN_80096370).
 constexpr uint32_t kFontBankAddr = 0x80105CECu;
 constexpr uint32_t kFontBank2Addr = 0x80105D28u;
@@ -569,32 +572,35 @@ L_80078ECC:
   c->r[2] = c->r[4] + 8u;
   c->mem_w8(c->r[18] + 13u, (uint8_t)c->r[2]);
 L_80078F04: {
-  // A glyph is the element of its string named by its byte offset.
-  const auto glyph = c->emission.element(c->r[16] - string);
+  // A glyph is an object of its own, named by its character's address.
+  const auto glyph = c->emission.instance(c->r[16]);
   // prepend a 4-word GP0 packet from the packet pool into the OT bucket for this colorArg.
   const tomba2::render::PacketPool glyphPackets(*c);
   const auto glyphOt = tomba2::render::OrderingTable::active(*c);
+  const uint32_t command[4] = {
+      c->mem_r32(c->r[18] + 4u), c->mem_r32(c->r[18] + 8u), c->mem_r32(c->r[18] + 12u), c->mem_r32(c->r[18] + 16u)};
   c->r[6] = tomba2::render::PacketPool::kCursor;
   c->r[4] = glyphPackets.cursor();
   c->r[5] = glyphOt.slot(c->r[19]);
   c->r[3] = 4u << 24;
   c->r[2] = glyphOt.link(c->r[4], 4u, c->r[19]);
   c->r[4] = c->r[4] + 4u;
-  c->r[2] = c->mem_r32(c->r[18] + 4u);
+  c->r[2] = command[0];
   c->r[16] = c->r[16] + 1u;
   c->mem_w32(c->r[4] + 0u, c->r[2]);
-  c->r[2] = c->mem_r32(c->r[18] + 8u);
+  c->r[2] = command[1];
   c->r[4] = c->r[4] + 4u;
   c->mem_w32(c->r[4] + 0u, c->r[2]);
-  c->r[2] = c->mem_r32(c->r[18] + 12u);
+  c->r[2] = command[2];
   c->r[4] = c->r[4] + 4u;
   c->mem_w32(c->r[4] + 0u, c->r[2]);
-  c->r[2] = c->mem_r32(c->r[18] + 16u);
+  c->r[2] = command[3];
   c->r[4] = c->r[4] + 4u;
   c->mem_w32(c->r[4] + 0u, c->r[2]);
   c->r[2] = (uint32_t)c->mem_r16(c->r[18] + 8u);
   c->r[4] = c->r[4] + 4u;
   glyphPackets.setCursor(c->r[4]);
+  tomba2::ui::GlyphState::save(*c, command, c->r[19]);
 }
 L_80078F70:
   c->r[2] = c->r[2] + 8u;
@@ -895,6 +901,10 @@ void Font::iconGlyphEmit(Core *c) {
   c->r[2] = (uint32_t)((int32_t)glyph.x() - originX);
 }
 
+void Font::registerStateRenders(Core &core) {
+  tomba2::ui::GlyphState::registerRender(core, kGlyphEmit);
+}
+
 void Font::registerOverrides() {
   static bool done = false;
   if (done) {
@@ -905,6 +915,6 @@ void Font::registerOverrides() {
   tomba::native::declareOverride(0x80079324u, "ov_drawTextSmall", ov_drawTextSmall); // 8x8 sibling of drawText
   // A text draw is the object of its string (a3); each glyph names its byte offset in it.
   tomba::native::declareOverride(
-      0x80078CA8u, "Font::glyphEmit", Font::glyphEmit, psx::present::Producer{psx::present::Arg::A3});
+      kGlyphEmit, "Font::glyphEmit", Font::glyphEmit, psx::present::Producer{psx::present::Arg::A3});
   tomba::native::declareOverride(0x80078988u, "Font::iconGlyphEmit", Font::iconGlyphEmit); // icon/SJIS glyph strings
 }

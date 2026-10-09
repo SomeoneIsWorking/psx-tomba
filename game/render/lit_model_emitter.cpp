@@ -6,10 +6,12 @@
 #include "gte_registers.h"
 #include "guest_abi.h"
 #include "horizontal_visibility_cull.h"
+#include "list_state_producer.h"
 #include "model_packet.h"
 #include "trig.h"
 
 #include <array>
+#include <memory>
 #include <string_view>
 
 namespace tomba2::render {
@@ -37,24 +39,25 @@ constexpr std::uint32_t kGt3Seed = 0x34808080u;
 constexpr std::uint32_t kGt4Seed = 0x3C808080u;
 
 constexpr std::uint32_t kLight = 0x1F800160u; // s16 x, y, z
+constexpr std::uint32_t kLightBytes = 6u;
 constexpr std::int32_t kMaxIntensity = 0x4000;
 constexpr std::uint32_t kDeepenFlag = 8u;
 constexpr std::int32_t kDeepenBias = 0x80;
 
 // Twice the corner's distance to the light, capped.
-std::int32_t lightIntensity(Core &core, std::uint32_t record, const ModelCorner &corner) {
-  const std::int32_t length = Trig::vecLen(core.mem_r16s(record + corner.x) - core.mem_r16s(kLight + 0u),
-                                           core.mem_r16s(record + corner.y) - core.mem_r16s(kLight + 2u),
-                                           core.mem_r16s(record + corner.z) - core.mem_r16s(kLight + 4u));
+std::int32_t lightIntensity(const EmitMemory &memory, std::uint32_t record, const ModelCorner &corner) {
+  const std::int32_t length = Trig::vecLen(memory.mem_r16s(record + corner.x) - memory.mem_r16s(kLight + 0u),
+                                           memory.mem_r16s(record + corner.y) - memory.mem_r16s(kLight + 2u),
+                                           memory.mem_r16s(record + corner.z) - memory.mem_r16s(kLight + 4u));
   const std::int32_t intensity = length * 2;
   return intensity > kMaxIntensity ? kMaxIntensity : intensity;
 }
 
-void light(Core &core, const ModelShape &shape, const ModelPacket &packet, std::uint32_t fixedIntensity) {
+void light(const EmitMemory &memory, const ModelShape &shape, const ModelPacket &packet, std::uint32_t fixedIntensity) {
   std::array<std::int32_t, 4> intensity{};
   for (int corner = 0; corner < shape.cornerCount; ++corner) {
     intensity[corner] = fixedIntensity != 0u ? static_cast<std::int32_t>(fixedIntensity)
-                                             : lightIntensity(core, packet.record(), shape.corners[corner]);
+                                             : lightIntensity(memory, packet.record(), shape.corners[corner]);
   }
   for (int corner = 0; corner < shape.cornerCount; ++corner) {
     packet.shade(corner, intensity[corner]);
@@ -62,11 +65,14 @@ void light(Core &core, const ModelShape &shape, const ModelPacket &packet, std::
 }
 
 // Depth, bucket, last UV, light and link once the record is on screen; false when it is dropped.
-bool finish(
-    Core &core, const ModelShape &shape, const ModelPacket &packet, LitModelEmitter::FlagBits bits, std::uint32_t sp) {
+bool finish(const EmitMemory &memory,
+            const ModelShape &shape,
+            const ModelPacket &packet,
+            LitModelEmitter::FlagBits bits,
+            std::uint32_t sp) {
   const std::uint32_t flags = packet.flags();
   const bool hidesBeforeStaging = shape.list == ModelList::Gt4;
-  const bool hides = bits.hideFlag != 0u && ModelPacket::hidden(core, flags, bits.hideFlag);
+  const bool hides = bits.hideFlag != 0u && ModelPacket::hidden(memory, flags, bits.hideFlag);
   if (hides && hidesBeforeStaging) {
     return false;
   }
@@ -82,31 +88,23 @@ bool finish(
     return false;
   }
   packet.storeLastUv();
-  light(core, shape, packet, core.mem_r32(sp + kIntensityArgument));
-  packet.link(core.mem_r32(sp + kOtArgument));
+  light(memory, shape, packet, memory.mem_r32(sp + kIntensityArgument));
+  packet.link(memory.mem_r32(sp + kOtArgument));
   return true;
 }
 
-void emitList(Core &core, const ModelShape &shape, const Visibility &visible, LitModelEmitter::FlagBits bits) {
-  GuestFrame<kFrameBytes, 10> frame(&core, kSpills);
-  const std::uint32_t sp = core.r[29];
-  const bool quad = shape.list == ModelList::Gt4;
-  core.mem_w32(sp + kOtArgument, core.r[5]);
-  core.mem_w32(sp + kIntensityArgument, core.r[7]);
-  core.mem_w32(sp + kSeedLocal, quad ? kGt4Seed : kGt3Seed);
-  gte_write_data(gte::kRgbc, sp + kSeedLocal);
-  if (core.r[6] != 0u && quad) {
-    core.mem_w32(sp + kMaskLocal, kColourMask);
-  }
-  core.r[2] = emitModelList(core, shape, kOverlayStage, [&](const ModelPacket &packet) {
-    const bool projected =
-        quad ? packet.projectGt4(kColourCodeMask, kColourMask, visible) : packet.projectGt3(kColourMask, visible);
-    return projected && finish(core, shape, packet, bits, sp);
-  });
+// The guest call inside its frame: the call and the words the body reads are saved, then the body runs.
+void runGuest(Core &core, const Visibility &visible, LitModelEmitter::FlagBits bits, bool quad) {
+  const ListCall call = ListCall::fromRegisters(core);
+  ListJobWriter job = modelListJob(core, quad ? 1u : 0u, call, quad ? kModelGt4 : kModelGt3);
+  job.input(core, kLight, kLightBytes);
+  job.input(core, kHideWord, sizeof(std::uint32_t));
+  core.r[2] = LitModelEmitter::emit(core, call, visible, bits, quad);
+  job.save(core);
 }
 
 template <std::uint32_t Entry, bool Quad, LitModelEmitter::FlagBits Bits> void emitAt(Core *core) {
-  const ModelObjectScope object(core->emission, Entry, core->r[4]);
+  const EmitterObject object(core->emission, Entry, core->r[4]);
   const Visibility visible = horizontal_cull::forDrawWindow(core);
   if constexpr (Quad) {
     LitModelEmitter::gt4(*core, visible, Bits);
@@ -115,12 +113,28 @@ template <std::uint32_t Entry, bool Quad, LitModelEmitter::FlagBits Bits> void e
   }
 }
 
+class LitStateProducer final : public ListStateProducer {
+public:
+  LitStateProducer(Core &core, LitModelEmitter::FlagBits bits, bool quad)
+      : ListStateProducer(core), mBits(bits), mQuad(quad) {}
+
+protected:
+  void emit(const EmitMemory &memory, std::uint32_t, const ListCall &call) const override {
+    LitModelEmitter::emit(memory, call, horizontal_cull::forDrawWindow(&core()), mBits, mQuad);
+  }
+
+private:
+  LitModelEmitter::FlagBits mBits;
+  bool mQuad;
+};
+
 struct Copy {
   std::string_view image;
   std::uint32_t gt3;
   std::uint32_t gt4;
   psx::cpu::NativeFunction gt3Body;
   psx::cpu::NativeFunction gt4Body;
+  LitModelEmitter::FlagBits bits;
 };
 
 constexpr auto kRetail = LitModelEmitter::kRetailFlags;
@@ -128,27 +142,69 @@ constexpr auto kA01 = LitModelEmitter::kA01Flags;
 constexpr auto kA06 = LitModelEmitter::kA06Flags;
 
 constexpr Copy kCopies[] = {
-    {"A01", 0x801316A8u, 0x80131BB0u, &emitAt<0x801316A8u, false, kA01>, &emitAt<0x80131BB0u, true, kA01>},
-    {"A05", 0x8013544Cu, 0x8013590Cu, &emitAt<0x8013544Cu, false, kRetail>, &emitAt<0x8013590Cu, true, kRetail>},
-    {"A06", 0x8013C0D8u, 0x8013C5B4u, &emitAt<0x8013C0D8u, false, kA06>, &emitAt<0x8013C5B4u, true, kA06>},
-    {"A07", 0x8012CDF4u, 0x8012D2B4u, &emitAt<0x8012CDF4u, false, kRetail>, &emitAt<0x8012D2B4u, true, kRetail>},
-    {"A08", 0x80129BACu, 0x8012A06Cu, &emitAt<0x80129BACu, false, kRetail>, &emitAt<0x8012A06Cu, true, kRetail>},
+    {"A01", 0x801316A8u, 0x80131BB0u, &emitAt<0x801316A8u, false, kA01>, &emitAt<0x80131BB0u, true, kA01>, kA01},
+    {"A05",
+     0x8013544Cu,
+     0x8013590Cu,
+     &emitAt<0x8013544Cu, false, kRetail>,
+     &emitAt<0x8013590Cu, true, kRetail>,
+     kRetail},
+    {"A06", 0x8013C0D8u, 0x8013C5B4u, &emitAt<0x8013C0D8u, false, kA06>, &emitAt<0x8013C5B4u, true, kA06>, kA06},
+    {"A07",
+     0x8012CDF4u,
+     0x8012D2B4u,
+     &emitAt<0x8012CDF4u, false, kRetail>,
+     &emitAt<0x8012D2B4u, true, kRetail>,
+     kRetail},
+    {"A08",
+     0x80129BACu,
+     0x8012A06Cu,
+     &emitAt<0x80129BACu, false, kRetail>,
+     &emitAt<0x8012A06Cu, true, kRetail>,
+     kRetail},
 };
 
 } // namespace
 
+std::uint32_t LitModelEmitter::emit(
+    const EmitMemory &memory, const ListCall &call, const Visibility &visible, FlagBits bits, bool quad) {
+  const std::uint32_t sp = call.sp;
+  const ModelShape &shape = quad ? kModelGt4 : kModelGt3;
+  memory.mem_w32(sp + kOtArgument, call.ot);
+  memory.mem_w32(sp + kIntensityArgument, call.a3);
+  memory.mem_w32(sp + kSeedLocal, quad ? kGt4Seed : kGt3Seed);
+  gte_write_data(gte::kRgbc, sp + kSeedLocal);
+  if (call.count != 0u && quad) {
+    memory.mem_w32(sp + kMaskLocal, kColourMask);
+  }
+  return emitModelList(memory, call, shape, kOverlayStage, [&](const ModelPacket &packet) {
+    const bool projected =
+        quad ? packet.projectGt4(kColourCodeMask, kColourMask, visible) : packet.projectGt3(kColourMask, visible);
+    return projected && finish(memory, shape, packet, bits, sp);
+  });
+}
+
 void LitModelEmitter::gt3(Core &core, const Visibility &visible, FlagBits flags) {
-  emitList(core, kModelGt3, visible, flags);
+  GuestFrame<kFrameBytes, 10> frame(&core, kSpills);
+  runGuest(core, visible, flags, false);
 }
 
 void LitModelEmitter::gt4(Core &core, const Visibility &visible, FlagBits flags) {
-  emitList(core, kModelGt4, visible, flags);
+  GuestFrame<kFrameBytes, 10> frame(&core, kSpills);
+  runGuest(core, visible, flags, true);
 }
 
 void LitModelEmitter::registerOverrides() {
   for (const Copy &copy : kCopies) {
     tomba::native::declareOverlayOverride(copy.image, copy.gt3, "LitModelEmitter::gt3", copy.gt3Body);
     tomba::native::declareOverlayOverride(copy.image, copy.gt4, "LitModelEmitter::gt4", copy.gt4Body);
+  }
+}
+
+void LitModelEmitter::registerStateRenders(Core &core) {
+  for (const Copy &copy : kCopies) {
+    core.stateProducers.install(copy.gt3, std::make_unique<LitStateProducer>(core, copy.bits, false));
+    core.stateProducers.install(copy.gt4, std::make_unique<LitStateProducer>(core, copy.bits, true));
   }
 }
 

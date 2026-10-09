@@ -21,6 +21,8 @@
 // The screen cull goes through horizontal_visibility_cull.h, so at 4:3 the packets are the guest's.
 #pragma once
 
+#include "emit_memory.h"
+#include "list_job.h"
 #include "model_packet.h"
 
 #include <cstdint>
@@ -157,9 +159,18 @@ public:
                                       false,
                                       0x8014A450u};
 
+  // The guest call: the registers in, the end of the list in v0, and the call saved under the open object.
   static void gt3(Core &core, const horizontal_cull::Visibility &visible, const Variant &variant);
   static void gt4(Core &core, const horizontal_cull::Visibility &visible, const Variant &variant);
+  // The body over any memory; returns the address past the list.
+  static std::uint32_t emit(const EmitMemory &memory,
+                            const ListCall &call,
+                            const horizontal_cull::Visibility &visible,
+                            const Variant &variant,
+                            bool quad);
   static void registerOverrides();
+  // The renders of the saved calls, at every entry the emitter is declared at.
+  static void registerStateRenders(Core &core);
 };
 
 } // namespace tomba2::render

@@ -16,6 +16,7 @@
 #include "overlay_gt3gt4.h"
 #include "psx_exe_image.h"
 #include "render/guest_ordering_table.h"
+#include "state_render_check.h"
 #include "stub_runtime.h"
 #include "sway_model_emitter.h"
 #include "unlit_model_emitter.h"
@@ -119,6 +120,9 @@ void writeRecords(Core &core, std::mt19937 &rng, const Emitter &emitter, std::ui
     for (std::uint32_t offset = 0; offset < emitter.recordBytes; offset += 4u) {
       core.mem_w32(record + offset, word(rng));
     }
+    // The packets are polygons whatever the case, as the game's records are.
+    const std::uint32_t code = (emitter.quad ? 0x38u : 0x30u) | ((word(rng) & 3u) << 1);
+    core.mem_w32(record, (core.mem_r32(record) & 0x00FFFFFFu) | (code << 24));
     const int pick = flag(rng);
     const std::uint32_t flagByte = pick < 8 ? static_cast<std::uint32_t>(pick) : (word(rng) & 0xFFu);
     core.mem_w32(record + 4u, (core.mem_r32(record + 4u) & 0x00FFFFFFu) | (flagByte << 24));
@@ -203,6 +207,49 @@ std::uint32_t poolCursor(const State &state) {
   return cursor;
 }
 
+// The emitter's state render at t = 1 draws the packets its native body just linked, from the saved call
+// alone, and writes nothing to the guest.
+bool renderMatches(Core &core, const Overlay &overlay, const Emitter &emitter, int run, const State &afterEmit) {
+  const psx::present::FrameRecord frame = tomba::test::walkOrderingTable(core, kOt);
+  const psx::present::FrameState state = core.frameStates.collect(frame);
+  core.frameStates.clear();
+  const auto guestPrimitives = tomba::test::primitivesOf(frame, emitter.entry);
+  const psx::present::StateProducer *render = core.stateProducers.find(emitter.entry);
+  const auto saved = state.find({emitter.entry, kRecords});
+  if (render == nullptr || (!guestPrimitives.empty() && !saved)) {
+    lucent::error("authentic-emitters",
+                  "{} 0x{:08X} case {}: {} packets and no {}",
+                  overlay.name,
+                  emitter.entry,
+                  run,
+                  guestPrimitives.size(),
+                  render == nullptr ? "render" : "saved call");
+    return false;
+  }
+  if (!saved) {
+    return true;
+  }
+  tomba::test::CollectedSink sink;
+  render->render(*saved, *saved, 1.0f, sink);
+  const State afterRender = capture(core);
+  if (!tomba::test::sameFrame(sink.drawn, guestPrimitives) || afterRender.ram != afterEmit.ram ||
+      afterRender.scratch != afterEmit.scratch || afterRender.r != afterEmit.r) {
+    lucent::error("authentic-emitters",
+                  "{} 0x{:08X} case {}: the t = 1 render drew {} primitives against the guest body's {}, guest {}",
+                  overlay.name,
+                  emitter.entry,
+                  run,
+                  sink.drawn.size(),
+                  guestPrimitives.size(),
+                  afterRender.ram != afterEmit.ram || afterRender.scratch != afterEmit.scratch ||
+                          afterRender.r != afterEmit.r
+                      ? "memory changed"
+                      : "memory untouched");
+    return false;
+  }
+  return true;
+}
+
 struct Totals {
   int cases = 0;
   std::uint64_t packets = 0;
@@ -256,6 +303,9 @@ bool compareEmitter(
                     nativeState.r[29],
                     poolCursor(guestState),
                     poolCursor(nativeState));
+      return false;
+    }
+    if (!renderMatches(core, overlay, emitter, run, nativeState)) {
       return false;
     }
     totals.cases++;
@@ -315,6 +365,12 @@ int main(int argc, char **argv) {
     return 1;
   }
   gte_bind(&core);
+  tomba2::render::LitModelEmitter::registerStateRenders(core);
+  tomba2::render::UnlitModelEmitter::registerStateRenders(core);
+  tomba2::render::SwayModelEmitter::registerStateRenders(core);
+  OverlayGt3Gt4::registerStateRenders(core);
+  OverlayGroundGt3Gt4::registerStateRenders(core);
+  core.otTables.name(tomba::test::kOtTable, kOt, kBuckets, sizeof(std::uint32_t), psx::gpu::OtWalk::HighToLow);
   tomba2::render::LitModelEmitter::registerOverrides();
   tomba2::render::UnlitModelEmitter::registerOverrides();
   tomba2::render::SwayModelEmitter::registerOverrides();

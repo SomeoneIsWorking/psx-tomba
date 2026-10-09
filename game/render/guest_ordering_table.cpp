@@ -5,40 +5,40 @@
 
 namespace tomba2::render {
 
-OrderingTable OrderingTable::active(Core &core) {
-  return OrderingTable(core, core.mem_r32(kBasePointer));
+OrderingTable OrderingTable::active(const EmitMemory &memory) {
+  return OrderingTable(memory, memory.mem_r32(kBasePointer));
 }
 
-OrderingTable::OrderingTable(Core &core, std::uint32_t base) : mCore(&core), mBase(base) {}
+OrderingTable::OrderingTable(const EmitMemory &memory, std::uint32_t base) : mMemory(memory), mBase(base) {}
 
 std::uint32_t OrderingTable::head(std::uint32_t bucket) const {
-  return mCore->mem_r32(slot(bucket));
+  return mMemory.mem_r32(slot(bucket));
 }
 
 void OrderingTable::setHead(std::uint32_t bucket, std::uint32_t packet) const {
-  mCore->mem_w32(slot(bucket), packet);
+  mMemory.mem_w32(slot(bucket), packet);
 }
 
 std::uint32_t OrderingTable::link(std::uint32_t packet, std::uint32_t words, std::uint32_t bucket) const {
   const std::uint32_t tag = head(bucket) | (words << 24);
-  mCore->mem_w32(packet, tag);
+  mMemory.mem_w32(packet, tag);
   setHead(bucket, packet);
   return tag;
 }
 
 void OrderingTable::chainToHead(std::uint32_t lastPacket, std::uint32_t bucket) const {
   const std::uint32_t oldHead = head(bucket);
-  mCore->mem_w32(lastPacket, (mCore->mem_r32(lastPacket) & 0xFF000000u) | oldHead);
+  mMemory.mem_w32(lastPacket, (mMemory.mem_r32(lastPacket) & 0xFF000000u) | oldHead);
 }
 
-PacketPool::PacketPool(Core &core) : mCore(&core) {}
+PacketPool::PacketPool(const EmitMemory &memory) : mMemory(memory) {}
 
 std::uint32_t PacketPool::cursor() const {
-  return mCore->mem_r32(kCursor);
+  return mMemory.mem_r32(kCursor);
 }
 
 void PacketPool::setCursor(std::uint32_t address) const {
-  mCore->mem_w32(kCursor, address);
+  mMemory.mem_w32(kCursor, address);
 }
 
 std::uint32_t PacketPool::allocate(std::uint32_t bytes) const {

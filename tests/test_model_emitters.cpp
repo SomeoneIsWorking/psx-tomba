@@ -2,19 +2,27 @@
 // pair): their keys, their screen cull across the record canvas, and A08's texture scroll, through the
 // shipping overrides.
 #include "core/overrides/native_override_catalog.h"
+#include "frame_record.h"
+#include "frame_state.h"
 #include "game.h"
+#include "gp0_primitive_decode.h"
 #include "gte_registers.h"
 #include "guest_ordering_table.h"
 #include "horizontal_visibility_cull.h"
 #include "hw_bind.h"
 #include "lit_model_emitter.h"
 #include "model_element.h"
+#include "overlay_ground_gt3gt4.h"
 #include "overlay_gt3gt4.h"
+#include "state_render_check.h"
 #include "stub_runtime.h"
 #include "sway_model_emitter.h"
 #include "unlit_model_emitter.h"
 
+#include <algorithm>
+#include <array>
 #include <cstdint>
+#include <cstring>
 #include <lucent/log.h>
 #include <memory>
 #include <optional>
@@ -43,6 +51,10 @@ constexpr std::uint32_t kOt = 0x801B0000u;
 constexpr std::uint32_t kRecords = 0x80190000u;
 constexpr std::uint32_t kChainEnd = 0x00FFFFFFu;
 constexpr std::uint32_t kBuckets = 0x800u;
+constexpr std::uint32_t kLcgSeed = 0x1F800080u;
+constexpr std::uint32_t kLightPosition = 0x1F800160u;
+constexpr std::uint32_t kA01ScrollU = 0x801388ECu;
+constexpr std::uint32_t kA01ScrollV = 0x801388EEu;
 constexpr std::uint32_t kLightIntensity = 0x800u;
 constexpr std::int16_t kDepth = 1000;
 const Visibility kGuestFrame{0, 320};
@@ -268,6 +280,136 @@ void testScroll(Core &core) {
   check(core.mem_r16(kPool + 12u) == 0x0810u, "a record without the scroll flag keeps its UVs");
 }
 
+// The state renders of the list emitters: a list drawn through the shipping override, its state collected by
+// the scope serial its packets carry, and the render run over host memory.
+constexpr std::uint32_t kStatePool = 0x001A0000u;
+constexpr std::uint32_t kStateRecords4 = 0x80191000u;
+
+struct StateFamily {
+  const char *name;
+  const char *overlay;
+  std::uint32_t gt3;
+  std::uint32_t gt4;
+  std::array<std::uint32_t, 3> flags; // the triangles' flag bytes: average, then the other depth modes
+};
+
+constexpr StateFamily kStateFamilies[] = {{"SOP unlit", "SOP", 0x801099B4u, 0x80109C80u, {0u, 1u, 2u}},
+                                          {"A08 plain", "A08", 0x80140FBCu, 0x801411D8u, {0u, 3u, 4u}},
+                                          {"A00 ground", "A00", 0x8013FB88u, 0x8013FE58u, {0u, 1u, 2u}},
+                                          {"A08 lit", "A08", 0x80129BACu, 0x8012A06Cu, {0u, 1u, 2u}},
+                                          {"A01 cue", "A01", 0x8012F8D8u, 0x8013000Cu, {0u, 0x14u, 0x11u}},
+                                          {"A01 sway", "A01", 0x80130838u, 0x80130D9Cu, {0u, 0x10u, 0x11u}}};
+
+// Three triangles and two quads through the family's emitters, the camera `shift` right.
+psx::present::FrameRecord drawStateFrame(Core &core, const StateFamily &family, std::uint32_t shift) {
+  beginFrame(core);
+  PacketPool(core).setCursor(kStatePool);
+  gte_write_ctrl(5u, shift);
+  core.mem_w16(OverlayGt3Gt4::kA08Scroll, 3u);
+  core.mem_w8(kA01ScrollU, 5u);
+  core.mem_w8(kA01ScrollV, 7u);
+  core.mem_w32(kLcgSeed, 0x12345u);
+  core.mem_w16(kLightPosition, 40u);
+  core.mem_w16(kLightPosition + 2u, 0xFFECu);
+  core.mem_w16(kLightPosition + 4u, 10u);
+  writeGt3(core, kRecords, 0, family.flags[0]);
+  writeGt3(core, kRecords + 0x24u, 30, family.flags[1]);
+  writeGt3(core, kRecords + 0x48u, -30, family.flags[2]);
+  arguments(core, 3u, 0u);
+  check(call(core, family.gt3), "the GT3 emitter returns");
+  writeGt4(core, kStateRecords4, 0);
+  writeGt4(core, kStateRecords4 + 0x2Cu, 40);
+  core.mem_w32(kLcgSeed, 0x6789Au);
+  arguments(core, 2u, 0u);
+  core.r[4] = kStateRecords4;
+  check(call(core, family.gt4), "the GT4 emitter returns");
+  return tomba::test::walkOrderingTable(core, kOt);
+}
+
+void renderOf(Core &core,
+              const psx::present::FrameState &from,
+              const psx::present::FrameState &to,
+              std::uint32_t producer,
+              std::uint32_t list,
+              float t,
+              tomba::test::CollectedSink &sink) {
+  const psx::present::StateProducer *render = core.stateProducers.find(producer);
+  const auto toState = to.find({producer, list});
+  const auto fromState = from.find({producer, list});
+  check(render != nullptr && toState && fromState, "the emitter has a render and a state in both frames");
+  if (render != nullptr && toState && fromState) {
+    render->render(*fromState, *toState, t, sink);
+  }
+}
+
+void testStateRenderExact(Core &core, const StateFamily &family) {
+  const psx::present::FrameRecord frame = drawStateFrame(core, family, 0u);
+  const psx::present::FrameState state = core.frameStates.collect(frame);
+  const auto guestGt3 = tomba::test::primitivesOf(frame, family.gt3);
+  const auto guestGt4 = tomba::test::primitivesOf(frame, family.gt4);
+  check(guestGt3.size() == 3u && guestGt4.size() == 2u, family.name);
+
+  tomba::test::CollectedSink gt3;
+  tomba::test::CollectedSink gt4;
+  renderOf(core, state, state, family.gt3, kRecords, 1.0f, gt3);
+  renderOf(core, state, state, family.gt4, kStateRecords4, 1.0f, gt4);
+  check(tomba::test::sameFrame(gt3.drawn, guestGt3),
+        "t = 1 reproduces the GT3 packets the guest body wrote, bucket and all");
+  check(tomba::test::sameFrame(gt4.drawn, guestGt4),
+        "t = 1 reproduces the GT4 packets the guest body wrote, bucket and all");
+
+  // The render reads the saved call only: scramble the records, the pool and the GTE it came from.
+  for (std::uint32_t offset = 0; offset < 0x100u; offset += 4u) {
+    core.mem_w32(kRecords + offset, 0xA5A5A5A5u);
+    core.mem_w32(kStateRecords4 + offset, 0x5A5A5A5Au);
+  }
+  for (std::uint32_t offset = 0; offset < 0x200u; offset += 4u) {
+    core.mem_w32(kStatePool + offset, 0xDEADBEEFu);
+  }
+  core.mem_w16(OverlayGt3Gt4::kA08Scroll, 0x1234u);
+  core.mem_w8(kA01ScrollU, 0x33u);
+  core.mem_w32(kLcgSeed, 0xFFFFFFFFu);
+  core.mem_w16(kLightPosition, 1000u);
+  setUpGte(core);
+  gte_write_ctrl(5u, 777u);
+  tomba::test::CollectedSink scrambled;
+  renderOf(core, state, state, family.gt3, kRecords, 1.0f, scrambled);
+  check(tomba::test::sameFrame(scrambled.drawn, guestGt3),
+        "the render does not depend on the guest memory the call read");
+  setUpGte(core);
+}
+
+void testStateRenderInBetween(Core &core, const StateFamily &family) {
+  const psx::present::FrameRecord before = drawStateFrame(core, family, 0u);
+  const psx::present::FrameState earlier = core.frameStates.collect(before);
+  const psx::present::FrameRecord after = drawStateFrame(core, family, 40u);
+  const psx::present::FrameState later = core.frameStates.collect(after);
+  const psx::present::FrameRecord midway = drawStateFrame(core, family, 20u);
+
+  tomba::test::CollectedSink gt3;
+  tomba::test::CollectedSink gt4;
+  renderOf(core, earlier, later, family.gt3, kRecords, 0.5f, gt3);
+  renderOf(core, earlier, later, family.gt4, kStateRecords4, 0.5f, gt4);
+  check(tomba::test::sameFrame(gt3.drawn, tomba::test::primitivesOf(midway, family.gt3)) &&
+            tomba::test::sameFrame(gt4.drawn, tomba::test::primitivesOf(midway, family.gt4)),
+        "t = 0.5 draws what the body draws with the camera halfway between the two frames");
+  check(!tomba::test::sameFrame(gt3.drawn, tomba::test::primitivesOf(before, family.gt3)) &&
+            !tomba::test::sameFrame(gt3.drawn, tomba::test::primitivesOf(after, family.gt3)),
+        "the in-between differs from both frames");
+  setUpGte(core);
+}
+
+void testStateRenders(Core &core, std::optional<psx::cpu::ImageIdentity> &mode) {
+  core.otTables.name(tomba::test::kOtTable, kOt, kBuckets, sizeof(std::uint32_t), psx::gpu::OtWalk::HighToLow);
+  for (const StateFamily &family : kStateFamilies) {
+    if (family.overlay != nullptr) {
+      tomba::native::activateOverlay(core, mode, family.overlay, kModeSlot);
+    }
+    testStateRenderExact(core, family);
+    testStateRenderInBetween(core, family);
+  }
+}
+
 } // namespace
 
 int main() {
@@ -281,11 +423,18 @@ int main() {
   UnlitModelEmitter::registerOverrides();
   SwayModelEmitter::registerOverrides();
   OverlayGt3Gt4::registerOverrides(game.get());
+  OverlayGroundGt3Gt4::registerOverrides(game.get());
+  UnlitModelEmitter::registerStateRenders(core);
+  OverlayGt3Gt4::registerStateRenders(core);
+  SwayModelEmitter::registerStateRenders(core);
+  LitModelEmitter::registerStateRenders(core);
+  OverlayGroundGt3Gt4::registerStateRenders(core);
   std::optional<psx::cpu::ImageIdentity> mode;
 
   testKeys(core, mode);
   testMarginCull(core);
   testScroll(core);
+  testStateRenders(core, mode);
   lucent::info("model-emitters-test", "checked={} failed={}", checked, failed);
   return failed == 0 ? 0 : 1;
 }

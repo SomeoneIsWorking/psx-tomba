@@ -225,7 +225,7 @@ scratchpad, packet pool, OT) that function writes. Those declared as producers k
 | `ScreenFade` (`screen_fade.h`) | The fade leaf FUN_8007E9C8, native: the full-screen GP0 0x62 fill and its DR_MODE, the fill spanning the draw window. Every guest fade, flash and the pause dim goes through it. |
 | `tomba2::render::LetterboxBars` (`letterbox_bars.h`) | The cutscene letterbox FUN_80026864: its height machine and the two black rects, drawn across the canvas margins. |
 | `HudGaugeEmitter` | The HUD gauge DR_AREA emitter. |
-| `tomba2::render::ModelPacket` (`model_packet.*`) | The steps every GT3/GT4 model list emitter shares: RTPT/RTPS with the GTE FLAG and NCLIP gates, the per-corner screen cull through `Visibility`, depth staging and the three depth modes (decoded by `depthOf`, `litDepth` or `flaggedDepth`), the near clamp, OT bucket, last UV, U scroll, DPCS shade and link; `emitModelList` walks a list, names each record `modelElement(list, index)` and advances the pool. Owns `ModelObjectScope`, the scope a list opens when its caller opened none. Tested byte-for-byte against the guest bodies by `tests/test_authentic_model_emitters.cpp`. |
+| `tomba2::render::ModelPacket` (`model_packet.*`) | The steps every GT3/GT4 model list emitter shares: RTPT/RTPS with the GTE FLAG and NCLIP gates, the per-corner screen cull through `Visibility`, depth staging and the three depth modes (decoded by `depthOf`, `litDepth` or `flaggedDepth`), the near clamp, OT bucket, last UV, U scroll, DPCS shade and link; `emitModelList` walks a list, names each record `modelElement(list, index)` and advances the pool. `modelListJob` saves a list call as its state (see State producers). Tested byte-for-byte against the guest bodies by `tests/test_authentic_model_emitters.cpp`. |
 | `tomba2::render::LitModelEmitter` (`lit_model_emitter.*`) | The lit GT3/GT4 list emitter of A01 and A05-A08: per-corner light falloff by DPCS. A01's copy adds two flag bits (hide while 0x1F80009C is set, 0x80 buckets deeper), A06's the hide on bit 2, selected by `FlagBits`. |
 | `tomba2::render::UnlitModelEmitter` (`unlit_model_emitter.*`) | The unlit GT3/GT4 list emitter of MAIN.EXE, SOP, A01, A06 and A0A-A0J: one body differing only by data (`Variant`: scratch stage, colour masks, GT4 corner order, frame size, `DepthRule` (mode code, staging, near clamp, the flagged copy's GT4 drop), hide flag, depth cue, U scroll). |
 | `tomba2::render::SwayModelEmitter` (`sway_model_emitter.*`) | A01's other two scenery pairs: vertex sway through guest rsin/rcos, UV scroll, and the depth-cue pair with its scratchpad LCG. |
@@ -248,12 +248,32 @@ culled primitive does not shift its neighbours and two commands drawing one shar
 | 0x8003F174 | MAIN | `Render::subPartWalk` | A0 | per sub-part |
 | 0x8003F07C | MAIN | `Render::sharedTransformWalk` | A0 | per sub-part |
 | 0x801401B8 | A00 | `OverlayGroundGt3Gt4::entityLoop` | A0 | per scenery table slot |
-| 0x80115598 | A00 | `TileGridLayer::emit` | A0 | per map cell; element = its lap (row lap << 16 \| column lap), so a cell a wrapped map shows twice keys twice apart |
-| 0x8010C26C | SOP | `TileGridLayer::emitSop` | A0 | per map cell, element as above |
-| 0x801142EC, 0x801141B0, 0x80116B9C, 0x80116778 | A0A, A0B, A0D, A0F | `TileGridLayer::emitUnbiased` | A0 | per map cell, element as above |
+| 0x80115598 | A00 | `TileGridLayer::emit` | A0 | the grid node (every tile sprite and the draw mode packet are one object) |
+| 0x8010C26C | SOP | `TileGridLayer::emitSop` | A0 | the grid node |
+| 0x801142EC, 0x801141B0, 0x80116B9C, 0x80116778 | A0A, A0B, A0D, A0F | `TileGridLayer::emitUnbiased` | A0 | the grid node |
 | 0x80109FE0 | SOP | `SopGround::draw` | A0 | per ground block (`blocks + index*4`; the visible list is rebuilt each frame, the block is not) |
-| 0x80078CA8 | MAIN | `Font::glyphEmit` | A3 | per string; element = the glyph's byte offset in it |
-| 0x80116904 | A08 | `RainStreaks::draw` | A0 | the rain node; element = drop index (fixed seed, so drop i is one lattice point) |
+| 0x80078CA8 | MAIN | `Font::glyphEmit` | A3 | per glyph: its character's address (the string's own scope keeps the icon glyphs' packets) |
+| 0x80116904 | A08 | `RainStreaks::draw` | A0 | per drop: its trail slot `0x801485E8 + 4i` (fixed seed, so drop i is one lattice point) |
+
+### State producers
+
+A state producer saves what it drew at each frame (`core.frameStates.save` under the object's scope) and has a
+`render(from, to, t)` the composer runs for the object between two frames (psxport `presentation.md`, Frame
+model). Registered by `registerStateRenders(Core&)` from `tomba_runtime.cpp`, keyed by the producer address.
+Tomba's frame cuts stay `tomba::FrameCut`.
+
+| Producer | Object | Saved state | Render |
+|---|---|---|---|
+| Every GT3/GT4 emitter address in the element-namer table below (`UnlitModelEmitter`, `LitModelEmitter`, `SwayModelEmitter`, `OverlayGt3Gt4`, `OverlayGroundGt3Gt4`) | the emitter call: `(emitter, the object that reached it)`, or `(emitter, record list)` from a scenery walker (`EmitterObject`, `list_job.h`) | a `ListJob`: the call registers, the pool cursor and arena size, the OT slot, the 32 GTE control registers, the record bytes and the guest words the body reads (scroll, LCG seed, light, sway phase) | `ListStateProducer`: the GTE rotation and translation registers and the sway phase move by t, then the emitter's own body runs over `HostMemory` (`EmitMemory`) and the packets it links are read from the host OT |
+| 0x80115598, 0x8010C26C, 0x801142EC, 0x801141B0, 0x80116B9C, 0x80116778 `TileGridLayer` | the grid node | a `ListJob`: the node bytes with the two scroll words as wrapped inputs (modulus the map's pixel width and height) | the grid walk over host memory at the scroll moved the short way round the map; its draw mode packet gives the sprites their texture page |
+| 0x80116904 `RainStreaks` | one drop, by trail slot | the OT slot and bucket and the two screen points of its streak | the two points move by t; the line is decoded from the same words and takes the DR_TPAGE's blend mode |
+| 0x80078CA8 `Font::glyphEmit` | one glyph, by character address | the OT slot and bucket and the sprite's four command words | the position word moves by t; the string's texture page is the constant glyphEmit passes to SetDrawMode |
+
+Not state producers: `SopGround::draw` 0x80109FE0, `Render::cmdListDispatch` 0x8003CDD8, `Render::subPartWalk`
+0x8003F174, `Render::sharedTransformWalk` 0x8003F07C and `OverlayGroundGt3Gt4::entityLoop` 0x801401B8 open
+scopes only; their packets come from the emitters above. A packet a scope's guest code writes itself stays as the
+guest drew it. Keyed blend still runs for what is left keyed (psxport `FramePresenter::presentRecords`); see
+issue 0033.
 
 Element namers (not producers; they name elements of the innermost open object):
 
