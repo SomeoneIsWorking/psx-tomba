@@ -5,7 +5,6 @@
 #include "game.h"
 #include "hw_bind.h"
 #include "psx_exe_image.h"
-#include "render_mode.h"
 #include "stream_field_turn.h"
 #include "tomba1_runtime.h"
 
@@ -101,7 +100,6 @@ int main(int argc, char **argv) {
   game->gpu.gpu_native_init();
   game->pad.overridesInit();
   core->runtime->registerOverrides(*game);
-  render_path_install(core);
 
   psx::frame::FrameLoopShell shell;
   shell.prepareProduct(*game);
