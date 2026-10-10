@@ -19,12 +19,12 @@ types; slot 2 (type 2) dispatched through `0x8009D314` to `0x801158E0`, which is
 middle of a function in A08. Entered there, `sp` was unadjusted and the saved `ra` slot read 0xDEAD0000 (the
 scheduler's top-level return sentinel). Area 1 is the same skip with area 1's code, ending at pc 0.
 
-`tomba::applyColdWarp` (`game/core/debug/dev_warp.cpp`) did not leave the scripted-sequence mode the way the
+The dev warp (`game/core/debug/dev_warp.cpp`) did not leave the scripted-sequence mode the way the
 skip (case 8) and the attract launch do.
 
 ## Fix
 
-`applyColdWarp` writes load mode 4 before the area load. The load then skips the OPN image and the field starts
+`DevWarp::applyArmed` writes load mode 4 before it raises the transition. The load then skips the OPN image and the field starts
 in ordinary play, where Start opens the pause menu (Options / Load data / Quit game).
 
 ## Verification

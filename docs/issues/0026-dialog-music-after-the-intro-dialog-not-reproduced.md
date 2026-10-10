@@ -25,11 +25,11 @@ To reproduce: `newgame`, `run 1300` (the fisherman dialog, song 4 current), `war
 Before the fix, the song index stayed 4 for the whole run. Area 1's looping XA request
 (`voice_play chan=1 loop=1`) was held back, so the dialog song played on in the new area.
 
-Cause: `game/core/debug/dev_warp.cpp:applyColdWarp` entered the destination without the song stop
+Cause: the old synchronous cold warp (`applyColdWarp`) entered the destination without the song stop
 that every guest area transition runs.
 
-Fix: `applyColdWarp` calls `FUN_80074E48` first. After the fix the index is -1 after the warp and the
-area music starts (`coord song=65535 xa_active=1 loop=1`).
+Fix: the warp now raises the game's own transition (issue 0034), whose `FieldTransition::main` runs
+`FUN_80074E48`. After the warp (song 4 started with `FUN_80074BF8`, `warp 1`) the index is -1 and the area music starts (`coord song=65535 xa_active=1 loop=1`).
 
 ## Not reproduced: newgame intro dialog → gameplay
 
@@ -53,10 +53,6 @@ Next step: record the user's route as a pad replay through the dialog's natural 
 (`dbgclient.py padrec save`). Compare the song index and the `FUN_80042310` calls against the console
 at the frame where the dialog closes.
 
-Warps 3 and 5 abort on HEAD as well, so this is pre-existing:
-
-- 3: `transitionAreaEnter` faults at `0x801127F8`.
-- 5: `dispatchObj` exhausts its budget at `0x8013500C`.
-- 2: kanban-122.
+Warp 5 aborts on HEAD as well (issue 0035). Warp 3 loads since issue 0034.
 
 Because of these, the "warp into an area with a cutscene" route was only checked for area 1.

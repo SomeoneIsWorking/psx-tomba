@@ -45,17 +45,18 @@
 #include "core/entry/game_ctx.h"
 #include "game.h"
 #include "guest_call.h"
+#include "inventory_layout.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 // ---- inventory state block addresses ----
-#define INV_BASE 0x800BF870u
+#define INV_BASE inventory_layout::kBase
 #define INV_RING_LEN (INV_BASE + 0x13u)  // 0x800BF883
 #define INV_RING_DATA (INV_BASE + 0x14u) // 0x800BF884
-#define INV_EVT_B (INV_BASE + 0x31u)     // 0x800BF8A1
-#define INV_EVT_A (INV_BASE + 0x32u)     // 0x800BF8A2
-#define INV_COUNT (INV_BASE + 0x244u)    // 0x800BFAB4 (count[type])
+#define INV_EVT_B inventory_layout::kQuestPassCounter
+#define INV_EVT_A (INV_BASE + 0x32u) // 0x800BF8A2
+#define INV_COUNT inventory_layout::kCounts
 #define INV_QUESTREF (INV_BASE + 0x344u) // 0x800BFBB4 (questref[type])
 #define INV_QUEST_TABLE 0x800A2BE8u      // 12-byte stride
 

@@ -25,6 +25,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <lucent/log.h>
+#include <string>
 
 namespace tomba {
 
@@ -151,21 +152,22 @@ const GuestWidescreenProjection *TombaRuntime::guestWidescreenProjection() const
 }
 
 bool TombaRuntime::controlCommand(Core &core, const char *cmd, const char *line, FILE *out) {
-  if (std::strcmp(cmd, "warp") != 0) {
-    // The title's developer commands (bgm, invtest, ...) answer through the log.
-    const bool handled = replCommand(core, cmd, line);
-    if (handled) {
-      std::fprintf(out, "ok: %s\n", cmd);
-    }
-    return handled;
-  }
   auto *driver = dynamic_cast<TombaFrameDriver *>(core.game->frameDriver.get());
   if (driver == nullptr) {
-    lucent::error("tomba-native", "warp arrived with no Tomba! 2 frame driver");
+    lucent::error("tomba-native", "{} arrived with no Tomba! 2 frame driver", cmd);
     std::abort();
   }
-  std::fprintf(out, "%s\n", driver->devWarp().arm(core, line).c_str());
-  return true;
+  std::string reply;
+  if (driver->devControl().handle(core, cmd, line, reply)) {
+    std::fprintf(out, "%s\n", reply.c_str());
+    return true;
+  }
+  // The title's other developer commands (bgm, invtest, ...) answer through the log.
+  const bool handled = replCommand(core, cmd, line);
+  if (handled) {
+    std::fprintf(out, "ok: %s\n", cmd);
+  }
+  return handled;
 }
 
 } // namespace tomba

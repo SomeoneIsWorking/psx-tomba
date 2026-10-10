@@ -37,17 +37,6 @@ public:
   void areaLoad();
   void transitionAreaLoad();
 
-  // transitionAreaEnter — run the destination area's OWN entry handler after a dev warp.
-  //   Each area has one, in the per-area table at 0x800A45B8 indexed by the area byte 0x800BF870;
-  //   entry 12 (the Ghost Pig arena) is 0x8010CC28, inside overlay A0C. In normal play that handler
-  //   is reached through ActorTomba::enterOuterState0, which reads the same table — but ONLY on the
-  //   outer-state-0 entry a real walk-in passes through. The dev warp deliberately forces the area
-  //   machine straight into its running state, so it jumps PAST that transition and the area's data
-  //   and code end up resident with nothing ever arming its objects. Measured before this existed:
-  //   after `warp 12` exactly ONE of overlay A0C's 170 functions ever ran, while the arena rendered
-  //   normally. See docs/findings/scene.md.
-  void transitionAreaEnter();
-
   // == scenePrepass (guest FUN_8010A0E0) ==
   //   The immediately-next callee below fieldUpdate in the top-down chain (called RIGHT before the
   //   list-2 walk each field frame). Computes a per-frame 2D CAMERA-FRUSTUM TRIANGLE in scene-grid

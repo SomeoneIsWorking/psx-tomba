@@ -30,5 +30,5 @@ read [`../AGENTS.md`](../AGENTS.md) and [`external/psxport/AGENTS.md`](external/
 picker; one executable argument runs that title. The catalog entry carries the disc's boot executable
 SCUS_944.54; `TombaRuntime::registerOverrides` loads and authenticates `MAIN.EXE` from the disc
 (`entry/main_handoff.cpp`) before the host's crt0 audit. The SCEA card and LOGO movie are stepped frames
-(`frame/boot_cards.cpp`). The dev `warp` command arrives through `TombaRuntime::controlCommand`.
+(`frame/boot_cards.cpp`). The dev `warp`, `items` and `flag` commands arrive through `TombaRuntime::controlCommand`.
 Tomba! 1 is not catalogued; its binary under `titles/tomba1/` is unchanged.

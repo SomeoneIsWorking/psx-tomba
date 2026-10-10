@@ -72,6 +72,29 @@ Tomba! 2 representative gameplay is complete.
   Club "Debug Menu (Press L3 to toggle)" GameShark/DuckStation code list for SCUS-94454 by unicorngoulash, carried
   verbatim in `mstan/Tomba2Recomp` (`mods/sources/tomba2_debug_menu.cht`). It is MIPS written to `0x8000C000` with five
   call sites in the gameplay overlay re-pointed at it; its WARP TOOLS page launches an area/entry transition (issue 0034).
+- Debug menu decode (issue 0034; the payload is evidence only and nothing of it is carried here). The menu keeps its
+  state at `0x8000DAE0`; WARP TOOLS keeps area and entry in two state bytes and launches by writing the
+  destination halfword `0x800BF83A` (area high byte, entry low byte, the packed word the door code writes) and then the
+  pending-transition byte `0x800BF839`; it calls no transition routine. The game's own field machine
+  consumes the pair: `fieldRun` case 6 derives the area/entry bytes `0x800BF870/871`
+  from the halfword (`swap(b83a) & 0x3F1F`) and `FieldTransition` runs the teardown, fade, song stop
+  (`FUN_80074E48`) and area load (`FUN_80044BD4`). The pending byte takes any non-zero value in area machines 2 and 3,
+  1 in machine 4 (other values go to the game-over path), and only 3 in machines 5 and 6. Machine 4 and up are the
+  GAME-image handlers of areas 2, 3, 7 and 20. `0x800BF89C` (load mode) must be 4 for ordinary play; the scripted
+  opening leaves it 2.
+- Event flags: the 256-byte table at `0x800BF9B4` (`scene_flags::kFlagTable`), one byte per flag, written directly by
+  the menu with a stepped index and value. Inventory: `0x800BFAB4`, one count byte per item id (0..255), and
+  GRANT ALL ITEMS writes 1 for the unique items and 9 for the consumables over nine id runs
+  (`ItemGrant`) and raises the quest-pass counter `0x800BF8A1` to 0xFF. It does not touch the recently-acquired ring
+  or the quest cross-reference, so it is a raw fill, not a chain of `FUN_8004D338` calls.
+- The title commands (`game/core/debug/dev_*.cpp`, control channel and Debug tab): `warp <area> [entry]`,
+  `items all`, `items <id> [amount]`, `flag get <i>`, `flag set <i> <v>`. Each arms between frames and
+  `TombaFrameDriver::stepFrame` writes it at the frame boundary. The warp has no second path: the old synchronous cold
+  load is gone, because the game's own transition reaches every case it covered. Not decoded: FREE POSITION, SYSTEM
+  TOOLS and WORLD INFO.
+- Area transitions: `Engine::frame` owns sub-mode `sm[0x4A]` 5 (`FieldTransition::step`), and `submode1Case0Native`
+  loads the area in `0x800BF870` rather than the stale `sm[0x6E]`. Warps to areas 4 and 5 abort in the area handler
+  (issue 0035).
 
 ## Render producers
 

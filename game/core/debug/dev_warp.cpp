@@ -1,61 +1,77 @@
 #include "debug/dev_warp.h"
 
 #include "core.h"
-#include "engine/engine.h"
-#include "entry/game_ctx.h"
-#include "guest_call.h"
+#include "core/engine/task_sm.h"
+#include "debug/dev_args.h"
+#include "debug/dev_gate.h"
 
-#include <cstdint>
-#include <cstdio>
 #include <lucent/log.h>
 
 namespace tomba {
 
 namespace {
 
-// 0x800BF89C: 2 while the scripted opening runs, 4 in ordinary play. The intro skip (fieldRun case 8) and the
-// attract launch both write 4 before loading the next area.
-constexpr uint32_t kLoadModeByte = 0x800bf89cu;
-constexpr uint8_t kPlayLoadMode = 4;
+// Field machine states (TaskSm: top, sub-mode, area machine, sub-state).
+constexpr uint16_t kRunningTop = 2;
+constexpr uint16_t kIntroSubMode = 0;
+constexpr uint16_t kFieldSubMode = 1;
+// Area machines (sm[0x4c]): 2 is the field run, 3 the mid-transition run, 4..6 the GAME-image area handlers.
+constexpr uint16_t kFieldRunMachine = 2;
+constexpr uint16_t kExitCodeMachine = 5; // machines 5 and 6 leave on DevWarp::kHandlerExitRequest
+constexpr uint16_t kLastAreaMachine = 6;
+constexpr uint16_t kFieldRunning = 1;
+constexpr uint16_t kOpeningScript = 9;
+constexpr uint16_t kAreaChange = 6;
+// 0x1F800236: scene-transition type; 1 runs FieldTransition::main (teardown, fade, song stop, load).
+constexpr uint32_t kTransitionType = 0x1f800236u;
+constexpr uint8_t kFullTransition = 1;
 
 } // namespace
 
-void applyColdWarp(Core &core, int area, int sub) {
-  Core *c = &core;
-  const uint32_t dest = static_cast<uint32_t>(area) & 0x1fu;
-  const uint32_t wsm = c->mem_r32(0x1f800138u);
-  psx::cpu::callGuestNow(*c, __func__, 0x80074E48u); // stop the current song, as every area transition does
-  c->mem_w8(kLoadModeByte, kPlayLoadMode);
-  c->mem_w8(wsm + 0x6e, static_cast<uint8_t>(dest));
-  c->mem_w8(wsm + 0x6d, 2);
-  eng(c).sop.transitionAreaLoad();
-  c->mem_w8(0x800bf871u, static_cast<uint8_t>(static_cast<uint32_t>(sub) & 0x3fu));
-  c->mem_w8(0x800bf839u, 0); // no pending door transition after a completed cold warp
-  c->mem_w16(wsm + 0x48, 2);
-  c->mem_w16(wsm + 0x4a, 1);
-  c->mem_w16(wsm + 0x4c, c->mem_r8(0x80108f60u + dest));
-  c->mem_w16(wsm + 0x4e, 0);
-  eng(c).sop.transitionAreaEnter();
+DevWarp::Phase DevWarp::phase(Core &core) {
+  if (!DevGate::inGameStage(core)) {
+    return Phase::Unavailable;
+  }
+  const TaskSm sm(&core);
+  if (sm.top() != kRunningTop) {
+    return Phase::Unavailable;
+  }
+  const bool opening = core.mem_r8(kLoadMode) == kScriptedOpening;
+  const bool fieldMachine = sm.subMode() == kFieldSubMode && sm.stage4c() == kFieldRunMachine;
+  if (opening && (sm.subMode() == kIntroSubMode || (fieldMachine && sm.s4e() == kOpeningScript))) {
+    return Phase::Opening;
+  }
+  const bool running =
+      sm.subMode() == kFieldSubMode && sm.stage4c() >= kFieldRunMachine && sm.stage4c() <= kLastAreaMachine;
+  if (!opening && running && sm.s4e() == kFieldRunning) {
+    return Phase::Running;
+  }
+  return Phase::Unavailable;
 }
 
 std::string DevWarp::arm(Core &core, const char *line) {
-  unsigned area = 0;
-  unsigned sub = 0;
-  const int parsed = std::sscanf(line, "%*s %u %u", &area, &sub);
-  if (parsed < 1) {
-    return "usage: warp <area> [sub]";
+  const auto words = DevArgs::words(line);
+  uint32_t area = 0;
+  uint32_t entry = 0;
+  const bool parsed = (words.size() == 2 || words.size() == 3) && DevArgs::decimal(words[1], area) &&
+                      (words.size() == 2 || DevArgs::decimal(words[2], entry));
+  if (!parsed) {
+    return "usage: warp <area> [entry]";
   }
-  if (!Engine::devWarpAllowed(&core)) {
-    return "refused: a warp is legal only once the game stage is running";
-  }
-  const int count = Engine::devAreaCount();
-  if (area >= static_cast<unsigned>(count)) {
+  const int count = kAreaCount;
+  if (area >= static_cast<uint32_t>(count)) {
     return lucent::format("refused: area {} is out of range, this game has {} areas (0..{})", area, count, count - 1);
   }
-  area_ = static_cast<int>(area);
-  sub_ = parsed == 2 ? static_cast<int>(sub) : 0;
+  if (entry > kMaxEntry) {
+    return lucent::format("refused: entry {} is out of range (0..{})", entry, kMaxEntry);
+  }
+  if (phase(core) == Phase::Unavailable) {
+    return "refused: a warp is legal only while the field is running";
+  }
+  area_ = area;
+  entry_ = entry;
   armed_ = true;
-  return lucent::format("ok: warp armed for area {} sub {}", area_, sub_);
+  return lucent::format("ok: warp armed for area {} entry {}", area_, entry_);
 }
 
 void DevWarp::applyArmed(Core &core, uint32_t frame) {
@@ -63,8 +79,23 @@ void DevWarp::applyArmed(Core &core, uint32_t frame) {
     return;
   }
   armed_ = false;
-  applyColdWarp(core, area_, sub_ & 0x3f);
-  lucent::info("warp", "cold area {} sub {} loaded at f{}", area_ & 0x1f, sub_ & 0x3f, frame);
+  const Phase now = phase(core);
+  if (now == Phase::Unavailable) {
+    lucent::error("warp", "area {} entry {} dropped at f{}: the field is no longer running", area_, entry_, frame);
+    return;
+  }
+  if (now == Phase::Opening) {
+    TaskSm sm(&core);
+    core.mem_w8(kLoadMode, kOrdinaryPlay);
+    core.mem_w8(kTransitionType, kFullTransition);
+    sm.setSubMode(kFieldSubMode);
+    sm.setStage4c(kFieldRunMachine);
+    sm.setS4e(kAreaChange);
+  }
+  core.mem_w16(kDestination, static_cast<uint16_t>((area_ << 8) | entry_));
+  const bool exitCode = TaskSm(&core).stage4c() >= kExitCodeMachine;
+  core.mem_w8(kPendingTransition, exitCode ? kHandlerExitRequest : kDoorRequest);
+  lucent::info("warp", "area {} entry {} requested at f{}", area_, entry_, frame);
 }
 
 } // namespace tomba

@@ -4,7 +4,6 @@
 // directly owns context lifecycle, boot, and override registration; those slots stay null so the
 // callback bag cannot become a second authority.
 #include "core.h"
-#include "debug/dev_warp.h"
 #include "engine/engine.h"
 #include "entry/game_ctx.h"
 #include "game.h"
@@ -18,13 +17,6 @@ static void tomba_replCamTeleport(Core *c, int x, int y, int z) {
 }
 static void tomba_replCamTeleportOff(Core *c) {
   eng(c).camTeleportOff();
-}
-// One complete cold warp shared by the standalone REPL and the SBS oracle. The framework used to
-// split this operation across generic code and two hooks, duplicating Tomba's state-machine layout;
-// SBS then combined the destination preload with an old-area door transition and ran stale objects
-// against the new table. All game addresses and ordering live here now.
-static void tomba_devWarp(Core *c, int area, int sub) {
-  tomba::applyColdWarp(*c, area, sub);
 }
 // dev-warp area index (game/core/dev_areas.cpp) — count / sourced name / "is a
 // warp legal now".
@@ -193,7 +185,6 @@ static const GameHooks g_tomba_hooks = {
     .replCamTeleport = tomba_replCamTeleport,
     .replCamTeleportOff = tomba_replCamTeleportOff,
     .replCommand = tomba_repl_command,
-    .devWarp = tomba_devWarp,
     .devAreaCount = tomba_devAreaCount,
     .devAreaName = tomba_devAreaName,
     .devWarpAllowed = tomba_devWarpAllowed,

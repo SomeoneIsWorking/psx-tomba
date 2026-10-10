@@ -41,6 +41,9 @@ public:
   // main; 5/6 d3c; 7 e20; 8 f3c.
   void step();
 
+  // Native FUN_80044BD4(0x800452C0, area, mode, ...): seed the load's destination, then load synchronously.
+  void areaLoadBd4(std::uint32_t area, std::uint32_t mode);
+
 private:
   // FUN_80107AFC — the MAIN door/sub-scene transition (sm[0x4c]==1..4). sm[0x4e]: 0
   // teardown+fade-clear+load, 1 FADE-OUT (to black), 2 await load, 3 FADE-IN, 4 done->return to
@@ -62,10 +65,4 @@ private:
   // 1f80019b=1 (faithful to the cooperative spawn's net effect: texgroup loaded, load-done flag
   // raised). Case 4 uses the normal 0x800452c0 loader.
   void f3c();
-
-  // Native replacement for FUN_80044bd4(0x800452c0, area, mode, 1): seed the sm fields the
-  // spawned load reads, clear the load-done flag, run the load SYNCHRONOUSLY
-  // (native_transition_area_load sets 1f80019b=1). The PSX phase-1 wait-loop is gone (sync
-  // runtime). Faithful to bd4.c's pre-spawn writes. Was the free function `native_area_load_bd4`.
-  void areaLoadBd4(std::uint32_t area, std::uint32_t mode);
 };

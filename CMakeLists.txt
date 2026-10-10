@@ -245,6 +245,17 @@ if(BUILD_TESTING)
   target_link_libraries(test_letterbox_bars PRIVATE psxport)
   add_test(NAME tomba_letterbox_bars COMMAND test_letterbox_bars)
 
+  add_executable(test_dev_control
+      tests/test_dev_control.cpp
+      game/core/debug/dev_warp.cpp
+      game/core/debug/dev_items.cpp
+      game/core/debug/dev_flags.cpp
+      game/core/debug/dev_args.cpp
+      game/items/item_grant.cpp)
+  target_include_directories(test_dev_control PRIVATE game game/core game/scene tests)
+  target_link_libraries(test_dev_control PRIVATE psxport)
+  add_test(NAME tomba_dev_control COMMAND test_dev_control)
+
   add_executable(test_screen_fade
       tests/test_screen_fade.cpp
       game/render/screen_fade.cpp

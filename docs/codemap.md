@@ -61,7 +61,11 @@ where their bodies live.
 | `MoviePolicy` (`frame/movie_policy.{h,cpp}`) | Whether a native movie plays (`PSXPORT_NO_FMV`, headless sink). One answer for the cards and Demo's OP.STR. |
 | `TombaConfig` (`entry/game_config.cpp`) | The measured Tomba! 2 compatibility facts (guest addresses and sizes) the frame driver requires. |
 | `VerificationCounters` (`debug/verification_counters.h`) | Title-owned verification tallies surfaced through the diagnostics channel. |
-| `DevWarp` / `tomba::applyColdWarp` (`debug/dev_warp.h`) | Dev warp arming (`arm` from the control channel, `applyArmed` from the frame driver): the control-channel request applied at a frame boundary through the engine's own transition owners. |
+| `DevControl` (`debug/dev_control.h`) | The title's developer commands on the control channel (`warp`, `items`, `flag`): `handle` parses and arms between frames, `applyArmed` writes them from the frame driver at the frame boundary. |
+| `DevWarp` (`debug/dev_warp.h`) | `warp <area> [entry]`: writes the destination word and the pending-transition byte the game's own field machine consumes; refused outside the GAME field. |
+| `DevItems` / `ItemGrant` (`debug/dev_items.h`, `items/item_grant.h`) | `items all` (the grant-all table) and `items <id> [amount]` (the game's give-and-flag). |
+| `DevFlags` (`debug/dev_flags.h`) | `flag get <i>` and `flag set <i> <v>` on the 256-byte event-flag table `scene_flags::kFlagTable`. |
+| `DevGate` (`debug/dev_gate.h`) | The GAME-stage test every developer command shares. |
 | `StepReturn` (`engine/task_sm.h`) | The generic task state-machine vocabulary the engine's per-state dispatch is written against. |
 
 ### `game/input/`
@@ -433,15 +437,16 @@ lucent::http::Server                         (psxport) — the loopback listener
   → psx::dbg::DbgServer                      runtime/psx/dbg_server.* — the command surface
       → framework commands                   (psxport) — memory, input, screenshot, render toggles
       → GameRuntime::controlCommand → tomba::TombaRuntime::controlCommand
-          → warp                          DevWarp::arm on the TombaFrameDriver; other commands fall through to replCommand
+          → warp / items / flag           DevControl::handle on the TombaFrameDriver; other commands fall through to replCommand
           → GameRuntime::replCommand → tomba::TombaRuntime::replCommand
           → debug/repl_commands.cpp       the title's commands, which reach Tomba! 2 classes and
                                                guest layouts without the framework naming either
-      → Debug warp / area selection          debug/dev_warp.* and debug/dev_areas.cpp — a
-                                               request is armed and the frame driver applies it at a
-                                               frame boundary through the game's own transition and
-                                               load owners; it sets load mode 0x800BF89C = 4, leaving
-                                               the scripted opening, before the load
+      → Debug warp / items / flags            debug/dev_*.cpp — a request is armed and the frame
+                                               driver applies it at a frame boundary: the warp raises
+                                               the game's own pending-transition request and the field
+                                               machine (FieldTransition) runs the transition; from the
+                                               scripted opening it first leaves it for ordinary play
+                                               (load mode 0x800BF89C = 4)
 ```
 
 ---
@@ -629,7 +634,6 @@ Totals: 739 rows over 633 owned addresses, 731 LIVE / 8 ORPHAN. 261 override dec
 | 0x80044090 | LIVE | `ScriptInterp::mirrorGlobalStatusByte` | game/scene/script_interp.cpp:1184 |  | ORACLE: guest 0x80044090 |
 | 0x80044BD4 | LIVE | `Demo::s0PreYield` | game/scene/demo.cpp:665 |  |  |
 | 0x80044BD4 | LIVE | `FieldTransition::areaLoadBd4` | game/scene/field_transition.cpp:36 |  | Native replacement for FUN_80044bd4(0x800452c0, area, mode, 1): seed t… |
-| 0x80044BD4 | LIVE | `Sop::transitionAreaEnter` | game/scene/sop.cpp:168 |  | Synchronous TRANSITION area-DATA load — replaces the cooperative |
 | 0x80044BD4 | LIVE | `StartBinStage::advanceWithBootPreload` | game/scene/start_bin_stage.cpp:71 |  | native_sync only — the pc_faithful body splits these writes across the… |
 | 0x80044D8C | LIVE | `Asset::lzDecompress` | game/core/asset.cpp:33 |  |  |
 | 0x80044E84 | LIVE | `Asset::unpackGroup` | game/core/asset.cpp:78 | 0x80080F6C | PC-owned texture-group unpacker — replaces guest FUN_80044E84 (0x80044… |

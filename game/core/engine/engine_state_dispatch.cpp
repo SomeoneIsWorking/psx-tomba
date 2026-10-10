@@ -49,14 +49,14 @@ int Engine::frame() {
     uint16_t s4a = c->mem_r16(sm + 0x4a);
     // OWNED running sub-modes: 0 = SOP-intro (SOP overlay must be loaded); 1 =
     // field area machine (0x801088d8, the walkable field — its load is sync via
-    // native_transition_area_load, its running states are yield-free). Other
-    // sub-modes (2..5, the area-machine variants) aren't owned yet.
+    // native_transition_area_load, its running states are yield-free); 5 = the
+    // area-change transition (FieldTransition::step). Sub-modes 2..4 aren't owned yet.
     if (s4a == 0) {
       if (c->mem_r32(0x80109450u) != 0x3C021F80u) {
         cfg_logf("gframe", "ret0 s48=2 s4a=0 SOP-not-loaded ov=%08X sm@%08X", c->mem_r32(0x80109450u), sm);
         return 0;
       } // SOP not loaded -> cooperative
-    } else if (s4a != 1) {
+    } else if (s4a != 1 && s4a != 5) {
       cfg_logf("gframe", "ret0 s48=2 s4a=%u unowned-submode sm@%08X", s4a, sm);
       return 0; // unowned running sub-mode
     }

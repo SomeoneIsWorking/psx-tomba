@@ -1,7 +1,7 @@
 #pragma once
 
 #include "debug/auto_drive.h"
-#include "debug/dev_warp.h"
+#include "debug/dev_control.h"
 #include "frame/boot_cards.h"
 #include "frame/frame_diagnostics.h"
 #include "game_runtime.h"
@@ -46,15 +46,15 @@ public:
     return cards_.finished();
   }
 
-  DevWarp &devWarp() {
-    return devWarp_;
+  DevControl &devControl() {
+    return devControl_;
   }
 
 private:
   Game *game_;
   BootCards cards_;
   AutoDrive autoDrive_;
-  DevWarp devWarp_;
+  DevControl devControl_;
   FrameDiagnostics diagnostics_;
 };
 

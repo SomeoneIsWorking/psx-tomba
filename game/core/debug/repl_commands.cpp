@@ -11,71 +11,12 @@
 #include "entry/game_ctx.h" // inv(c) Inventory + gctx(c)->music_list MusicList
 #include "game_iface.h"
 #include "guest_call.h" // rc0/rc1/rc3 — typed runtime address dispatch of the Tomba BGM / libsnd-seq guest leaves
-#include <cctype>
 #include <cstdint>
 #include <lucent/log.h>
 #include <stdio.h>
 #include <string.h>
 
 namespace {
-
-constexpr uint32_t kMaxItemId = 255;
-constexpr uint32_t kMaxGiveAmount = 99;
-
-bool isSpace(char value) {
-  return std::isspace(static_cast<unsigned char>(value)) != 0;
-}
-
-void skipSpace(const char *&cursor) {
-  while (isSpace(*cursor)) {
-    ++cursor;
-  }
-}
-
-bool parseDecimal(const char *&cursor, uint32_t &value) {
-  if (*cursor < '0' || *cursor > '9') {
-    return false;
-  }
-
-  uint32_t parsed = 0;
-  do {
-    const uint32_t digit = static_cast<uint32_t>(*cursor - '0');
-    if (parsed > (UINT32_MAX - digit) / 10u) {
-      return false;
-    }
-    parsed = parsed * 10u + digit;
-    ++cursor;
-  } while (*cursor >= '0' && *cursor <= '9');
-
-  value = parsed;
-  return true;
-}
-
-bool parseGiveRequest(const char *line, uint32_t &itemId, uint32_t &amount) {
-  const char *cursor = line;
-  skipSpace(cursor);
-  while (*cursor != '\0' && !isSpace(*cursor)) {
-    ++cursor; // command name; framework already selected `give`
-  }
-  skipSpace(cursor);
-  if (!parseDecimal(cursor, itemId) || (*cursor != '\0' && !isSpace(*cursor))) {
-    return false;
-  }
-
-  skipSpace(cursor);
-  if (*cursor == '\0') {
-    amount = 1;
-  } else {
-    if (!parseDecimal(cursor, amount) || (*cursor != '\0' && !isSpace(*cursor))) {
-      return false;
-    }
-    skipSpace(cursor);
-    if (*cursor != '\0') {
-      return false;
-    }
-  }
-  return itemId <= kMaxItemId && amount > 0 && amount <= kMaxGiveAmount;
-}
 
 void list_entities(Core *c) {
   // Tomba! 2 objects are nodes in three doubly-linked lists (next @ +0x24). This layout and every
@@ -124,24 +65,6 @@ void list_entities(Core *c) {
 
 bool tomba_repl_command(Core *c, const char *cmd, const char *line) {
   unsigned a = 0;
-  if (!strcmp(cmd, "give")) {
-    uint32_t itemId = 0;
-    uint32_t amount = 0;
-    if (!parseGiveRequest(line, itemId, amount)) {
-      lucent::warn("repl", "give: expected `give <item-id 0..255> [amount 1..99]`");
-      return true;
-    }
-    if (c->gameCtx == nullptr || !Engine::devWarpAllowed(c)) {
-      lucent::warn("repl", "give refused: enter the GAME field before changing inventory");
-      return true;
-    }
-
-    const int before = inv(c).count(static_cast<int>(itemId));
-    inv(c).giveAndFlag(itemId, amount);
-    const int after = inv(c).count(static_cast<int>(itemId));
-    lucent::info("repl", "give item {} amount {}: count {} -> {}", itemId, amount, before, after);
-    return true;
-  }
   if (!strcmp(cmd, "ents")) {
     list_entities(c);
     return true;

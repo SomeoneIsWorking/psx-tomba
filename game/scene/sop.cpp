@@ -21,20 +21,10 @@
 // body leaves it. RE: scratch/sop_mode_re.md + the disasm of 0x80109164
 // (faithful below, addresses annotated).
 
-#include "actor_tomba.h" // class ActorTomba — G_ADDR, the Tomba G-block every per-area handler takes in a0
 #include "core.h"
 #include "core/entry/game_ctx.h"
 #include "core/overrides/native_override_catalog.h"
 #include "guest_call.h"
-
-namespace {
-// The guest's per-area handler table and the area selector byte that indexes
-// it. Both are read exactly this way by ActorTomba::enterOuterState0 (the only
-// other reader of the table in the whole binary); named here rather than
-// repeated as literals.
-constexpr uint32_t kPerAreaHandlerTable = 0x800A45B8u;
-constexpr uint32_t kAreaByte = 0x800BF870u;
-} // namespace
 
 #include "cfg.h"
 #include "game.h"
@@ -155,32 +145,7 @@ void Sop::areaLoad() {
 // (no-ops in our synchronous CD/audio runtime), and typed runtime address dispatch the leaf
 // callees (CD read, collision grid, unpack, BGM trigger — all synchronous).
 // Ends by writing 1f80019b=1, exactly as the guest instruction path leaves it. Mirrors
-// native_sop_area_load for the SOP intro load. transitionAreaEnter — see sop.h.
-// Runs the destination area's own entry handler, which the dev warp otherwise
-// skips because it forces the area machine past the outer-state-0 transition
-// that normally dispatches it.
-//
-// The table and the player block are the guest's own: 0x800A45B8 is the
-// per-area handler table (the ONLY read of it in all of authenticated executable/overlay evidence is
-// ActorTomba::enterOuterState0, game/player/actor_tomba.cpp, which does exactly
-// this indexing), 0x800BF870 is the area byte, and the handler takes the Tomba
-// G-block in a0 like every other per-area handler.
-void Sop::transitionAreaEnter() {
-  Core *c = core;
-  const uint32_t area = c->mem_r8(kAreaByte);
-  const uint32_t handler = c->mem_r32(kPerAreaHandlerTable + area * 4u);
-  if (handler == 0) { // no handler for this area — say so rather than dispatch 0
-    cfg_logf("stage",
-             "[sop] AREA-ENTER: area %u has a NULL handler in the table — "
-             "nothing dispatched",
-             area);
-    return;
-  }
-  cfg_logf("stage", "[sop] AREA-ENTER: area %u -> handler 0x%08X", area, handler);
-  c->r[4] = tomba::player::ActorTomba::G_ADDR;
-  psx::cpu::dispatchGuestToReturn0(*c, handler, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
-}
-
+// native_sop_area_load for the SOP intro load.
 void Sop::transitionAreaLoad() {
   Core *c = core;
   uint32_t sm = c->mem_r32(0x1f800138u);

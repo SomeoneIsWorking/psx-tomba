@@ -16,18 +16,14 @@
 // So an unnamed area shows as "Area N" here rather than a guess. See docs/areas.md; add a row there in
 // the same commit as a name added below.
 #include "core.h"
+#include "debug/dev_gate.h"
+#include "debug/dev_warp.h"
 #include "engine/engine.h"
 #include "game.h"
 
 namespace {
 
-// Guest stage pointer + the GAME stage's entry: a warp is only legal from the field, which is where the
-// running field-run machine can carry out the game's own door transition (fade-out, teardown, CD settle,
-// reload). Same gate the REPL `warp` command applies.
-constexpr uint32_t STAGE_PTR = 0x801FE00Cu;
-constexpr uint32_t STAGE_GAME = 0x8010637Cu;
-
-constexpr int AREA_COUNT = 22; // ids 0..21
+constexpr int AREA_COUNT = tomba::DevWarp::kAreaCount; // ids 0..21
 
 // Sourced names only. Blank = not established; the selector renders "Area N".
 const char *const kAreaNames[AREA_COUNT] = {
@@ -70,5 +66,5 @@ const char *Engine::devAreaName(int area) {
 }
 
 bool Engine::devWarpAllowed(Core *c) {
-  return c->mem_r32(STAGE_PTR) == STAGE_GAME;
+  return tomba::DevGate::inGameStage(*c);
 }

@@ -2,7 +2,7 @@
 
 #include "cfg.h"
 #include "core.h"
-#include "debug/dev_warp.h"
+#include "debug/dev_control.h"
 #include "entry/game_ctx.h"
 #include "game.h"
 #include "gpu_vk.h"
@@ -156,7 +156,7 @@ void TombaFrameDriver::stepFrame(Core &core, uint32_t frame) {
   game.perf.phaseEnd(GpuPerf::Phase::Present);
   game.run.fieldDelivered();
 
-  devWarp_.applyArmed(core, frame);
+  devControl_.applyArmed(core, frame);
   game.cd.audioTrace("post");
   game.perf.phaseBegin(GpuPerf::Phase::GameLogic);
   game.pcSched.step();

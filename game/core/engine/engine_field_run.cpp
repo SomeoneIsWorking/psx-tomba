@@ -329,7 +329,7 @@ void Engine::submode1Case0Native() {
   // The owned load is synchronous: retain FUN_80044BD4's flag-2 RNG stamp, then
   // continue without manufacturing a wait frame or loading-screen service.
   c->game->pcSched.completeSyncWait(c->mem_r32(0x1f800138u), /*flag=*/2);
-  sop.transitionAreaLoad();
+  fieldTransition.areaLoadBd4(c->mem_r8(0x800bf870u), 0); // FUN_80044BD4(0x800452C0, area, 0, 2): destination = bf870
 }
 
 void Engine::submode1() {

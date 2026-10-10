@@ -25,6 +25,10 @@ set(GAME_SRC
   game/cd/libcd_native.cpp
   game/core/assets/asset.cpp
   game/core/debug/auto_drive.cpp
+  game/core/debug/dev_args.cpp
+  game/core/debug/dev_control.cpp
+  game/core/debug/dev_flags.cpp
+  game/core/debug/dev_items.cpp
   game/core/debug/dev_warp.cpp
   game/core/frame/boot_cards.cpp
   game/core/frame/frame_cadence.cpp
@@ -176,6 +180,7 @@ set(GAME_SRC
   game/ui/dialog_backdrop.cpp
   game/ui/dialog_text_stream.cpp
   game/items/inventory.cpp
+  game/items/item_grant.cpp
   game/ui/save_menu.cpp
   game/audio/music_coord.cpp
   game/scene/startup.cpp

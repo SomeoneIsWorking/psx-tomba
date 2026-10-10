@@ -49,7 +49,7 @@ caller's own display field:
 | attract item launch (`Demo` s7 phase0) | `Demo` phase0 native load + `PcScheduler::completeSyncWait(flag=2)` | none | the attract world fading in (f463+) |
 | GAME prologue → first area | `Engine::submode1Case0Native` → `Sop::transitionAreaLoad` | none (1 display field, f1426) | the authored transition |
 | in-field / door area transition | `FieldTransition::areaLoadBd4` → `Sop::transitionAreaLoad` | none (1 display field) | the authored transition |
-| cold warp | `tomba::applyColdWarp` → `Sop::transitionAreaLoad` | none (1 display field) | the destination area |
+| dev warp | `DevWarp` raises the pending request; `FieldTransition::areaLoadBd4` → `Sop::transitionAreaLoad` | none (1 display field) | the destination area |
 
 Measured on the headless route (blank memory card, no input, then `newgame`): boot→logos→title at
 f330..f456, attract launch at f460 and f1818, prologue at f445, area loads logged at f~800 and
@@ -105,8 +105,8 @@ streams one actor, and the guest never put a screen up for it.
 already replaced with a synchronous native owner. They execute only when `Engine::frame()` hands the
 frame back to the cooperative guest loop, which is exactly the unowned condition it reports:
 `sm[0x4a] ∉ {0,1}` (plus the SOP-not-loaded case at `s4a==0`). Nothing driven reaches it — boot,
-the attract cycle, `newgame`, the prologue, the first area, the in-field transition and a cold warp
-all keep `s4a` at 0 or 1 (`applyColdWarp` writes `s4a=1` explicitly). This is a native-ownership
+the attract cycle, `newgame`, the prologue, the first area, the in-field transition and a dev warp
+all keep `s4a` at 0, 1 or 5 (the area-change transition, now owned by `Engine::frame`). This is a native-ownership
 boundary, not an input problem, so a cold warp or a phase-keyed pad replay cannot reach it either.
 
 Consequence for the change: the override is correct by construction and harmless (A/B byte-identical
