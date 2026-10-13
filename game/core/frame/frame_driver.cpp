@@ -119,7 +119,6 @@ void TombaFrameDriver::stepFrame(Core &core, uint32_t frame) {
 
   if (!cards_.finished()) {
     cards_.step(core);
-    game_->run.fieldDelivered();
     return;
   }
 
@@ -154,7 +153,6 @@ void TombaFrameDriver::stepFrame(Core &core, uint32_t frame) {
   // Packet spans live as long as the record: the OT walked last pass is sealed by this commit.
   core.rsub.otAttr.beginLogicFrame(frame);
   game.perf.phaseEnd(GpuPerf::Phase::Present);
-  game.run.fieldDelivered();
 
   devControl_.applyArmed(core, frame);
   game.cd.audioTrace("post");
