@@ -1,18 +1,18 @@
 // game/world/graphics_bind.cpp — PC-native OBJECT RENDER-BIND subsystem. See graphics_bind.h.
 #include "graphics_bind.h"
-#include "cfg.h"
 #include "core.h"
-#include "core/entry/game_ctx.h"
-#include "core/overrides/native_override_catalog.h" // tomba::native::declareOverride — the one native-override registry
+#include "core/overrides/native_override_catalog.h"
+#include "entry/tomba_session.h"
 #include "game.h"
 #include "gte_math.h" // Math::rotmat — libgte RotMatrix (native, static)
 #include "guest_call.h"
+#include <lucent/log.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 // (The native scene-data record this subsystem will fill per visible entity is the real
-// SceneObject in game/render/scene_data.h, now in scope via game_ctx.h → render.h. The former
+// SceneObject in game/render/scene_data.h, now in scope via entry/tomba_session.h → render.h. The former
 // local placeholder struct here was dead and is removed.)
 
 // ====================================================================================================
@@ -32,6 +32,8 @@
 //   rec[+6]=-1; rec[+0]=rec[+2]=rec[+4]=rec[+8]=rec[+0xa]=rec[+0xc]=0; rec[+0x38]=rec[+0x3a]=rec[+0x3c]=0x1000;
 //   base = *(0x800ECF58 + a1*4);  rec[+0x40] = base + *(base + a2*4 + 4);
 //   return 0;
+namespace tomba {
+
 uint32_t GraphicsBind::recordInitBody(Core *c) {
   uint32_t obj = c->r[4], a1 = c->r[5], a2 = c->r[6];
   if (c->mem_r16s(0x800ED098u) <= 0) {
@@ -56,38 +58,30 @@ uint32_t GraphicsBind::recordInitBody(Core *c) {
   c->mem_w16(rec + 0x38, 0x1000);
   c->mem_w16(rec + 0x3a, 0x1000);
   c->mem_w16(rec + 0x3c, 0x1000);
-  eng(c).graphicsBind.installSceneRecord(rec, a1, a2); // FUN_80051B04 inlined here in the guest instruction path
+  eng(c).graphicsBind.installSceneRecord(
+      {.rec = rec, .classArg = a1, .itemArg = a2}); // FUN_80051B04 inlined here in the guest instruction path
   return 0;
 }
 void GraphicsBind::recordAlloc() {
   Core *c = core;
-  // Attack (a) attribution: log the C return-address (caller of recordAlloc()) when
-  // PSXPORT_RECALLOC_TRACE=1. Combined with the [sbs] core-map line, tallies A-only ra's
-  // to name the native caller responsible for the +3 pool delta at 0x800ED098.
-  if (mTrace < 0) {
-    mTrace = getenv("PSXPORT_RECALLOC_TRACE") ? 1 : 0;
-  }
-  if (mTrace) {
-    void *ra = __builtin_return_address(0);
-    cfg_logi("recalloc",
-             "core=%p ra=%p cnt_before=%d stage=%08X",
-             (void *)c,
-             ra,
-             (int)c->mem_r16s(0x800ED098u),
-             c->mem_r32(0x801fe00c));
-  }
-  gctx(c)->verification.run(
+  lucent::debug("recalloc",
+                "core={} ra={} cnt_before={} stage={:08X}",
+                (void *)c,
+                __builtin_return_address(0),
+                (int)c->mem_r16s(0x800ED098u),
+                c->mem_r32(0x801fe00c));
+  tombaSession(c).verification.run(
       [](Core *core) {
         return eng(core).graphicsBind.records.allocate(*core);
       },
       0x8007AAE8u,
       "recallocverify",
-      gctx(c)->verification.on("recallocverify"));
+      tombaSession(c).verification.on("recallocverify"));
 }
 void GraphicsBind::recordInit() {
   Core *c = core;
-  gctx(c)->verification.run(
-      &GraphicsBind::recordInitBody, 0x80051B70u, "recinitverify", gctx(c)->verification.on("recinitverify"));
+  tombaSession(c).verification.run(
+      &GraphicsBind::recordInitBody, 0x80051B70u, "recinitverify", tombaSession(c).verification.on("recinitverify"));
 }
 
 // FUN_80051B04 — two-level scene-data-table pointer resolve. Pure address arithmetic, no branches.
@@ -95,7 +89,8 @@ void GraphicsBind::recordInit() {
 // (same table Spawn::sceneEntity reads at offset +8 = table[2]), then indexes by classArg + itemArg
 // and stashes (base + off) at rec[+0x40]. The guest instruction path's FUN_80051B70 (recordInit) inlines the same
 // body at its tail — the extraction dedupes.
-void GraphicsBind::installSceneRecord(uint32_t rec, uint32_t classArg, uint32_t itemArg) {
+void GraphicsBind::installSceneRecord(const InstallSceneRecordArgs &args) {
+  auto [rec, classArg, itemArg] = args;
   Core *c = core;
   uint32_t base = c->mem_r32(0x800ECF58u + classArg * 4u);
   uint32_t off = c->mem_r32(base + itemArg * 4u + 4u);
@@ -127,7 +122,7 @@ uint32_t GraphicsBind::renderUpdateBody(Core *c) {
   c->mem_w32(c->r[29] + 20, sra);
 
   c->r[31] = 0x80051814u;
-  mathOf(c).rotmat(obj + 0x54, obj + 0x98);
+  mathOf(c).rotmat({.anglesPtr = obj + 0x54, .out = obj + 0x98});
   c->mem_w32(obj + 0xac, (uint32_t)c->mem_r16s(obj + 0x2e));
   c->mem_w32(obj + 0xb0, (uint32_t)c->mem_r16s(obj + 0x32));
   c->mem_w32(obj + 0xb4, (uint32_t)c->mem_r16s(obj + 0x36));
@@ -143,8 +138,8 @@ uint32_t GraphicsBind::renderUpdateBody(Core *c) {
 }
 void GraphicsBind::renderUpdate() {
   Core *c = core;
-  gctx(c)->verification.run(
-      &GraphicsBind::renderUpdateBody, 0x800517F8u, "rendupdverify", gctx(c)->verification.on("rendupdverify"));
+  tombaSession(c).verification.run(
+      &GraphicsBind::renderUpdateBody, 0x800517F8u, "rendupdverify", tombaSession(c).verification.on("rendupdverify"));
 }
 
 // FUN_80077B38 — set an object's GEOMETRY-BLOCK pointer from a table. RE'd from disas 0x80077B38 (leaf):
@@ -159,8 +154,8 @@ uint32_t GraphicsBind::setGeomBody(Core *c) {
 }
 void GraphicsBind::setGeom() {
   Core *c = core;
-  gctx(c)->verification.run(
-      &GraphicsBind::setGeomBody, 0x80077B38u, "setgeomverify", gctx(c)->verification.on("setgeomverify"));
+  tombaSession(c).verification.run(
+      &GraphicsBind::setGeomBody, 0x80077B38u, "setgeomverify", tombaSession(c).verification.on("setgeomverify"));
 }
 
 // FUN_8006CBD0 — copy a 6-halfword TRANSFORM BLOCK from a1 into the scratchpad camera/transform block
@@ -180,8 +175,8 @@ uint32_t GraphicsBind::setXformBlkBody(Core *c) {
 }
 void GraphicsBind::setXformBlk() {
   Core *c = core;
-  gctx(c)->verification.run(
-      &GraphicsBind::setXformBlkBody, 0x8006CBD0u, "setxblkverify", gctx(c)->verification.on("setxblkverify"));
+  tombaSession(c).verification.run(
+      &GraphicsBind::setXformBlkBody, 0x8006CBD0u, "setxblkverify", tombaSession(c).verification.on("setxblkverify"));
 }
 
 // FUN_8004BD64 — per-object POSITION-COMPOSE + render-state refresh. RE'd from disas 0x8004BD64
@@ -223,8 +218,10 @@ uint32_t GraphicsBind::posComposeBody(Core *c) {
 }
 void GraphicsBind::posCompose() {
   Core *c = core;
-  gctx(c)->verification.run(
-      &GraphicsBind::posComposeBody, 0x8004BD64u, "poscomposeverify", gctx(c)->verification.on("poscomposeverify"));
+  tombaSession(c).verification.run(&GraphicsBind::posComposeBody,
+                                   0x8004BD64u,
+                                   "poscomposeverify",
+                                   tombaSession(c).verification.on("poscomposeverify"));
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
@@ -285,7 +282,8 @@ struct RecordArrayInitFrame {
 };
 } // namespace
 
-uint32_t GraphicsBind::recordArrayInit(uint32_t obj, uint32_t count, uint32_t sceneBase, uint32_t tmpl) {
+uint32_t GraphicsBind::recordArrayInit(const RecordArrayInitArgs &args) {
+  auto [obj, count, sceneBase, tmpl] = args;
   Core *c = core;
   RecordArrayInitFrame frame(c);
   if (c->mem_r16s(0x800ED098u) < (int32_t)count) {
@@ -326,15 +324,17 @@ uint32_t GraphicsBind::recordArrayInit(uint32_t obj, uint32_t count, uint32_t sc
 // beh_id_routed_dispatch.cpp, beh_flagbit_timer_machine.cpp.
 namespace {
 void eov_recordArrayInit(Core *c) {
-  c->r[2] = eng(c).graphicsBind.recordArrayInit(c->r[4], c->r[5], c->r[6], c->r[7]);
+  c->r[2] =
+      eng(c).graphicsBind.recordArrayInit({.obj = c->r[4], .count = c->r[5], .sceneBase = c->r[6], .tmpl = c->r[7]});
 }
 void eov_recordAllocate(Core *c) {
   eng(c).graphicsBind.records.allocateForGuest(*c);
 }
 } // namespace
 
-void GraphicsBind::registerOverrides(Game * /*game*/) {
-  tomba::native::declareOverride(0x800519E0u, "GraphicsBind::recordArrayInit", eov_recordArrayInit);
-  tomba::native::declareOverride(
-      tomba2::world::RenderRecordPool::kAllocate, "RenderRecordPool::allocateForGuest", eov_recordAllocate);
+void GraphicsBind::registerOverrides(native::NativeOverrideCatalog &natives) {
+  natives.declare(0x800519E0u, "GraphicsBind::recordArrayInit", eov_recordArrayInit);
+  natives.declare(tomba::world::RenderRecordPool::kAllocate, "RenderRecordPool::allocateForGuest", eov_recordAllocate);
 }
+
+} // namespace tomba

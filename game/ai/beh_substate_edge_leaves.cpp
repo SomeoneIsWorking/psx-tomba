@@ -45,18 +45,21 @@
 //   obj[4]=state, obj[5]=substate, obj[8]=childCount(u8), obj[0xC0+4*i]=child-pointer table (SAME
 //   table NodeXform::propagate walks) — obj[0x60] here is 0x1F800137 (fixed CD/controller-state
 //   scratchpad byte guarded by case 1 of the orchestrator, unrelated to this file's obj fields).
-#include "cfg.h"
 #include "core.h"
-#include "core/entry/game_ctx.h"
 #include "core/overrides/native_override_catalog.h"
+#include "entry/tomba_session.h"
 #include "math/gte_math.h" // Math::rotmat/matMul/applyMatlv/applyMatrixLV/rotY/rotZ (mathOf(c))
 #include "math/mtx.h"      // Mtx::identity (mtxOf(c))
 #include <stdint.h>
+
+namespace tomba {
 
 namespace {
 constexpr uint32_t SCR_A = 0x1F800000u; // scratch matrix A (rotmat/identity dest)
 constexpr uint32_t SCR_B = 0x1F800020u; // scratch matrix B (identity/rotZ/rotY compose dest)
 } // namespace
+
+} // namespace tomba
 
 // (removed 99 lines: the hand draft — REPLACED by a port_guest-visible behavior in game/ai/substate_edge_native.cpp.
 // This file's

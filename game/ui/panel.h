@@ -7,16 +7,31 @@
 #include <cstdint>
 class Core;
 
+namespace tomba::native {
+class NativeOverrideCatalog;
+} // namespace tomba::native
+
+namespace tomba {
+
 class Panel {
 public:
   // Registers FUN_8004FFB4. Idempotent.
-  static void install();
+  static void install(native::NativeOverrideCatalog &natives);
 
+  struct PushDialogBackdropArgs {
+    int16_t x;
+    int16_t y;
+    int16_t w;
+    int16_t h;
+    uint32_t mode;
+  };
   // FUN_8007FCC8: one GP0 0x60 packet linked into the near or far OT bucket. `mode` bit 0x80 selects
   // the far bucket; any of bits 0x7F set means "no fill" (black) instead of the panel blue.
-  static void pushDialogBackdrop(Core *c, int16_t x, int16_t y, int16_t w, int16_t h, uint32_t mode);
+  static void pushDialogBackdrop(Core *c, const PushDialogBackdropArgs &args);
 
   // FUN_8004FFB4: GP0 0x2C/0x2E textured quad with attr-driven CLUT, flat shading and
   // semi-transparency, plus a 5-way UV table on the uvIndex argument.
   static void fillQuad(Core *c);
 };
+
+} // namespace tomba

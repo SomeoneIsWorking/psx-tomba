@@ -75,9 +75,11 @@
 // framework's wide-engine width.
 #pragma once
 
+#include "wide_window.h"
+
 #include <cstdint>
 
-namespace tomba2::horizontal_cull {
+namespace tomba::horizontal_cull {
 
 // The retail 4:3 frame the guest's literals are DERIVED from. These two constants name the identity
 // this class must reproduce; they are never a widened value, and no member of this namespace is a
@@ -96,7 +98,7 @@ inline constexpr int kQuadCorners = 4;
 //   Fixed16_16  the raw 32-bit GTE SX1/SX2/SX3 registers, which are already 16.16 fixed point. This
 //               is the A0L 0x80112E70 form (`lui $t9,0x140; sll $v1,$v1,0x10; sltu $t8,$v1,$t9`) and it
 //               is the same predicate: shifting both sides by 16 is what the guest does by hand.
-enum class Domain {
+enum class Domain : std::uint8_t {
   Packed16,
   Fixed16_16,
 };
@@ -106,7 +108,7 @@ enum class Domain {
 // Unsigned is the whole content of this function. A coordinate the GTE saturated negative reads as
 // 0x8000..0xFFFF (Packed16) or 0xFFFF8000..0xFFFFFFFF (Fixed16_16) and therefore FAILS, which is the
 // guest's left/top drop. A signed compare here would keep exactly the geometry retail drops.
-constexpr bool insideAxis(std::uint32_t coordinate, int bound, Domain domain) {
+constexpr bool insideAxis(std::uint32_t coordinate, Domain domain, int bound) {
   const std::uint32_t limit =
       domain == Domain::Fixed16_16 ? static_cast<std::uint32_t>(bound) << 16 : static_cast<std::uint32_t>(bound);
   return coordinate < limit;
@@ -119,7 +121,7 @@ constexpr bool insideAxis(std::uint32_t coordinate, int bound, Domain domain) {
 // the left margin passes and a wrapped one still fails.
 class Visibility {
 public:
-  Visibility(int left, int right) : mLeft(left), mRight(right) {}
+  constexpr explicit Visibility(wide_window::Window window) : mLeft(window.left), mRight(window.right) {}
 
   int left() const {
     return mLeft;
@@ -131,7 +133,7 @@ public:
   // The X gate: KEEP iff at least one of the `count` corners is inside [left(), right()).
   bool keepsX(const std::uint32_t *corners, int count, Domain domain) const {
     for (int index = 0; index < count; ++index) {
-      if (insideAxis(shifted(corners[index], domain), mRight - mLeft, domain)) {
+      if (insideAxis(shifted(corners[index], domain), domain, mRight - mLeft)) {
         return true;
       }
     }
@@ -142,7 +144,7 @@ public:
   // Widening OFX leaves OFY and H alone, so the vertical extent is fixed.
   bool keepsY(const std::uint32_t *corners, int count, Domain domain) const {
     for (int index = 0; index < count; ++index) {
-      if (insideAxis(corners[index], kGuestFrameHeight, domain)) {
+      if (insideAxis(corners[index], domain, kGuestFrameHeight)) {
         return true;
       }
     }
@@ -175,17 +177,17 @@ private:
 // (game/render/wide_window.h). The only impure step in the whole owner, and it is here so the class
 // above stays testable without a Core. Declared here rather than in the .cpp so a consumer including
 // only this header still gets the factory.
-} // namespace tomba2::horizontal_cull
+} // namespace tomba::horizontal_cull
 
 // The forward declaration is at GLOBAL scope, and the parameter is named `::Core` for the same reason:
-// `struct Core;` written inside `tomba2::horizontal_cull` DECLARES a new type in that namespace rather
-// than naming the framework's, so the factory would take a `tomba2::horizontal_cull::Core *` that no
+// `struct Core;` written inside `tomba::horizontal_cull` DECLARES a new type in that namespace rather
+// than naming the framework's, so the factory would take a `tomba::horizontal_cull::Core *` that no
 // caller possesses and every call site would fail to convert. That is not hypothetical -- it is what
 // the first version wrote, and the build rejected it with exactly that error.
 struct Core;
 
-namespace tomba2::horizontal_cull {
+namespace tomba::horizontal_cull {
 
 Visibility forDrawWindow(::Core *core);
 
-} // namespace tomba2::horizontal_cull
+} // namespace tomba::horizontal_cull

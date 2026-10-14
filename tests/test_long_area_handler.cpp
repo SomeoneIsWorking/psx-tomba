@@ -6,7 +6,7 @@
 #include "core/overrides/guest_jal.h"
 #include "game.h"
 #include "psx_exe_image.h"
-#include "stub_runtime.h"
+#include "stub_game_runtime.h"
 
 #include <lucent/log.h>
 #include <memory>
@@ -38,13 +38,13 @@ int main(int argc, char **argv) {
     lucent::error("long-handler-test", "expected MAIN.EXE path and sha256 digest");
     return 2;
   }
-  auto bytes = tomba::test::readAuthenticatedImage(argv[1], argv[2], psx::cpu::kPsxExeMaxBytes);
+  auto bytes =
+      tomba::test::readAuthenticatedImage({.path = argv[1], .sha256 = argv[2], .maxBytes = psx::cpu::kPsxExeMaxBytes});
   if (!bytes) {
     return 2;
   }
-  tomba::test::StubRuntime runtime;
-  psxport_install_game(runtime);
-  auto game = std::make_unique<Game>();
+  psx::test::StubGameRuntime runtime;
+  auto game = std::make_unique<Game>(runtime, psx::config::Config{});
   Core &core = game->core;
   if (!check(static_cast<bool>(psx::cpu::loadPsxExeImage(core, *bytes, "MAIN.EXE")),
              "authenticated MAIN.EXE maps through the shipping loader")) {

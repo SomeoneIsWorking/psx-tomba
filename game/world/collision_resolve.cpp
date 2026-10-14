@@ -39,8 +39,8 @@
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 #include "world/collision_resolve.h"
 #include "core.h"
-#include "core/overrides/guest_jal.h"               // GuestFrame / GuestReg / guest_call / guest_mult
-#include "core/overrides/native_override_catalog.h" // tomba::native::declareOverride
+#include "core/overrides/guest_jal.h" // GuestFrame / GuestReg / guest_call / guest_mult
+#include "core/overrides/native_override_catalog.h"
 #include "game.h"
 #include "guest_abi.h"
 #include "guest_call.h"
@@ -54,6 +54,8 @@
 // anchor+0x30 is the anchor's own Y, and +0x80/+0x84/+0x86 mean different things on the actor than
 // on the other object. docs/findings/object.md records this hazard directly — "the offset is not the
 // identity; the record is" — after a near-miss converting one struct's offsets with another's lens.
+namespace tomba {
+
 namespace {
 // actor (a0, held in r17)
 constexpr uint32_t kActorType = 12;          // 0x0C — case 2 additionally updates the facing byte
@@ -317,11 +319,11 @@ void CollisionResolve::cylinderResolve(Core *c) {
     GuestReg<16> sampleOffsetX(c); // s0 — live across the rsin call below
 
     c->r[4] = (uint32_t)actor.s16(kActorAngle); // a0 = facing angle
-    tomba::guest::dispatchJalToReturn(*c, 0x80083F50u, kRaSampleCos);
+    tomba::guest::dispatchJalToReturn(*c, {.target = 0x80083F50u, .returnAddress = kRaSampleCos});
     guest_mult(c, (int32_t)c->r[2], actor.s16(kActorSampleRadius));
     c->r[4] = (uint32_t)actor.s16(kActorAngle); // a0 = facing angle
     sampleOffsetX = (uint32_t)((int32_t)c->lo >> 12);
-    tomba::guest::dispatchJalToReturn(*c, 0x80083E80u, kRaSampleSin);
+    tomba::guest::dispatchJalToReturn(*c, {.target = 0x80083E80u, .returnAddress = kRaSampleSin});
     guest_mult(c, (int32_t)c->r[2], actor.s16(kActorSampleRadius));
     const int32_t sinTimesRadius = (int32_t)c->lo;
 
@@ -344,7 +346,7 @@ void CollisionResolve::cylinderResolve(Core *c) {
     deltaZ = dz;
     c->r[5] = sampleOffsetZ;    // a1 still holds the Z offset at the call below
     c->r[4] = deltaXSq + c->lo; // a0 = dx² + dz²
-    tomba::guest::dispatchJalToReturn(*c, 0x80084080u, kRaSampleDist);
+    tomba::guest::dispatchJalToReturn(*c, {.target = 0x80084080u, .returnAddress = kRaSampleDist});
     xzDistance = c->r[2];
     yBias = actor.u16(kActorYBias);
   } else {
@@ -362,7 +364,7 @@ void CollisionResolve::cylinderResolve(Core *c) {
     deltaZ = dz;
     c->r[5] = deltaXSq;         // a1 leftover, exactly as gen leaves it
     c->r[4] = deltaXSq + c->lo; // a0 = dx² + dz²
-    tomba::guest::dispatchJalToReturn(*c, 0x80084080u, kRaRawDist);
+    tomba::guest::dispatchJalToReturn(*c, {.target = 0x80084080u, .returnAddress = kRaRawDist});
     xzDistance = c->r[2];
   }
 
@@ -408,7 +410,7 @@ void CollisionResolve::cylinderResolve(Core *c) {
   const int32_t contactDz = (int16_t)(uint32_t)deltaZ;
   c->r[4] = (uint32_t)(-contactDz);                                 // a0
   c->r[5] = (uint32_t)(int16_t)c->mem_r16(c->r[29] + kLocalDeltaX); // a1
-  tomba::guest::dispatchJalToReturn(*c, 0x80085690u, kRaContactAngle);
+  tomba::guest::dispatchJalToReturn(*c, {.target = 0x80085690u, .returnAddress = kRaContactAngle});
   GuestReg<19> scratchpad(c); // s3 — dz is consumed, and gen reuses the register as the base
   scratchpad = kScratchpadBase;
   c->mem_w32(scratchpad + kContactAngleSlot, c->r[2]);
@@ -424,7 +426,7 @@ void CollisionResolve::cylinderResolve(Core *c) {
       c->r[4] = (uint32_t)(int16_t)c->mem_r16(scratchpad + kContactAngleSlot); // a0 = contact angle
       c->r[5] = (uint32_t)actor.s16(kActorFacingRef);                          // a1 = reference
       c->r[6] = 1u;                                                            // a2
-      tomba::guest::dispatchJalToReturn(*c, 0x80077768u, kRaFacingCmp);
+      tomba::guest::dispatchJalToReturn(*c, {.target = 0x80077768u, .returnAddress = kRaFacingCmp});
       c->mem_w8(actor.base() + kActorFacing, (uint8_t)(c->r[2] + 2));
     }
 
@@ -432,11 +434,11 @@ void CollisionResolve::cylinderResolve(Core *c) {
     GuestReg<16> contactOffsetX(c); // s0 — live across the rsin call
 
     c->r[4] = c->mem_r32(scratchpad + kContactAngleSlot); // a0 = contact angle
-    tomba::guest::dispatchJalToReturn(*c, 0x80083F50u, kRaPushCos);
+    tomba::guest::dispatchJalToReturn(*c, {.target = 0x80083F50u, .returnAddress = kRaPushCos});
     guest_mult(c, (int32_t)c->r[2], contactRadius);
     c->r[4] = c->mem_r32(scratchpad + kContactAngleSlot); // a0 = contact angle
     contactOffsetX = (uint32_t)((int32_t)c->lo >> 12);
-    tomba::guest::dispatchJalToReturn(*c, 0x80083E80u, kRaPushSin);
+    tomba::guest::dispatchJalToReturn(*c, {.target = 0x80083E80u, .returnAddress = kRaPushSin});
     guest_mult(c, (int32_t)c->r[2], contactRadius);
     const uint32_t contactOffsetZ = (uint32_t)((int32_t)c->lo >> 12);
 
@@ -518,7 +520,7 @@ void CollisionResolve::landOnObjectTop(Core *c) {
   const uint32_t dz = actor.u16(kActorZ) - other.u16(kOtherZ);
   guest_mult(c, (int16_t)dz, (int16_t)dz);
   c->r[4] = deltaXSq + c->lo; // a0 = dx² + dz²
-  tomba::guest::dispatchJalToReturn(*c, 0x80084080u, kRaLandDist);
+  tomba::guest::dispatchJalToReturn(*c, {.target = 0x80084080u, .returnAddress = kRaLandDist});
   const uint32_t xzDistance = c->r[2] & 0xFFFFu;
   const int32_t xzReach = actor.s16(kActorHeightLo) + other.s16(kOtherRadius);
   if (xzReach < (int32_t)xzDistance) {
@@ -636,7 +638,7 @@ void CollisionResolve::classifyBodyContact(Core *c) {
   deltaZ = (uint32_t)(int32_t)(int16_t)(actor.u16(kActorZ) - other.u16(kOtherZ));
   guest_mult(c, (int32_t)(uint32_t)deltaZ, (int32_t)(uint32_t)deltaZ);
   c->r[4] = deltaXSq + c->lo; // a0 = dx² + dz²
-  tomba::guest::dispatchJalToReturn(*c, 0x80084080u, kRaBodyDist);
+  tomba::guest::dispatchJalToReturn(*c, {.target = 0x80084080u, .returnAddress = kRaBodyDist});
   xzDistance = c->r[2];
 
   // ── gate 1: XZ overlap ─────────────────────────────────────────────────────────────────────────
@@ -665,7 +667,7 @@ void CollisionResolve::classifyBodyContact(Core *c) {
   // as cylinderResolve's own contact-angle call.
   c->r[4] = 0u - (uint32_t)deltaZ; // a0
   c->r[5] = (uint32_t)deltaX;      // a1
-  tomba::guest::dispatchJalToReturn(*c, 0x80085690u, kRaBodyContactAngle);
+  tomba::guest::dispatchJalToReturn(*c, {.target = 0x80085690u, .returnAddress = kRaBodyContactAngle});
   c->mem_w32(kScratchpadBase + kContactAngleSlot, c->r[2]);
 
   // Note the UNSIGNED reads here: gate 1 compared the radii as s16, the penetration uses them as
@@ -824,7 +826,7 @@ void CollisionResolve::resolveByContactPolicy(Core *c) {
   deltaX = dx;
   deltaZ = dz;
   c->r[4] = deltaXSq + c->lo; // a0 = dx² + dz²
-  tomba::guest::dispatchJalToReturn(*c, 0x80084080u, kRaPairDist);
+  tomba::guest::dispatchJalToReturn(*c, {.target = 0x80084080u, .returnAddress = kRaPairDist});
   const uint32_t distance = c->r[2];
   xzDistance = distance;
 
@@ -873,7 +875,7 @@ void CollisionResolve::resolveByContactPolicy(Core *c) {
   c->r[4] = (uint32_t)(0 - (int32_t)(int16_t)(uint32_t)deltaZ); // a0
   c->r[5] = (uint32_t)(int32_t)(int16_t)(uint32_t)deltaX;       // a1
   yPenetration = (uint32_t)yPenetration - verticalGap;
-  tomba::guest::dispatchJalToReturn(*c, 0x80085690u, kRaPairContactAngle);
+  tomba::guest::dispatchJalToReturn(*c, {.target = 0x80085690u, .returnAddress = kRaPairContactAngle});
 
   c->r[4] = c->r[2]; // a0 = the contact heading, and gen leaves it there all the way
                      // into the rcos call below — so it stays on the register
@@ -893,12 +895,12 @@ void CollisionResolve::resolveByContactPolicy(Core *c) {
   if (xzIsShorterWayOut) {
     // ── horizontal push-out: put the actor back on the contact circle around the other object ────
     GuestReg<16> contactOffsetX(c); // s0 — live across the rsin call
-    tomba::guest::dispatchJalToReturn(*c, 0x80083F50u, kRaPairPushCos);
+    tomba::guest::dispatchJalToReturn(*c, {.target = 0x80083F50u, .returnAddress = kRaPairPushCos});
     const int32_t contactRadius = actor.s16(kActorHeightLo) + other.s16(kOtherRadius);
     guest_mult(c, (int32_t)c->r[2], contactRadius);
     c->r[4] = c->mem_r32(scratchpad + kContactAngleSlot); // a0 = the heading again
     contactOffsetX = (uint32_t)((int32_t)c->lo >> 12);
-    tomba::guest::dispatchJalToReturn(*c, 0x80083E80u, kRaPairPushSin);
+    tomba::guest::dispatchJalToReturn(*c, {.target = 0x80083E80u, .returnAddress = kRaPairPushSin});
     guest_mult(c, (int32_t)c->r[2], contactRadius);
 
     c->mem_w16(actor.base() + kActorX, (uint16_t)(other.u16(kOtherX) + contactOffsetX));
@@ -909,7 +911,7 @@ void CollisionResolve::resolveByContactPolicy(Core *c) {
       c->r[4] = (uint32_t)(int16_t)c->mem_r16(scratchpad + kContactAngleSlot); // a0 = the heading
       c->r[5] = (uint32_t)actor.s16(kActorFacingRef);                          // a1 = reference
       c->r[6] = 1u;                                                            // a2
-      tomba::guest::dispatchJalToReturn(*c, 0x80077768u, kRaPairFacingCmp);
+      tomba::guest::dispatchJalToReturn(*c, {.target = 0x80077768u, .returnAddress = kRaPairFacingCmp});
       c->mem_w8(actor.base() + kActorFacing, (uint8_t)(c->r[2] + 2));
     }
     c->r[2] = kPairPushedOutInXz;
@@ -999,11 +1001,11 @@ void CollisionResolve::resolveByContactPolicy(Core *c) {
   }
 }
 
-void CollisionResolve::registerOverrides(Game *) {
-  tomba::native::declareOverride(0x80023D48u, "&CollisionResolve::cylinderResolve", &CollisionResolve::cylinderResolve);
-  tomba::native::declareOverride(0x8002423Cu, "&CollisionResolve::landOnObjectTop", &CollisionResolve::landOnObjectTop);
-  tomba::native::declareOverride(
-      0x8001F40Cu, "CollisionResolve::classifyBodyContact", &CollisionResolve::classifyBodyContact);
-  tomba::native::declareOverride(
-      0x80023A04u, "CollisionResolve::resolveByContactPolicy", &CollisionResolve::resolveByContactPolicy);
+void CollisionResolve::registerOverrides(native::NativeOverrideCatalog &natives) {
+  natives.declare(0x80023D48u, "&CollisionResolve::cylinderResolve", &CollisionResolve::cylinderResolve);
+  natives.declare(0x8002423Cu, "&CollisionResolve::landOnObjectTop", &CollisionResolve::landOnObjectTop);
+  natives.declare(0x8001F40Cu, "CollisionResolve::classifyBodyContact", &CollisionResolve::classifyBodyContact);
+  natives.declare(0x80023A04u, "CollisionResolve::resolveByContactPolicy", &CollisionResolve::resolveByContactPolicy);
 }
+
+} // namespace tomba

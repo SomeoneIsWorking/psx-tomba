@@ -15,6 +15,8 @@
 #include <cstdint>
 struct Core;
 
+namespace tomba {
+
 class LibcdNative {
 public:
   explicit LibcdNative(Core *c) : core(c) {}
@@ -29,6 +31,11 @@ public:
   // 0x80102768 (0x18 stride, up to 64 entries). Returns 1 on success, 0xFFFFFFFF on error.
   uint32_t cacheFile(uint32_t dir_index);
 
+  struct SearchFileArgs {
+    uint32_t out_cdlfile_guest_addr;
+    uint32_t path_guest_addr;
+    uint32_t ra;
+  };
   // FUN_8008B8F0 — CdSearchFile. Walks path, calls cacheFile for the innermost dir, memcmp-
   // searches the file table for a matching name. On match: copies the 24-byte CdlFILE record
   // into the caller-owned output buffer at `out_cdlfile_guest_addr` (6 words @ that guest
@@ -41,12 +48,18 @@ public:
   //     (its own frame local), and
   //   - `ra` is the guest call-site constant of the caller's RE'd body — CdSearchFile spills it
   //     into its frame, so it is part of the byte contract.
-  uint32_t searchFile(uint32_t out_cdlfile_guest_addr, uint32_t path_guest_addr, uint32_t ra);
+  uint32_t searchFile(const SearchFileArgs &args);
 
+  struct PosToIntArgs {
+    uint32_t cdlfile_guest_addr;
+    uint32_t ra;
+  };
   // FUN_8008A110 — CdPosToInt: BCD min/sec/frame in the CdlFILE -> absolute LBA in v0. Same
   // `ra` contract as searchFile.
-  uint32_t posToInt(uint32_t cdlfile_guest_addr, uint32_t ra);
+  uint32_t posToInt(const PosToIntArgs &args);
 
 private:
   Core *core;
 };
+
+} // namespace tomba

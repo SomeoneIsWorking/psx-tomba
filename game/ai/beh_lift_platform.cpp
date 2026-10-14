@@ -26,16 +26,17 @@
 // (lbu); the `unaff_s0` else-path uses the incoming guest s0 = c->r[16] (callee-saved -> preserved across
 // typed runtime address dispatch); mem[0x800ED098] is a SIGNED lh. The byte-exact A/B gate is the safety net.
 
-#include "cfg.h"
 #include "core.h"
-#include "core/entry/game_ctx.h"
 #include "core/overrides/guest_jal.h"
+#include "entry/tomba_session.h"
 #include "graphics_bind.h" // ov_obj_render_update (FUN_800517F8)
 #include "guest_abi.h"
 #include "spawn.h" // class Spawn (eng(c).spawn.despawn / dispatch / spawnAndInit)
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+namespace tomba {
 
 namespace {
 
@@ -44,7 +45,7 @@ constexpr uint32_t BEH_FN = 0x8013A330u;
 // LAB_8013A60C: parent[0xC0][0xC] & 0xF00 == 0 -> SFX 0x8D.
 static inline void lift_sfx(Core *c, uint32_t s0) {
   if ((c->mem_r16(c->mem_r32(s0 + 0xc0) + 0xc) & 0xf00) == 0) {
-    tomba::guest::dispatchLeafToReturn(*c, 0x80074590u, 0x8d, 0, 0); // FUN_80074590(0x8D,0,0)
+    psx::cpu::callGuestNowResult(*c, "beh_lift_platform", 0x80074590u, 0x8d, 0, 0); // FUN_80074590(0x8D,0,0)
   }
 }
 
@@ -94,17 +95,19 @@ void beh_lift_platform(Core *c) {
         eng(c).graphicsBind.recordAlloc(); // FUN_8007AAE8 -> rec (a0 carried)
         uint32_t rec = c->r[2];
         c->mem_w32(base + 0xc0, rec);
-        eng(c).graphicsBind.installSceneRecord(rec, 0xc, (uint32_t)(i + 0x26)); // FUN_80051B04 (native)
+        eng(c).graphicsBind.installSceneRecord(
+            {.rec = rec, .classArg = 0xc, .itemArg = (uint32_t)(i + 0x26)}); // FUN_80051B04 (native)
         i++;
         base += 4;
       } while (i < (int)c->mem_r8(nd + 8));
     }
     c->mem_w8(nd + 3, 0);
     if (c->mem_r8(0x800bfad8u) == 0 && c->mem_r8(0x800bf8b9u) != 255) {
-      tomba::guest::dispatchLeafToReturn(*c, 0x80118974u, c->mem_r32(nd + 0xd0)); // FUN_80118974(node[0xD0])
+      psx::cpu::callGuestNowResult(
+          *c, "beh_lift_platform", 0x80118974u, c->mem_r32(nd + 0xd0)); // FUN_80118974(node[0xD0])
     }
-    tomba::guest::dispatchLeafToReturn(*c, 0x8013a184u, nd); // FUN_8013A184
-    tomba::guest::dispatchLeafToReturn(*c, 0x8013989cu, nd); // FUN_8013989C
+    psx::cpu::callGuestNowResult(*c, "beh_lift_platform", 0x8013a184u, nd); // FUN_8013A184
+    psx::cpu::callGuestNowResult(*c, "beh_lift_platform", 0x8013989cu, nd); // FUN_8013989C
     c->mem_w8(nd + 0, 1);
     c->mem_w16(nd + 0x82, 0xc0);
     c->mem_w8(nd + 0x29, 0);
@@ -119,7 +122,8 @@ void beh_lift_platform(Core *c) {
   uint32_t s0 = c->r[16]; // incoming guest s0 (else-path default)
   if (c->mem_r8(0x800bf89cu) == 2 || c->mem_r8(0x800e7eaau) != 1) {
     int32_t a1 = (int16_t)(uint16_t)((uint16_t)c->mem_r16(0x1f800162u) - (uint16_t)c->mem_r16(nd + 0x32));
-    tomba::guest::dispatchLeafToReturn(*c, 0x800778e4u, nd, (uint32_t)a1); // FUN_800778E4(node, sign16(...))
+    psx::cpu::callGuestNowResult(
+        *c, "beh_lift_platform", 0x800778e4u, nd, (uint32_t)a1); // FUN_800778E4(node, sign16(...))
     s0 = c->mem_r32(nd + 0x10);
     if (c->mem_r8(nd + 1) == 0) {
       if (c->mem_r8(s0 + 1) != 0) {
@@ -172,15 +176,15 @@ void beh_lift_platform(Core *c) {
     // ---- node[5] sub-machine ----
     if (c->mem_r8(nd + 5) == 0) {
       if (c->mem_r8(nd + 0x5e) == 1) {
-        if (tomba::guest::dispatchLeafToReturn(*c, 0x80139e64u, nd) != 0) { // FUN_80139E64
+        if (psx::cpu::callGuestNowResult(*c, "beh_lift_platform", 0x80139e64u, nd) != 0) { // FUN_80139E64
           c->mem_w8(nd + 6, 0);
           c->mem_w8(nd + 5, (uint8_t)(c->mem_r8(nd + 5) + 1));
         }
       } else if (c->mem_r8(nd + 0x5e) == 2) {
-        tomba::guest::dispatchLeafToReturn(*c, 0x80139c2cu, nd); // FUN_80139C2C
+        psx::cpu::callGuestNowResult(*c, "beh_lift_platform", 0x80139c2cu, nd); // FUN_80139C2C
       }
-    } else if (c->mem_r8(nd + 5) == 1 &&
-               tomba::guest::dispatchLeafToReturn(*c, 0x8013a008u, nd, s0) != 0) { // FUN_8013A008(node, s0)
+    } else if (c->mem_r8(nd + 5) == 1 && psx::cpu::callGuestNowResult(*c, "beh_lift_platform", 0x8013a008u, nd, s0) !=
+                                             0) { // FUN_8013A008(node, s0)
       c->mem_w8(nd + 6, 0);
       c->mem_w8(nd + 5, (uint8_t)(c->mem_r8(nd + 5) - 1));
     }
@@ -197,6 +201,8 @@ L6c4: {
     base += 4;
   }
   c->mem_w8(nd + 0x29, 0);
-  tomba::guest::dispatchLeafToReturn(*c, 0x80139a70u, nd); // FUN_80139A70
+  psx::cpu::callGuestNowResult(*c, "beh_lift_platform", 0x80139a70u, nd); // FUN_80139A70
 }
 }
+
+} // namespace tomba

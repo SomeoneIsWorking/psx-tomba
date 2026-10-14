@@ -54,6 +54,8 @@
 #include "core/overrides/native_override_catalog.h"
 #include "guest_abi.h"
 
+namespace tomba {
+
 namespace {
 
 constexpr GuestFrameSpill kSpills_8010EA80[4] = {
@@ -117,7 +119,7 @@ void ActorBump::respondToContact(Core *c) {
   }
 
   c->r[6] = 1;
-  tomba::guest::dispatchJalToReturn(*c, kClassifyBodyContact, kRaAfterClassify);
+  tomba::guest::dispatchJalToReturn(*c, {.target = kClassifyBodyContact, .returnAddress = kRaAfterClassify});
   const int32_t contactClass = (int32_t)c->r[2];
   if (contactClass < 0) {
     return;
@@ -132,26 +134,26 @@ void ActorBump::respondToContact(Core *c) {
       if ((actor.stateFlags() & (int32_t)actorbump::kSpecialBit) != 0) {
         c->r[4] = c->r[17];
         c->r[5] = c->r[18];
-        tomba::guest::dispatchJalToReturn(*c, kSpecialInteract, kRaAfterSpecial);
+        tomba::guest::dispatchJalToReturn(*c, {.target = kSpecialInteract, .returnAddress = kRaAfterSpecial});
         return;
       }
       c->r[4] = c->r[18];
       c->r[5] = (uint32_t)-32766;
       c->r[6] = 3;
       c->r[7] = 32;
-      tomba::guest::dispatchJalToReturn(*c, kGenericInteract, kRaAfterGeneric);
+      tomba::guest::dispatchJalToReturn(*c, {.target = kGenericInteract, .returnAddress = kRaAfterGeneric});
       return;
     }
 
     // ── PUSH APART: put the actor on the contact circle around the other body ──────────────────
     scratch = kScratchpadBase;
     c->r[4] = c->mem_r32(scratch + kContactAngleSlot);
-    tomba::guest::dispatchJalToReturn(*c, kRcos, kRaAfterCos);
+    tomba::guest::dispatchJalToReturn(*c, {.target = kRcos, .returnAddress = kRaAfterCos});
     guest_mult(c, (int32_t)c->r[2], actor.reach() + other.reach());
     c->r[4] = c->mem_r32(scratch + kContactAngleSlot);
     const int32_t offsetX = (int32_t)c->lo >> kTrigShift;
     scratch = (uint32_t)offsetX; // s0 carries it across the rsin call
-    tomba::guest::dispatchJalToReturn(*c, kRsin, kRaAfterSin);
+    tomba::guest::dispatchJalToReturn(*c, {.target = kRsin, .returnAddress = kRaAfterSin});
     guest_mult(c, (int32_t)c->r[2], actor.reach() + other.reach());
     actor.setPosX((uint16_t)(other.posX() + (uint32_t)scratch));
     const int32_t offsetZ = (int32_t)c->lo >> kTrigShift;
@@ -174,7 +176,7 @@ void ActorBump::respondToContact(Core *c) {
   c->r[4] = (uint32_t)actor.facing();
   c->r[5] = (uint32_t)c->mem_r16s(scratch + kContactAngleSlot);
   c->r[6] = 0;
-  tomba::guest::dispatchJalToReturn(*c, kAngleCmp, kRaAfterAngleCmp);
+  tomba::guest::dispatchJalToReturn(*c, {.target = kAngleCmp, .returnAddress = kRaAfterAngleCmp});
   // Hit from one side reads the angle straight; from the other it is biased half a turn, so the
   // recoil always drives him away from whatever struck him.
   const uint32_t angle = c->mem_r32(scratch + kContactAngleSlot);
@@ -188,9 +190,10 @@ void ActorBump::respondToContact(Core *c) {
   actor.setRecoilTimer(kRecoilTicks);
 }
 
-void ActorBump::registerOverrides() {
+void ActorBump::registerOverrides(native::NativeOverrideCatalog &natives) {
   // A00, from the image: of 23 authenticated MODE images only A00 holds a function at 0x8010EA80
   // (118 words), and the address is inside A00's loaded text range.
-  tomba::native::declareOverlayOverride(
-      "A00", 0x8010EA80u, "ActorBump::respondToContact", &ActorBump::respondToContact);
+  natives.declareOverlay("A00", 0x8010EA80u, "ActorBump::respondToContact", &ActorBump::respondToContact);
 }
+
+} // namespace tomba

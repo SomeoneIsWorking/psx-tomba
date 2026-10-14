@@ -90,6 +90,8 @@
 #include "guest_call.h"
 #include <stdint.h>
 
+namespace tomba {
+
 namespace {
 constexpr uint32_t GPU_SYS_BASE = (32778u << 16);          // 0x800A0000
 constexpr uint32_t GPU_SYS_TABLE = GPU_SYS_BASE + 22936;   // 0x800A5998
@@ -338,11 +340,13 @@ static void nativePutDrawEnv(Core *c) {
 // they wire via the oracle-gated tomba::native::declareOverride thunk (same shape as gpu_libgpu_leaves_install) — this
 // keeps SBS core B running the pure original guest instructions body.
 
-void gpu_putdrawenv_install() {
-  tomba::native::declareOverride(0x800815D0u, "nativePutDrawEnv", nativePutDrawEnv);
-  tomba::native::declareOverride(0x80082240u, "nativeClipTopLeft", nativeClipTopLeft);
-  tomba::native::declareOverride(0x800822D8u, "nativeClipBottomRight", nativeClipBottomRight);
-  tomba::native::declareOverride(0x80082370u, "nativeDrawOffset", nativeDrawOffset);
-  tomba::native::declareOverride(0x80082220u, "nativeDrawMode", nativeDrawMode);
-  tomba::native::declareOverride(0x8008238Cu, "nativeTextureWindow", nativeTextureWindow);
+void gpu_putdrawenv_install(native::NativeOverrideCatalog &natives) {
+  natives.declare(0x800815D0u, "nativePutDrawEnv", nativePutDrawEnv);
+  natives.declare(0x80082240u, "nativeClipTopLeft", nativeClipTopLeft);
+  natives.declare(0x800822D8u, "nativeClipBottomRight", nativeClipBottomRight);
+  natives.declare(0x80082370u, "nativeDrawOffset", nativeDrawOffset);
+  natives.declare(0x80082220u, "nativeDrawMode", nativeDrawMode);
+  natives.declare(0x8008238Cu, "nativeTextureWindow", nativeTextureWindow);
 }
+
+} // namespace tomba

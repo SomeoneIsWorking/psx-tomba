@@ -23,6 +23,12 @@ constexpr uint32_t kPartPosZ = 0x04;    // u32 world VZ in the low half; the hig
 constexpr uint32_t kPartSizeMul = 0x06; // s16 particle size, 8.8 fixed point
 } // namespace fxswarm
 
+namespace tomba::native {
+class NativeOverrideCatalog;
+} // namespace tomba::native
+
+namespace tomba {
+
 struct FxSwarmNode {
   Core *mCore;
   uint32_t mBase;
@@ -70,5 +76,7 @@ public:
   // FUN_800281EC: stamp the node's sprite cluster once per particle at its own position and size. a0 = node.
   static void emitPerParticle(Core *c);
 
-  static void registerOverrides(Game *game);
+  static void registerOverrides(native::NativeOverrideCatalog &natives);
 };
+
+} // namespace tomba

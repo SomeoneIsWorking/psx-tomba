@@ -14,6 +14,10 @@
 
 class Core;
 
+namespace tomba::native {
+class NativeOverrideCatalog;
+} // namespace tomba::native
+
 namespace tomba::audio {
 
 // One instance per Core, embedded on Engine.
@@ -57,15 +61,15 @@ public:
   void voiceStateFlush();
 
   // Declares every native override this class owns, one call per leaf group.
-  void registerOverrides();
+  void registerOverrides(native::NativeOverrideCatalog &natives);
 };
 
 // The per-group declaration entry points, each defined beside the leaves it declares.
-void declareDispatchOverrides();
-void declareChannelFlagOverrides();
-void declareVoiceWriteOverrides();
-void declareToneRecordOverrides();
-void declareVoiceAllocOverrides();
-void declareVoiceStateOverrides();
+void declareDispatchOverrides(native::NativeOverrideCatalog &natives);
+void declareChannelFlagOverrides(native::NativeOverrideCatalog &natives);
+void declareVoiceWriteOverrides(native::NativeOverrideCatalog &natives);
+void declareToneRecordOverrides(native::NativeOverrideCatalog &natives);
+void declareVoiceAllocOverrides(native::NativeOverrideCatalog &natives);
+void declareVoiceStateOverrides(native::NativeOverrideCatalog &natives);
 
 } // namespace tomba::audio

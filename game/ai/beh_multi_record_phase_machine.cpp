@@ -30,16 +30,17 @@
 // them in the prior call's delay slot, i.e. before the next jal). Transcribed 1:1 as a register machine; signed (lh/sh)
 // preserved. The byte-exact A/B gate (full RAM+scratchpad vs original guest-body call) is the safety net. NO GTE.
 
-#include "cfg.h"
 #include "core.h"
-#include "core/entry/game_ctx.h"
 #include "core/overrides/guest_jal.h"
+#include "entry/tomba_session.h"
 #include "graphics_bind.h" // ov_obj_render_update (FUN_800517F8)
 #include "guest_abi.h"
 #include "spawn.h" // class Spawn (eng(c).spawn.despawn / dispatch / spawnAndInit)
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+namespace tomba {
 
 namespace {
 
@@ -112,7 +113,8 @@ S0: {
       c->mem_w16(rec + 10, 0);
       c->mem_w16(rec + 12, 0);
       s3 += 2;
-      eng(c).graphicsBind.installSceneRecord(rec, 12, (uint32_t)(i + 52)); // FUN_80051B04 (native)
+      eng(c).graphicsBind.installSceneRecord(
+          {.rec = rec, .classArg = 12, .itemArg = (uint32_t)(i + 52)}); // FUN_80051B04 (native)
       i += 1;
       s0 += 4;
     } while ((int32_t)i < (int32_t)c->mem_r8(nd + 8));
@@ -179,28 +181,29 @@ N5_0: {
   eng(c).graphicsBind.renderUpdate();
   c->mem_w8(nd + 8, (uint8_t)(c->mem_r8(nd + 8) - 1));
   uint32_t a3;
-  a3 = tomba::guest::dispatchLeafToReturn(*c, 0x801252c0u, nd, 1, 0);
+  a3 = psx::cpu::callGuestNowResult(*c, "beh_multi_record_phase_machine", 0x801252c0u, nd, 1, 0);
   c->mem_w32(a3 + 20, nd);
   c->mem_w32(a3 + 16, c->mem_r32(nd + 0xc8));
-  a3 = tomba::guest::dispatchLeafToReturn(*c, 0x801252c0u, nd, 1, 1);
+  a3 = psx::cpu::callGuestNowResult(*c, "beh_multi_record_phase_machine", 0x801252c0u, nd, 1, 1);
   c->mem_w32(a3 + 20, nd);
   c->mem_w32(a3 + 16, c->mem_r32(nd + 0xd8));
-  a3 = tomba::guest::dispatchLeafToReturn(*c, 0x801252c0u, nd, 4, 2);
+  a3 = psx::cpu::callGuestNowResult(*c, "beh_multi_record_phase_machine", 0x801252c0u, nd, 4, 2);
   c->mem_w32(a3 + 20, nd);
   c->mem_w32(a3 + 16, c->mem_r32(nd + 0xc4));
-  a3 = tomba::guest::dispatchLeafToReturn(*c, 0x801252c0u, nd, 4, 3);
+  a3 = psx::cpu::callGuestNowResult(*c, "beh_multi_record_phase_machine", 0x801252c0u, nd, 4, 3);
   c->mem_w32(a3 + 20, nd);
   c->mem_w32(a3 + 16, c->mem_r32(nd + 0xcc));
-  a3 = tomba::guest::dispatchLeafToReturn(*c, 0x801252c0u, nd, 4, 4);
+  a3 = psx::cpu::callGuestNowResult(*c, "beh_multi_record_phase_machine", 0x801252c0u, nd, 4, 4);
   c->mem_w32(a3 + 20, nd);
   c->mem_w32(a3 + 16, c->mem_r32(nd + 0xd0));
-  tomba::guest::dispatchLeafToReturn(*c, 0x8004cc64u, c->mem_r32(nd + 0xd4), 12); // FUN_8004CC64(node[0xD4], 12)
+  psx::cpu::callGuestNowResult(
+      *c, "beh_multi_record_phase_machine", 0x8004cc64u, c->mem_r32(nd + 0xd4), 12); // FUN_8004CC64(node[0xD4], 12)
   goto Lret;
 }
 
 // -------- inner N5==1 --------
 N5_1: {
-  tomba::guest::dispatchLeafToReturn(*c, 0x801344acu, nd); // FUN_801344AC(node)
+  psx::cpu::callGuestNowResult(*c, "beh_multi_record_phase_machine", 0x801344acu, nd); // FUN_801344AC(node)
   bool to354 = (c->mem_r8(nd + 6) != 0);
   if (!to354) {
     uint32_t m = c->mem_r8(0x800e7eaau);
@@ -212,8 +215,13 @@ N5_1: {
     c->mem_w8(nd + 1, (uint8_t)st);       // node[1] = s0 = 1
     eng(c).cull.enqueueVisibleClass4(nd); // FUN_80077EBC — Cull::enqueueVisibleClass4
   } else {
-    tomba::guest::dispatchLeafToReturn(
-        *c, 0x800779d0u, nd, 0, (uint32_t)(int32_t)-400, 600); // FUN_800779D0(node,0,-400,600)
+    psx::cpu::callGuestNowResult(*c,
+                                 "beh_multi_record_phase_machine",
+                                 0x800779d0u,
+                                 nd,
+                                 0,
+                                 (uint32_t)(int32_t)-400,
+                                 600); // FUN_800779D0(node,0,-400,600)
   }
   if (c->mem_r8(nd + 1) == 0) {
     goto Lret;
@@ -230,12 +238,12 @@ N5_2: {
     c->mem_w8(nd + 1, (uint8_t)st);       // node[1] = 1
     eng(c).cull.enqueueVisibleClass4(nd); // FUN_80077EBC — Cull::enqueueVisibleClass4
   } else {
-    tomba::guest::dispatchLeafToReturn(*c, 0x8007778cu, nd); // FUN_8007778C(node)
+    psx::cpu::callGuestNowResult(*c, "beh_multi_record_phase_machine", 0x8007778cu, nd); // FUN_8007778C(node)
   }
   if (c->mem_r8(nd + 1) == 0) {
     goto Lret;
   }
-  tomba::guest::dispatchLeafToReturn(*c, 0x801347e4u, nd); // FUN_801347E4(node)
+  psx::cpu::callGuestNowResult(*c, "beh_multi_record_phase_machine", 0x801347e4u, nd); // FUN_801347E4(node)
   common_tail(c, nd);
   goto Lret;
 }
@@ -243,3 +251,5 @@ N5_2: {
 Lret:
   return;
 }
+
+} // namespace tomba

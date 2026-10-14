@@ -58,6 +58,8 @@
 #include "game.h"
 #include "guest_abi.h"
 
+namespace tomba {
+
 namespace {
 // libgpu's framebuffer clip limits, read by this function and by the 0xE3/0xE4 word builders.
 constexpr uint32_t kFrameBufferLimitX = 0x800A59A4u; // 1024
@@ -90,7 +92,8 @@ constexpr GuestFrameSpill kSpills[3] = {
 };
 } // namespace
 
-uint32_t LibgpuDrawEnv::clampToFrameBuffer(Core *c, int32_t value, uint32_t limitAddr) {
+uint32_t LibgpuDrawEnv::clampToFrameBuffer(Core *c, const ClampToFrameBufferArgs &args) {
+  auto [value, limitAddr] = args;
   if (value < 0) {
     return 0;
   }
@@ -122,29 +125,29 @@ void LibgpuDrawEnv::setDrawEnv(Core *c) {
   // --- the six state commands, in packet order ---------------------------------------------------
   c->r[4] = (uint32_t)env.clipX();
   c->r[5] = (uint32_t)env.clipY();
-  tomba::guest::dispatchJalToReturn(*c, 0x80082240u, kRaClipTopLeft);
+  tomba::guest::dispatchJalToReturn(*c, {.target = 0x80082240u, .returnAddress = kRaClipTopLeft});
   packet.setClipTopLeft(c->r[2]);
 
   // Bottom-right is inclusive: origin + size - 1, truncated back to s16 the way the guest does.
   c->r[4] = (uint32_t)(int32_t)(int16_t)(uint16_t)(env.clipWRaw() + env.clipXRaw() - 1u);
   c->r[5] = (uint32_t)(int32_t)(int16_t)(uint16_t)(env.clipYRaw() + env.clipHRaw() - 1u);
-  tomba::guest::dispatchJalToReturn(*c, 0x800822D8u, kRaClipBottomRight);
+  tomba::guest::dispatchJalToReturn(*c, {.target = 0x800822D8u, .returnAddress = kRaClipBottomRight});
   packet.setClipBottomRight(c->r[2]);
 
   c->r[4] = (uint32_t)env.offsetX();
   c->r[5] = (uint32_t)env.offsetY();
-  tomba::guest::dispatchJalToReturn(*c, 0x80082370u, kRaDrawOffset);
+  tomba::guest::dispatchJalToReturn(*c, {.target = 0x80082370u, .returnAddress = kRaDrawOffset});
   packet.setDrawOffset(c->r[2]);
 
   c->r[4] = env.drawOnDisplay();
   c->r[5] = env.dither();
   c->r[6] = env.texturePage();
-  tomba::guest::dispatchJalToReturn(*c, 0x80082220u, kRaDrawMode);
+  tomba::guest::dispatchJalToReturn(*c, {.target = 0x80082220u, .returnAddress = kRaDrawMode});
   // The guest sets up the next call's argument in the delay slot BEFORE storing the mode word; kept
   // in that order so the store sequence matches the oracle statement for statement.
   c->r[4] = env.texWindowAddr();
   packet.setDrawMode(c->r[2]);
-  tomba::guest::dispatchJalToReturn(*c, 0x8008238Cu, kRaTexWindow);
+  tomba::guest::dispatchJalToReturn(*c, {.target = 0x8008238Cu, .returnAddress = kRaTexWindow});
   packet.setTexWindow(c->r[2]);
 
   packet.setMaskBits(kGp0SetMaskBits);
@@ -159,8 +162,8 @@ void LibgpuDrawEnv::setDrawEnv(Core *c) {
     clear.setClearY((uint16_t)env.clipYRaw());
     clear.setClearW((uint16_t)env.clipWRaw());
     clear.setClearH((uint16_t)env.clipHRaw());
-    clear.setClearW((uint16_t)clampToFrameBuffer(c, env.clipW(), kFrameBufferLimitX));
-    clear.setClearH((uint16_t)clampToFrameBuffer(c, clear.clearHSigned(), kFrameBufferLimitY));
+    clear.setClearW((uint16_t)clampToFrameBuffer(c, {.value = env.clipW(), .limitAddr = kFrameBufferLimitX}));
+    clear.setClearH((uint16_t)clampToFrameBuffer(c, {.value = clear.clearHSigned(), .limitAddr = kFrameBufferLimitY}));
 
     const bool vramFillEligible =
         ((clear.clearX() & kVramFillAlignMask) == 0) && ((clear.clearW() & kVramFillAlignMask) == 0);
@@ -185,6 +188,8 @@ void LibgpuDrawEnv::setDrawEnv(Core *c) {
   c->r[2] = packetWords; // v0 — the guest returns the word count it just stored
 }
 
-void LibgpuDrawEnv::registerOverrides(Game *) {
-  tomba::native::declareOverride(0x80081FB0u, "LibgpuDrawEnv::setDrawEnv", &LibgpuDrawEnv::setDrawEnv);
+void LibgpuDrawEnv::registerOverrides(native::NativeOverrideCatalog &natives) {
+  natives.declare(0x80081FB0u, "LibgpuDrawEnv::setDrawEnv", &LibgpuDrawEnv::setDrawEnv);
 }
+
+} // namespace tomba

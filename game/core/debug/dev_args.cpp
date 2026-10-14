@@ -40,4 +40,14 @@ bool DevArgs::decimal(std::string_view word, uint32_t &value) {
   return true;
 }
 
+bool DevArgs::integer(std::string_view word, int32_t &value) {
+  const bool negative = word.starts_with('-');
+  uint32_t magnitude = 0;
+  if (!decimal(negative ? word.substr(1) : word, magnitude) || magnitude > (negative ? 0x80000000u : 0x7FFFFFFFu)) {
+    return false;
+  }
+  value = negative ? static_cast<int32_t>(0u - magnitude) : static_cast<int32_t>(magnitude);
+  return true;
+}
+
 } // namespace tomba

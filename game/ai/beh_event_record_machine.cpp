@@ -21,10 +21,9 @@
 // + node[6]++ is reached ONLY by the n6==1 / n6==2-success fallthrough (the other sub-cases break first).
 // The byte-exact A/B gate is the safety net.
 
-#include "cfg.h"
 #include "core.h"
-#include "core/entry/game_ctx.h"
 #include "core/overrides/guest_jal.h"
+#include "entry/tomba_session.h"
 #include "graphics_bind.h" // ov_obj_render_update (FUN_800517F8)
 #include "guest_abi.h"
 #include "guest_call.h"
@@ -34,21 +33,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+namespace tomba {
+
 namespace {
 
 constexpr uint32_t BEH_FN = 0x80136954u;
-
-static inline uint32_t leafr1(Core *c, uint32_t a0, uint32_t fn) {
-  c->r[4] = a0;
-  psx::cpu::dispatchGuestToReturn0(*c, fn, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
-  return c->r[2];
-}
-static inline uint32_t leafr2(Core *c, uint32_t a0, uint32_t a1, uint32_t fn) {
-  c->r[4] = a0;
-  c->r[5] = a1;
-  psx::cpu::dispatchGuestToReturn0(*c, fn, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
-  return c->r[2];
-}
 
 } // namespace
 static constexpr GuestFrameSpill kSpills_80136954[5] = {
@@ -103,9 +92,10 @@ void beh_event_record_machine(Core *c) {
         c->mem_w16(rec + 4, c->mem_r16(tbl + 6));
         c->mem_w32(rec + 8, 0);
         c->mem_w32(rec + 0xc, 0);
-        int16_t t4 = c->mem_r16s(tbl + 8);
+        int16_t t4 = (int16_t)c->mem_r16(tbl + 8);
         tbl += 10;
-        eng(c).graphicsBind.installSceneRecord(rec, 0xc, (uint32_t)(int32_t)t4); // FUN_80051B04 (native)
+        eng(c).graphicsBind.installSceneRecord(
+            {.rec = rec, .classArg = 0xc, .itemArg = (uint32_t)(int32_t)t4}); // FUN_80051B04 (native)
         base += 4;
       } while (i < (int)c->mem_r8(nd + 8));
     }
@@ -131,14 +121,14 @@ void beh_event_record_machine(Core *c) {
   case 0:
     if (c->mem_r8(0x800bf8b9u) == 255) {
       if (c->mem_r8(0x800bf937u) == 0) {
-        tomba::guest::dispatchLeafToReturn(*c, 0x80051b04u, c->mem_r32(nd + 0xc0), 0xc, 0xb);
+        psx::cpu::callGuestNowResult(*c, "beh_event_record_machine", 0x80051b04u, c->mem_r32(nd + 0xc0), 0xc, 0xb);
       } else if ((c->mem_r8(0x800bfa4bu) & 1) == 0) {
         c->mem_w8(nd + 0, 1);
         c->mem_w16(nd + 0x80, 0x15e);
         c->mem_w16(nd + 0x82, 700);
         c->mem_w16(nd + 0x84, 200);
         c->mem_w16(nd + 0x86, 400);
-        tomba::guest::dispatchLeafToReturn(*c, 0x80051b04u, c->mem_r32(nd + 0xc0), 0xc, 0xb);
+        psx::cpu::callGuestNowResult(*c, "beh_event_record_machine", 0x80051b04u, c->mem_r32(nd + 0xc0), 0xc, 0xb);
         c->mem_w8(nd + 5, 4);
         break;
       }
@@ -153,7 +143,7 @@ void beh_event_record_machine(Core *c) {
     }
     break;
   case 3:
-    tomba::guest::dispatchLeafToReturn(*c, 0x8013681cu, nd); // FUN_8013681C
+    psx::cpu::callGuestNowResult(*c, "beh_event_record_machine", 0x8013681cu, nd); // FUN_8013681C
     break;
   case 4: {
     uint8_t n6 = c->mem_r8(nd + 6);
@@ -171,12 +161,12 @@ void beh_event_record_machine(Core *c) {
         c->mem_w8(0x800e7ee1u, 0);
         c->mem_w8(nd + 0, 2);
         c->mem_w8(nd + 6, (uint8_t)(c->mem_r8(nd + 6) + 1));
-        tomba::guest::dispatchLeafToReturn(*c, 0x80042354u, 1, 1); // FUN_80042354(1,1)
+        psx::cpu::callGuestNowResult(*c, "beh_event_record_machine", 0x80042354u, 1, 1); // FUN_80042354(1,1)
       }
       break;
     } else if (n6 != 2) { // n6 >= 3
       if (n6 == 3 && (c->mem_r8(0x800bf822u) & 1) == 0) {
-        tomba::guest::dispatchLeafToReturn(*c, 0x80042310u); // FUN_80042310()
+        psx::cpu::callGuestNowResult(*c, "beh_event_record_machine", 0x80042310u); // FUN_80042310()
         c->mem_w8(nd + 6, 0);
         c->mem_w8(nd + 5, 1);
       }
@@ -185,7 +175,8 @@ void beh_event_record_machine(Core *c) {
       if (c->mem_r8(0x800bf80eu) == 0) {
         break;
       }
-      uint32_t iv = leafr2(c, nd, 0x24, 0x8006ff10u); // FUN_8006FF10(node,0x24)
+      uint32_t iv = psx::cpu::callGuestNowResult(
+          *c, "beh_event_record_machine", 0x8006ff10u, nd, 0x24); // FUN_8006FF10(node,0x24)
       uint32_t uVar3 = c->mem_r32(0x800e7eb4u);
       uVar5 = c->mem_r32(0x800e7eb0u);
       c->mem_w32(0x800bf844u, iv);
@@ -195,12 +186,13 @@ void beh_event_record_machine(Core *c) {
       c->mem_w32(iv + 0x2c, c->mem_r32(0x800e7eacu));
       c->mem_w32(iv + 0x30, uVar5);
       c->mem_w32(iv + 0x34, uVar3);
-      tomba::guest::dispatchLeafToReturn(*c, 0x80051b04u, c->mem_r32(nd + 0xc0), 0xc, 0x4e);
+      psx::cpu::callGuestNowResult(*c, "beh_event_record_machine", 0x80051b04u, c->mem_r32(nd + 0xc0), 0xc, 0x4e);
       uVar5 = 2;
       c->mem_w8(0x800bfa4bu, (uint8_t)(c->mem_r8(0x800bfa4bu) | 1));
     }
     // reached only by n6==1 (uVar5=0xCF) / n6==2-success (uVar5=2):
-    tomba::guest::dispatchLeafToReturn(*c, 0x800440e4u, 0x800e7e80u, uVar5, 4); // FUN_800440E4(0x800E7E80, uVar5, 4)
+    psx::cpu::callGuestNowResult(
+        *c, "beh_event_record_machine", 0x800440e4u, 0x800e7e80u, uVar5, 4); // FUN_800440E4(0x800E7E80, uVar5, 4)
     c->mem_w8(nd + 6, (uint8_t)(c->mem_r8(nd + 6) + 1));
     break;
   }
@@ -211,3 +203,5 @@ void beh_event_record_machine(Core *c) {
   eng(c).graphicsBind.renderUpdate(); // FUN_800517F8
   c->mem_w8(nd + 0x2b, 0);
 }
+
+} // namespace tomba

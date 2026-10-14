@@ -22,16 +22,17 @@
 // written into c->r only for the leaf calls (= node, where the guest writes it). v0 (handler return)
 // is NOT reproduced; the gate compares only RAM+scratchpad vs original guest-body call.
 
-#include "cfg.h"
 #include "collision.h" // Collision::listScan (FUN_80031780)
 #include "core.h"
-#include "core/entry/game_ctx.h"
+#include "entry/tomba_session.h"
 #include "guest_abi.h"   // GuestFrame — mirror the guest stack frame (CLAUDE.md)
 #include "render/cull.h" // Cull::coneCull2b278 (FUN_8002B278)
 #include "spawn.h"       // class Spawn (eng(c).spawn.despawn / dispatch / spawnAndInit)
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+namespace tomba {
 
 namespace {
 
@@ -116,3 +117,5 @@ L518:
 L528:
   return;
 }
+
+} // namespace tomba

@@ -8,7 +8,7 @@
 #include "game.h"
 #include "items/inventory_layout.h"
 #include "scene/scene_flags.h"
-#include "stub_runtime.h"
+#include "stub_game_runtime.h"
 
 #include <cstdint>
 #include <lucent/log.h>
@@ -45,8 +45,8 @@ bool starts(const std::string &text, const char *prefix) {
 // The field running: top 2, sub-mode 1, area machine `machine`, sub-state 1, ordinary play.
 void fieldRunning(Core &core, std::uint16_t machine) {
   core.mem_w32(kStagePointer, kGameStage);
-  core.mem_w32(TaskSm::kTaskRecordPointer, kTaskRecord);
-  TaskSm sm(&core);
+  core.mem_w32(tomba::sched::kCurrentTaskPointer, kTaskRecord);
+  tomba::TaskSm sm(&core);
   sm.setTop(2);
   sm.setSubMode(1);
   sm.setStage4c(machine);
@@ -88,14 +88,14 @@ void testWarp(Core &core) {
 
   // The scripted opening is left the way the Start skip leaves it.
   core.mem_w32(kStagePointer, kGameStage);
-  TaskSm sm(&core);
+  tomba::TaskSm sm(&core);
   sm.setSubMode(0);
   sm.setStage4c(0);
   sm.setS4e(0);
   core.mem_w8(kLoadMode, 2);
   check(starts(control.arm(core, "warp 2 3"), "ok"), "warp arms during the scripted opening");
   control.applyArmed(core, 15);
-  const TaskSm after(&core);
+  const tomba::TaskSm after(&core);
   check(core.mem_r8(kLoadMode) == 4, "opening: ordinary-play load mode");
   check(core.mem_r8(kTransitionType) == 1, "opening: full transition type");
   check(after.subMode() == 1 && after.stage4c() == 2 && after.s4e() == 6, "opening: field run in area change");
@@ -120,10 +120,10 @@ int gives = 0;
 std::uint32_t givenItem = 0;
 std::uint32_t givenAmount = 0;
 
-void give(Core &, std::uint32_t item, std::uint32_t amount) {
+void give(Core &, const tomba::Inventory::ItemGrantArgs &grant) {
   ++gives;
-  givenItem = item;
-  givenAmount = amount;
+  givenItem = grant.type;
+  givenAmount = grant.amount;
 }
 
 void testItems(Core &core) {
@@ -151,9 +151,8 @@ void testItems(Core &core) {
 } // namespace
 
 int main() {
-  tomba::test::StubRuntime runtime;
-  psxport_install_game(runtime);
-  auto game = std::make_unique<Game>();
+  psx::test::StubGameRuntime runtime;
+  auto game = std::make_unique<Game>(runtime, psx::config::Config{});
   Core &core = game->core;
   testWarp(core);
   testFlags(core);

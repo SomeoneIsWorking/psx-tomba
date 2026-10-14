@@ -5,16 +5,17 @@
 // all state lives in guest RAM at the addresses named in scene_events.h.
 
 #include "scene/scene_events.h"
-#include "cfg.h"
 #include "core.h"
 #include "core/engine/engine.h"
-#include "core/entry/game_ctx.h"
-#include "core/overrides/native_override_catalog.h" // tomba::native::declareOverride — the one native-override registry
+#include "core/overrides/native_override_catalog.h"
+#include "entry/tomba_session.h"
 #include "game.h"
 #include "guest_abi.h" // GuestFrame — mirror the guest stack frame (CLAUDE.md)
 #include "scene/scene_flags.h"
 
 // Guest-address constants (see scene_events.h for the full state map).
+namespace tomba {
+
 static const uint32_t EVENTS_GATE_HW = 0x800E7FEEu; // int16 — 0 disables the event system
 static const uint32_t ARM_SLOT_BASE = 0x800BF870u;  // per-slot arm-flag table, +arg+68 = flag byte
 static const uint32_t ARM_COUNTER_HW = 0x800BF8A8u; // u16 arm counter
@@ -116,8 +117,10 @@ uint32_t SceneEvents::armBody(Core *c) {
 int32_t SceneEvents::arm(uint8_t eventId) {
   Core *c = this->core;
   c->r[4] = eventId;
-  gctx(c)->verification.run(
-      &SceneEvents::armBody, 0x80040B48u, "sceneeventsarmverify", gctx(c)->verification.on("sceneeventsarmverify"));
+  tombaSession(c).verification.run(&SceneEvents::armBody,
+                                   0x80040B48u,
+                                   "sceneeventsarmverify",
+                                   tombaSession(c).verification.on("sceneeventsarmverify"));
   return (int32_t)c->r[2];
 }
 
@@ -203,8 +206,10 @@ void SceneEvents::applyFlagOpOverride(Core *c) {
   c->r[2] = applyFlagOp(c);
 }
 
-void SceneEvents::registerOverrides(Game * /*game*/) {
-  tomba::native::declareOverride(0x80040B48u, "SceneEvents::armBody", SceneEvents::armOverride);
-  tomba::native::declareOverride(0x80042258u, "SceneEvents::delayedTrigger", SceneEvents::delayedTriggerOverride);
-  tomba::native::declareOverride(0x80042448u, "SceneEvents::applyFlagOp", SceneEvents::applyFlagOpOverride);
+void SceneEvents::registerOverrides(native::NativeOverrideCatalog &natives) {
+  natives.declare(0x80040B48u, "SceneEvents::armBody", SceneEvents::armOverride);
+  natives.declare(0x80042258u, "SceneEvents::delayedTrigger", SceneEvents::delayedTriggerOverride);
+  natives.declare(0x80042448u, "SceneEvents::applyFlagOp", SceneEvents::applyFlagOpOverride);
 }
+
+} // namespace tomba

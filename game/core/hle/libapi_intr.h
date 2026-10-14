@@ -17,6 +17,10 @@
 struct Core;
 class Game;
 
+namespace tomba::native {
+class NativeOverrideCatalog;
+} // namespace tomba::native
+
 namespace tomba {
 
 class LibapiIntr {
@@ -44,7 +48,7 @@ public:
   // banner in libapi_intr.cpp for how it was identified and why it is an ordinary port.
   static void runVblankCallbacks(Core *c);
 
-  static void registerOverrides(Game *game);
+  static void registerOverrides(native::NativeOverrideCatalog &natives);
 
 private:
   inline static constexpr GuestFrameSpill kInitVblankSpills[1] = {{31u, 16u}};

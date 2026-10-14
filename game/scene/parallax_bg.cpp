@@ -12,6 +12,8 @@
 #include "core.h"
 #include "parallax_scroll.h"
 
+namespace tomba {
+
 namespace {
 
 constexpr uint32_t BG_PARAMS_PTR = 0x800ECF84u; // *u16 — per-area BG parameter block ptr
@@ -117,3 +119,5 @@ int32_t ParallaxBg::scrollModX() const {
 int32_t ParallaxBg::scrollModY() const {
   return (int32_t)(uint32_t)core->mem_r16(SM_ADDR + SCROLL_MOD_Y_OFF);
 }
+
+} // namespace tomba

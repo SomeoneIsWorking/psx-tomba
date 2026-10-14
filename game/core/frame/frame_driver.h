@@ -16,6 +16,11 @@ namespace tomba {
 inline constexpr uint32_t kBufferParityAddress = 0x1F800135u; // u8, 0 or 1
 inline constexpr uint32_t kPresentStateAddress = 0x1F80019Cu; // u8, see PresentState
 inline constexpr uint32_t kPutDispEnv = 0x8008179Cu;
+inline constexpr uint32_t kPutDrawEnv = 0x800815D0u;
+inline constexpr uint32_t kClearOTagR = 0x80081458u;
+// The two display buffers: env pair and ordering table, kDisplayBufferStride apart.
+inline constexpr uint32_t kDisplayBufferBase = 0x800E80A8u;
+inline constexpr uint32_t kDisplayBufferStride = 0x2070u;
 inline constexpr uint32_t kOtEntries = 0x800u;
 // The id both display buffers' ordering tables are named under for the frame record.
 inline constexpr uint16_t kOtTable = 0;
@@ -32,7 +37,7 @@ enum class PresentState : uint8_t {
 };
 
 // One pass of Tomba! 2's retail main loop (FUN_80050B08) per logic frame; the framework repeats it.
-class TombaFrameDriver final : public FrameDriver {
+class TombaFrameDriver final : public psx::game::FrameDriver {
 public:
   explicit TombaFrameDriver(Game &game);
 

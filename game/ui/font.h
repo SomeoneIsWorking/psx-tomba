@@ -13,8 +13,17 @@
 // ov_font_glyphclass_fill in font.cpp — each taking its argument via MIPS taxi
 // parameter c->r[4]. Now real instance methods with explicit typed arguments.
 #pragma once
+
+#include "state_producer.h"
+#include <cstdint>
 #include <stdint.h>
 class Core;
+
+namespace tomba::native {
+class NativeOverrideCatalog;
+} // namespace tomba::native
+
+namespace tomba {
 
 class Font {
 public:
@@ -55,6 +64,13 @@ public:
   //   Body from disas 0x80073750..0x80073798 (no sub-calls; a plain byte scan).
   static int32_t measureLineWidth(Core *c, uint32_t strAddr);
 
+  struct TextBoxArgs {
+    int32_t x;
+    int32_t y;
+    int32_t w;
+    uint32_t str;
+    uint32_t color;
+  };
   // drawText(x, y, w, str, color): FUN_80079374 — WIDE-RE TIER DRAFT (2026-07-09), re-verified and
   //   WIRED. A thin arg-packing wrapper around the still-unowned font/glyph emitter FUN_80078CA8
   //   (see docs/engine_re.md "FUN_80078ca8" section — full string-draw engine with cursor state at
@@ -90,7 +106,7 @@ public:
   //   each 32-bit arg — this wrapper does NOT decode them into separate ints, it reproduces the
   //   exact bit operations the guest performs, since sign-extension order matters for negative
   //   on-screen coordinates).
-  static void drawText(Core *c, int32_t x, int32_t y, int32_t w, uint32_t str, uint32_t color);
+  static void drawText(Core *c, const TextBoxArgs &args);
 
   // drawTextSmall(x, y, w, str, color): FUN_80079324 — SIBLING of drawText (0x80079374). Identical
   //   arg-packing wrapper around the same font/glyph emitter FUN_80078CA8, differing ONLY in the two
@@ -105,7 +121,7 @@ public:
   //   Everything else is identical: a0' = (int16)x | (y<<16) packed vertex, a2' = (int16)w, a3' = str,
   //   stack[+16] = color; mirrors the guest frame (sp-=32, ra spilled at sp+24) and tail-calls
   //   FUN_80078CA8 with ra = 0x80079364. See drawText's doc above for the full ABI trace.
-  static void drawTextSmall(Core *c, int32_t x, int32_t y, int32_t w, uint32_t str, uint32_t color);
+  static void drawTextSmall(Core *c, const TextBoxArgs &args);
 
   // iconGlyphEmit(): FUN_80078988 — fully-owned SJIS/token icon string emitter used by glyphEmit's
   //   0x01..0x04 control-byte arms; reproduces the guest scratchpad/packet-pool/OT writes. Ghidra source:
@@ -180,7 +196,12 @@ public:
 
   // Declares drawText, drawTextSmall, glyphEmit (a producer: its string in a3 is the drawn object)
   // and iconGlyphEmit.
-  static void registerOverrides();
+  static void registerOverrides(native::NativeOverrideCatalog &natives);
   // Each glyph is an object saved as its sprite command words; the render moves its position.
-  static void registerStateRenders(Core &core);
+  static void registerStateRenders(psx::present::StateProducerTable &renders);
+
+  // The texture page glyphEmit's SetDrawMode call gives the string; each glyph sprite takes it.
+  static constexpr std::uint32_t kGlyphTexturePage = 31u;
 };
+
+} // namespace tomba

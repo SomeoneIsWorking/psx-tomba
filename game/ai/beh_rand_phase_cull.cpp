@@ -25,10 +25,9 @@
 // node[6]/node[7] are signed char (int8); node[0x34]/node[0x38] are 32-bit; DAT_800E7FFE is a signed
 // short (lh). The byte-exact A/B gate (full RAM+scratchpad vs original guest-body call) is the safety net.
 
-#include "cfg.h"
 #include "collision.h" // Collision::listScan (FUN_80031780)
 #include "core.h"
-#include "core/entry/game_ctx.h"
+#include "entry/tomba_session.h"
 #include "guest_abi.h" // GuestFrame — mirror the guest stack frame (CLAUDE.md)
 #include "guest_call.h"
 #include "spawn.h" // class Spawn (eng(c).spawn.despawn / dispatch / spawnAndInit)
@@ -36,23 +35,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+namespace tomba {
+
 namespace {
 
 constexpr uint32_t BEH_FN = 0x8002918Cu;
-
-static inline void leaf1(Core *c, uint32_t a0, uint32_t fn) {
-  c->r[4] = a0;
-  psx::cpu::dispatchGuestToReturn0(*c, fn, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
-}
-static inline uint32_t call0(Core *c, uint32_t fn) {
-  psx::cpu::dispatchGuestToReturn0(*c, fn, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
-  return c->r[2];
-}
-static inline uint32_t call1(Core *c, uint32_t a0, uint32_t fn) {
-  c->r[4] = a0;
-  psx::cpu::dispatchGuestToReturn0(*c, fn, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
-  return c->r[2];
-}
 
 } // namespace
 static constexpr GuestFrameSpill kSpills_8002918C[2] = {
@@ -79,20 +66,21 @@ void beh_rand_phase_cull(Core *c) {
     // ---- STATE 0: init ----
     c->mem_w8(nd + 4, 1);
     c->mem_w8(nd + 7, 0);
-    c->mem_w32(nd + 0x34, c->mem_r32(nd + 0x38)); // 32-bit copy
-    int32_t r = (int32_t)call0(c, 0x8009a450u);   // rand() draw
+    c->mem_w32(nd + 0x34, c->mem_r32(nd + 0x38));                                              // 32-bit copy
+    int32_t r = (int32_t)psx::cpu::callGuestNowResult(*c, "beh_rand_phase_cull", 0x8009a450u); // rand() draw
     c->mem_w8(nd + 6, (uint8_t)((int8_t)(int32_t)(r >> 0xb) + 8));
     if (c->mem_r8(nd + 3) == 0x35u && c->mem_r16s(0x800E7FFEu) < 0) { // node[3]=='5' && DAT_800E7FFE < 0
-      int32_t r2 = (int32_t)call0(c, 0x8009a450u);                    // rand() draw
+      int32_t r2 = (int32_t)psx::cpu::callGuestNowResult(*c, "beh_rand_phase_cull", 0x8009a450u); // rand() draw
       c->mem_w8(nd + 6, (uint8_t)((int8_t)(int32_t)(r2 >> 0xc) + 3));
     }
     // FALLTHROUGH into the common tail
   }
 
   // ---- COMMON TAIL (STATE 1, or after STATE-0 init) ----
-  int32_t r3 = (int32_t)call0(c, 0x8009a450u); // rand() draw
+  int32_t r3 = (int32_t)psx::cpu::callGuestNowResult(*c, "beh_rand_phase_cull", 0x8009a450u); // rand() draw
   c->mem_w8(nd + 7, (uint8_t)(c->mem_r8s(nd + 7) + (int8_t)(int32_t)(r3 >> 9)));
-  int16_t cull = (int16_t)call1(c, nd, 0x8002b278u); // sVar2 = FUN_8002B278(node) (short)
+  int16_t cull = (int16_t)psx::cpu::callGuestNowResult(
+      *c, "beh_rand_phase_cull", 0x8002b278u, nd); // sVar2 = FUN_8002B278(node) (short)
   if (c->mem_r8s(nd + 7) < 0) {
     c->mem_w8(nd + 7, (uint8_t)(c->mem_r8(nd + 7) - 0x80)); // (int8)node[7] += -0x80  == clear sign bit
   } else {
@@ -104,3 +92,5 @@ void beh_rand_phase_cull(Core *c) {
     }
   }
 }
+
+} // namespace tomba

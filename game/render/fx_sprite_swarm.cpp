@@ -12,6 +12,8 @@
 #include "game.h"
 #include "guest_abi.h"
 
+namespace tomba {
+
 namespace {
 
 constexpr uint32_t kSmallSizeClassTag = 0x21u; // '!'
@@ -72,7 +74,7 @@ void FxSpriteSwarm::emitPerParticle(Core *c) {
   recordHeadReg = node.recordHead();
 
   c->r[4] = c->r[17];
-  tomba::guest::dispatchJalToReturn(*c, kListTailResolve, kRaListTailResolve);
+  tomba::guest::dispatchJalToReturn(*c, {.target = kListTailResolve, .returnAddress = kRaListTailResolve});
 
   // The guest also parks the scratchpad base and the publish slots in s0, s4, fp and s7.
   GuestReg<16> scratchpadBaseReg(c);
@@ -86,7 +88,7 @@ void FxSpriteSwarm::emitPerParticle(Core *c) {
 
   do {
     const FxSwarmParticle particle{c, c->r[18]};
-    if (publish.projectAnchor(particle.worldXY(), particle.worldZ(), node.otBias())) {
+    if (publish.projectAnchor({.worldXY = particle.worldXY(), .worldZ = particle.worldZ(), .otBias = node.otBias()})) {
       // mult leaves hi/lo guest-visible.
       guest_mult(c, publish.scaleX(), particle.sizeMul());
       const int32_t scale = (int32_t)c->lo >> kParticleSizeShift;
@@ -95,7 +97,7 @@ void FxSpriteSwarm::emitPerParticle(Core *c) {
       publish.setScaleX(scale);
       publish.setScaleY(scale);
       c->r[5] = (node.texturePage() << 16) | node.clut();
-      tomba::guest::dispatchJalToReturn(*c, kSpriteWriter, kRaSpriteWriter);
+      tomba::guest::dispatchJalToReturn(*c, {.target = kSpriteWriter, .returnAddress = kRaSpriteWriter});
     }
 
     particleIndexReg = particleIndexReg + 1;
@@ -103,6 +105,8 @@ void FxSpriteSwarm::emitPerParticle(Core *c) {
   } while ((int32_t)(int16_t)(uint32_t)particleIndexReg < node.particleCount());
 }
 
-void FxSpriteSwarm::registerOverrides(Game *) {
-  tomba::native::declareOverride(0x800281ECu, "FxSpriteSwarm::emitPerParticle", &FxSpriteSwarm::emitPerParticle);
+void FxSpriteSwarm::registerOverrides(native::NativeOverrideCatalog &natives) {
+  natives.declare(0x800281ECu, "FxSpriteSwarm::emitPerParticle", &FxSpriteSwarm::emitPerParticle);
 }
+
+} // namespace tomba

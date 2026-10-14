@@ -27,11 +27,13 @@
 
 #include "core.h"
 #include "core/engine/engine.h"
-#include "core/entry/game_ctx.h"
+#include "entry/tomba_session.h"
 #include "guest_abi.h" // GuestFrame — mirror the guest stack frame (CLAUDE.md)
 #include "guest_call.h"
 #include "render/screen_fade.h"
 #include <cstdint>
+
+namespace tomba {
 
 namespace {
 
@@ -61,26 +63,6 @@ inline uint32_t grayRGB(uint32_t u) {
 // Set the ret code v0 the way the guest fn's `jr ra` would leave it — read back by callFnptr.
 inline void setV0(Core *c, uint32_t v) {
   c->r[2] = v;
-}
-
-// Small leaf-call helpers (substrate leaves kept reachable).
-inline void callObj2(Core *c, uint32_t a, uint32_t b, uint32_t addr) {
-  c->r[4] = a;
-  c->r[5] = b;
-  psx::cpu::dispatchGuestToReturn0(*c, addr, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
-}
-inline void callObj3(Core *c, uint32_t a, uint32_t b, uint32_t d, uint32_t addr) {
-  c->r[4] = a;
-  c->r[5] = b;
-  c->r[6] = d;
-  psx::cpu::dispatchGuestToReturn0(*c, addr, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
-}
-inline void callObj4(Core *c, uint32_t a, uint32_t b, uint32_t d, uint32_t e, uint32_t addr) {
-  c->r[4] = a;
-  c->r[5] = b;
-  c->r[6] = d;
-  c->r[7] = e;
-  psx::cpu::dispatchGuestToReturn0(*c, addr, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
 }
 
 } // namespace
@@ -139,7 +121,7 @@ void beh_a06_fade_flash_ramp_80139728(Core *c) {
       c->mem_w8(obj + O_STATE_78, (uint8_t)(state + 1u));
       c->mem_w8(G_E806C, 7u);
       // FUN_8006CBD0(0x800E8008, &DAT_8014994C) — geomblk / cmd-list attach; keep as substrate.
-      callObj2(c, OBJ_A_800E8008, DAT_8014994C, 0x8006CBD0u);
+      psx::cpu::callGuestNow(*c, "beh_a06_script_fades", 0x8006CBD0u, OBJ_A_800E8008, DAT_8014994C);
     }
     break;
   }
@@ -190,7 +172,7 @@ void beh_a06_spawn_follow_obj_8013AEF0(Core *c) {
   const uint32_t sp = c->r[29];
   c->mem_w32(sp + 16, c->r[31]);
   c->r[31] = 0x8013AF08u;
-  callObj4(c, param1, 3u, 3u, 0x3Fu, 0x80072DDCu);
+  psx::cpu::callGuestNow(*c, "beh_a06_script_fades", 0x80072DDCu, param1, 3u, 3u, 0x3Fu);
   const uint32_t newObj = c->r[2];
   if (newObj == 0) {
     c->r[31] = c->mem_r32(sp + 16);
@@ -203,7 +185,7 @@ void beh_a06_spawn_follow_obj_8013AEF0(Core *c) {
   c->mem_w8(newObj + 0x28u, (uint8_t)(c->mem_r8(newObj + 0x28u) | 0x80u));
   if ((int8_t)c->mem_r8(G_BF8D5) != -1) {
     c->r[31] = 0x8013AF4Cu;
-    callObj2(c, 0x31u, 1u, 0x8004D604u);
+    psx::cpu::callGuestNow(*c, "beh_a06_script_fades", 0x8004D604u, 0x31u, 1u);
   }
   c->r[31] = c->mem_r32(sp + 16);
   c->r[29] += 24;
@@ -225,7 +207,7 @@ void beh_a06_sound_cmd_wait_8013AFD8(Core *c) {
     c->mem_w16(scratchArg + 0u, 0x34E8u);
     c->mem_w16(scratchArg + 4u, 0xE1BAu);
     c->mem_w16(scratchArg + 8u, 30000u);
-    callObj3(c, obj, 1u, scratchArg, 0x80070F00u);
+    psx::cpu::callGuestNow(*c, "beh_a06_script_fades", 0x80070F00u, obj, 1u, scratchArg);
     c->r[4] = 3u;
     psx::cpu::dispatchGuestToReturn0(*c, 0x800708B4u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
     c->r[29] = sp_save;
@@ -257,7 +239,7 @@ void beh_a06_spawn_subobj_8013B074(Core *c) {
   c->mem_w16(scratchArg + 0u, 0x3340u);
   c->mem_w16(scratchArg + 4u, 0xDFEAu);
   c->mem_w16(scratchArg + 8u, 0x6F86u);
-  callObj3(c, 0x718u, scratchArg, (uint32_t)(int32_t)-0x32, 0x8003116Cu);
+  psx::cpu::callGuestNow(*c, "beh_a06_script_fades", 0x8003116Cu, 0x718u, scratchArg, (uint32_t)(int32_t)-0x32);
   const uint32_t newObj = c->r[2];
   if (newObj) {
     c->mem_w8(newObj + 0x28u, (uint8_t)(c->mem_r8(newObj + 0x28u) | 0x80u));
@@ -322,7 +304,7 @@ void beh_a06_music_cue_8013B274(Core *c) {
   GuestFrame<24, 1> frame(c, kSpills_8013B274);
   const uint32_t obj = c->r[4];
   const uint32_t parent = c->mem_r32(obj + O_D0);
-  callObj3(c, parent, 0xFu, 4u, 0x80051B04u);
+  psx::cpu::callGuestNow(*c, "beh_a06_script_fades", 0x80051B04u, parent, 0xFu, 4u);
   setV0(c, 1u);
 }
 
@@ -336,7 +318,6 @@ void beh_a06_timer_gate_8013B29C(Core *c) {
   if (st == 0) {
     c->mem_w8(obj + O_STATE_78, 1u);
     c->mem_w16(obj + O_LEVEL_40, 60u);
-    st = 1;
     // fall to state 1
   } else if (st != 1) {
     setV0(c, 0u); // unknown state — pause
@@ -355,3 +336,5 @@ void beh_a06_timer_gate_8013B29C(Core *c) {
   }
   setV0(c, 1u);
 }
+
+} // namespace tomba

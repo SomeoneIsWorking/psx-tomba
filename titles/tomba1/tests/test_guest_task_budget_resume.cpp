@@ -45,11 +45,12 @@
 #include "context.h"
 #include "core.h"
 #include "game.h"
-#include "game_runtime.h"
 #include "guest_task_slots.h"
 #include "lightrec_executor.h"
 #include "native_dispatch.h"
+#include "stub_game_runtime.h"
 
+#include <charconv>
 #include <sys/wait.h>
 #include <unistd.h>
 
@@ -102,10 +103,16 @@ constexpr std::uint32_t encodeJal(std::uint32_t target) {
   return 0x0C000000u | ((target >> 2u) & 0x03FFFFFFu);
 }
 
+struct WriteConstantArgs {
+  std::uint32_t at;
+  std::uint32_t rt;
+  std::uint32_t value;
+};
 // A full 32-bit constant in two instructions. `ori` zero-extends its immediate, so a value whose low
 // half is 0x8000 or more would come out 65,536 too large; that case goes through `addiu`'s sign
 // extension with the high half carried instead.
-void writeConstant(Core &core, std::uint32_t at, std::uint32_t rt, std::uint32_t value) {
+void writeConstant(Core &core, const WriteConstantArgs &args) {
+  auto [at, rt, value] = args;
   const std::uint32_t high = value & 0xFFFF0000u;
   const std::uint32_t low = value & 0xFFFFu;
   if (low < 0x8000u) {
@@ -169,7 +176,7 @@ void writeCountdownGuest(Core &core) {
   core.mem_w32(base + 0x14u, encodeSw(kT1, kT0, 0));
   core.mem_w32(base + 0x18u, encodeLui(kT0, static_cast<std::uint16_t>(kCountdownCell >> 16u)));
   core.mem_w32(base + 0x1Cu, encodeOri(kT0, kT0, static_cast<std::uint16_t>(kCountdownCell & 0xFFFFu)));
-  writeConstant(core, base + 0x20u, kT1, kCountdownInitial);
+  writeConstant(core, {.at = base + 0x20u, .rt = kT1, .value = kCountdownInitial});
   core.mem_w32(base + 0x28u, encodeSw(kT1, kT0, 0));
   core.mem_w32(loop + 0x00u, encodeLw(kT2, kT0, 0));
   core.mem_w32(loop + 0x04u, encodeBeqz(kT2, static_cast<std::int16_t>((done - (loop + 0x08u)) / 4u)));
@@ -196,7 +203,7 @@ void writeSpinGuest(Core &core, std::uint32_t countdown) {
   const std::uint32_t spin = base + 0x60u;
   core.mem_w32(base + 0x00u, encodeLui(kT0, static_cast<std::uint16_t>(kSpinCountCell >> 16u)));
   core.mem_w32(base + 0x04u, encodeOri(kT0, kT0, static_cast<std::uint16_t>(kSpinCountCell & 0xFFFFu)));
-  writeConstant(core, base + 0x08u, kT1, countdown);
+  writeConstant(core, {.at = base + 0x08u, .rt = kT1, .value = countdown});
   core.mem_w32(base + 0x10u, encodeSw(kT1, kT0, 0));
   core.mem_w32(base + 0x14u, encodeLui(kT2, static_cast<std::uint16_t>(kSpinArmCell >> 16u)));
   core.mem_w32(base + 0x18u, encodeOri(kT2, kT2, static_cast<std::uint16_t>(kSpinArmCell & 0xFFFFu)));
@@ -240,21 +247,10 @@ void writeExitGuest(Core &core) {
 }
 
 // The product's per-Core Context, because the task leaves reach this Core's slots through it.
-class Runtime final : public GameRuntime {
+class Runtime final : public psx::test::StubGameRuntime {
 public:
-  void *createContext(Core &core) override {
-    return new tomba1::Context(core);
-  }
-  void destroyContext(void *context) override {
-    delete static_cast<tomba1::Context *>(context);
-  }
-  void registerOverrides(Game &) override {}
-  void bootInit(Core &) override {}
-  RenderCapabilities renderCapabilities() const override {
-    return RenderCapabilities::direct();
-  }
-  bool guestVramIsPicture(const Game &) const override {
-    return false;
+  std::unique_ptr<psx::game::TitleSessionState> createSession(Game &game) override {
+    return std::make_unique<tomba1::Context>(game.core);
   }
 };
 
@@ -314,7 +310,10 @@ std::vector<FieldReport> parseFieldLog(const std::string &text) {
       break;
     }
     FieldReport report{};
-    if (std::sscanf(text.c_str() + at, "%d %u", &report.field, &report.state) == 2) {
+    const char *last = text.data() + end;
+    const auto field = std::from_chars(text.data() + at, last, report.field);
+    if (field.ec == std::errc{} && field.ptr < last && *field.ptr == ' ' &&
+        std::from_chars(field.ptr + 1, last, report.state).ec == std::errc{}) {
       reports.push_back(report);
     }
     at = end + 1u;
@@ -380,7 +379,7 @@ int measureFiniteCall(Core &core) {
   // that dispatched nothing at all, and with one that quietly interpreted the guest instead of
   // translating it: the dead-tap shape, a confident answer about the wrong subject.
   const std::uint64_t executed = counters.executedInstructions - instructionsBefore;
-  check(executed >= 2u * kCountdownInitial,
+  check(executed >= std::uint64_t{2} * kCountdownInitial,
         "the countdown guest really executed guest instructions, at least one per unit of its work, in BOTH calls");
   check(counters.fallback.calls == fallbacksBefore, "the guests ran on the dynarec with no interpreter fallback");
   return firstCallFields;
@@ -405,9 +404,7 @@ void checkTaskExit(Core &core) {
 
 int main() {
   Runtime runtime;
-  psxport_install_game(runtime);
-
-  auto game = std::make_unique<Game>();
+  auto game = std::make_unique<Game>(runtime, psx::config::Config{});
   Core &core = game->core;
   core.imageCatalog().activate("tomba1-budget-resume", {kImageBegin, kImageEnd}, 0x42554447ull);
   check(installTaskLeaves(core), "the measured task leaves bind to the activated test image");

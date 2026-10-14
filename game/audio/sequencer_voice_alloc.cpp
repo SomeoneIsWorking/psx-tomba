@@ -6,12 +6,10 @@
 #include "audio/libsnd_globals.h"
 #include "audio/sequencer_record.h"
 #include "core.h"
-#include "core/entry/game_ctx.h"
 #include "core/overrides/guest_jal.h"
 #include "core/overrides/native_override_catalog.h"
-#include "execution_services.h"
+#include "entry/tomba_session.h"
 #include "game.h"
-#include "guest_abi.h"
 #include "guest_call.h"
 
 namespace tomba::audio {
@@ -29,7 +27,7 @@ void Sequencer::voiceAllocateOrSteal() {
   c->r[2] = (uint32_t)32784u << 16;
   c->r[2] = (uint32_t)c->mem_r8(c->r[2] + 23815u);
   c->r[3] = (uint32_t)32784u << 16;
-  c->r[3] = (uint32_t)(int8_t)c->mem_r8(c->r[3] + 23788u);
+  c->r[3] = (uint32_t)c->mem_r8s(c->r[3] + 23788u);
   c->r[2] = c->r[2] << 24;
   {
     int _t = ((int32_t)c->r[3] <= 0);
@@ -57,7 +55,7 @@ L_80094198:
   c->r[3] = c->r[2] << 3;
   c->r[2] = (uint32_t)32784u << 16;
   c->r[2] = c->r[2] + c->r[3];
-  c->r[2] = (uint32_t)(int8_t)c->mem_r8(c->r[2] + 21733u);
+  c->r[2] = (uint32_t)c->mem_r8s(c->r[2] + 21733u);
   {
     int _t = (c->r[2] != c->r[0]);
     c->r[2] = c->r[7] & 255u;
@@ -183,7 +181,7 @@ L_800942C8:
   c->r[11] = (uint32_t)c->mem_r8(c->r[11] + 23788u);
 L_800942E8:
   c->r[3] = (uint32_t)32784u << 16;
-  c->r[3] = (uint32_t)(int8_t)c->mem_r8(c->r[3] + 23788u);
+  c->r[3] = (uint32_t)c->mem_r8s(c->r[3] + 23788u);
   c->r[2] = c->r[11] & 255u;
   c->r[2] = (uint32_t)((int32_t)c->r[2] < (int32_t)c->r[3]);
   {
@@ -264,8 +262,8 @@ static void nat_voiceAllocateOrSteal(Core *c) {
   eng(c).sequencer.voiceAllocateOrSteal();
 }
 
-void declareVoiceAllocOverrides() {
-  tomba::native::declareOverride(0x80094150u, "nat_voiceAllocateOrSteal", nat_voiceAllocateOrSteal);
+void declareVoiceAllocOverrides(native::NativeOverrideCatalog &natives) {
+  natives.declare(0x80094150u, "nat_voiceAllocateOrSteal", nat_voiceAllocateOrSteal);
 }
 
 } // namespace tomba::audio

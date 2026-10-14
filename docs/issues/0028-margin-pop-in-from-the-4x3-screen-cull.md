@@ -1,5 +1,7 @@
 # 0028 — margin pop-in from the 4:3 screen-edge cull
 
+Features: F-WIDE.
+
 Status: open. Native X gates, the model emitter copies that match a native, the tile-grid skies and the
 A0B backdrop fixed; the emitter bodies that differ from every native remain.
 

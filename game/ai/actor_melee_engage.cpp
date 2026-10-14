@@ -18,8 +18,8 @@
 // comment alone.
 #include "actor_melee_engage.h"
 #include "core.h"
-#include "core/entry/game_ctx.h"
 #include "core/overrides/native_override_catalog.h"
+#include "entry/tomba_session.h"
 #include "game.h"
 #include "guest_call.h"
 #include "math/trig.h"
@@ -27,7 +27,10 @@
 // Still-substrate leaves this session did not chase (see .h banner). typed runtime address dispatch already declared
 // by core.h.
 
-int32_t ActorMeleeEngage::doIt(uint32_t self, uint32_t target, uint32_t anchor) { // FUN_80112188 — UNWIRED draft
+namespace tomba {
+
+int32_t ActorMeleeEngage::doIt(const DoItArgs &args) { // FUN_80112188 — UNWIRED draft
+  auto [self, target, anchor] = args;
   Core *c = core;
 
   // ---- kind-based anchor-Z bias: target.kind==5 -> -70, else 0 -----------------------------------
@@ -134,12 +137,12 @@ int32_t ActorMeleeEngage::doIt(uint32_t self, uint32_t target, uint32_t anchor) 
 
     const int32_t angleS16 = (int16_t)c->mem_r32(0x1F80009Cu);
     // CALL1: angleCmp(angle, self+320, mode=1) -> turnA; stamped (+2) into self+95.
-    const int32_t turnA = trigOf(c).angleCmp(angleS16, self320, 1);
+    const int32_t turnA = trigOf(c).angleCmp({.a = angleS16, .b = self320, .mode = 1});
     c->mem_w8(self + 95u, (uint8_t)(turnA + 2));
 
     // CALL2: angleCmp(self+86, angle, mode=0) -> turnB. turnB==0 is a plain early return (no state
     // stamp on this path — only the two branches below the target[+95] check ever write state 19).
-    const int32_t turnB = trigOf(c).angleCmp((int16_t)c->mem_r16s(self + 86u), angleS16, 0);
+    const int32_t turnB = trigOf(c).angleCmp({.a = (int16_t)c->mem_r16s(self + 86u), .b = angleS16, .mode = 0});
     if (turnB == 0) {
       return 1;
     }
@@ -202,7 +205,7 @@ int32_t ActorMeleeEngage::doIt(uint32_t self, uint32_t target, uint32_t anchor) 
   // Shared abort tail (L_801125AC in the guest instruction path): cleanup(self) + target+94=0, always returns 2.
   auto abortToDisengage = [&]() -> int32_t {
     c->r[4] = self;
-    psx::cpu::dispatchGuestToReturn0(*c, 0x80022C78u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::dispatchGuestToReturn0(*c, 0x80022C78u, psx::cpu::ExecutionBudget::currentTurn(*c), "actor_melee_engage");
     c->mem_w8(target + 94u, 0);
     return 2;
   };
@@ -302,7 +305,7 @@ void ActorMeleeEngage::doItFramed() {
   c->mem_w32(c->r[29] + 36, save19);
   c->mem_w32(c->r[29] + 24, save16);
 
-  c->r[2] = (uint32_t)doIt(self, target, anchor);
+  c->r[2] = (uint32_t)doIt({.self = self, .target = target, .anchor = anchor});
 
   c->r[31] = c->mem_r32(c->r[29] + 60);
   c->r[30] = c->mem_r32(c->r[29] + 56);
@@ -322,7 +325,7 @@ void ActorMeleeEngage::doItFramed() {
 // inside ov_a00_shard_1.c itself (lines ~4262/5255) — i.e. calls through the recorded binary evidence's OWN
 // per-overlay image-qualified runtime dispatcher table, never through typed runtime address dispatch. Installing
 // without a setter would be invisible to that call shape, so `tomba::native::declareOverride` is passed A00
-// tomba::native::declareOverride as the setter, same pattern as game/core/pc_scheduler.cpp /
+// tomba::native::declareOverride as the setter, same pattern as game/core/sched/tomba_scheduler.cpp /
 // game/object/actor_sm_reward.cpp.
 // ---------------------------------------------------------------------------------------------
 namespace {
@@ -331,9 +334,11 @@ void ov_actorMeleeEngage(Core *c) {
 }
 } // namespace
 
-void ActorMeleeEngage::registerOverrides(Game * /*game*/) {
+void ActorMeleeEngage::registerOverrides(native::NativeOverrideCatalog &natives) {
   // A00, from the image: of 23 authenticated MODE images only A00 holds a function at 0x80112188
   // (281 words), and the address is inside A00's loaded text range. The address is NOT resident, so the
   // resident form could never install this and the guest body ran instead (issue 0015).
-  tomba::native::declareOverlayOverride("A00", 0x80112188u, "ActorMeleeEngage::doIt", ov_actorMeleeEngage);
+  natives.declareOverlay("A00", 0x80112188u, "ActorMeleeEngage::doIt", ov_actorMeleeEngage);
 }
+
+} // namespace tomba

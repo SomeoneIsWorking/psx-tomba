@@ -13,11 +13,10 @@
 #include <unordered_set>
 #include <vector>
 
+namespace tomba {
+
 class MarginRenderer {
 public:
-  // True (default) to collect instead of poking +1; PSXPORT_MARGIN_POKE=1 selects the poke.
-  int nativeEnabled();
-
   // Called from the cull for an object the wide frustum re-includes. Records the node for the
   // post-walk flush. Deduped per frame (the cull runs several times per object via the submit
   // wrappers). Takes the Core to read the node's type from this instance's RAM.
@@ -26,11 +25,10 @@ public:
   // Called from ObjectList::walkAll after both list walks: ends the frame's collection.
   void flush(Core *c);
 
-  bool dbg_ = false;
-
 private:
-  int mNativeEnabled = -1; // lazy PSXPORT_MARGIN_POKE latch (-1 = not read yet)
   std::vector<uint32_t> nodes_;
   std::unordered_set<uint32_t> seen_;
 };
+
+} // namespace tomba
 #endif

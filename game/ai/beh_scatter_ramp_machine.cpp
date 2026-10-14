@@ -26,15 +26,16 @@
 // tests). The byte-exact A/B gate (full RAM+scratchpad vs original guest-body call) is the safety net. a0/a1/a2 written
 // into c->r only for the leaf calls (= the guest writes there). v0 (handler return) is NOT reproduced.
 
-#include "cfg.h"
 #include "core.h"
-#include "core/entry/game_ctx.h"
+#include "entry/tomba_session.h"
 #include "guest_abi.h"   // GuestFrame — mirror the guest stack frame (CLAUDE.md)
 #include "render/cull.h" // Cull::coneCull2b278 (FUN_8002B278)
 #include "spawn.h"       // class Spawn (eng(c).spawn.despawn / dispatch / spawnAndInit)
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+namespace tomba {
 
 namespace {
 
@@ -226,8 +227,8 @@ Lcc98: // sub-state 7
   c->mem_w8(a3 + 4, 30); // node[0x54] = 30
                          // fall into Lccc4
 Lccc4:
-  eng(c).sfx.trigger(7, 0, 0);   // FUN_80074590 (native)
-  eng(c).sfx.trigger(148, 0, 0); // FUN_80074590 (native; id 148 → path A per-area)
+  eng(c).sfx.trigger({.id = 7, .pan = 0, .pitchBend = 0});   // FUN_80074590 (native)
+  eng(c).sfx.trigger({.id = 148, .pan = 0, .pitchBend = 0}); // FUN_80074590 (native; id 148 → path A per-area)
   goto Lcd60;
 
 Lcce4: // sub-state 8
@@ -288,3 +289,5 @@ Lcdac:
 Lret:
   return;
 }
+
+} // namespace tomba

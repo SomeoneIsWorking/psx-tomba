@@ -58,6 +58,8 @@
 #include "core/overrides/native_override_catalog.h"
 #include "guest_abi.h"
 
+namespace tomba {
+
 namespace {
 
 // tools/binary ABI evidence 0x8010E258 --scaffold --guestabi, in the guest's program order
@@ -127,7 +129,7 @@ void ActorObjectContact::resolveHitOrProximity(Core *c) {
   const ContactObject obj{c, c->r[20]};
 
   c->r[6] = 1;
-  tomba::guest::dispatchJalToReturn(*c, 0x8010DFD8u, kRaAfterHitTest);
+  tomba::guest::dispatchJalToReturn(*c, {.target = 0x8010DFD8u, .returnAddress = kRaAfterHitTest});
   const int32_t hit = (int32_t)c->r[2];
 
   if (hit < 0) {
@@ -149,7 +151,7 @@ void ActorObjectContact::resolveHitOrProximity(Core *c) {
     guest_mult(c, (int32_t)(uint32_t)deltaZ, (int32_t)(uint32_t)deltaZ);
 
     c->r[4] = dxSq + c->lo;
-    tomba::guest::dispatchJalToReturn(*c, kSqrtLzc, kRaAfterDistance);
+    tomba::guest::dispatchJalToReturn(*c, {.target = kSqrtLzc, .returnAddress = kRaAfterDistance});
     const uint32_t distance = c->r[2] & 0xFFFFu;
 
     uint32_t touching = 0;
@@ -160,7 +162,7 @@ void ActorObjectContact::resolveHitOrProximity(Core *c) {
         // The heading from the object to the actor, published where the follow-up reads it back.
         c->r[4] = (uint32_t)(0 - (int32_t)(uint32_t)deltaZ);
         c->r[5] = (uint32_t)deltaX;
-        tomba::guest::dispatchJalToReturn(*c, kRatan2, kRaAfterAngle);
+        tomba::guest::dispatchJalToReturn(*c, {.target = kRatan2, .returnAddress = kRaAfterAngle});
         c->mem_w32(kScratchpadBase + kContactAngleSlot, c->r[2]);
         touching = 1;
       }
@@ -175,7 +177,7 @@ void ActorObjectContact::resolveHitOrProximity(Core *c) {
     c->r[7] = 0;
     const uint32_t angle = c->mem_r32(kScratchpadBase + kContactAngleSlot);
     actor.setContactState((uint8_t)((int32_t)angle >> kAngleToByte));
-    tomba::guest::dispatchJalToReturn(*c, kProximityFollowUp, kRaAfterProximity);
+    tomba::guest::dispatchJalToReturn(*c, {.target = kProximityFollowUp, .returnAddress = kRaAfterProximity});
     return;
   }
 
@@ -184,7 +186,7 @@ void ActorObjectContact::resolveHitOrProximity(Core *c) {
   c->r[5] = c->r[20];
   c->r[6] = (uint32_t)hit;
   c->r[7] = 1;
-  tomba::guest::dispatchJalToReturn(*c, kHitFollowUp, kRaAfterHitApply);
+  tomba::guest::dispatchJalToReturn(*c, {.target = kHitFollowUp, .returnAddress = kRaAfterHitApply});
   // NOTE THE 129, and it is NOT a typo for 1. The guest compares the phase byte against 1, and that
   // branch's delay slot then leaves 129 in the same register, so the SECOND comparison — the kind
   // byte — is against 129. Reading it as 1 would gate the whole hit reaction on the wrong value, and
@@ -204,9 +206,11 @@ void ActorObjectContact::resolveHitOrProximity(Core *c) {
   obj.setContactState((uint8_t)(((int32_t)(angle + (uint32_t)kOppositeTurn)) >> kAngleToByte));
 }
 
-void ActorObjectContact::registerOverrides() {
+void ActorObjectContact::registerOverrides(native::NativeOverrideCatalog &natives) {
   // A00, from the image: of 23 authenticated MODE images only A00 holds a function at 0x8010E258
   // (108 words), and the address is inside A00's loaded text range.
-  tomba::native::declareOverlayOverride(
+  natives.declareOverlay(
       "A00", 0x8010E258u, "ActorObjectContact::resolveHitOrProximity", &ActorObjectContact::resolveHitOrProximity);
 }
+
+} // namespace tomba

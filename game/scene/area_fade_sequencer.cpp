@@ -2,11 +2,13 @@
 #include "area_fade_sequencer.h"
 #include "core.h"
 #include "core/engine/engine.h"
-#include "core/entry/game_ctx.h"
+#include "entry/tomba_session.h"
 #include "guest_call.h"
 #include "render/screen_fade.h"
 
 // 0x8010CC68 (returns ready-to-advance in v0) and 0x8010D030 (node init) stay guest.
+namespace tomba {
+
 void AreaFadeSequencer::step(uint32_t node) {
   Core *c = core;
   const uint8_t outer = c->mem_r8(node + 2);
@@ -39,12 +41,12 @@ void AreaFadeSequencer::step(uint32_t node) {
 
   auto rampLevel = [&](int32_t sign) -> uint32_t {
     // v = (level << 3) [negated if sign<0] & 0xFF, replicated into R/G/B.
-    const int16_t level = c->mem_r16s(node + 106);
+    const int16_t level = (int16_t)c->mem_r16(node + 106);
     const uint32_t v = (uint32_t)((sign < 0) ? -(level << 3) : (level << 3)) & 0xFFu;
     return (v << 16) | (v << 8) | v;
   };
   auto decrementLevelClamped = [&]() {
-    const int16_t level = c->mem_r16s(node + 106);
+    const int16_t level = (int16_t)c->mem_r16(node + 106);
     if (level != 0) {
       c->mem_w16(node + 106, (uint16_t)(level - 1));
     }
@@ -57,7 +59,7 @@ void AreaFadeSequencer::step(uint32_t node) {
     psx::cpu::dispatchGuestToReturn0(*c,
                                      0x8010CC68u,
                                      psx::cpu::ExecutionBudget::currentTurn(*c),
-                                     __func__); // overlay guest 0x8010CC68 — returns bool in v0
+                                     "area_fade_sequencer"); // overlay guest 0x8010CC68 — returns bool in v0
   };
 
   switch (substep) {
@@ -126,5 +128,9 @@ void AreaFadeSequencer::step(uint32_t node) {
     advanceStep();
     return;
   }
+  default:
+    break;
   }
 }
+
+} // namespace tomba

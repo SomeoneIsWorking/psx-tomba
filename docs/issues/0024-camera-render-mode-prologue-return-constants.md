@@ -1,5 +1,7 @@
 # 0024 — the render-mode prologue's guest return constants are per (mode, render mode) PAIR
 
+Features: F-RENDER.
+
 Found 2026-09-28 during the readability pass over `game/camera/cutscene_camera.cpp`. **Not fixed**,
 because the pass was behaviour-preserving and this one is a behaviour question, not a readability one.
 

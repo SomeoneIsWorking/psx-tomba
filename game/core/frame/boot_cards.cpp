@@ -1,11 +1,10 @@
 #include "frame/boot_cards.h"
 
 #include "core.h"
-#include "frame/movie_policy.h"
+#include "entry/tomba_session.h"
+#include "frame/frame_cadence.h"
 #include "game.h"
-#include "gpu_native_internal.h"
 #include "gpu_vk.h"
-#include "host_input.h"
 #include "scea_asset.h"
 
 #include <lucent/log.h>
@@ -61,7 +60,8 @@ void BootCards::stepScea(Core &core) {
   } else {
     gpu_vk_present_image(
         &core, sceaImage_.data(), SCEA_DISP_W, SCEA_DISP_H, static_cast<float>(sceaFade(sceaFrame_)) / kFadeFull);
-    game.framePacer.paceFrame(core);
+    // The card frames were measured at the stub's 30 fps rate.
+    game.framePacer.paceSubframeFields(core, FrameCadence::kRetailVblanksPerLogicFrame, 1);
   }
   if (skipped || ++sceaFrame_ >= kSceaFrames) {
     sceaImage_ = {};
@@ -74,7 +74,7 @@ void BootCards::stepMovie(Core &core) {
   Game &game = *core.game;
   if (!movieOpen_) {
     movieOpen_ = true;
-    if (!MoviePolicy::plays(false) || !game.fmv.beginPath(kBootMovie)) {
+    if (tombaSession(&core).settings.skipMovies || !game.fmv.beginPath(kBootMovie)) {
       finish(core);
       return;
     }

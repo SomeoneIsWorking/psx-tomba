@@ -3,7 +3,7 @@
 
 #include "core.h"
 
-namespace tomba2::world {
+namespace tomba::world {
 namespace {
 
 // The halves the guest body builds the stack addresses from, left in a0 and a2.
@@ -41,4 +41,4 @@ std::uint32_t RenderRecordPool::object(std::uint32_t record) const {
   return incarnationObject(record, found == generations_.end() ? 0u : found->second);
 }
 
-} // namespace tomba2::world
+} // namespace tomba::world

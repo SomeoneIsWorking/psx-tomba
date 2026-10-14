@@ -105,7 +105,8 @@ void GuestTaskSlots::createTask(Core &core, std::size_t slot, std::uint32_t entr
   core.mem_w16(record + kTaskRecordState, kTaskStateRunnable);
 }
 
-void GuestTaskSlots::runTaskSlot(Core &core, std::size_t slot, std::uint16_t state, const R3000 &loopContext) {
+void GuestTaskSlots::runTaskSlot(Core &core, const RunTaskSlotArgs &args) {
+  auto [slot, state, loopContext] = args;
   const std::uint32_t record = taskRecordAddress(slot);
   TaskSlot &task = tasks_[slot];
   for (int restartBudget = 0; restartBudget < 4; ++restartBudget) {
@@ -244,7 +245,7 @@ void GuestTaskSlots::runScheduledTasks(Core &core) {
     const std::uint32_t record = taskRecordAddress(slot);
     const std::uint16_t state = core.mem_r16(record + kTaskRecordState);
     if (state == kTaskStateRunnable || state == kTaskStateRestart) {
-      runTaskSlot(core, slot, state, loopContext);
+      runTaskSlot(core, {.slot = slot, .state = state, .loopContext = loopContext});
     }
   }
 }

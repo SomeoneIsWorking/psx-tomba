@@ -9,10 +9,9 @@
 // Profiled hot-list (field, later-186, docs/port-progress.md §F): FUN_80077FB0 isqrt = 8.41% of all
 // interpreter instructions (and a frequency leader). First port here.
 #include "gte_math.h" // class Math — static entry surface + ov_* free-fn decls for internal reuse
-#include "cfg.h"
 #include "core.h"
-#include "core/entry/game_ctx.h"
-#include "core/overrides/native_override_catalog.h" // tomba::native::declareOverride — the one native-override registry
+#include "core/overrides/native_override_catalog.h"
+#include "entry/tomba_session.h"
 #include "game.h"
 #include "trig.h" // Trig::vecLen — the single home of FUN_80078240's magnitude approximation
 #include <stdio.h>
@@ -33,6 +32,8 @@
 //   - final round-up: with r = result & 0xffff (unless r==0xffff), add 1 iff r^2 + r < a0
 //     (i.e. a0 > r·(r+1) ⇒ a0 is closer to (r+1)^2). Return r & 0xffff.
 // Pure leaf, no memory/GTE — bit-exact by construction; the comparator confirms on live calls.
+namespace tomba {
+
 static uint32_t isqrt16(uint32_t a0) {
   uint32_t hi = (a0 > 0x3fffffffu) ? 0xffff8000u : 0u; // v0 seed (top bit)
   uint32_t a1 = hi;                                    // result accumulator
@@ -105,7 +106,7 @@ static inline int64_t sign44(int64_t v) { // A_MV: sign-extend bit43 (overflow f
   return v;
 }
 static inline int16_t clamp16s(int32_t v) {
-  return v < -32768 ? -32768 : (v > 32767 ? 32767 : (int16_t)v);
+  return (int16_t)(v < -32768 ? -32768 : (v > 32767 ? 32767 : v));
 }
 static void load_mat3(Core *c, uint32_t p, int16_t m[3][3]) {
   uint32_t w0 = c->mem_r32(p), w1 = c->mem_r32(p + 4), w2 = c->mem_r32(p + 8), w3 = c->mem_r32(p + 12),
@@ -120,7 +121,8 @@ static void load_mat3(Core *c, uint32_t p, int16_t m[3][3]) {
   m[2][1] = (int16_t)(w3 >> 16);
   m[2][2] = (int16_t)w4;
 }
-uint32_t Math::matMul(uint32_t rPtr, uint32_t mPtr, uint32_t outPtr) { // FUN_80084110
+uint32_t Math::matMul(const MatrixProduct &args) { // FUN_80084110
+  auto [rPtr, mPtr, outPtr] = args;
   Core *c = this->core;
   int16_t R[3][3], M[3][3], P[3][3];
   load_mat3(c, rPtr, R);
@@ -129,15 +131,15 @@ uint32_t Math::matMul(uint32_t rPtr, uint32_t mPtr, uint32_t outPtr) { // FUN_80
   // following MVMVA (FUN_80084220 Math::applyMatlv reads CR0-4) sees this matrix. Replicate it so the CR
   // coupling is robust regardless of call order (was previously relying on a prior 80084470's CR write).
   for (int i = 0; i < 5; i++) {
-    gte_write_ctrl(i, c->mem_r32(rPtr + i * 4));
+    c->gte().writeControl(i, c->mem_r32(rPtr + i * 4));
   }
   int32_t mac1 = 0, mac2 = 0, mac3 = 0; // trailing MAC1-3 = last column's pre-clamp results (GTE leftover)
   for (int j = 0; j < 3; j++) {         // column j of M = MVMVA vector Vj
     for (int i = 0; i < 3; i++) {       // matrix row i
       int64_t tmp = 0;
-      tmp = sign44(tmp + (int32_t)R[i][0] * M[0][j]);
-      tmp = sign44(tmp + (int32_t)R[i][1] * M[1][j]);
-      tmp = sign44(tmp + (int32_t)R[i][2] * M[2][j]);
+      tmp = sign44(tmp + (int64_t)R[i][0] * M[0][j]);
+      tmp = sign44(tmp + (int64_t)R[i][1] * M[1][j]);
+      tmp = sign44(tmp + (int64_t)R[i][2] * M[2][j]);
       int32_t mac = (int32_t)(tmp >> 12);
       P[i][j] = clamp16s(mac);
       if (j == 2) {
@@ -156,16 +158,16 @@ uint32_t Math::matMul(uint32_t rPtr, uint32_t mPtr, uint32_t outPtr) { // FUN_80
   c->mem_w32(outPtr + 8, (uint16_t)P[1][1] | ((uint32_t)(uint16_t)P[1][2] << 16));
   c->mem_w32(outPtr + 12, (uint16_t)P[2][0] | ((uint32_t)(uint16_t)P[2][1] << 16));
   c->mem_w32(outPtr + 16, (uint32_t)(int32_t)P[2][2]); // SWC2 IR3: sign-extended 32-bit, not a packed halfword
-  // GTE leftover state a downstream gte_op reader could consume (the guest instruction path leaves the LAST
+  // GTE leftover state a downstream GTE command reader could consume (the guest instruction path leaves the LAST
   // column's input vector in DR0/DR1 (VXY0/VZ0) + that column's MVMVA result in IR1-3/MAC1-3).
-  gte_write_data(0, (uint32_t)(uint16_t)M[0][2] | ((uint32_t)(uint16_t)M[1][2] << 16)); // VXY0 = col2 (VX,VY)
-  gte_write_data(1, (uint32_t)(uint16_t)M[2][2]);                                       // VZ0 = col2 (VZ)
-  gte_write_data(9, (uint32_t)(uint16_t)P[0][2]);                                       // IR1
-  gte_write_data(10, (uint32_t)(uint16_t)P[1][2]);                                      // IR2
-  gte_write_data(11, (uint32_t)(uint16_t)P[2][2]);                                      // IR3
-  gte_write_data(25, (uint32_t)mac1);                                                   // MAC1
-  gte_write_data(26, (uint32_t)mac2);                                                   // MAC2
-  gte_write_data(27, (uint32_t)mac3);                                                   // MAC3
+  c->gte().writeData(0, (uint32_t)(uint16_t)M[0][2] | ((uint32_t)(uint16_t)M[1][2] << 16)); // VXY0 = col2 (VX,VY)
+  c->gte().writeData(1, (uint32_t)(uint16_t)M[2][2]);                                       // VZ0 = col2 (VZ)
+  c->gte().writeData(9, (uint32_t)(uint16_t)P[0][2]);                                       // IR1
+  c->gte().writeData(10, (uint32_t)(uint16_t)P[1][2]);                                      // IR2
+  c->gte().writeData(11, (uint32_t)(uint16_t)P[2][2]);                                      // IR3
+  c->gte().writeData(25, (uint32_t)mac1);                                                   // MAC1
+  c->gte().writeData(26, (uint32_t)mac2);                                                   // MAC2
+  c->gte().writeData(27, (uint32_t)mac3);                                                   // MAC3
   return outPtr;
 }
 
@@ -178,11 +180,12 @@ uint32_t Math::matMul(uint32_t rPtr, uint32_t mPtr, uint32_t outPtr) { // FUN_80
 // The MVMVA opcode itself is identical to applyMatlv (sf=1, mx=ROT, v=V0, cv=Null, lm=0).
 // Same 44-bit accumulator + >>12 as matMul. Returns outPtr in v0.
 // ORACLE: guest 0x80084470
-uint32_t Math::applyMatrixLV(uint32_t mPtr, uint32_t inPtr, uint32_t out) { // FUN_80084470
+uint32_t Math::applyMatrixLV(const MatrixVector &args) { // FUN_80084470
+  auto [mPtr, inPtr, out] = args;
   Core *c = this->core;
   // Load matrix into CR0-4 (faithful CTC2). Also read it as R[3][3] for the MVMVA math.
   for (int i = 0; i < 5; i++) {
-    gte_write_ctrl(i, c->mem_r32(mPtr + i * 4));
+    c->gte().writeControl(i, c->mem_r32(mPtr + i * 4));
   }
   int16_t R[3][3];
   load_mat3(c, mPtr, R);
@@ -192,9 +195,9 @@ uint32_t Math::applyMatrixLV(uint32_t mPtr, uint32_t inPtr, uint32_t out) { // F
   int16_t ir[3];
   for (int i = 0; i < 3; i++) {
     int64_t t = 0;
-    t = sign44(t + (int32_t)R[i][0] * v[0]);
-    t = sign44(t + (int32_t)R[i][1] * v[1]);
-    t = sign44(t + (int32_t)R[i][2] * v[2]);
+    t = sign44(t + (int64_t)R[i][0] * v[0]);
+    t = sign44(t + (int64_t)R[i][1] * v[1]);
+    t = sign44(t + (int64_t)R[i][2] * v[2]);
     mac[i] = (int32_t)(t >> 12);
     ir[i] = clamp16s(mac[i]);
   }
@@ -203,14 +206,14 @@ uint32_t Math::applyMatrixLV(uint32_t mPtr, uint32_t inPtr, uint32_t out) { // F
   c->mem_w32(out + 4, (uint32_t)mac[1]);
   c->mem_w32(out + 8, (uint32_t)mac[2]);
   // GTE leftovers: VXY0/VZ0 = the MTC2'd input; IR1-3, MAC1-3 = the MVMVA result.
-  gte_write_data(0, w0);
-  gte_write_data(1, w1);
-  gte_write_data(9, (uint32_t)(int32_t)ir[0]);
-  gte_write_data(10, (uint32_t)(int32_t)ir[1]);
-  gte_write_data(11, (uint32_t)(int32_t)ir[2]);
-  gte_write_data(25, (uint32_t)mac[0]);
-  gte_write_data(26, (uint32_t)mac[1]);
-  gte_write_data(27, (uint32_t)mac[2]);
+  c->gte().writeData(0, w0);
+  c->gte().writeData(1, w1);
+  c->gte().writeData(9, (uint32_t)(int32_t)ir[0]);
+  c->gte().writeData(10, (uint32_t)(int32_t)ir[1]);
+  c->gte().writeData(11, (uint32_t)(int32_t)ir[2]);
+  c->gte().writeData(25, (uint32_t)mac[0]);
+  c->gte().writeData(26, (uint32_t)mac[1]);
+  c->gte().writeData(27, (uint32_t)mac[2]);
   return out;
 }
 
@@ -248,11 +251,23 @@ constexpr int kMvmvaFracShift = 12; // MVMVA sf=1 → the 44-bit accumulator is 
 // The SIN/COS lookup table every SOFTWARE (non-GTE) rotation builder in this file shares. 4096
 // entries — PSX angle units, 4096 = one full turn — each a packed word { s16 sin @low half, s16 cos
 // @high half } in 12-bit fixed point (4096 = 1.0). Only |angle| indexes it; sin's odd symmetry is
-// applied by the caller (softTrig / rotpair_trig), which is why the table is a quarter the size a
+// applied by the caller (lutSinCos), which is why the table is a quarter the size a
 // signed index would need.
 constexpr uint32_t kSinCosTable = 0x800a6490u;
 constexpr uint32_t kAngleMask = 0xfffu; // index = |angle| & this (4096 units = one turn)
-constexpr int kTrigFracShift = 12;      // trig terms are 12-bit fixed → every product is >>12
+
+// The libgte SIN/COS LUT: cos is the word's high half, sin its low half, made odd by the angle's sign.
+struct SinCos {
+  int32_t sin;
+  int32_t cos;
+};
+static SinCos lutSinCos(Core *c, int32_t angle) {
+  const uint32_t index = (angle >= 0) ? ((uint32_t)angle & kAngleMask) : ((0u - (uint32_t)angle) & kAngleMask);
+  const uint32_t word = c->mem_r32(kSinCosTable + (index << 2));
+  const int32_t sinv = (int16_t)word;
+  return {.sin = angle < 0 ? -sinv : sinv, .cos = (int32_t)word >> 16};
+}
+constexpr int kTrigFracShift = 12; // trig terms are 12-bit fixed → every product is >>12
 // Row-major 3x3 s16 ELEMENT offsets. Same 18 bytes the CR-packed kMatOffR* words cover, addressed
 // one element at a time — which is how the software builders (rotMatSoft / rotMatSoftInverse /
 // rotMatSoftYXZ) write them, via `sh`, not `sw`.
@@ -302,15 +317,16 @@ constexpr uint32_t kMat3OffM20 = 12, kMat3OffM21 = 14, kMat3OffM22 = 16;
 //       offset, not just a width change.
 // Everything else (the CTC2 matrix load, the MVMVA opcode, the 44-bit accumulate and >>12) is shared.
 // ORACLE: guest 0x800844C0
-uint32_t Math::applyMatrixSV(uint32_t mPtr, uint32_t inPtr, uint32_t out) {
+uint32_t Math::applyMatrixSV(const MatrixVector &args) {
+  auto [mPtr, inPtr, out] = args;
   Core *c = this->core;
   // (1) CTC2 the caller's MATRIX into the GTE rotation control regs. Faithful: a later still-PSX
   //     MVMVA (Math::applyMatlv reads CR0-4 without loading them) must see this matrix.
-  gte_write_ctrl(kGteCrRotR11R12, c->mem_r32(mPtr + kMatOffR11R12));
-  gte_write_ctrl(kGteCrRotR13R21, c->mem_r32(mPtr + kMatOffR13R21));
-  gte_write_ctrl(kGteCrRotR22R23, c->mem_r32(mPtr + kMatOffR22R23));
-  gte_write_ctrl(kGteCrRotR31R32, c->mem_r32(mPtr + kMatOffR31R32));
-  gte_write_ctrl(kGteCrRotR33, c->mem_r32(mPtr + kMatOffR33));
+  c->gte().writeControl(kGteCrRotR11R12, c->mem_r32(mPtr + kMatOffR11R12));
+  c->gte().writeControl(kGteCrRotR13R21, c->mem_r32(mPtr + kMatOffR13R21));
+  c->gte().writeControl(kGteCrRotR22R23, c->mem_r32(mPtr + kMatOffR22R23));
+  c->gte().writeControl(kGteCrRotR31R32, c->mem_r32(mPtr + kMatOffR31R32));
+  c->gte().writeControl(kGteCrRotR33, c->mem_r32(mPtr + kMatOffR33));
   int16_t R[3][3];
   load_mat3(c, mPtr, R); // the same 5 words, unpacked for the math below
   // (2) the input SVECTOR: X|Y<<16 in the first word, Z in the low half of the second (the guest
@@ -323,9 +339,9 @@ uint32_t Math::applyMatrixSV(uint32_t mPtr, uint32_t inPtr, uint32_t out) {
   int16_t ir[3];
   for (int i = 0; i < 3; i++) {
     int64_t t = 0;
-    t = sign44(t + (int32_t)R[i][0] * v[0]);
-    t = sign44(t + (int32_t)R[i][1] * v[1]);
-    t = sign44(t + (int32_t)R[i][2] * v[2]);
+    t = sign44(t + (int64_t)R[i][0] * v[0]);
+    t = sign44(t + (int64_t)R[i][1] * v[1]);
+    t = sign44(t + (int64_t)R[i][2] * v[2]);
     mac[i] = (int32_t)(t >> kMvmvaFracShift);
     ir[i] = clamp16s(mac[i]);
   }
@@ -336,14 +352,14 @@ uint32_t Math::applyMatrixSV(uint32_t mPtr, uint32_t inPtr, uint32_t out) {
   c->mem_w16(out + kSVecOffZ, (uint16_t)ir[2]);
   // GTE leftovers a downstream still-PSX reader could consume: VXY0/VZ0 = the vector just loaded,
   // IR1-3 + MAC1-3 = this MVMVA's result.
-  gte_write_data(kGteDrVxy0, vxy);
-  gte_write_data(kGteDrVz0, vz);
-  gte_write_data(kGteDrIr1, (uint32_t)(int32_t)ir[0]);
-  gte_write_data(kGteDrIr2, (uint32_t)(int32_t)ir[1]);
-  gte_write_data(kGteDrIr3, (uint32_t)(int32_t)ir[2]);
-  gte_write_data(kGteDrMac1, (uint32_t)mac[0]);
-  gte_write_data(kGteDrMac2, (uint32_t)mac[1]);
-  gte_write_data(kGteDrMac3, (uint32_t)mac[2]);
+  c->gte().writeData(kGteDrVxy0, vxy);
+  c->gte().writeData(kGteDrVz0, vz);
+  c->gte().writeData(kGteDrIr1, (uint32_t)(int32_t)ir[0]);
+  c->gte().writeData(kGteDrIr2, (uint32_t)(int32_t)ir[1]);
+  c->gte().writeData(kGteDrIr3, (uint32_t)(int32_t)ir[2]);
+  c->gte().writeData(kGteDrMac1, (uint32_t)mac[0]);
+  c->gte().writeData(kGteDrMac2, (uint32_t)mac[1]);
+  c->gte().writeData(kGteDrMac3, (uint32_t)mac[2]);
   return out;
 }
 
@@ -351,7 +367,7 @@ uint32_t Math::applyMatrixSV(uint32_t mPtr, uint32_t inPtr, uint32_t out) {
 // FUN_80085480 — libgte RotMatrix: build a 3x3 rotation matrix from 3 Euler angles. a0 = SVECTOR* of
 // angles (vx@+0, vy@+2, vz@+4, 16-bit fixed: 4096 = full turn), a1 = MATRIX* out (also returned in v0).
 // ~17% of hot interpreter time — the hottest fn after ov_mat_mul. USER 2026-06-21: GTE is PSX hardware
-// → port the MATH PC-native plain C (NO gte_op/Beetle); output is the rotation matrix the retained PSX
+// → port the MATH PC-native plain C (NO GTE command/Beetle); output is the rotation matrix the retained PSX
 // content reads, so it must be GTE-EXACT (content-interface gate). Verified per-call by ov_rotmat_verify.
 //
 // The guest instruction path: (1) for each angle, abs+&0xfff indexes the SIN/COS LUT @0x800a6490 (word = sin in low
@@ -359,31 +375,19 @@ uint32_t Math::applyMatrixSV(uint32_t mPtr, uint32_t inPtr, uint32_t out) {
 // the matrix R = Rz·Ry·Rx via the GTE GPF op (cmd 0x3d, sf=1: MAC_i=(IR0*IR_i)>>12, IR_i=clamp16(MAC_i))
 // used as a clamped scalar×vector multiplier, interleaved with two native 16-bit mults (cy·cx, cy·sx)
 // that are >>12 then truncated (NOT clamped). Element order packed into out[+0..+16] exactly as the asm.
-static inline void rotmat_trig(Core *c, int32_t angle, int *s, int *co) {
-  int32_t sign = angle >> 31;                        // 0 or 0xffffffff (arithmetic)
-  uint32_t absa = (uint32_t)((angle + sign) ^ sign); // abs(angle)
-  uint32_t idx = (absa << 2) & 0x3ffcu;              // (abs & 0xfff) * 4
-  uint32_t word = c->mem_r32(kSinCosTable + idx);
-  *co = (int)((int32_t)word >> 16); // cos = high half (signed), sign-independent
-  uint32_t at = (word << 16);       // sin = low half, then re-apply angle sign:
-  at = at + (uint32_t)sign;
-  at = at ^ (uint32_t)sign;
-  at = at >> 16;
-  *s = (int)(int16_t)at;
-}
 static inline int16_t gpf1(int ir0, int ir) {
   return clamp16s(((int32_t)ir0 * ir) >> 12);
 } // MAC=(IR0*IR)>>12, clamp16
 static inline uint8_t lmC(int32_t v) {
   return (uint8_t)(v < 0 ? 0 : (v > 255 ? 255 : v));
 } // GTE Lm_C
-uint32_t Math::rotmat(uint32_t anglesPtr, uint32_t out) { // FUN_80085480
+uint32_t Math::rotmat(const AnglesToMatrix &args) { // FUN_80085480
+  auto [anglesPtr, out] = args;
   Core *c = this->core;
   uint32_t w0 = c->mem_r32(anglesPtr);
-  int sx, cx, sy, cy, sz, cz;
-  rotmat_trig(c, (int16_t)w0, &sx, &cx);                // vx (low half of +0)
-  rotmat_trig(c, (int16_t)(w0 >> 16), &sy, &cy);        // vy (high half of +0)
-  rotmat_trig(c, c->mem_r16s(anglesPtr + 4), &sz, &cz); // vz (+4)
+  const auto [sx, cx] = lutSinCos(c, (int16_t)w0);                // vx (low half of +0)
+  const auto [sy, cy] = lutSinCos(c, (int16_t)(w0 >> 16));        // vy (high half of +0)
+  const auto [sz, cz] = lutSinCos(c, c->mem_r16s(anglesPtr + 4)); // vz (+4)
   // GPF rounds (clamped scalar×vector products), in the asm's order:
   int16_t cxsy = gpf1(cx, sy), cxsz = gpf1(cx, sz), cxcz = gpf1(cx, cz);           // R1: IR0=cx
   int16_t sxsy = gpf1(sx, sy), sxsz = gpf1(sx, sz), sxcz = gpf1(sx, cz);           // R2: IR0=sx
@@ -401,26 +405,26 @@ uint32_t Math::rotmat(uint32_t anglesPtr, uint32_t out) { // FUN_80085480
   c->mem_w32(out + 8, (uint16_t)m11 | ((uint32_t)(uint16_t)m12 << 16));
   c->mem_w32(out + 12, (uint16_t)m20 | ((uint32_t)(uint16_t)m21 << 16));
   c->mem_w16(out + 16, (uint16_t)m22);
-  // GTE leftover state a still-PSX gte_op reader could consume. The body runs 4 GPFs; the last leaves
+  // GTE leftover state a still-PSX GTE command reader could consume. The body runs 4 GPFs; the last leaves
   // IR0=sz, IR1-3=clamp16(R4 MACs), MAC1-3=raw R4 products, and the RGB FIFO holds R2/R3/R4 colors.
   int32_t r4m1 = ((int32_t)sz * cy) >> 12, r4m2 = ((int32_t)sz * sxsy) >> 12, r4m3 = ((int32_t)sz * cxsy) >> 12;
-  gte_write_data(8, (uint32_t)(int32_t)(int16_t)sz);
-  gte_write_data(9, (uint32_t)(int32_t)szcy);
-  gte_write_data(10, (uint32_t)(int32_t)sz_sxsy);
-  gte_write_data(11, (uint32_t)(int32_t)sz_cxsy);
-  gte_write_data(25, (uint32_t)r4m1);
-  gte_write_data(26, (uint32_t)r4m2);
-  gte_write_data(27, (uint32_t)r4m3);
+  c->gte().writeData(8, (uint32_t)(int32_t)(int16_t)sz);
+  c->gte().writeData(9, (uint32_t)(int32_t)szcy);
+  c->gte().writeData(10, (uint32_t)(int32_t)sz_sxsy);
+  c->gte().writeData(11, (uint32_t)(int32_t)sz_cxsy);
+  c->gte().writeData(25, (uint32_t)r4m1);
+  c->gte().writeData(26, (uint32_t)r4m2);
+  c->gte().writeData(27, (uint32_t)r4m3);
   // RGB FIFO push: each GPF does MAC_to_RGB_FIFO (shift + new color = Lm_C(MAC_i>>4) | RGB_CD<<24).
   // After 4 pushes the FIFO holds R2,R3,R4 colors. RGB_CD = current RGBC reg high byte (unchanged).
-  uint32_t cd = (gte_read_data(6) >> 24) & 0xff;
+  uint32_t cd = (c->gte().readData(6) >> 24) & 0xff;
   int32_t r2m1 = ((int32_t)sx * sy) >> 12, r2m2 = ((int32_t)sx * sz) >> 12, r2m3 = ((int32_t)sx * cz) >> 12;
   int32_t r3m1 = ((int32_t)cz * cy) >> 12, r3m2 = ((int32_t)cz * sxsy) >> 12, r3m3 = ((int32_t)cz * cxsy) >> 12;
 #define MKCOL(a, b, d)                                                                                                 \
   ((uint32_t)lmC((a) >> 4) | ((uint32_t)lmC((b) >> 4) << 8) | ((uint32_t)lmC((d) >> 4) << 16) | (cd << 24))
-  gte_write_data(20, MKCOL(r2m1, r2m2, r2m3));
-  gte_write_data(21, MKCOL(r3m1, r3m2, r3m3));
-  gte_write_data(22, MKCOL(r4m1, r4m2, r4m3));
+  c->gte().writeData(20, MKCOL(r2m1, r2m2, r2m3));
+  c->gte().writeData(21, MKCOL(r3m1, r3m2, r3m3));
+  c->gte().writeData(22, MKCOL(r4m1, r4m2, r4m3));
 #undef MKCOL
   return out;
 }
@@ -435,47 +439,42 @@ uint32_t Math::rotmat(uint32_t anglesPtr, uint32_t out) { // FUN_80085480
 //   80085050: rows +0/+6,  posSin=+1   80084EB0: rows +0/+12, posSin=−1   80084D10: rows +6/+12, posSin=+1
 // The asm uses `multu` but only reads MFLO (low 32 bits) = the signed product for 16-bit operands → plain
 // signed int math is bit-exact. cos = LUT word high half; sin = low half, sign by (angle<0)^(posSin<0).
-static inline void rotpair_trig(Core *c, uint32_t a0, int posSin, int *s, int *co) {
-  int32_t a = (int32_t)a0;
-  uint32_t absidx = (a >= 0) ? ((uint32_t)a & kAngleMask) : ((0u - (uint32_t)a) & kAngleMask);
-  uint32_t w = c->mem_r32(kSinCosTable + (absidx << 2));
-  *co = (int)((int32_t)w >> 16);
-  int sinv = (int)(int16_t)w;
-  if (a < 0) {
-    sinv = -sinv; // sin is odd → negate for negative angle
+// The two matrix rows an axis rotation mixes and the sign it gives sin for a positive angle.
+struct RowPair {
+  uint32_t rowA;
+  uint32_t rowB;
+  int sinSign;
+};
+static uint32_t rotpair(Core *c, int16_t angle, const RowPair &rows, uint32_t matPtr) {
+  const auto [rowA, rowB, sinSign] = rows;
+  auto [s, co] = lutSinCos(c, angle);
+  if (sinSign < 0) {
+    s = -s;
   }
-  if (posSin < 0) {
-    sinv = -sinv; // Y-axis variant flips the sign
-  }
-  *s = sinv;
-}
-static uint32_t rotpair(Core *c, int16_t angle, uint32_t matPtr, uint32_t rowA, uint32_t rowB, int posSin) {
-  int s, co;
-  rotpair_trig(c, (uint32_t)(int32_t)angle, posSin, &s, &co);
   int16_t A[3], B[3];
   for (int i = 0; i < 3; i++) {
-    A[i] = c->mem_r16s(matPtr + rowA + i * 2);
-    B[i] = c->mem_r16s(matPtr + rowB + i * 2);
+    A[i] = (int16_t)c->mem_r16(matPtr + rowA + i * 2);
+    B[i] = (int16_t)c->mem_r16(matPtr + rowB + i * 2);
   }
   for (int i = 0; i < 3; i++) {
-    c->mem_w16(matPtr + rowA + i * 2, (uint16_t)(int16_t)(((int32_t)co * A[i] - (int32_t)s * B[i]) >> 12));
+    c->mem_w16(matPtr + rowA + i * 2, (uint16_t)(int16_t)((co * A[i] - s * B[i]) >> 12));
   }
   for (int i = 0; i < 3; i++) {
-    c->mem_w16(matPtr + rowB + i * 2, (uint16_t)(int16_t)(((int32_t)s * A[i] + (int32_t)co * B[i]) >> 12));
+    c->mem_w16(matPtr + rowB + i * 2, (uint16_t)(int16_t)((s * A[i] + co * B[i]) >> 12));
   }
   return matPtr;
 }
 uint32_t Math::rotZ(int16_t angle, uint32_t matPtr) {
   Core *c = this->core;
-  return rotpair(c, angle, matPtr, 0, 6, +1);
+  return rotpair(c, angle, {.rowA = 0, .rowB = 6, .sinSign = +1}, matPtr);
 } // FUN_80085050
 uint32_t Math::rotY(int16_t angle, uint32_t matPtr) {
   Core *c = this->core;
-  return rotpair(c, angle, matPtr, 0, 12, -1);
+  return rotpair(c, angle, {.rowA = 0, .rowB = 12, .sinSign = -1}, matPtr);
 } // FUN_80084EB0
 uint32_t Math::rotX(int16_t angle, uint32_t matPtr) {
   Core *c = this->core;
-  return rotpair(c, angle, matPtr, 6, 12, +1);
+  return rotpair(c, angle, {.rowA = 6, .rowB = 12, .sinSign = +1}, matPtr);
 } // FUN_80084D10
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
@@ -483,11 +482,11 @@ uint32_t Math::rotX(int16_t angle, uint32_t matPtr) {
 // (vx@+0, vy@+2, vz@+4; s16 fixed, 4096 = one turn), a1 = MATRIX* out (row-major 3x3 s16 at +0..+16;
 // also returned in v0). DISTINCT from Math::rotmat (0x80085480, the GTE/GPF RotMatrix): this variant
 // uses ONLY the SIN/COS LUT @0x800a6490 + native 32-bit multiplies with a >>12 ARITHMETIC round and
-// NO gte_op/GPF clamping. Callers: billboard compose 0x8003C5F8, ReleaseTriggerMotion::driftReposition.
+// NO GTE command/GPF clamping. Callers: billboard compose 0x8003C5F8, ReleaseTriggerMotion::driftReposition.
 //
 // Byte-exact by construction, mirroring the guest instruction path register ops (authenticated executable/overlay
 // evidence guest 0x800847F0):
-//   • trig: same LUT convention as rotpair_trig — cos = word high half (even), sin = low half made odd
+//   • trig: same LUT convention as lutSinCos — cos = word high half (even), sin = low half made odd
 //     by the angle sign. abs index masked to 0xfff.
 //   • each element = (int32 product of two s16 trig terms) >>12; intermediates t1/t2 are kept as FULL
 //     s32 (>>12, NOT truncated to 16) before being re-multiplied — exactly as the gen keeps them in a
@@ -495,22 +494,12 @@ uint32_t Math::rotX(int16_t angle, uint32_t matPtr) {
 //     signed C math reproduces the gen's `(uint64)a*(uint64)b` → `(int32)lo >> 12` bit-for-bit; the trig
 //     terms are ≤4096 so no 32-bit overflow.)  m02 is the RAW sinB (no shift), as the asm stores it.
 // Verified against the guest-visible behavior by scratch/re/rotmatsoft_equiv.cpp (random + edge angle triples, 0 diff).
-static inline void softTrig(Core *c, int32_t angle, int32_t *s, int32_t *co) {
-  uint32_t absidx = (angle >= 0) ? ((uint32_t)angle & kAngleMask) : ((0u - (uint32_t)angle) & kAngleMask);
-  uint32_t w = c->mem_r32(kSinCosTable + (absidx << 2));
-  *co = (int32_t)w >> 16;    // cos = high half (even → sign-independent)
-  int32_t sinv = (int16_t)w; // sin = low half
-  if (angle < 0) {
-    sinv = -sinv; // sin is odd
-  }
-  *s = sinv;
-}
-uint32_t Math::rotMatSoft(uint32_t anglesPtr, uint32_t out) { // FUN_800847F0
+uint32_t Math::rotMatSoft(const AnglesToMatrix &args) { // FUN_800847F0
+  auto [anglesPtr, out] = args;
   Core *c = this->core;
-  int32_t sA, cA, sB, cB, sC, cC;
-  softTrig(c, (int16_t)c->mem_r16(anglesPtr + 0), &sA, &cA);
-  softTrig(c, (int16_t)c->mem_r16(anglesPtr + 2), &sB, &cB);
-  softTrig(c, (int16_t)c->mem_r16(anglesPtr + 4), &sC, &cC);
+  const auto [sA, cA] = lutSinCos(c, (int16_t)c->mem_r16(anglesPtr + 0));
+  const auto [sB, cB] = lutSinCos(c, (int16_t)c->mem_r16(anglesPtr + 2));
+  const auto [sC, cC] = lutSinCos(c, (int16_t)c->mem_r16(anglesPtr + 4));
   auto q = [](int32_t x) {
     return x >> 12;
   }; // >>12 arithmetic on the full s32 product
@@ -530,7 +519,7 @@ uint32_t Math::rotMatSoft(uint32_t anglesPtr, uint32_t out) { // FUN_800847F0
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 // FUN_80084A80 — the SOFTWARE 3-Euler-angle rotation-matrix builder that is rotMatSoft's SIBLING,
-// sharing its LUT (softTrig above, table @0x800a6490) and its s16 row-major output layout, but
+// sharing its LUT (lutSinCos, table @0x800a6490) and its s16 row-major output layout, but
 // producing a DIFFERENT matrix from the same three angles.
 //
 // WHAT IS VERIFIED, by line-diffing authenticated executable/overlay evidence guest 0x80084A80 (130 gen-C ln): the
@@ -547,12 +536,12 @@ uint32_t Math::rotMatSoft(uint32_t anglesPtr, uint32_t out) { // FUN_800847F0
 // The guest interleaves these stores oddly — +12/+14/+16 are written while the third angle's LUT
 // lookup is still in flight, before +0. Nothing observes guest memory in between, so the order is
 // not load-bearing; it is preserved anyway rather than tidied into row order.
-uint32_t Math::rotMatSoftInverse(uint32_t anglesPtr, uint32_t out) { // FUN_80084A80
+uint32_t Math::rotMatSoftInverse(const AnglesToMatrix &args) { // FUN_80084A80
+  auto [anglesPtr, out] = args;
   Core *c = this->core;
-  int32_t sA, cA, sB, cB, sC, cC;
-  softTrig(c, (int16_t)c->mem_r16(anglesPtr + 0), &sA, &cA);
-  softTrig(c, (int16_t)c->mem_r16(anglesPtr + 2), &sB, &cB);
-  softTrig(c, (int16_t)c->mem_r16(anglesPtr + 4), &sC, &cC);
+  const auto [sA, cA] = lutSinCos(c, (int16_t)c->mem_r16(anglesPtr + 0));
+  const auto [sB, cB] = lutSinCos(c, (int16_t)c->mem_r16(anglesPtr + 2));
+  const auto [sC, cC] = lutSinCos(c, (int16_t)c->mem_r16(anglesPtr + 4));
   auto q = [](int32_t x) {
     return x >> 12;
   }; // >>12 arithmetic on the full s32 product
@@ -577,7 +566,7 @@ uint32_t Math::rotMatSoftInverse(uint32_t anglesPtr, uint32_t out) { // FUN_8008
 // FUN_800851F0 — the THIRD software (non-GTE) 3-Euler rotation-matrix builder in this file, and the
 // one that composes the axes in the OPPOSITE order to rotMatSoft. a0 = SVECTOR* of 3 Euler angles
 // (vx@+0, vy@+2, vz@+4; s16, 4096 = one turn), a1 = MATRIX* out (row-major 3x3 s16 at +0..+16, also
-// returned in v0). Shares softTrig's LUT (kSinCosTable) and >>12 fixed-point convention; runs NO GTE
+// returned in v0). Shares lutSinCos's LUT (kSinCosTable) and >>12 fixed-point convention; runs NO GTE
 // op at all, so it leaves no GTE register residue for a downstream still-PSX reader (unlike rotmat).
 //
 // WHAT IT BUILDS:  M = Rz(vz) · Rx(vx) · Ry(vy)
@@ -611,7 +600,7 @@ uint32_t Math::rotMatSoftInverse(uint32_t anglesPtr, uint32_t out) { // FUN_8008
 //     single-axis RotMatrixY.
 //   * Ghidra headless (scratch/decomp/rotmatsoftyxz_851F0.c, decompiled in one run together with
 //     0x80085480 and 0x800847F0 for the A/B) gives the nine element formulas below verbatim, the
-//     LUT at -0x7ff59b70 = 0x800a6490 (softTrig's table), and `return param_2`.
+//     LUT at -0x7ff59b70 = 0x800a6490 (lutSinCos's table), and `return param_2`.
 //   * The composition order was DERIVED, not assumed: setting vx = 0 in the element formulas
 //     collapses them to exactly Rz(vz)·Ry(vy), and setting vy = vz = 0 collapses them to exactly
 //     Rx(vx); the full product Rz·Rx·Ry then reproduces all nine terms including the cross terms.
@@ -638,12 +627,12 @@ uint32_t Math::rotMatSoftInverse(uint32_t anglesPtr, uint32_t out) { // FUN_8008
 // the output between stores, so the order is not load-bearing; it is preserved anyway rather than
 // tidied, so this reads against the guest-visible behavior line for line.
 // ORACLE: guest 0x800851F0
-uint32_t Math::rotMatSoftYXZ(uint32_t anglesPtr, uint32_t out) { // FUN_800851F0
+uint32_t Math::rotMatSoftYXZ(const AnglesToMatrix &args) { // FUN_800851F0
+  auto [anglesPtr, out] = args;
   Core *c = this->core;
-  int32_t sX, cX, sY, cY, sZ, cZ;
-  softTrig(c, (int16_t)c->mem_r16(anglesPtr + kSVecOffX), &sX, &cX);
-  softTrig(c, (int16_t)c->mem_r16(anglesPtr + kSVecOffY), &sY, &cY);
-  softTrig(c, (int16_t)c->mem_r16(anglesPtr + kSVecOffZ), &sZ, &cZ);
+  const auto [sX, cX] = lutSinCos(c, (int16_t)c->mem_r16(anglesPtr + kSVecOffX));
+  const auto [sY, cY] = lutSinCos(c, (int16_t)c->mem_r16(anglesPtr + kSVecOffY));
+  const auto [sZ, cZ] = lutSinCos(c, (int16_t)c->mem_r16(anglesPtr + kSVecOffZ));
   auto q = [](int32_t x) {
     return x >> kTrigFracShift;
   }; // >>12 arithmetic on the full s32 product
@@ -673,13 +662,14 @@ uint32_t Math::rotMatSoftYXZ(uint32_t anglesPtr, uint32_t out) { // FUN_800851F0
 // mx=ROT, v=V0, cv=Null, lm=0) reading the rotation matrix from CR0-4 (loaded by a prior CTC2), then
 // SWC2 IR1-3 → a1. USER 2026-06-21: GTE math PC-native (the matrix is read from CR — i.e. content the
 // engine/game previously loaded — so this is content-interface; the C MVMVA must be GTE-exact).
-uint32_t Math::applyMatlv(uint32_t inPtr, uint32_t out) { // FUN_80084220
+uint32_t Math::applyMatlv(const VectorTransform &args) { // FUN_80084220
+  auto [inPtr, out] = args;
   Core *c = this->core;
   uint32_t w0 = c->mem_r32(inPtr), w1 = c->mem_r32(inPtr + 4);
   int16_t v[3] = {(int16_t)w0, (int16_t)(w0 >> 16), (int16_t)w1};
   // rotation matrix R from GTE CONTROL regs CR0..CR4 (same packing as load_mat3 but from ctrl)
-  uint32_t cr0 = gte_read_ctrl(0), cr1 = gte_read_ctrl(1), cr2 = gte_read_ctrl(2), cr3 = gte_read_ctrl(3),
-           cr4 = gte_read_ctrl(4);
+  uint32_t cr0 = c->gte().readControl(0), cr1 = c->gte().readControl(1), cr2 = c->gte().readControl(2),
+           cr3 = c->gte().readControl(3), cr4 = c->gte().readControl(4);
   int16_t R[3][3] = {{(int16_t)cr0, (int16_t)(cr0 >> 16), (int16_t)cr1},
                      {(int16_t)(cr1 >> 16), (int16_t)cr2, (int16_t)(cr2 >> 16)},
                      {(int16_t)cr3, (int16_t)(cr3 >> 16), (int16_t)cr4}};
@@ -687,9 +677,9 @@ uint32_t Math::applyMatlv(uint32_t inPtr, uint32_t out) { // FUN_80084220
   int16_t ir[3];
   for (int i = 0; i < 3; i++) {
     int64_t t = 0;
-    t = sign44(t + (int32_t)R[i][0] * v[0]);
-    t = sign44(t + (int32_t)R[i][1] * v[1]);
-    t = sign44(t + (int32_t)R[i][2] * v[2]);
+    t = sign44(t + (int64_t)R[i][0] * v[0]);
+    t = sign44(t + (int64_t)R[i][1] * v[1]);
+    t = sign44(t + (int64_t)R[i][2] * v[2]);
     mac[i] = (int32_t)(t >> 12);
     ir[i] = clamp16s(mac[i]);
   }
@@ -697,14 +687,14 @@ uint32_t Math::applyMatlv(uint32_t inPtr, uint32_t out) { // FUN_80084220
   c->mem_w32(out + 4, (uint32_t)(int32_t)ir[1]);
   c->mem_w32(out + 8, (uint32_t)(int32_t)ir[2]);
   // GTE leftover: VXY0/VZ0 = the MTC2'd input; IR1-3, MAC1-3 = the MVMVA result.
-  gte_write_data(0, w0);
-  gte_write_data(1, w1);
-  gte_write_data(9, (uint32_t)(int32_t)ir[0]);
-  gte_write_data(10, (uint32_t)(int32_t)ir[1]);
-  gte_write_data(11, (uint32_t)(int32_t)ir[2]);
-  gte_write_data(25, (uint32_t)mac[0]);
-  gte_write_data(26, (uint32_t)mac[1]);
-  gte_write_data(27, (uint32_t)mac[2]);
+  c->gte().writeData(0, w0);
+  c->gte().writeData(1, w1);
+  c->gte().writeData(9, (uint32_t)(int32_t)ir[0]);
+  c->gte().writeData(10, (uint32_t)(int32_t)ir[1]);
+  c->gte().writeData(11, (uint32_t)(int32_t)ir[2]);
+  c->gte().writeData(25, (uint32_t)mac[0]);
+  c->gte().writeData(26, (uint32_t)mac[1]);
+  c->gte().writeData(27, (uint32_t)mac[2]);
   return out;
 }
 
@@ -725,8 +715,8 @@ uint32_t Math::sqrtLzc(uint32_t v) {
     }
     lzcr++;
   }
-  gte_write_data(30, v);    // LZCS leftover (= a0)
-  gte_write_data(31, lzcr); // LZCR leftover (= the count)
+  c->gte().writeData(30, v);    // LZCS leftover (= a0)
+  c->gte().writeData(31, lzcr); // LZCR leftover (= the count)
   if (lzcr == 32) {
     return 0; // v == 0 or v == 0xffffffff → result 0
   }
@@ -752,16 +742,16 @@ uint32_t Math::matLoadLV(uint32_t rPtr, uint32_t vPtr) {
   load_mat3(c, rPtr, R);
   load_mat3(c, vPtr, M);
   for (int i = 0; i < 5; i++) {
-    gte_write_ctrl(i, c->mem_r32(rPtr + i * 4)); // faithful CTC2 of R
+    c->gte().writeControl(i, c->mem_r32(rPtr + i * 4)); // faithful CTC2 of R
   }
   uint32_t vw4 = c->mem_r32(vPtr + 16); // raw M22 word — the GTE VZ0 leftover keeps its full bits
   int32_t mac1 = 0, mac2 = 0, mac3 = 0; // last column's pre-clamp MACs (GTE leftover)
   for (int j = 0; j < 3; j++) {         // column j of M = MVMVA input vector Vj
     for (int i = 0; i < 3; i++) {       // matrix row i
       int64_t t = 0;
-      t = sign44(t + (int32_t)R[i][0] * M[0][j]);
-      t = sign44(t + (int32_t)R[i][1] * M[1][j]);
-      t = sign44(t + (int32_t)R[i][2] * M[2][j]);
+      t = sign44(t + (int64_t)R[i][0] * M[0][j]);
+      t = sign44(t + (int64_t)R[i][1] * M[1][j]);
+      t = sign44(t + (int64_t)R[i][2] * M[2][j]);
       int32_t mac = (int32_t)(t >> 12);
       P[i][j] = clamp16s(mac);
       if (j == 2) {
@@ -781,14 +771,14 @@ uint32_t Math::matLoadLV(uint32_t rPtr, uint32_t vPtr) {
   c->mem_w32(vPtr + 12, (uint16_t)P[2][0] | ((uint32_t)(uint16_t)P[2][1] << 16));
   c->mem_w32(vPtr + 16, (uint32_t)(int32_t)P[2][2]); // SWC2 IR3: sign-extended s32
   // GTE leftover (pass 3 = column 2): VXY0/VZ0 = the MTC2'd col-2 vector, IR1-3/MAC1-3 = its result.
-  gte_write_data(0, (uint32_t)(uint16_t)M[0][2] | ((uint32_t)(uint16_t)M[1][2] << 16)); // VXY0
-  gte_write_data(1, vw4);                                                               // VZ0 (full word)
-  gte_write_data(9, (uint32_t)(int32_t)P[0][2]);                                        // IR1
-  gte_write_data(10, (uint32_t)(int32_t)P[1][2]);                                       // IR2
-  gte_write_data(11, (uint32_t)(int32_t)P[2][2]);                                       // IR3
-  gte_write_data(25, (uint32_t)mac1);                                                   // MAC1
-  gte_write_data(26, (uint32_t)mac2);                                                   // MAC2
-  gte_write_data(27, (uint32_t)mac3);                                                   // MAC3
+  c->gte().writeData(0, (uint32_t)(uint16_t)M[0][2] | ((uint32_t)(uint16_t)M[1][2] << 16)); // VXY0
+  c->gte().writeData(1, vw4);                                                               // VZ0 (full word)
+  c->gte().writeData(9, (uint32_t)(int32_t)P[0][2]);                                        // IR1
+  c->gte().writeData(10, (uint32_t)(int32_t)P[1][2]);                                       // IR2
+  c->gte().writeData(11, (uint32_t)(int32_t)P[2][2]);                                       // IR3
+  c->gte().writeData(25, (uint32_t)mac1);                                                   // MAC1
+  c->gte().writeData(26, (uint32_t)mac2);                                                   // MAC2
+  c->gte().writeData(27, (uint32_t)mac3);                                                   // MAC3
   return vPtr;
 }
 
@@ -801,7 +791,8 @@ static inline int32_t colScale(int32_t half, uint32_t fac) { // (half*fac) low32
   return (int32_t)((uint32_t)half * fac) >> 12;
 }
 // ORACLE: guest 0x80084520
-uint32_t Math::matColScale(uint32_t dstPtr, uint32_t facPtr) {
+uint32_t Math::matColScale(const ColumnScale &args) {
+  auto [dstPtr, facPtr] = args;
   Core *c = this->core;
   uint32_t f0 = c->mem_r32(facPtr + 0); // column-0 scale
   uint32_t f1 = c->mem_r32(facPtr + 4); // column-1 scale
@@ -834,19 +825,19 @@ uint32_t Math::matColScale(uint32_t dstPtr, uint32_t facPtr) {
 // so the gate must live IN the installed function itself: the test-only substrate reference must keep running the exact
 // guest original guest instructions body, or SBS would just be comparing this port against itself (a fake 0-diff).
 static void eov_matMul(Core *c) {
-  c->r[2] = mathOf(c).matMul(c->r[4], c->r[5], c->r[6]);
+  c->r[2] = mathOf(c).matMul({.rPtr = c->r[4], .mPtr = c->r[5], .outPtr = c->r[6]});
 }
 static void eov_applyMatlv(Core *c) {
-  c->r[2] = mathOf(c).applyMatlv(c->r[4], c->r[5]);
+  c->r[2] = mathOf(c).applyMatlv({.inPtr = c->r[4], .out = c->r[5]});
 }
 static void eov_applyMatrixLV(Core *c) {
-  c->r[2] = mathOf(c).applyMatrixLV(c->r[4], c->r[5], c->r[6]);
+  c->r[2] = mathOf(c).applyMatrixLV({.mPtr = c->r[4], .inPtr = c->r[5], .out = c->r[6]});
 }
 static void eov_applyMatrixSV(Core *c) {
-  c->r[2] = mathOf(c).applyMatrixSV(c->r[4], c->r[5], c->r[6]);
+  c->r[2] = mathOf(c).applyMatrixSV({.mPtr = c->r[4], .inPtr = c->r[5], .out = c->r[6]});
 }
 static void eov_rotmat(Core *c) {
-  c->r[2] = mathOf(c).rotmat(c->r[4], c->r[5]);
+  c->r[2] = mathOf(c).rotmat({.anglesPtr = c->r[4], .out = c->r[5]});
 }
 static void eov_rotX(Core *c) {
   c->r[2] = mathOf(c).rotX((int16_t)c->r[4], c->r[5]);
@@ -858,7 +849,7 @@ static void eov_rotZ(Core *c) {
   c->r[2] = mathOf(c).rotZ((int16_t)c->r[4], c->r[5]);
 }
 static void eov_rotMatSoft(Core *c) {
-  c->r[2] = mathOf(c).rotMatSoft(c->r[4], c->r[5]);
+  c->r[2] = mathOf(c).rotMatSoft({.anglesPtr = c->r[4], .out = c->r[5]});
 }
 
 static void eov_isqrt16(Core *c) {
@@ -875,31 +866,33 @@ static void eov_matLoadLV(Core *c) {
   c->r[2] = mathOf(c).matLoadLV(c->r[4], c->r[5]);
 }
 static void eov_matColScale(Core *c) {
-  c->r[2] = mathOf(c).matColScale(c->r[4], c->r[5]);
+  c->r[2] = mathOf(c).matColScale({.dstPtr = c->r[4], .facPtr = c->r[5]});
 }
 
 static void eov_rotMatSoftInverse(Core *c) {
-  c->r[2] = mathOf(c).rotMatSoftInverse(c->r[4], c->r[5]);
+  c->r[2] = mathOf(c).rotMatSoftInverse({.anglesPtr = c->r[4], .out = c->r[5]});
 }
 static void eov_rotMatSoftYXZ(Core *c) {
-  c->r[2] = mathOf(c).rotMatSoftYXZ(c->r[4], c->r[5]);
+  c->r[2] = mathOf(c).rotMatSoftYXZ({.anglesPtr = c->r[4], .out = c->r[5]});
 }
 
-void Math::registerOverrides() {
-  tomba::native::declareOverride(0x80084110u, "Math::matMul", eov_matMul);
-  tomba::native::declareOverride(0x80084220u, "Math::applyMatlv", eov_applyMatlv);
-  tomba::native::declareOverride(0x80084470u, "Math::applyMatrixLV", eov_applyMatrixLV);
-  tomba::native::declareOverride(0x800844C0u, "Math::applyMatrixSV", eov_applyMatrixSV);
-  tomba::native::declareOverride(0x80085480u, "Math::rotmat", eov_rotmat);
-  tomba::native::declareOverride(0x80084D10u, "Math::rotX", eov_rotX);
-  tomba::native::declareOverride(0x80084EB0u, "Math::rotY", eov_rotY);
-  tomba::native::declareOverride(0x80085050u, "Math::rotZ", eov_rotZ);
-  tomba::native::declareOverride(0x800847F0u, "Math::rotMatSoft", eov_rotMatSoft);
-  tomba::native::declareOverride(0x80084A80u, "Math::rotMatSoftInverse", eov_rotMatSoftInverse);
-  tomba::native::declareOverride(0x800851F0u, "Math::rotMatSoftYXZ", eov_rotMatSoftYXZ);
-  tomba::native::declareOverride(0x80077FB0u, "Math::isqrt16", eov_isqrt16);
-  tomba::native::declareOverride(0x80078240u, "Math::approxDist3", eov_approxDist3);
-  tomba::native::declareOverride(0x80084080u, "Math::sqrtLzc", eov_sqrtLzc);
-  tomba::native::declareOverride(0x80084360u, "Math::matLoadLV", eov_matLoadLV);
-  tomba::native::declareOverride(0x80084520u, "Math::matColScale", eov_matColScale);
+void Math::registerOverrides(native::NativeOverrideCatalog &natives) {
+  natives.declare(0x80084110u, "Math::matMul", eov_matMul);
+  natives.declare(0x80084220u, "Math::applyMatlv", eov_applyMatlv);
+  natives.declare(0x80084470u, "Math::applyMatrixLV", eov_applyMatrixLV);
+  natives.declare(0x800844C0u, "Math::applyMatrixSV", eov_applyMatrixSV);
+  natives.declare(0x80085480u, "Math::rotmat", eov_rotmat);
+  natives.declare(0x80084D10u, "Math::rotX", eov_rotX);
+  natives.declare(0x80084EB0u, "Math::rotY", eov_rotY);
+  natives.declare(0x80085050u, "Math::rotZ", eov_rotZ);
+  natives.declare(0x800847F0u, "Math::rotMatSoft", eov_rotMatSoft);
+  natives.declare(0x80084A80u, "Math::rotMatSoftInverse", eov_rotMatSoftInverse);
+  natives.declare(0x800851F0u, "Math::rotMatSoftYXZ", eov_rotMatSoftYXZ);
+  natives.declare(0x80077FB0u, "Math::isqrt16", eov_isqrt16);
+  natives.declare(0x80078240u, "Math::approxDist3", eov_approxDist3);
+  natives.declare(0x80084080u, "Math::sqrtLzc", eov_sqrtLzc);
+  natives.declare(0x80084360u, "Math::matLoadLV", eov_matLoadLV);
+  natives.declare(0x80084520u, "Math::matColScale", eov_matColScale);
 }
+
+} // namespace tomba

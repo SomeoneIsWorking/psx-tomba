@@ -6,55 +6,47 @@
 // Diagnostic A/B gates (listscan/gridsetup/gridquery/gridresolve/gridstep) are REPL channels,
 // unchanged. The dispatched grid callees stay reachable by address (typed runtime address dispatch).
 #include "collision.h"
-#include "cfg.h"
 #include "core.h"
 #include "core/engine/engine.h"
-#include "core/entry/game_ctx.h"
-#include "core/overrides/native_override_catalog.h" // tomba::native::declareOverride — the one native-override registry
-#include "execution_services.h"
+#include "core/overrides/native_override_catalog.h"
+#include "entry/tomba_session.h"
 #include "guest_call.h"
+#include <lucent/log.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 // GridRay names the shared collision scratchpad fields. Native owners and JIT-executed
 // guest collision routines use this same memory contract.
+namespace tomba {
+
 namespace {
-constexpr uint32_t GR = 0x1F800000u; // GridRay scratchpad base (gen spells it `8064u << 16`)
-enum : uint32_t {
-  GR_NORMAL_ANGLE = 416, // 0x1A0  flat-normal angle = ratan2(segment endpoints)
-  GR_NORMAL_HI = 418,    // 0x1A2  (cleared by flatNormal)
-  GR_CROSS = 420,        // 0x1A4  wall/line crossing coordinate (lineCross output)
-  GR_CROSS_Z = 422,      // 0x1A6
-  GR_CELL_ORG_X = 426,   // 0x1AA  cell origin X
-  GR_CELL_ORG_Z = 428,   // 0x1AC  cell origin Z
-  GR_SEG_X0 = 434,       // 0x1B2  segment endpoint 0 X
-  GR_SEG_Z0 = 436,       // 0x1B4  segment endpoint 0 Z
-  GR_SEG_X1 = 438,       // 0x1B6  segment endpoint 1 X
-  GR_SEG_Z1 = 440,       // 0x1B8  segment endpoint 1 Z
-  GR_PROBE_X = 444,      // 0x1BC  working probe X
-  // 0x1BE was previously named "GR_EXTENT" (grid extent / probe-hi bound). That was wrong. It is the
-  // probe's HEIGHT (Y). Two independent proofs: (a) snapObjectToTerrain and its sibling FUN_80048750
-  // seed 0x1BC/0x1BE/0x1C0 from the probe object's ACT_WORLD_X/ACT_WORLD_Y/ACT_WORLD_Z triple, so the
-  // middle field is Y by construction; (b) floorPick compares each candidate floor line's top edge
-  // + 128 against this field to pick the line just under the probe — a height comparison. The grid's
-  // real extents are the separate 0x1AE/0x1B0 pair that gridStep clamps against.
-  GR_PROBE_Y = 446,    // 0x1BE  working probe Y (height)
-  GR_PROBE_Z = 448,    // 0x1C0  working probe Z
-  GR_LOCAL_X = 450,    // 0x1C2  slope-local X delta
-  GR_SPAN = 452,       // 0x1C4  cross-span scratch (cross - extent)
-  GR_LOCAL_Z = 454,    // 0x1C6  slope-local Z delta
-  GR_LINE_TABLE = 472, // 0x1D8  line-record table base
-  GR_LINE_ARRAY = 476, // 0x1DC  line-record array base
-  GR_CELL_REC = 480,   // 0x1E0  current cell record (line-list idx@+2, count@+4)
-  GR_BEST_LINE = 488,  // 0x1E8  chosen floor/wall line record (output)
-  GR_LINE_CUR = 492,   // 0x1EC  working line-record cursor
-};
+constexpr uint32_t GR = 0x1F800000u;      // GridRay scratchpad base (gen spells it `8064u << 16`)
+constexpr uint32_t GR_NORMAL_ANGLE = 416; // 0x1A0  flat-normal angle = ratan2(segment endpoints)
+constexpr uint32_t GR_NORMAL_HI = 418;    // 0x1A2  (cleared by flatNormal)
+constexpr uint32_t GR_CROSS = 420;        // 0x1A4  wall/line crossing coordinate (lineCross output)
+constexpr uint32_t GR_CROSS_Z = 422;      // 0x1A6
+constexpr uint32_t GR_CELL_ORG_X = 426;   // 0x1AA  cell origin X
+constexpr uint32_t GR_CELL_ORG_Z = 428;   // 0x1AC  cell origin Z
+constexpr uint32_t GR_SEG_X0 = 434;       // 0x1B2  segment endpoint 0 X
+constexpr uint32_t GR_SEG_Z0 = 436;       // 0x1B4  segment endpoint 0 Z
+constexpr uint32_t GR_SEG_X1 = 438;       // 0x1B6  segment endpoint 1 X
+constexpr uint32_t GR_SEG_Z1 = 440;       // 0x1B8  segment endpoint 1 Z
+constexpr uint32_t GR_PROBE_X = 444;      // 0x1BC  working probe X
+// Seeded from ACT_WORLD_Y; floorPick compares each line top against it. Grid extents are 0x1AE/0x1B0.
+constexpr uint32_t GR_PROBE_Y = 446;    // 0x1BE  working probe Y (height)
+constexpr uint32_t GR_PROBE_Z = 448;    // 0x1C0  working probe Z
+constexpr uint32_t GR_LOCAL_X = 450;    // 0x1C2  slope-local X delta
+constexpr uint32_t GR_SPAN = 452;       // 0x1C4  cross-span scratch (cross - extent)
+constexpr uint32_t GR_LOCAL_Z = 454;    // 0x1C6  slope-local Z delta
+constexpr uint32_t GR_LINE_TABLE = 472; // 0x1D8  line-record table base
+constexpr uint32_t GR_LINE_ARRAY = 476; // 0x1DC  line-record array base
+constexpr uint32_t GR_CELL_REC = 480;   // 0x1E0  current cell record (line-list idx@+2, count@+4)
+constexpr uint32_t GR_BEST_LINE = 488;  // 0x1E8  chosen floor/wall line record (output)
+constexpr uint32_t GR_LINE_CUR = 492;   // 0x1EC  working line-record cursor
 
 // --- collision-CELL record layout (the 8-byte records the query walks; GR_CELL_REC points at one) ---
-enum : uint32_t {
-  CELL_TAG = 0, // halfword: the cell's tag/flag word
-};
+constexpr uint32_t CELL_TAG = 0; // halfword: the cell's tag/flag word
 enum : uint16_t {
   CELL_SECTOR_LINK = 0x4000u, // this cell hands the object over to the sector named in the tag's low byte
 };
@@ -63,12 +55,10 @@ enum : uint16_t {
 // The world position is three 32-bit fixed-point coords at +0x2C/+0x30/+0x34; the grid works in whole
 // units, so it reads and writes only their INTEGER halves at +0x2E/+0x32/+0x36 and leaves the
 // fractions alone.
-enum : uint32_t {
-  ACT_SECTOR_ID = 42, // 0x2A (u8)  the path sector this actor is currently standing in
-  ACT_WORLD_X = 46,   // 0x2E (u16) world X, integer half of the fixed coord at 0x2C
-  ACT_WORLD_Y = 50,   // 0x32 (u16) world Y, integer half of the fixed coord at 0x30
-  ACT_WORLD_Z = 54,   // 0x36 (u16) world Z, integer half of the fixed coord at 0x34
-};
+constexpr uint32_t ACT_SECTOR_ID = 42; // 0x2A (u8)  the path sector this actor is currently standing in
+constexpr uint32_t ACT_WORLD_X = 46;   // 0x2E (u16) world X, integer half of the fixed coord at 0x2C
+constexpr uint32_t ACT_WORLD_Y = 50;   // 0x32 (u16) world Y, integer half of the fixed coord at 0x30
+constexpr uint32_t ACT_WORLD_Z = 54;   // 0x36 (u16) world Z, integer half of the fixed coord at 0x34
 
 // GridRay lens — the same scratchpad addresses as the GR_* constants above, reached through named
 // fields so a reader sees WHAT is being compared rather than which byte offset. Reads come in both
@@ -78,7 +68,7 @@ struct GridRay {
   Core *c;
 
   int16_t normalAngle() const {
-    return c->mem_r16s(GR + GR_NORMAL_ANGLE);
+    return (int16_t)c->mem_r16(GR + GR_NORMAL_ANGLE);
   }
   void setNormalAngle(uint16_t v) {
     c->mem_w16(GR + GR_NORMAL_ANGLE, v);
@@ -88,13 +78,13 @@ struct GridRay {
   }
 
   int16_t cross() const {
-    return c->mem_r16s(GR + GR_CROSS);
+    return (int16_t)c->mem_r16(GR + GR_CROSS);
   }
   void setCross(uint16_t v) {
     c->mem_w16(GR + GR_CROSS, v);
   }
   int16_t crossZ() const {
-    return c->mem_r16s(GR + GR_CROSS_Z);
+    return (int16_t)c->mem_r16(GR + GR_CROSS_Z);
   }
   void setCrossZ(uint16_t v) {
     c->mem_w16(GR + GR_CROSS_Z, v);
@@ -104,36 +94,36 @@ struct GridRay {
     return c->mem_r16(GR + GR_CELL_ORG_X);
   }
   int16_t cellOrgX() const {
-    return c->mem_r16s(GR + GR_CELL_ORG_X);
+    return (int16_t)c->mem_r16(GR + GR_CELL_ORG_X);
   }
   uint16_t cellOrgZ_u() const {
     return c->mem_r16(GR + GR_CELL_ORG_Z);
   }
   int16_t cellOrgZ() const {
-    return c->mem_r16s(GR + GR_CELL_ORG_Z);
+    return (int16_t)c->mem_r16(GR + GR_CELL_ORG_Z);
   }
 
   uint16_t segX0_u() const {
     return c->mem_r16(GR + GR_SEG_X0);
   }
   int16_t segX0() const {
-    return c->mem_r16s(GR + GR_SEG_X0);
+    return (int16_t)c->mem_r16(GR + GR_SEG_X0);
   }
   int16_t segZ0() const {
-    return c->mem_r16s(GR + GR_SEG_Z0);
+    return (int16_t)c->mem_r16(GR + GR_SEG_Z0);
   }
   int16_t segX1() const {
-    return c->mem_r16s(GR + GR_SEG_X1);
+    return (int16_t)c->mem_r16(GR + GR_SEG_X1);
   }
   int16_t segZ1() const {
-    return c->mem_r16s(GR + GR_SEG_Z1);
+    return (int16_t)c->mem_r16(GR + GR_SEG_Z1);
   }
 
   uint16_t probeX_u() const {
     return c->mem_r16(GR + GR_PROBE_X);
   }
   int16_t probeX() const {
-    return c->mem_r16s(GR + GR_PROBE_X);
+    return (int16_t)c->mem_r16(GR + GR_PROBE_X);
   }
   void setProbeX(uint16_t v) {
     c->mem_w16(GR + GR_PROBE_X, v);
@@ -142,27 +132,27 @@ struct GridRay {
     return c->mem_r16(GR + GR_PROBE_Z);
   }
   int16_t probeZ() const {
-    return c->mem_r16s(GR + GR_PROBE_Z);
+    return (int16_t)c->mem_r16(GR + GR_PROBE_Z);
   }
   void setProbeZ(uint16_t v) {
     c->mem_w16(GR + GR_PROBE_Z, v);
   }
 
   int16_t probeY() const {
-    return c->mem_r16s(GR + GR_PROBE_Y);
+    return (int16_t)c->mem_r16(GR + GR_PROBE_Y);
   }
   void setProbeY(uint16_t v) {
     c->mem_w16(GR + GR_PROBE_Y, v);
   }
 
   int16_t localX() const {
-    return c->mem_r16s(GR + GR_LOCAL_X);
+    return (int16_t)c->mem_r16(GR + GR_LOCAL_X);
   }
   uint16_t localX_u() const {
     return c->mem_r16(GR + GR_LOCAL_X);
   }
   int16_t localZ() const {
-    return c->mem_r16s(GR + GR_LOCAL_Z);
+    return (int16_t)c->mem_r16(GR + GR_LOCAL_Z);
   }
   uint16_t localZ_u() const {
     return c->mem_r16(GR + GR_LOCAL_Z);
@@ -230,12 +220,10 @@ struct ProbeActor {
 
 // Guest stack-frame slot offsets for the 32-byte frame FUN_8004766C opens (tools/binary ABI evidence
 // --contract 8004766C). The port MIRRORS this frame — see snapObjectToTerrain.
-enum : uint32_t {
-  FR_S0 = 16, // sp+0x10  s0 (r16)
-  FR_S1 = 20, // sp+0x14  s1 (r17)
-  FR_S2 = 24, // sp+0x18  s2 (r18)
-  FR_RA = 28, // sp+0x1C  ra (r31)
-};
+constexpr uint32_t FR_S0 = 16; // sp+0x10  s0 (r16)
+constexpr uint32_t FR_S1 = 20; // sp+0x14  s1 (r17)
+constexpr uint32_t FR_S2 = 24; // sp+0x18  s2 (r18)
+constexpr uint32_t FR_RA = 28; // sp+0x1C  ra (r31)
 } // namespace
 
 // FUN_80031780 — list-tail resolver / reset. Walks the 8-byte-stride linked list rooted at
@@ -247,10 +235,7 @@ enum : uint32_t {
 void Collision::listScan(uint32_t obj) {
   Core *c = this->core;
   c->r[4] = obj; // taxi-in for the still-taxi verify super-call
-  static int s_v = -1;
-  if (s_v < 0) {
-    s_v = cfg_dbg("listscan") ? 1 : 0;
-  }
+  const bool verify = lucent::channel_on("listscan");
   uint32_t a0 = obj;
   uint32_t o52 = c->mem_r32(a0 + 52), o56 = c->mem_r32(a0 + 56);
   uint32_t n52 = o52, n56 = o56, v0 = c->r[2];
@@ -272,19 +257,21 @@ void Collision::listScan(uint32_t obj) {
       n56 = v1;
     }
   }
-  if (s_v) {
+  if (verify) {
     psx::cpu::callOriginalToReturn(*c,
                                    0x80031780u,
                                    psx::cpu::ExecutionBudget::currentTurn(*c),
                                    __func__); // memory untouched above -> oracle writes
     uint32_t r52 = c->mem_r32(a0 + 52), r56 = c->mem_r32(a0 + 56);
-    static long ng = 0, nb = 0;
+    tomba::VerificationCounter &chk = tombaSession(c).verification.listScan;
+    long &ng = chk.nMatch, &nb = chk.nMismatch;
     if (r52 != n52 || r56 != n56) {
       if (nb++ < 20) {
-        cfg_logi("listscan", "MISMATCH a0=%x 52 mine=%x oracle=%x  56 mine=%x oracle=%x", a0, n52, r52, n56, r56);
+        lucent::info(
+            "listscan", "MISMATCH a0={:x} 52 mine={:x} oracle={:x}  56 mine={:x} oracle={:x}", a0, n52, r52, n56, r56);
       }
     } else if (++ng % 5000 == 0) {
-      cfg_logi("listscan", "%ld matches", ng);
+      lucent::info("listscan", "{} matches", ng);
     }
     return; // keep oracle result
   }
@@ -301,10 +288,7 @@ void Collision::listScan(uint32_t obj) {
 void Collision::gridSetup(uint32_t layer) {
   Core *c = this->core;
   c->r[4] = layer; // taxi-in for the verify super-call
-  static int s_v = -1;
-  if (s_v < 0) {
-    s_v = cfg_dbg("gridsetup") ? 1 : 0;
-  }
+  const bool verify = lucent::channel_on("gridsetup");
   uint32_t a0 = layer & 0xffu;
   uint32_t base = c->mem_r32(0x1F8001C8u);
   uint32_t rec = base + (uint32_t)c->mem_r16(base + a0 * 2) * 2;
@@ -313,29 +297,30 @@ void Collision::gridSetup(uint32_t layer) {
   uint32_t d4 = rec + (uint32_t)c->mem_r16(rec + 14) * 2;
   uint32_t d8 = rec + (uint32_t)c->mem_r16(rec + 16) * 2;
   uint32_t dc = rec + (uint32_t)c->mem_r16(rec + 18) * 2;
-  if (s_v) {
+  if (verify) {
     psx::cpu::callOriginalToReturn(*c, 0x80049968u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
-    static long ng = 0, nb = 0;
+    tomba::VerificationCounter &chk = tombaSession(c).verification.gridSetup;
+    long &ng = chk.nMatch, &nb = chk.nMismatch;
     uint32_t o_cc = c->mem_r32(0x1F8001CCu), o_d0 = c->mem_r32(0x1F8001D0u), o_d4 = c->mem_r32(0x1F8001D4u),
              o_d8 = c->mem_r32(0x1F8001D8u), o_dc = c->mem_r32(0x1F8001DCu);
     if (o_cc != cc || o_d0 != d0 || o_d4 != d4 || o_d8 != d8 || o_dc != dc) {
       if (nb++ < 20) {
-        cfg_logi("gridsetup",
-                 "MISMATCH a0=%x cc=%x/%x d0=%x/%x d4=%x/%x d8=%x/%x dc=%x/%x",
-                 a0,
-                 cc,
-                 o_cc,
-                 d0,
-                 o_d0,
-                 d4,
-                 o_d4,
-                 d8,
-                 o_d8,
-                 dc,
-                 o_dc);
+        lucent::info("gridsetup",
+                     "MISMATCH a0={:x} cc={:x}/{:x} d0={:x}/{:x} d4={:x}/{:x} d8={:x}/{:x} dc={:x}/{:x}",
+                     a0,
+                     cc,
+                     o_cc,
+                     d0,
+                     o_d0,
+                     d4,
+                     o_d4,
+                     d8,
+                     o_d8,
+                     dc,
+                     o_dc);
       }
     } else if (++ng % 5000 == 0) {
-      cfg_logi("gridsetup", "%ld matches", ng);
+      lucent::info("gridsetup", "{} matches", ng);
     }
     return;
   }
@@ -445,6 +430,8 @@ static uint32_t grid_query_47cbc(Core *c) {
           gr.setProbeZ((uint16_t)((gr.probeZ_u() + 64) & MASK));
           t0++;
           break;
+        default:
+          break;
         }
       } else if ((uint32_t)c->mem_r16(SP + 0x1AE) < (uint32_t)c->mem_r16(SP + 0x1B0)) {
         if (a2 & 0x0002u) {
@@ -492,11 +479,8 @@ static uint32_t grid_query_47cbc(Core *c) {
 
 int Collision::gridQuery() {
   Core *c = this->core;
-  static int s_v = -1;
-  if (s_v < 0) {
-    s_v = cfg_dbg("gridquery") ? 1 : 0;
-  }
-  if (!s_v) {
+  const bool verify = lucent::channel_on("gridquery");
+  if (!verify) {
     int r = (int)grid_query_47cbc(c);
     c->r[2] = (uint32_t)r;
     return r;
@@ -520,13 +504,14 @@ int Collision::gridQuery() {
       break;
     }
   }
-  static long ng = 0, nb = 0;
+  tomba::VerificationCounter &chk = tombaSession(c).verification.gridQuery;
+  long &ng = chk.nMatch, &nb = chk.nMismatch;
   if (firstoff >= 0 || mine != oracle) {
     if (nb++ < 30) {
-      cfg_logi("gridquery", "MISMATCH ret mine=%x oracle=%x scratchdiff@+%x", mine, oracle, firstoff);
+      lucent::info("gridquery", "MISMATCH ret mine={:x} oracle={:x} scratchdiff@+{:x}", mine, oracle, firstoff);
     }
   } else if (++ng % 2000 == 0) {
-    cfg_logi("gridquery", "%ld matches", ng);
+    lucent::info("gridquery", "{} matches", ng);
   }
   (void)N;
   c->r[2] = oracle; // keep oracle scratchpad state
@@ -572,11 +557,8 @@ static uint32_t grid_resolve_498c8(Core *c, uint32_t obj) {
 int Collision::gridResolve(uint32_t obj) {
   Core *c = this->core;
   c->r[4] = obj; // taxi-in for the verify super-call
-  static int s_v = -1;
-  if (s_v < 0) {
-    s_v = cfg_dbg("gridresolve") ? 1 : 0;
-  }
-  if (!s_v) {
+  const bool verify = lucent::channel_on("gridresolve");
+  if (!verify) {
     int r = (int)grid_resolve_498c8(c, obj);
     c->r[2] = (uint32_t)r;
     return r;
@@ -585,8 +567,8 @@ int Collision::gridResolve(uint32_t obj) {
   // and rolled back, then the guest instruction path runs and we diff. The dispatched callees (incl. the deep
   // FUN_8004798C tree) run in BOTH passes; FUN_800498C8's own 32-byte stack frame [sp-32, sp) is dead
   // below sp on return (gen saves regs there; native never touches the guest stack) -> excluded.
-  static uint8_t *ram0 = (uint8_t *)malloc(0x200000);
-  static uint8_t *ramN = (uint8_t *)malloc(0x200000);
+  uint8_t *ram0 = tombaSession(c).verification.ram0();
+  uint8_t *ramN = tombaSession(c).verification.ramN();
   uint8_t spad0[0x400], spadN[0x400];
   uint32_t regs0[32];
   memcpy(regs0, c->r, sizeof regs0);
@@ -615,13 +597,21 @@ int Collision::gridResolve(uint32_t obj) {
       break;
     }
   }
-  static long ng = 0, nb = 0;
+  tomba::VerificationCounter &chk = tombaSession(c).verification.gridResolve;
+  long &ng = chk.nMatch, &nb = chk.nMismatch;
   if (ro >= 0 || so >= 0 || v0_n != v0_o) {
     if (nb++ < 40) {
-      cfg_logi("gridresolve", "MISMATCH obj=%08x v0 n=%x o=%x ram@%x spad@%x sp=%x", obj, v0_n, v0_o, ro, so, sp);
+      lucent::info("gridresolve",
+                   "MISMATCH obj={:08x} v0 n={:x} o={:x} ram@{:x} spad@{:x} sp={:x}",
+                   obj,
+                   v0_n,
+                   v0_o,
+                   ro,
+                   so,
+                   sp);
     }
   } else if (++ng % 2000 == 0) {
-    cfg_logi("gridresolve", "%ld matches", ng);
+    lucent::info("gridresolve", "{} matches", ng);
   }
   return (int)v0_o;
 }
@@ -719,16 +709,13 @@ static void grid_step_4798c(Core *c, uint32_t obj) {
 void Collision::gridStep(uint32_t obj) {
   Core *c = this->core;
   c->r[4] = obj; // taxi-in for the verify super-call
-  static int s_v = -1;
-  if (s_v < 0) {
-    s_v = cfg_dbg("gridstep") ? 1 : 0;
-  }
-  if (!s_v) {
+  const bool verify = lucent::channel_on("gridstep");
+  if (!verify) {
     grid_step_4798c(c, obj);
     return;
   }
-  static uint8_t *ram0 = (uint8_t *)malloc(0x200000);
-  static uint8_t *ramN = (uint8_t *)malloc(0x200000);
+  uint8_t *ram0 = tombaSession(c).verification.ram0();
+  uint8_t *ramN = tombaSession(c).verification.ramN();
   uint8_t spad0[0x400], spadN[0x400];
   uint32_t regs0[32];
   memcpy(regs0, c->r, sizeof regs0);
@@ -756,13 +743,14 @@ void Collision::gridStep(uint32_t obj) {
       break;
     }
   }
-  static long ng = 0, nb = 0;
+  tomba::VerificationCounter &chk = tombaSession(c).verification.gridStep;
+  long &ng = chk.nMatch, &nb = chk.nMismatch;
   if (ro >= 0 || so >= 0) {
     if (nb++ < 40) {
-      cfg_logi("gridstep", "MISMATCH obj=%08x ram@%x spad@%x sp=%x", obj, ro, so, sp);
+      lucent::info("gridstep", "MISMATCH obj={:08x} ram@{:x} spad@{:x} sp={:x}", obj, ro, so, sp);
     }
   } else if (++ng % 2000 == 0) {
-    cfg_logi("gridstep", "%ld matches", ng);
+    lucent::info("gridstep", "{} matches", ng);
   }
 }
 
@@ -909,6 +897,8 @@ static void eov_collisionSnapObjectToTerrain(Core *c) {
   c->r[2] = eng(c).collision.snapObjectToTerrain(c->r[4]);
 }
 
-void Collision::registerOverrides() {
-  tomba::native::declareOverride(0x8004766Cu, "Collision::snapObjectToTerrain", eov_collisionSnapObjectToTerrain);
+void Collision::registerOverrides(native::NativeOverrideCatalog &natives) {
+  natives.declare(0x8004766Cu, "Collision::snapObjectToTerrain", eov_collisionSnapObjectToTerrain);
 }
+
+} // namespace tomba

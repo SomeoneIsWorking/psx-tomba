@@ -14,14 +14,21 @@ constexpr uint32_t kDepthCue = 0x1F800090u; // s32 IR0 for the writer's DPCS col
 constexpr int32_t kDepthCueOff = 0; // IR0 = 0 leaves the colours untouched
 } // namespace fxpublish
 
+namespace tomba {
+
 struct FxSpritePublish {
   Core *mCore;
 
   // Scene camera into GTE CR0-7; DQB = 0 so MAC0 = n * DQA, which the family uses as the sprite scale.
   void loadSceneCamera(uint32_t dqa) const;
 
+  struct ProjectAnchorArgs {
+    uint32_t worldXY;
+    uint32_t worldZ;
+    int32_t otBias;
+  };
   // RTPS one world anchor and gate its OT key in place, storing every step; true when it is on screen.
-  bool projectAnchor(uint32_t worldXY, uint32_t worldZ, int32_t otBias);
+  bool projectAnchor(const ProjectAnchorArgs &args);
 
   void setOtKey(int32_t v) {
     mCore->mem_w32(fxpublish::kOtKey, (uint32_t)v);
@@ -46,3 +53,5 @@ struct FxSpritePublish {
     return (int32_t)mCore->mem_r32(fxpublish::kScaleX);
   }
 };
+
+} // namespace tomba

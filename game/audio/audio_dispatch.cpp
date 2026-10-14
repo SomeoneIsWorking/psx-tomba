@@ -3,7 +3,7 @@
 // leaves (FUN_8001CF2C / FUN_8001D2A8 / FUN_80074B44 / FUN_80074E48) stay substrate.
 //
 // FUN_8001CF2C re-confirmed 2026-07-08 (Ghidra decomp, scratch/decomp/cf2c_cluster.c):
-//   FUN_80052010(2)          -> already native: PcScheduler::forceClose(2)
+//   FUN_80052010(2)          -> already native: TombaScheduler::forceClose(2)
 //   DAT_800be0e4 = 0         -> settle-flag clear (guest RAM write, mechanical)
 //   FUN_8001cf00(0)          -> already native: Cd::toSpuMix(0)
 //   do { } while(!FUN_80089e1c(9,0,0))
@@ -19,8 +19,8 @@
 #include "audio/audio_dispatch.h"
 #include "core.h"
 #include "core/engine/engine.h"
-#include "core/entry/game_ctx.h"
-#include "core/overrides/native_override_catalog.h" // tomba::native::declareOverride — the one native-override registry
+#include "core/overrides/native_override_catalog.h"
+#include "entry/tomba_session.h"
 #include "guest_call.h"
 
 // Byte-exact ready-frame ports below install by guest address into the ONE override registry so
@@ -29,6 +29,8 @@
 // AudioDispatch::dispatch3Way — native ownership of FUN_800750D8 (Ghidra decomp
 // scratch/decomp/fun_800750d8_v2.c). Returns the flag/settle result via c->r[2] as well as via
 // the C return value so the guest instruction path `v0` semantics stay.
+namespace tomba {
+
 uint32_t AudioDispatch::dispatch3Way(uint32_t idx, uint32_t arg2) {
   Core *c = core;
   uint32_t v0;
@@ -39,7 +41,7 @@ uint32_t AudioDispatch::dispatch3Way(uint32_t idx, uint32_t arg2) {
         *c, 0x8001CF2Cu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // engine tick / settle
     v0 = c->r[2];
   } else {
-    voiceFetchBits(idx, arg2);
+    voiceFetchBits({.bits = idx, .flag = arg2});
     v0 = 0;
   }
   c->r[2] = v0;
@@ -51,9 +53,10 @@ uint32_t AudioDispatch::dispatch3Way(uint32_t idx, uint32_t arg2) {
 // 8 resident u16-array pointers (ptr-to-ptr; deref once for the table, then read two u16s per
 // entry). The substrate leaf FUN_8001D2A8 (XA/voice fetch entry) stays dispatched — sister to
 // zoneTransitionSetup which uses the 0x8009D110 record table with a different index shape.
-void AudioDispatch::voiceFetchBits(uint32_t bits, uint32_t flag) {
+void AudioDispatch::voiceFetchBits(const VoiceFetchBitsArgs &args) {
+  auto [bits, flag] = args;
   Core *c = core;
-  static constexpr uint32_t TABLE_PTRS[8] = {
+  constexpr uint32_t TABLE_PTRS[8] = {
       0x8001005Cu,
       0x80010060u,
       0x80010064u,
@@ -212,7 +215,9 @@ static void eov_audioPublishStateFade(Core *c) {
   eng(c).audioDispatch.publishStateFade((uint8_t)c->r[4]);
 }
 
-void AudioDispatch::registerOverrides() {
-  tomba::native::declareOverride(0x80075024u, "AudioDispatch::selectStateRemap", eov_audioSelectStateRemap);
-  tomba::native::declareOverride(0x80075070u, "AudioDispatch::publishStateFade", eov_audioPublishStateFade);
+void AudioDispatch::registerOverrides(native::NativeOverrideCatalog &natives) {
+  natives.declare(0x80075024u, "AudioDispatch::selectStateRemap", eov_audioSelectStateRemap);
+  natives.declare(0x80075070u, "AudioDispatch::publishStateFade", eov_audioPublishStateFade);
 }
+
+} // namespace tomba

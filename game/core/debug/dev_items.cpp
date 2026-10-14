@@ -45,7 +45,7 @@ void DevItems::applyArmed(Core &core, GiveFn give, uint32_t frame) {
   } else if (request == Request::One) {
     const uint32_t address = inventory_layout::kCounts + item_;
     const uint32_t before = core.mem_r8(address);
-    give(core, item_, amount_);
+    give(core, {.type = item_, .amount = amount_});
     lucent::info("items", "item {} x{} at f{}: count {} -> {}", item_, amount_, frame, before, core.mem_r8(address));
   }
 }

@@ -12,6 +12,12 @@
 #include <cstdint>
 struct Core;
 
+namespace tomba::native {
+class NativeOverrideCatalog;
+} // namespace tomba::native
+
+namespace tomba {
+
 class AudioDispatch {
 public:
   Core *core = nullptr;
@@ -30,13 +36,17 @@ public:
   //   own s0. Ghidra decomp scratch/decomp/area_load_leaves.c.
   void selectState(uint8_t idx);
 
+  struct VoiceFetchBitsArgs {
+    uint32_t bits;
+    uint32_t flag;
+  };
   // voiceFetchBits(bits, flag): guest FUN_8001D364. Bit-packed XA/voice fetch selector.
   //   bits[3..5] pick one of 8 per-class descriptor tables (0x8001005C..0x80010078); bits[0..2]
   //   index a (u16 offset, u16 count) pair inside that table. Delegates to substrate
   //   FUN_8001D2A8(class, base, tail, flag|2) where base = *0x1F800224 + offset*8 and
   //   tail = base + (count-2)*8. Sister to zoneTransitionSetup (same substrate leaf,
   //   different index shape). Ghidra decomp scratch/decomp/fun_8001d364.c.
-  void voiceFetchBits(uint32_t bits, uint32_t flag);
+  void voiceFetchBits(const VoiceFetchBitsArgs &args);
 
   // settleField(): guest FUN_80074BC4. 4-step audio state SETTLE fired by Engine::fieldRun's
   //   state 3 (init hand-off) / state 1's mode-3 branch / state 6 (transition entry): clears the
@@ -74,5 +84,7 @@ public:
 
   // registerOverrides(): install selectStateRemap / publishStateFade by guest address into the ONE
   //   override registry so every caller (substrate included) reaches the native method.
-  void registerOverrides();
+  void registerOverrides(native::NativeOverrideCatalog &natives);
 };
+
+} // namespace tomba

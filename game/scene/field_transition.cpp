@@ -6,7 +6,7 @@
 #include "field_transition.h"
 
 #include "core.h"
-#include "core/entry/game_ctx.h" // eng(c) / fade(c)
+#include "entry/tomba_session.h" // eng(c) / fade(c)
 #include "guest_call.h"          // psx::cpu::callGuestNow / dispatchGuestToReturn0 / ExecutionBudget
 #include "render/screen_fade.h"  // class ScreenFade — the single fade driver
 #include "sop.h"                 // class Sop — transitionAreaLoad (sync FIELD transition load)
@@ -33,6 +33,8 @@
 // fields the spawned load reads, clear the load-done flag, run the load
 // SYNCHRONOUSLY (native_transition_area_load sets 1f80019b=1). The PSX phase-1
 // wait-loop is gone (sync runtime). Faithful to bd4.c's pre-spawn writes.
+namespace tomba {
+
 void FieldTransition::areaLoadBd4(std::uint32_t area, std::uint32_t mode) {
   Core *c = core;
   uint32_t sm = c->mem_r32(0x1f800138u);
@@ -270,3 +272,5 @@ void FieldTransition::step() {
     break;
   }
 }
+
+} // namespace tomba

@@ -1,6 +1,6 @@
-// The catalog identities and the movie policy, through the shipping owners.
+// The catalog identities and the launch settings, through the shipping owners.
 #include "entry/tomba_identity.h"
-#include "frame/movie_policy.h"
+#include "entry/tomba_settings.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -33,19 +33,20 @@ int main(int argc, char **argv) {
   check(tomba::title::bootStubIdentity().sha256 != tomba::title::mainExecutableIdentity().sha256,
         "stub and main are distinct images");
 
-  // The config layer caches its first read, so each environment is its own process.
+  // A CVar binds its environment on first read, so each environment is its own process.
   const std::string mode = argc > 1 ? argv[1] : "";
-  if (mode == "skip") {
+  if (mode == "defaults") {
+    const tomba::TombaSettings settings = tomba::TombaSettings::fromCVars();
+    check(!settings.skipMovies && !settings.autoSkip, "movies play and nothing is driven by default");
+  } else if (mode == "set") {
     setenv("PSXPORT_NO_FMV", "1", 1);
-    check(!tomba::MoviePolicy::plays(false), "NO_FMV=1 skips movies");
-  } else if (mode == "forced") {
+    setenv("PSXPORT_AUTO_SKIP", "1", 1);
+    const tomba::TombaSettings settings = tomba::TombaSettings::fromCVars();
+    check(settings.skipMovies && settings.autoSkip, "NO_FMV and AUTO_SKIP read as set");
+  } else if (mode == "off") {
     setenv("PSXPORT_NO_FMV", "0", 1);
-    setenv("PSXPORT_VK_HEADLESS", "1", 1);
-    check(tomba::MoviePolicy::plays(true), "NO_FMV=0 forces the headless-skipped movie on");
-  } else if (mode == "headless") {
-    setenv("PSXPORT_VK_HEADLESS", "1", 1);
-    check(!tomba::MoviePolicy::plays(true), "headless skips a headless-skippable movie");
-    check(tomba::MoviePolicy::plays(false), "headless alone does not skip the boot movie");
+    const tomba::TombaSettings settings = tomba::TombaSettings::fromCVars();
+    check(!settings.skipMovies, "NO_FMV=0 plays movies");
   }
 
   if (failed != 0) {

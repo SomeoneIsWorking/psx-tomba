@@ -2,7 +2,7 @@
 // producer key names, so a record freed by one object and popped for the next never pairs the two.
 #include "game.h"
 #include "render_record_pool.h"
-#include "stub_runtime.h"
+#include "stub_game_runtime.h"
 
 #include <cstdint>
 #include <lucent/log.h>
@@ -10,8 +10,8 @@
 
 namespace {
 
-using tomba2::world::incarnationObject;
-using tomba2::world::RenderRecordPool;
+using tomba::world::incarnationObject;
+using tomba::world::RenderRecordPool;
 
 constexpr std::uint32_t kStack = 0x80180000u;
 constexpr std::uint32_t kRecordA = 0x800F407Cu;
@@ -107,9 +107,8 @@ void testRespawnKeys(Core &core) {
 } // namespace
 
 int main() {
-  tomba::test::StubRuntime runtime;
-  psxport_install_game(runtime);
-  auto game = std::make_unique<Game>();
+  psx::test::StubGameRuntime runtime;
+  auto game = std::make_unique<Game>(runtime, psx::config::Config{});
   Core &core = game->core;
   testPop(core);
   testGuestRegisters(core);

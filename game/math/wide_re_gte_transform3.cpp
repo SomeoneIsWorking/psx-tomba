@@ -29,7 +29,7 @@
 //     reads of the SAME source word with different mask/shift per vertex, not two separate fields.)
 //
 // Algorithm: gte_write_ctrl(0..4) load the rotation matrix from a0. Then for each of the 3 vertices,
-// write GTE data regs 0/1 (VXY/VZ) from the a1 fields above and run RTPS (gte_op 0x4A486012 — the
+// write GTE data regs 0/1 (VXY/VZ) from the a1 fields above and run RTPS (GTE command 0x4A486012 — the
 // 6-bit COP2 function code for perspective-transform-single, matching the doc's "GTE ops actually
 // used: RTPS/RTPT"). BEFORE writing each NEXT vertex's data (not after — this is a genuine
 // pipelining quirk of the guest code, transcribed as-is), the PREVIOUS vertex's transformed IR1/2/3
@@ -38,31 +38,31 @@
 // plus vertex2's IR3 written whole — the exact interleaving the guest-visible behavior performs, preserved 1:1
 // below. Output written back into a0[0..16] (in place).
 #include "core.h"
-#include "core/overrides/native_override_catalog.h" // tomba::native::declareOverride
+#include "core/overrides/native_override_catalog.h"
 #include "game.h"
 #include "gte_transform3.h"
 #include <stdint.h>
 
-// gte_write_ctrl/gte_write_data/gte_read_data/gte_op declared in core.h.
+namespace tomba {
 
 void GteTransform3::rotate3AndPackIr(Core *c) {
   uint32_t mat = c->r[4]; // in/out matrix buffer (a0)
   uint32_t src = c->r[5]; // 3-vertex source array (a1)
 
-  gte_write_ctrl(0, c->mem_r32(mat + 0));
-  gte_write_ctrl(1, c->mem_r32(mat + 4));
-  gte_write_ctrl(2, c->mem_r32(mat + 8));
-  gte_write_ctrl(3, c->mem_r32(mat + 12));
-  gte_write_ctrl(4, c->mem_r32(mat + 16));
+  c->gte().writeControl(0, c->mem_r32(mat + 0));
+  c->gte().writeControl(1, c->mem_r32(mat + 4));
+  c->gte().writeControl(2, c->mem_r32(mat + 8));
+  c->gte().writeControl(3, c->mem_r32(mat + 12));
+  c->gte().writeControl(4, c->mem_r32(mat + 16));
 
   // --- vertex 0 ---
   uint32_t vxy0 = (uint32_t)c->mem_r16(src + 0);     // X0, zero-extended
   uint32_t y0hi = c->mem_r32(src + 4) & 0xFFFF0000u; // Y0 packed in the high 16 of word@+4
   vxy0 |= y0hi;
   uint32_t vz0 = c->mem_r32(src + 12); // already GTE-VZ-packed
-  gte_write_data(0, vxy0);
-  gte_write_data(1, vz0);
-  gte_op(c, 0x4A486012u); // RTPS vertex0
+  c->gte().writeData(0, vxy0);
+  c->gte().writeData(1, vz0);
+  c->gte().execute(0x4A486012u); // RTPS vertex0
 
   // --- vertex 1 (reads vertex0's IR1/2/3 BEFORE writing vertex1's data — pipelined as in the guest-visible behavior)
   // ---
@@ -71,24 +71,24 @@ void GteTransform3::rotate3AndPackIr(Core *c) {
       (c->mem_r32(src + 8) << 16); // Y1 packed in the LOW 16 of word@+8, shifted to hi16 here (matches gen: r9<<16)
   vxy1 |= y1lo;
   int32_t vz1 = c->mem_r16s(src + 14); // Z1, sign-extended s16 -> s32
-  uint32_t ir1_v0 = gte_read_data(9);
-  uint32_t ir2_v0 = gte_read_data(10);
-  uint32_t ir3_v0 = gte_read_data(11);
-  gte_write_data(0, vxy1);
-  gte_write_data(1, (uint32_t)vz1);
-  gte_op(c, 0x4A486012u); // RTPS vertex1
+  uint32_t ir1_v0 = c->gte().readData(9);
+  uint32_t ir2_v0 = c->gte().readData(10);
+  uint32_t ir3_v0 = c->gte().readData(11);
+  c->gte().writeData(0, vxy1);
+  c->gte().writeData(1, (uint32_t)vz1);
+  c->gte().execute(0x4A486012u); // RTPS vertex1
 
   // --- vertex 2 (reads vertex1's IR1/2/3 BEFORE writing vertex2's data) ---
   uint32_t vxy2 = (uint32_t)c->mem_r16(src + 4);     // "X2" = low16 of the SAME word@+4 vertex0 read as Y0's high16
   uint32_t y2hi = c->mem_r32(src + 8) & 0xFFFF0000u; // Y2 = high16 of the SAME word@+8 vertex1 read as Y1's low16
   vxy2 |= y2hi;
   uint32_t vz2 = c->mem_r32(src + 16); // already GTE-VZ-packed
-  uint32_t ir1_v1 = gte_read_data(9);
-  uint32_t ir2_v1 = gte_read_data(10);
-  uint32_t ir3_v1 = gte_read_data(11);
-  gte_write_data(0, vxy2);
-  gte_write_data(1, vz2);
-  gte_op(c, 0x4A486012u); // RTPS vertex2
+  uint32_t ir1_v1 = c->gte().readData(9);
+  uint32_t ir2_v1 = c->gte().readData(10);
+  uint32_t ir3_v1 = c->gte().readData(11);
+  c->gte().writeData(0, vxy2);
+  c->gte().writeData(1, vz2);
+  c->gte().execute(0x4A486012u); // RTPS vertex2
 
   // --- pack results back into mat[0..16] (in place) ---
   uint32_t out0 = (ir1_v0 & 0xFFFFu) | (ir1_v1 << 16);
@@ -97,19 +97,21 @@ void GteTransform3::rotate3AndPackIr(Core *c) {
   uint32_t out12 = (ir3_v0 & 0xFFFFu) | (ir3_v1 << 16);
   c->mem_w32(mat + 12, out12);
 
-  uint32_t ir1_v2 = gte_read_data(9);
-  uint32_t ir2_v2 = gte_read_data(10);
+  uint32_t ir1_v2 = c->gte().readData(9);
+  uint32_t ir2_v2 = c->gte().readData(10);
   uint32_t out4 = (ir1_v2 & 0xFFFFu) | (ir2_v0 << 16);
   c->mem_w32(mat + 4, out4);
 
   uint32_t out8 = (ir2_v1 & 0xFFFFu) | (ir2_v2 << 16);
   c->mem_w32(mat + 8, out8);
 
-  c->mem_w32(mat + 16, gte_read_data(11)); // vertex2's IR3, whole word, unpacked
+  c->mem_w32(mat + 16, c->gte().readData(11)); // vertex2's IR3, whole word, unpacked
 
   c->r[2] = mat; // return value = the same buffer pointer (a0)
 }
 
-void GteTransform3::registerOverrides(Game *) {
-  tomba::native::declareOverride(0x80084250u, "&GteTransform3::rotate3AndPackIr", &GteTransform3::rotate3AndPackIr);
+void GteTransform3::registerOverrides(native::NativeOverrideCatalog &natives) {
+  natives.declare(0x80084250u, "&GteTransform3::rotate3AndPackIr", &GteTransform3::rotate3AndPackIr);
 }
+
+} // namespace tomba

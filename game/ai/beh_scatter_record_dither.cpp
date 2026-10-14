@@ -26,10 +26,9 @@
 // no-arg FUN_8009A450 calls inherit whatever the prior leaf left, exactly as the guest instruction path does). v0
 // (handler return) is NOT reproduced (the per-object dispatcher ignores it; the gate compares only RAM+scratchpad).
 
-#include "cfg.h"
 #include "collision.h" // Collision::listScan (FUN_80031780)
 #include "core.h"
-#include "core/entry/game_ctx.h"
+#include "entry/tomba_session.h"
 #include "guest_abi.h"   // GuestFrame — mirror the guest stack frame (CLAUDE.md)
 #include "render/cull.h" // Cull::coneCull2b278 (FUN_8002B278)
 #include "rng.h"         // class Rng (via rngOf(c).next())
@@ -37,6 +36,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+namespace tomba {
 
 namespace {
 
@@ -199,3 +200,5 @@ L7ac:
 L7d4:
   return;
 }
+
+} // namespace tomba

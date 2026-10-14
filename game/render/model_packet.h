@@ -20,11 +20,11 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace tomba2::horizontal_cull {
+namespace tomba::horizontal_cull {
 class Visibility;
 }
 
-namespace tomba2::render {
+namespace tomba::render {
 
 // Record offsets of one corner's s16 model coordinates.
 struct ModelCorner {
@@ -80,7 +80,7 @@ inline constexpr std::uint32_t kDepthStage = 0x1F800084u;
 inline constexpr std::uint32_t kColourMask = 0x00F0F0F0u;
 inline constexpr std::uint32_t kColourCodeMask = 0xFFF0F0F0u;
 
-enum class ModelDepth { Average, Farthest, Nearest };
+enum class ModelDepth : std::uint8_t { Average, Farthest, Nearest };
 
 // The flag bit that hides an A01 record while the scratchpad word 0x1F80009C is set.
 inline constexpr std::uint32_t kHideFlag = 0x40u;
@@ -98,10 +98,14 @@ inline constexpr NearClamp kNoNearClamp{0, 0u};
 // One record's packet.
 class ModelPacket {
 public:
+  // The record read and the packet written.
+  struct Placement {
+    std::uint32_t record;
+    std::uint32_t packet;
+  };
   ModelPacket(const psx::present::EmitMemory &memory,
               const ModelShape &shape,
-              std::uint32_t record,
-              std::uint32_t packet,
+              const Placement &placement,
               ModelStage stage);
 
   std::uint32_t record() const {
@@ -115,9 +119,13 @@ public:
 
   // GT3: RTPT, flag, back face, cull; the packet's colours (`colourMask`), UVs and SXYs.
   bool projectGt3(std::uint32_t colourMask, const horizontal_cull::Visibility &visible) const;
+  struct ProjectGt4Args {
+    std::uint32_t firstColourMask;
+    std::uint32_t colourMask;
+    const horizontal_cull::Visibility &visible;
+  };
   // GT4 with corners 0..2 by RTPT then corner 3 by RTPS.
-  bool
-  projectGt4(std::uint32_t firstColourMask, std::uint32_t colourMask, const horizontal_cull::Visibility &visible) const;
+  bool projectGt4(const ProjectGt4Args &args) const;
   // GT4 with corner 3 by RTPS first (the resident emitter).
   bool projectGt4CornerThreeFirst(std::uint32_t colourMask, const horizontal_cull::Visibility &visible) const;
 
@@ -136,7 +144,11 @@ public:
   // Adds `amount` to every corner's U, wrapping in the byte.
   void scrollU(std::uint32_t amount) const;
   // DPCS: the corner's colour toward the far colour by `intensity`, in place.
-  void shade(int corner, std::int32_t intensity) const;
+  struct ShadeArgs {
+    int corner;
+    std::int32_t intensity;
+  };
+  void shade(const ShadeArgs &args) const;
   // Depth cue: shades the corner by its SZ word at `staged` (one word per corner), / 4.
   void cueByDepth(int corner, std::uint32_t staged) const;
   // Links the packet into the bucket stage's OT bucket.
@@ -185,7 +197,7 @@ std::uint32_t emitModelList(const psx::present::EmitMemory &memory,
   std::uint32_t packet = pool.cursor();
   for (std::uint32_t index = 0; index != call.count; ++index, record += shape.recordBytes) {
     const psx::present::ElementScope element(memory, modelElement(shape.list, index));
-    if (emit(ModelPacket(memory, shape, record, packet, stage))) {
+    if (emit(ModelPacket(memory, shape, {.record = record, .packet = packet}, stage))) {
       packet += shape.packetBytes;
     }
   }
@@ -200,4 +212,4 @@ inline ListJobWriter modelListJob(Core &core, std::uint32_t variant, const ListC
   return job;
 }
 
-} // namespace tomba2::render
+} // namespace tomba::render

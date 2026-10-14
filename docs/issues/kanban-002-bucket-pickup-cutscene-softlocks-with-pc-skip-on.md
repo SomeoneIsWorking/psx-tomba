@@ -3,6 +3,7 @@ id: kanban-002
 title: Bucket-pickup cutscene SOFTLOCKS with pc_skip ON (default config)
 status: open
 labels: [bug, pc-skip]
+features: [F-LOAD]
 ---
 
 

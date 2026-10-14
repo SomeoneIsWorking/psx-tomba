@@ -2,16 +2,18 @@
 // contracts; the 8 leaf callees stay substrate.
 
 #include "world/area_slots.h"
-#include "cfg.h"
 #include "core.h"
-#include "core/entry/game_ctx.h"
-#include "core/overrides/native_override_catalog.h" // tomba::native::declareOverride — the one native-override registry
+#include "core/overrides/native_override_catalog.h"
+#include "entry/tomba_session.h"
 #include "game.h"
 #include "guest_call.h"
 #include <cstdio>
+#include <lucent/log.h>
 
 // FUN_800998E4's own table and encoding — named here rather than repeated as literals. See
 // area_slots.h::classifySlotStates for why the stride differs from updateTail's table.
+namespace tomba {
+
 namespace {
 constexpr uint32_t kSlotCount = 24;
 constexpr uint32_t kEntryTablePtr = 0x800AC604u; // holds the base of the 16-byte-stride entry table
@@ -71,17 +73,17 @@ void AreaSlots::updateTail() {
   int32_t s2 = (int32_t)c->mem_r32(0x800BED78u);
   uint32_t s1 = 0x800BE238u + (uint32_t)s2 * 12u;
   const bool loopEntered = (s2 < 24);
-  cfg_logf("asent",
-           "updateTail ENTER counter(0x800BED78)=%d loopEntered=%d area=%u slot23kind=%02X sp=%08X r22=%08X r23=%08X "
-           "r30=%08X",
-           s2,
-           (int)loopEntered,
-           c->mem_r8(0x800BF870u),
-           c->mem_r8(0x800BE34Cu),
-           c->r[29],
-           c->r[22],
-           c->r[23],
-           c->r[30]);
+  lucent::debug("asent",
+                "updateTail ENTER counter(0x800BED78)={} loopEntered={} area={} slot23kind={:02X} sp={:08X} r22={:08X} "
+                "r23={:08X} r30={:08X}",
+                s2,
+                (int)loopEntered,
+                c->mem_r8(0x800BF870u),
+                c->mem_r8(0x800BE34Cu),
+                c->r[29],
+                c->r[22],
+                c->r[23],
+                c->r[30]);
   if (loopEntered) {
     c->r[20] = 0x800C0000u; // gen: r20 set once before the loop, ONLY on the
                             // taken path — left incoming/untouched if skipped.
@@ -95,10 +97,10 @@ void AreaSlots::updateTail() {
       int16_t hword;
       uint32_t a3;
       if (s3b & 0x80u) {
-        hword = c->mem_r16s(0x800A4F7Eu);
+        hword = (int16_t)c->mem_r16(0x800A4F7Eu);
         a3 = (uint32_t)(s3b & 0x0Fu);
       } else {
-        hword = c->mem_r16s(0x800BED84u);
+        hword = (int16_t)c->mem_r16(0x800BED84u);
         a3 = (uint32_t)s3b;
       }
       c->mem_w32(sp + 0x10u, (uint32_t)c->mem_r8(s0 + 3u));
@@ -123,12 +125,12 @@ void AreaSlots::updateTail() {
       c->r[20] = 0x800C0000u;
       c->r[21] = S5;
       c->r[31] = 0x80075B84u;
-      cfg_logf("as37",
-               "updateTail action-arm spawn 0x80092660 slot=%d r16=%08X r19=%08X area=%u",
-               s2,
-               c->r[16],
-               c->r[19],
-               c->mem_r8(0x800BF870u));
+      lucent::debug("as37",
+                    "updateTail action-arm spawn 0x80092660 slot={} r16={:08X} r19={:08X} area={}",
+                    s2,
+                    c->r[16],
+                    c->r[19],
+                    c->mem_r8(0x800BF870u));
       psx::cpu::dispatchGuestToReturn0(*c, 0x80092660u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
       uint32_t mask = c->mem_r32(0x800BE358u); // clear bit s2 in the arm-mask
       mask &= ~(1u << (uint32_t)s2);
@@ -195,11 +197,11 @@ void AreaSlots::updateTail() {
   // zero-write below is UNCONDITIONAL — it lives in the branch's delay slot, so it fires whether
   // or not key2 == -1 (was gated on `key2 != -1`, dropping the write on the skip path).
   c->r[17] = 0x800C0000u;
-  int16_t key2 = c->mem_r16s(0x800BED80u);
+  int16_t key2 = (int16_t)c->mem_r16(0x800BED80u);
   c->mem_w32(S5, 0);
   if (key2 != -1) {
     uint32_t entry_addr = 0x800BE368u + (uint32_t)((int32_t)key2 * 8);
-    int16_t entry_hw = c->mem_r16s(entry_addr);
+    int16_t entry_hw = (int16_t)c->mem_r16(entry_addr);
     c->r[4] = (uint32_t)(int32_t)entry_hw;
     c->r[5] = 0;
     c->r[31] = 0x80075C90u;
@@ -274,7 +276,8 @@ void AreaSlots::primeCountdown(uint32_t idx) {
 // scaled), clamped to [0,127], written into the slot's cell-coord bytes (entry+6=dx, entry+7=dy),
 // and the notifier FUN_80092E3C(idx, dx<<7, dy<<7) fires (kept substrate — outside this band).
 // RE'd verbatim from Ghidra (scratch/decomp/cluster1.c: FUN_8007496c).
-bool AreaSlots::updateCell(uint32_t sigArg, int32_t dx, int32_t dy) {
+bool AreaSlots::updateCell(const UpdateCellArgs &args) {
+  auto [sigArg, dx, dy] = args;
   Core *c = core;
   uint32_t idx = sigArg & 0xFFu;
   uint32_t entry = 0x800BE238u + idx * 12u;
@@ -317,7 +320,7 @@ static void eov_areaSlotsUpdateCell(Core *c) {
   // dispatches a still-substrate leaf (FUN_80092E3C) which spills caller r31 — needs the frame.
   c->r[29] -= 24;
   c->mem_w32(c->r[29] + 16, c->r[31]);
-  c->r[2] = eng(c).areaSlots.updateCell(c->r[4], (int32_t)c->r[5], (int32_t)c->r[6]) ? 1 : 0;
+  c->r[2] = eng(c).areaSlots.updateCell({.sigArg = c->r[4], .dx = (int32_t)c->r[5], .dy = (int32_t)c->r[6]}) ? 1 : 0;
   c->r[31] = c->mem_r32(c->r[29] + 16);
   c->r[29] += 24;
 }
@@ -379,8 +382,10 @@ static void eov_areaSlotsClassify(Core *c) {
   eng(c).areaSlots.classifySlotStates(c->r[4]);
 }
 
-void AreaSlots::registerOverrides() {
-  tomba::native::declareOverride(0x80074A38u, "AreaSlots::primeCountdown", eov_areaSlotsPrime);
-  tomba::native::declareOverride(0x8007496Cu, "AreaSlots::updateCell", eov_areaSlotsUpdateCell);
-  tomba::native::declareOverride(0x800998E4u, "AreaSlots::classifySlotStates", eov_areaSlotsClassify);
+void AreaSlots::registerOverrides(native::NativeOverrideCatalog &natives) {
+  natives.declare(0x80074A38u, "AreaSlots::primeCountdown", eov_areaSlotsPrime);
+  natives.declare(0x8007496Cu, "AreaSlots::updateCell", eov_areaSlotsUpdateCell);
+  natives.declare(0x800998E4u, "AreaSlots::classifySlotStates", eov_areaSlotsClassify);
 }
+
+} // namespace tomba

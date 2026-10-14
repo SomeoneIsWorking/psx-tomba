@@ -47,7 +47,7 @@ input, and passes representative gameplay.
 
 ## Preserved execution facts
 
-Tomba! 2's `game/core/frame_driver.*` is the sole per-frame transaction owner.
+Tomba! 2's `game/core/frame/frame_driver.*` is the sole per-frame transaction owner.
 `TombaRuntime::bootInit` is finite. One `TombaFrameDriver::stepFrame` composes title-aware input,
 timing/event delivery, game tasks, native rendering, diagnostics, and exactly one presentation fence.
 Guest VSync at `0x80085900` is fatal; a successful guest wait/query or timeout is never pacing.
@@ -103,7 +103,8 @@ Consult the appropriate authority before work:
 - `docs/project-state.md`: verified/partial/blocked/missing capability inventory and current focus.
 - `docs/migration.md`: title order and migration/deletion gates.
 - `docs/re-frontier.md` and `titles/tomba1/docs/re-frontier.md`: ordered RE dependencies.
-- `docs/codemap.md`: subsystem placement; its last section is the Tomba! 2 guest address index.
+- `docs/codemap.md`: subsystem placement; `docs/features.md`: feature hops; `docs/guest-addresses.md`:
+  the Tomba! 2 guest address index; `docs/producers.md`: the 60 fps producers.
 - `docs/issues/` and title-local issues: atomic open work.
 
 A diagnostic must report how much it scanned and prove both positive and negative answers. Absence of

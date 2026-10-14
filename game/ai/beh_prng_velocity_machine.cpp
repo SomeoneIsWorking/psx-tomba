@@ -21,17 +21,19 @@
 // GUEST STACK"). RE: Ghidra decompile of FUN_80117658 off a live RAM dump (scratch/decomp/pickup.c);
 // equivalence proven by A/B 2 MB RAM+scratchpad dump diff on replays/bugs/bucket-softlock.pad.
 
-#include "cfg.h"
 #include "core.h"
-#include "core/entry/game_ctx.h"
+#include "entry/tomba_session.h"
 #include "graphics_bind.h" // GraphicsBind::setGeom / recordInit / renderUpdate
 #include "guest_abi.h"     // GuestFrame — mirror the guest stack frame (CLAUDE.md)
 #include "guest_call.h"
 #include "inventory.h" // class Inventory — inv(c).give / giveAndFlag
 #include "spawn.h"     // class Spawn (eng(c).spawn.despawn)
+#include <lucent/log.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+namespace tomba {
 
 namespace {
 
@@ -151,7 +153,7 @@ struct MotionBlock {
   }
 
   int16_t yaw() const {
-    return c->mem_r16s(a + 14);
+    return (int16_t)c->mem_r16(a + 14);
   }
   uint16_t yawBits() const {
     return c->mem_r16(a + 14);
@@ -161,7 +163,7 @@ struct MotionBlock {
   }
 
   int16_t vel() const {
-    return c->mem_r16s(a + 20);
+    return (int16_t)c->mem_r16(a + 20);
   }
   void setVel(int16_t v) const {
     c->mem_w16(a + 20, (uint16_t)v);
@@ -292,30 +294,6 @@ struct PickupObj {
   }
 };
 
-// Guest-ABI call helpers: set a0..a2, dispatch, return v0. -------------------------------------
-inline uint32_t call0(Core *c, uint32_t fn) {
-  psx::cpu::dispatchGuestToReturn0(*c, fn, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
-  return c->r[2];
-}
-inline uint32_t call1(Core *c, uint32_t a0, uint32_t fn) {
-  c->r[4] = a0;
-  psx::cpu::dispatchGuestToReturn0(*c, fn, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
-  return c->r[2];
-}
-inline uint32_t call2(Core *c, uint32_t a0, uint32_t a1, uint32_t fn) {
-  c->r[4] = a0;
-  c->r[5] = a1;
-  psx::cpu::dispatchGuestToReturn0(*c, fn, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
-  return c->r[2];
-}
-inline uint32_t call3(Core *c, uint32_t a0, uint32_t a1, uint32_t a2, uint32_t fn) {
-  c->r[4] = a0;
-  c->r[5] = a1;
-  c->r[6] = a2;
-  psx::cpu::dispatchGuestToReturn0(*c, fn, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
-  return c->r[2];
-}
-
 // -----------------------------------------------------------------------------------------------
 // SPAWN — build the object, then hand off to ACTIVE. Returns nothing; both variants end by bumping
 // state and calling kArmCollectible with their variant number.
@@ -380,7 +358,7 @@ bool spawnCarried(Core *c, const PickupObj &obj) {
 void activeLaunch(Core *c, const PickupObj &obj) {
   const MotionBlock m = obj.motion();
   if (obj.spawnPhase() == 1) { // launch frame
-    call3(c, kSfxLaunch, 0, 0, Guest::kPlaySfx);
+    psx::cpu::callGuestNowResult(*c, "beh_prng_velocity_machine", Guest::kPlaySfx, kSfxLaunch, 0, 0);
     m.setHoldTimer(36);
     m.setGravity(1408);
     m.setVel(10240);
@@ -396,16 +374,16 @@ void activeLaunch(Core *c, const PickupObj &obj) {
     if ((int16_t)left >= 0) {
       return;
     }
-    const uint32_t r1 = call0(c, Guest::kRandom);
-    const uint32_t r2 = call0(c, Guest::kRandom);
+    const uint32_t r1 = psx::cpu::callGuestNowResult(*c, "beh_prng_velocity_machine", Guest::kRandom);
+    const uint32_t r2 = psx::cpu::callGuestNowResult(*c, "beh_prng_velocity_machine", Guest::kRandom);
     m.setWanderTimer((uint16_t)((int32_t)((r1 & 3u) * 30u) + ((int32_t)r2 >> 11) + 30));
-    const uint32_t r3 = call0(c, Guest::kRandom);
+    const uint32_t r3 = psx::cpu::callGuestNowResult(*c, "beh_prng_velocity_machine", Guest::kRandom);
     m.setVel((int16_t)((-(int32_t)((r3 & 7u) + 10u)) << 8));
     return;
   }
   // CARRIED: the overlay steering helper decides whether to turn, and how.
   obj.clearSteerResult(); // jal delay slot: stored before the callee
-  call1(c, obj.a, Guest::kSteerWanderer);
+  psx::cpu::callGuestNowResult(*c, "beh_prng_velocity_machine", Guest::kSteerWanderer, obj.a);
   const uint8_t steer = obj.steerResult();
   if (steer == NO_TURN) {
     return;
@@ -453,7 +431,7 @@ void activeSettling(Core *c, const PickupObj &obj) {
 void activeCommitPosition(Core *c, const PickupObj &obj) {
   if (obj.variant() == GROUND) {
     const MotionBlock m = obj.motion();
-    if (call1(c, obj.a, Guest::kStepMotion) == 0) {
+    if (psx::cpu::callGuestNowResult(*c, "beh_prng_velocity_machine", Guest::kStepMotion, obj.a) == 0) {
       return;
     }
     if (obj.phase() == RESTING) {
@@ -464,8 +442,8 @@ void activeCommitPosition(Core *c, const PickupObj &obj) {
       obj.setX((uint16_t)(m.x() - 32));
       obj.setY((uint16_t)(m.y() + 80));
     }
-    call1(c, obj.a, Guest::kCommitGroundPos);
-    call2(c, obj.a, 0, Guest::kSyncCollectible);
+    psx::cpu::callGuestNowResult(*c, "beh_prng_velocity_machine", Guest::kCommitGroundPos, obj.a);
+    psx::cpu::callGuestNowResult(*c, "beh_prng_velocity_machine", Guest::kSyncCollectible, obj.a, 0);
     return;
   }
   if (obj.variant() != CARRIED) {
@@ -476,7 +454,7 @@ void activeCommitPosition(Core *c, const PickupObj &obj) {
   if (carrierBusy) {
     return; // carrier pipeline saturated — skip this frame
   }
-  if (call1(c, obj.a, Guest::kStepMotion) == 0) {
+  if (psx::cpu::callGuestNowResult(*c, "beh_prng_velocity_machine", Guest::kStepMotion, obj.a) == 0) {
     return;
   }
   if (obj.phase() == RESTING) {
@@ -492,27 +470,32 @@ void activeCommitPosition(Core *c, const PickupObj &obj) {
   }
   c->r[4] = obj.a;
   eng(c).graphicsBind.renderUpdate(); // FUN_800517F8(obj)
-  call2(c, obj.a, 1, Guest::kSyncCollectible);
+  psx::cpu::callGuestNowResult(*c, "beh_prng_velocity_machine", Guest::kSyncCollectible, obj.a, 1);
 }
 
 // -----------------------------------------------------------------------------------------------
 // COLLECTED — the pick-up sequence.
 void collectGround(Core *c, const PickupObj &obj) {
-  inv(c).giveAndFlag(kItemGroundPickup, 1); // FUN_8004D4C4(58, 1)
-  call1(c, obj.a, Guest::kBeginCollect);
+  inv(c).giveAndFlag({.type = kItemGroundPickup, .amount = 1}); // FUN_8004D4C4(58, 1)
+  psx::cpu::callGuestNowResult(*c, "beh_prng_velocity_machine", Guest::kBeginCollect, obj.a);
   obj.setState(RETIRE);
 }
 
 void collectCarried(Core *c, const PickupObj &obj) {
   switch (obj.phase()) {
   case HANDOVER: {
-    inv(c).give(kItemBucket, 1); // FUN_8004D4F4(40, 1)
-    call2(c, kSfxCollect, kSfxCollectBank, 0x8004ED94u);
-    call1(c, obj.a, Guest::kBeginCollect);
-    const uint32_t popup = call3(c, obj.a, 0, 0, Guest::kSpawnGetPopup);
+    inv(c).give({.type = kItemBucket, .amount = 1}); // FUN_8004D4F4(40, 1)
+    psx::cpu::callGuestNowResult(*c, "beh_prng_velocity_machine", 0x8004ED94u, kSfxCollect, kSfxCollectBank);
+    psx::cpu::callGuestNowResult(*c, "beh_prng_velocity_machine", Guest::kBeginCollect, obj.a);
+    const uint32_t popup =
+        psx::cpu::callGuestNowResult(*c, "beh_prng_velocity_machine", Guest::kSpawnGetPopup, obj.a, 0, 0);
     if (popup != 0) {
-      call2(c, kItemBucket, popup, Guest::kBindGetPopup);
-      call2(c, 1, 1, Guest::kEnterCutsceneMode); // cut-mode 1: parks the player, opens the get-box
+      psx::cpu::callGuestNowResult(*c, "beh_prng_velocity_machine", Guest::kBindGetPopup, kItemBucket, popup);
+      psx::cpu::callGuestNowResult(*c,
+                                   "beh_prng_velocity_machine",
+                                   Guest::kEnterCutsceneMode,
+                                   1,
+                                   1); // cut-mode 1: parks the player, opens the get-box
       c->mem_w8(kAreaEventFlags, (uint8_t)(c->mem_r8(kAreaEventFlags) | 1));
     }
     obj.advancePhase();
@@ -524,10 +507,10 @@ void collectCarried(Core *c, const PickupObj &obj) {
     // 80117bd4 loads in the delay slot of the OTHER branch's jump, which never executes on this
     // path) stranded phase at AWAIT_PLAYER forever: the wait below never ran, the end-of-pickup
     // script never started, and cut-mode 0x1F800137 stayed 1 — the bucket-cutscene softlock.
-    if (call0(c, Guest::kPlayerLeftCutscene) == 0) {
+    if (psx::cpu::callGuestNowResult(*c, "beh_prng_velocity_machine", Guest::kPlayerLeftCutscene) == 0) {
       return;
     }
-    call3(c, obj.a, 0, kBucketScript, Guest::kRunScript);
+    psx::cpu::callGuestNowResult(*c, "beh_prng_velocity_machine", Guest::kRunScript, obj.a, 0, kBucketScript);
     obj.setScriptToken(COLLECTED); // guest stores the outer state byte (2)
     obj.advancePhase();
     return;
@@ -535,17 +518,17 @@ void collectCarried(Core *c, const PickupObj &obj) {
   case AWAIT_SCRIPT: {
     // PSXPORT_DEBUG=pickup — the bucket cutscene's progress: the script token the end-of-pickup
     // script hands back, and the script cursor it is parked on.
-    cfg_logf("pickup",
-             "obj=%08X token=%u scriptPtr=%08X flags71=%02X player=%02X/%02X cut=%u",
-             obj.a,
-             obj.scriptToken(),
-             c->mem_r32(obj.a + 0x6c),
-             c->mem_r8(obj.a + 0x71),
-             c->mem_r8(0x800E7E84u),
-             c->mem_r8(0x800E7E85u),
-             c->mem_r8(0x1F800137u));
+    lucent::debug("pickup",
+                  "obj={:08X} token={} scriptPtr={:08X} flags71={:02X} player={:02X}/{:02X} cut={}",
+                  obj.a,
+                  obj.scriptToken(),
+                  c->mem_r32(obj.a + 0x6c),
+                  c->mem_r8(obj.a + 0x71),
+                  c->mem_r8(0x800E7E84u),
+                  c->mem_r8(0x800E7E85u),
+                  c->mem_r8(0x1F800137u));
     if (obj.scriptToken() != kScriptTokenFree) {
-      call1(c, obj.a, Guest::kAwaitScript);
+      psx::cpu::callGuestNowResult(*c, "beh_prng_velocity_machine", Guest::kAwaitScript, obj.a);
       return;
     }
     obj.setState(RETIRE);
@@ -574,13 +557,13 @@ void beh_prng_velocity_machine(Core *c) {
     if (obj.variant() == GROUND) {
       spawnGround(c, obj);
       c->mem_w8(obj.a + 4, (uint8_t)(obj.state() + 1)); // jal delay slot: stored before the callee
-      call2(c, obj.a, GROUND, Guest::kArmCollectible);
+      psx::cpu::callGuestNowResult(*c, "beh_prng_velocity_machine", Guest::kArmCollectible, obj.a, GROUND);
     } else if (obj.variant() == CARRIED) {
       if (!spawnCarried(c, obj)) {
         return;
       }
       c->mem_w8(obj.a + 4, (uint8_t)(obj.state() + 1)); // jal delay slot: stored before the callee
-      call2(c, obj.a, CARRIED, Guest::kArmCollectible);
+      psx::cpu::callGuestNowResult(*c, "beh_prng_velocity_machine", Guest::kArmCollectible, obj.a, CARRIED);
     }
     return;
   }
@@ -613,3 +596,5 @@ void beh_prng_velocity_machine(Core *c) {
     return;
   }
 }
+
+} // namespace tomba

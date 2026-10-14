@@ -35,8 +35,8 @@
 //     shared epilogue.
 //   - epilogue (L_8003D22C): restore r31 from sp+16, sp += 24, return.
 #include "core.h"
-#include "core/entry/game_ctx.h"
 #include "core/overrides/native_override_catalog.h"
+#include "entry/tomba_session.h"
 #include "game.h"
 #include "guest_call.h"
 #include "render.h"
@@ -44,6 +44,8 @@
 // guest 0x8003D0BC fallback for the oracle-gated thunk — see render_walk_dispatch.cpp's identical
 // banner for the full rationale (image-qualified runtime dispatcher is process-global; SBS core B must keep running
 // original guest instructions).
+
+namespace tomba {
 
 namespace {
 constexpr uint32_t AREA_TYPE_BYTE = 0x800BF870u; // render-mode-select byte (shared with perModeDispatch)
@@ -175,6 +177,8 @@ void ov_overlayTypeDispatch(Core *c) {
 }
 } // namespace
 
-void overlay_type_dispatch_install() {
-  tomba::native::declareOverride(0x8003D0BCu, "ov_overlayTypeDispatch", ov_overlayTypeDispatch);
+void overlay_type_dispatch_install(native::NativeOverrideCatalog &natives) {
+  natives.declare(0x8003D0BCu, "ov_overlayTypeDispatch", ov_overlayTypeDispatch);
 }
+
+} // namespace tomba

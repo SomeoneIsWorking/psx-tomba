@@ -28,6 +28,8 @@
 #include <cstdint>
 class Core;
 
+namespace tomba {
+
 class ParallaxBg {
 public:
   Core *core = nullptr;
@@ -50,3 +52,5 @@ private:
   static constexpr uint32_t SCROLL_MOD_X_OFF = 0x30u;
   static constexpr uint32_t SCROLL_MOD_Y_OFF = 0x32u;
 };
+
+} // namespace tomba

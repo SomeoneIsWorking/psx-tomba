@@ -40,12 +40,14 @@
 
 #include "core.h"
 #include "core/engine/engine.h"
-#include "core/entry/game_ctx.h"
+#include "entry/tomba_session.h"
 #include "guest_abi.h" // GuestFrame — mirror the guest stack frame (CLAUDE.md)
 #include "guest_call.h"
 #include "object/behavior_dispatch.h"
 #include "scene/script_interp.h"
 #include <cstdint>
+
+namespace tomba {
 
 namespace {
 
@@ -103,35 +105,6 @@ constexpr uint32_t O_H_86 = 0x86u;
 constexpr uint32_t O_B_BF = 0xBFu; // zeroed at init
 constexpr uint32_t O_D_C4 = 0xC4u; // parent-obj ptr (used for variant-4 SFX cue)
 
-// Small helper for "call substrate leaf with (a0=obj)" pattern that recurs throughout.
-inline void callObj1(Core *c, uint32_t obj, uint32_t addr) {
-  c->r[4] = obj;
-  psx::cpu::dispatchGuestToReturn0(*c, addr, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
-}
-// "(a0, a1)" leaf call.
-inline void call2(Core *c, uint32_t a0, uint32_t a1, uint32_t addr) {
-  c->r[4] = a0;
-  c->r[5] = a1;
-  psx::cpu::dispatchGuestToReturn0(*c, addr, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
-}
-// "(a0, a1, a2)" leaf call.
-inline void call3(Core *c, uint32_t a0, uint32_t a1, uint32_t a2, uint32_t addr) {
-  c->r[4] = a0;
-  c->r[5] = a1;
-  c->r[6] = a2;
-  psx::cpu::dispatchGuestToReturn0(*c, addr, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
-}
-
-// FUN_800519E0(obj, 0xf, *(u32)0x800ECFA4, &DAT_80141E90) — asset-load init. Returns 0 on OK.
-uint32_t assetInit(Core *c, uint32_t obj) {
-  c->r[4] = obj;
-  c->r[5] = 0xFu;
-  c->r[6] = c->mem_r32(G_ECFA4);
-  c->r[7] = DATA_80141E90;
-  psx::cpu::dispatchGuestToReturn0(*c, 0x800519E0u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
-  return c->r[2];
-}
-
 // ── FUN_80139A28 — variant-4 case-3 sub-machine (inner script cycle) ─────────────────────────────
 // Outer state on obj[+0x06]; each state runs its own 3-substate inner cycle:
 //   substate 0: init script; substate 1: step it; on progress==0xFF wrap up
@@ -143,7 +116,7 @@ void variant4Phase3(Core *c, uint32_t obj) {
 
   auto initAndArm = [&](uint32_t scriptPtr) {
     c->mem_w8(obj + O_SUB_07, 1u);
-    eng(c).script.init(obj, TABLE_A, scriptPtr);
+    eng(c).script.init({.obj = obj, .tableA = TABLE_A, .scriptPtr = scriptPtr});
     c->mem_w8(obj + O_PROG_70, 1u);
   };
 
@@ -166,7 +139,7 @@ void variant4Phase3(Core *c, uint32_t obj) {
     } else if (s7 == 1) {
       stepAndCheckDone(/*advanceOuterToDespawn=*/false);
       if (wrapUp) {
-        callObj1(c, obj, 0x80042310u);
+        psx::cpu::callGuestNow(*c, "beh_a06_scripted_actor", 0x80042310u, obj);
         c->mem_w8(obj + O_SUB_06, 0u);
       }
     }
@@ -179,7 +152,7 @@ void variant4Phase3(Core *c, uint32_t obj) {
     if (c->mem_r8(obj + O_READY_2B) != 3u) {
       return;
     }
-    call2(c, 1u, 4u, 0x80042354u);
+    psx::cpu::callGuestNow(*c, "beh_a06_scripted_actor", 0x80042354u, 1u, 4u);
     const uint8_t gate = c->mem_r8(G_BFAE5);
     c->mem_w8(obj + O_SUB_06, (uint8_t)(gate == 0 ? 1 : 2));
     return;
@@ -190,7 +163,7 @@ void variant4Phase3(Core *c, uint32_t obj) {
     if (s7 == 0) {
       // Phase-2 init: uses script F38.
       c->mem_w8(obj + O_SUB_07, 1u);
-      eng(c).script.init(obj, TABLE_A, SCRIPT_80149F38);
+      eng(c).script.init({.obj = obj, .tableA = TABLE_A, .scriptPtr = SCRIPT_80149F38});
       c->mem_w8(obj + O_PROG_70, 1u);
     } else if (s7 == 1) {
       stepAndCheckDone(/*advanceOuterToDespawn=*/true);
@@ -198,14 +171,14 @@ void variant4Phase3(Core *c, uint32_t obj) {
         // Phase-2 done → advance to phase 3 (using script A20).
         c->mem_w8(obj + O_SUB_07, (uint8_t)(c->mem_r8(obj + O_SUB_07) + 1u)); // = 1
         // (Re-init immediately in the same tick — decomp's LAB_80139c1c fallthrough.)
-        eng(c).script.init(obj, TABLE_A, SCRIPT_80149A20);
+        eng(c).script.init({.obj = obj, .tableA = TABLE_A, .scriptPtr = SCRIPT_80149A20});
         c->mem_w8(obj + O_PROG_70, 1u);
       }
     } else if (s7 == 2) {
       eng(c).script.step(obj);
       if ((int8_t)c->mem_r8(obj + O_PROG_70) == -1) {
         c->mem_w8(obj + O_SUB_07, 0u);
-        callObj1(c, obj, 0x80042310u);
+        psx::cpu::callGuestNow(*c, "beh_a06_scripted_actor", 0x80042310u, obj);
         c->mem_w8(obj + O_STATE_04, 3u);
       }
     }
@@ -216,13 +189,13 @@ void variant4Phase3(Core *c, uint32_t obj) {
     const uint8_t s7 = c->mem_r8(obj + O_SUB_07);
     if (s7 == 0) {
       c->mem_w8(obj + O_SUB_07, 1u);
-      eng(c).script.init(obj, TABLE_A, SCRIPT_80149A20);
+      eng(c).script.init({.obj = obj, .tableA = TABLE_A, .scriptPtr = SCRIPT_80149A20});
       c->mem_w8(obj + O_PROG_70, 1u);
     } else if (s7 == 1) {
       eng(c).script.step(obj);
       if ((int8_t)c->mem_r8(obj + O_PROG_70) == -1) {
         c->mem_w8(obj + O_SUB_07, 0u);
-        callObj1(c, obj, 0x80042310u);
+        psx::cpu::callGuestNow(*c, "beh_a06_scripted_actor", 0x80042310u, obj);
         c->mem_w8(obj + O_STATE_04, 3u);
       }
     }
@@ -234,14 +207,14 @@ void variant4Phase3(Core *c, uint32_t obj) {
 // script-init / step cycle; case 3 recursively invokes variant4Phase3. FUN_801398E4 is a substrate
 // sub-check leaf whose return value (2 or 3) drives case-2's post-check.
 uint32_t sub801398E4(Core *c, uint32_t obj) {
-  callObj1(c, obj, 0x801398E4u);
+  psx::cpu::callGuestNow(*c, "beh_a06_scripted_actor", 0x801398E4u, obj);
   return c->r[2];
 }
 void variant4Sm(Core *c, uint32_t obj) {
   const uint8_t s5 = c->mem_r8(obj + O_SUB_05);
 
   auto initScript = [&](uint32_t scriptPtr) {
-    eng(c).script.init(obj, TABLE_A, scriptPtr);
+    eng(c).script.init({.obj = obj, .tableA = TABLE_A, .scriptPtr = scriptPtr});
     c->mem_w8(obj + O_PROG_70, 1u);
   };
 
@@ -249,7 +222,7 @@ void variant4Sm(Core *c, uint32_t obj) {
   case 0:
     if ((int8_t)c->mem_r8(G_BF8D5) == -1) {
       c->mem_w8(obj + O_SUB_05, 4u);
-      call3(c, obj, TABLE_A, 0u, 0x80077C40u);
+      psx::cpu::callGuestNow(*c, "beh_a06_scripted_actor", 0x80077C40u, obj, TABLE_A, 0u);
     } else if (c->mem_r8(G_BFA22) < 0x14u) {
       c->mem_w8(obj + O_SUB_05, (uint8_t)(c->mem_r8(G_BFA22) < 10u ? 1 : 2));
     } else {
@@ -264,7 +237,7 @@ void variant4Sm(Core *c, uint32_t obj) {
         return;
       }
       c->mem_w8(obj + O_SUB_06, 1u);
-      call2(c, 1u, 4u, 0x80042354u);
+      psx::cpu::callGuestNow(*c, "beh_a06_scripted_actor", 0x80042354u, 1u, 4u);
       initScript(SCRIPT_80149958);
       return;
     }
@@ -275,7 +248,7 @@ void variant4Sm(Core *c, uint32_t obj) {
     if ((int8_t)c->mem_r8(obj + O_PROG_70) != -1) {
       return;
     }
-    callObj1(c, obj, 0x80042310u);
+    psx::cpu::callGuestNow(*c, "beh_a06_scripted_actor", 0x80042310u, obj);
     const uint8_t s5cur = c->mem_r8(obj + O_SUB_05);
     c->mem_w8(obj + O_SUB_06, 0u);
     c->mem_w8(obj + O_SUB_05, (uint8_t)(s5cur + 1u));
@@ -289,7 +262,7 @@ void variant4Sm(Core *c, uint32_t obj) {
         return;
       }
       c->mem_w8(obj + O_SUB_06, 2u);
-      call2(c, 1u, 4u, 0x80042354u);
+      psx::cpu::callGuestNow(*c, "beh_a06_scripted_actor", 0x80042354u, 1u, 4u);
       return;
     }
     if (s6 != 2) {
@@ -298,7 +271,7 @@ void variant4Sm(Core *c, uint32_t obj) {
     const uint32_t r = sub801398E4(c, obj);
     const uint8_t s5cur = c->mem_r8(obj + O_SUB_05);
     if (r == 2) {
-      callObj1(c, obj, 0x80042310u);
+      psx::cpu::callGuestNow(*c, "beh_a06_scripted_actor", 0x80042310u, obj);
       c->mem_w8(obj + O_SUB_06, 0u);
       c->mem_w8(obj + O_SUB_05, (uint8_t)(s5cur + 1u));
     } else if (r == 3) {
@@ -328,7 +301,7 @@ void variant4Sm(Core *c, uint32_t obj) {
         return;
       }
       c->mem_w8(obj + O_SUB_06, 0u);
-      callObj1(c, obj, 0x80042310u);
+      psx::cpu::callGuestNow(*c, "beh_a06_scripted_actor", 0x80042310u, obj);
       return;
     }
     if (s6 != 0) {
@@ -338,7 +311,7 @@ void variant4Sm(Core *c, uint32_t obj) {
       return;
     }
     c->mem_w8(obj + O_SUB_06, 1u);
-    call2(c, 1u, 1u, 0x80042354u);
+    psx::cpu::callGuestNow(*c, "beh_a06_scripted_actor", 0x80042354u, 1u, 1u);
     return;
   }
   default:
@@ -348,13 +321,14 @@ void variant4Sm(Core *c, uint32_t obj) {
 
 // ── state 0 (INIT) — asset load + zero fields + variant-specific setup ──────────────────────────
 void state0Init(Core *c, uint32_t obj) {
-  if (assetInit(c, obj) != 0) {
+  if (psx::cpu::callGuestNowResult(
+          *c, "beh_a06_scripted_actor", 0x800519E0u, obj, 0xFu, c->mem_r32(G_ECFA4), DATA_80141E90) != 0) {
     return; // asset not ready yet — retry next frame
   }
   const uint32_t initVal = c->mem_r32(G_ECF90);
   c->mem_w32(obj + O_TABLE_A, TABLE_A);
   c->mem_w32(obj + O_D_3C, initVal);
-  call3(c, obj, 0u, 0u, 0x80041718u); // obj init2 leaf
+  psx::cpu::callGuestNow(*c, "beh_a06_scripted_actor", 0x80041718u, obj, 0u, 0u); // obj init2 leaf
   c->mem_w8(obj + O_KIND, 9u);
   c->mem_w16(obj + O_H_54, 0u);
   c->mem_w16(obj + O_H_58, 0u);
@@ -391,9 +365,9 @@ void state0Init(Core *c, uint32_t obj) {
     c->mem_w16(obj + O_H_56, 0x0000);
     c->mem_w16(obj + O_H_82, 0x00A0);
     const uint32_t parent = c->mem_r32(obj + O_D_C4);
-    call3(c, parent, 0x13u, 0xFu, 0x80051B04u); // music/SFX cue
-    call3(c, obj, TABLE_A, 0x15u, 0x80077C40u); // variant-4 registrar
-    c->mem_w32(G_BF868, obj);                   // publish self as the "active" v4 actor
+    psx::cpu::callGuestNow(*c, "beh_a06_scripted_actor", 0x80051B04u, parent, 0x13u, 0xFu); // music/SFX cue
+    psx::cpu::callGuestNow(*c, "beh_a06_scripted_actor", 0x80077C40u, obj, TABLE_A, 0x15u); // variant-4 registrar
+    c->mem_w32(G_BF868, obj); // publish self as the "active" v4 actor
     break;
   }
   case 5:
@@ -410,18 +384,18 @@ void state0Init(Core *c, uint32_t obj) {
 
 // ── state 1 (RUN) — per-frame body — the variant switch ──────────────────────────────────────────
 void state1Run(Core *c, uint32_t obj) {
-  callObj1(c, obj, 0x8007778Cu);
-  callObj1(c, obj, 0x8004190Cu);
+  psx::cpu::callGuestNow(*c, "beh_a06_scripted_actor", 0x8007778Cu, obj);
+  psx::cpu::callGuestNow(*c, "beh_a06_scripted_actor", 0x8004190Cu, obj);
 
   const uint8_t variant = c->mem_r8(obj + O_VARIANT);
   switch (variant) {
   case 0:
-    callObj1(c, obj, 0x801381A8u);
+    psx::cpu::callGuestNow(*c, "beh_a06_scripted_actor", 0x801381A8u, obj);
     break;
   case 1: {
     const uint8_t s5 = c->mem_r8(obj + O_SUB_05);
     if (s5 == 1) {
-      callObj1(c, obj, 0x80139088u);
+      psx::cpu::callGuestNow(*c, "beh_a06_scripted_actor", 0x80139088u, obj);
     } else if (s5 == 0) {
       if ((c->mem_r8(G_BFA1D) & 2u) == 0 && (int8_t)c->mem_r8(G_BF8D2) != -1) {
         c->mem_w8(obj + O_SUB_05, 1u);
@@ -429,7 +403,7 @@ void state1Run(Core *c, uint32_t obj) {
         c->mem_w8(obj + O_SUB_05, 2u);
       }
     } else if (s5 == 2) {
-      callObj1(c, obj, 0x801392D8u);
+      psx::cpu::callGuestNow(*c, "beh_a06_scripted_actor", 0x801392D8u, obj);
     }
     break;
   }
@@ -439,18 +413,18 @@ void state1Run(Core *c, uint32_t obj) {
     if (s6 == 1) {
       c->mem_w8(obj + O_SUB_06, 2u);
       const uint32_t scriptPtr = (c->mem_r8(G_BF90C) == 0) ? SCRIPT_801496E8 : SCRIPT_80149788;
-      eng(c).script.init(obj, TABLE_A, scriptPtr);
+      eng(c).script.init({.obj = obj, .tableA = TABLE_A, .scriptPtr = scriptPtr});
       c->mem_w8(obj + O_PROG_70, 1u);
     } else if (s6 == 0) {
       if (c->mem_r8(obj + O_READY_2B) == 3u) {
         c->mem_w8(obj + O_SUB_06, 1u);
-        call2(c, 1u, 2u, 0x80042354u);
+        psx::cpu::callGuestNow(*c, "beh_a06_scripted_actor", 0x80042354u, 1u, 2u);
       }
     } else if (s6 == 2) {
       eng(c).script.step(obj);
       if ((int8_t)c->mem_r8(obj + O_PROG_70) == -1) {
         c->mem_w8(obj + O_SUB_06, 0u);
-        callObj1(c, obj, 0x80042310u);
+        psx::cpu::callGuestNow(*c, "beh_a06_scripted_actor", 0x80042310u, obj);
       }
     }
     break;
@@ -461,18 +435,18 @@ void state1Run(Core *c, uint32_t obj) {
     if (s6 == 1) {
       c->mem_w8(obj + O_SUB_06, 2u);
       const uint32_t scriptPtr = (c->mem_r8(G_BF90D) == 0) ? SCRIPT_801497B8 : SCRIPT_80149838;
-      eng(c).script.init(obj, TABLE_A, scriptPtr);
+      eng(c).script.init({.obj = obj, .tableA = TABLE_A, .scriptPtr = scriptPtr});
       c->mem_w8(obj + O_PROG_70, 1u);
     } else if (s6 == 0) {
       if (c->mem_r8(obj + O_READY_2B) == 3u) {
         c->mem_w8(obj + O_SUB_06, 1u);
-        call2(c, 1u, 2u, 0x80042354u);
+        psx::cpu::callGuestNow(*c, "beh_a06_scripted_actor", 0x80042354u, 1u, 2u);
       }
     } else if (s6 == 2) {
       eng(c).script.step(obj);
       if ((int8_t)c->mem_r8(obj + O_PROG_70) == -1) {
         c->mem_w8(obj + O_SUB_06, 0u);
-        callObj1(c, obj, 0x80042310u);
+        psx::cpu::callGuestNow(*c, "beh_a06_scripted_actor", 0x80042310u, obj);
       }
     }
     break;
@@ -481,14 +455,14 @@ void state1Run(Core *c, uint32_t obj) {
     variant4Sm(c, obj);
     break;
   case 5:
-    callObj1(c, obj, 0x8013A81Cu);
+    psx::cpu::callGuestNow(*c, "beh_a06_scripted_actor", 0x8013A81Cu, obj);
     break;
   default:
     break;
   }
 
   if (c->mem_r8(obj + O_CLEANUP) != 0) {
-    callObj1(c, obj, 0x800518FCu);
+    psx::cpu::callGuestNow(*c, "beh_a06_scripted_actor", 0x800518FCu, obj);
   }
   c->mem_w8(obj + O_READY_2B, 0u);
 }
@@ -517,9 +491,11 @@ void beh_a06_scripted_actor(Core *c) {
   case 2: /* no-op hold */
     return;
   case 3:
-    callObj1(c, obj, 0x8007A624u);
+    psx::cpu::callGuestNow(*c, "beh_a06_scripted_actor", 0x8007A624u, obj);
     return;
   default:
     return;
   }
 }
+
+} // namespace tomba

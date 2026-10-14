@@ -10,6 +10,12 @@ class Game;
 
 // The composed model-view lives in the scratchpad: a 3x3 rotation as 16-bit elements from +0,
 // followed by the three 32-bit translation components.
+namespace tomba::native {
+class NativeOverrideCatalog;
+} // namespace tomba::native
+
+namespace tomba {
+
 constexpr uint32_t kComposeTrans = 20u;
 
 // Lens over that scratchpad compose area, reached through the register that identifies it. r16 holds
@@ -63,5 +69,7 @@ public:
   // per-record RTPT/RTPS calls downstream consume.
   static void composeIntoGte(Core *c);
 
-  static void registerOverrides(Game *game);
+  static void registerOverrides(native::NativeOverrideCatalog &natives);
 };
+
+} // namespace tomba

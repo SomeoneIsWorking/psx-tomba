@@ -3,6 +3,7 @@ id: kanban-066
 title: A0L phase byte 0x800BFA55 gates the area-21 jet effect (FUN_8010C1D8) — need a scene where it reaches >= 4
 status: open
 labels: [render]
+features: [F-TURN]
 ---
 
 

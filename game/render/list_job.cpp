@@ -8,7 +8,7 @@
 
 #include <optional>
 
-namespace tomba2::render {
+namespace tomba::render {
 namespace {
 
 constexpr std::uint32_t kRangeWords = 4; // address, size, blend, modulus
@@ -16,7 +16,7 @@ constexpr std::uint32_t kRangeWords = 4; // address, size, blend, modulus
 } // namespace
 
 ListCall ListCall::fromRegisters(const Core &core) {
-  return ListCall{core.r[4], core.r[5], core.r[6], core.r[7], core.r[29]};
+  return ListCall{core.r[4], core.r[5], core.r[6], core.r[7], core.r[29], core.r[5]};
 }
 
 ListJobWriter::ListJobWriter(Core &core, std::uint32_t variant, const ListCall &call, std::uint32_t arenaBytes) {
@@ -64,10 +64,10 @@ ListJob::ListJob(std::span<const std::byte> state) {
   header_ = reader.get<ListJobHeader>();
   const std::vector<std::uint32_t> ranges = reader.getAll<std::uint32_t>(std::size_t{header_.inputs} * kRangeWords);
   for (std::uint32_t input = 0; input < header_.inputs; ++input) {
-    const std::uint32_t *range = ranges.data() + input * kRangeWords;
+    const std::uint32_t *range = ranges.data() + std::size_t{input} * kRangeWords;
     inputs_.push_back(
         ListJobInput{range[0], static_cast<InputBlend>(range[2]), range[3], reader.getAll<std::byte>(range[1])});
   }
 }
 
-} // namespace tomba2::render
+} // namespace tomba::render

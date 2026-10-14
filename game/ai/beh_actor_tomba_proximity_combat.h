@@ -139,6 +139,10 @@ class Core;
 
 // FUN_800527C8 — see the file banner above for the full state-machine writeup. a0 (c->r[4]) = the
 // acting object; no return value (v0 unused by any caller shape found).
+namespace tomba {
+
 void beh_actor_tomba_proximity_combat(Core *c);
+
+} // namespace tomba
 
 #endif

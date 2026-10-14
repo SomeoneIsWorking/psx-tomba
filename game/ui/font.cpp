@@ -23,12 +23,14 @@
 #include "game.h"
 #include "guest_abi.h"
 #include "guest_call.h"
+#include "render/anchored_packets.h"
 #include "render/guest_ordering_table.h"
-#include "ui/glyph_state.h"
 #include <format>
 #include <lucent/log.h>
 #include <stdint.h>
 #include <string>
+
+namespace tomba {
 
 namespace {
 constexpr uint32_t kGlyphEmit = 0x80078CA8u;
@@ -137,7 +139,7 @@ void Font::init() {
   FntOpenParams fntOpen{c, fsp + 16u};
 
   // #1 sound/libgs/lib init — dispatched
-  tomba::guest::dispatchJalToReturn(*c, 0x8008e040u, 0x80075140u);
+  tomba::guest::dispatchJalToReturn(*c, {.target = 0x8008e040u, .returnAddress = 0x80075140u});
 
   // #2 FUN_800963a0(24) — own
   bankSelect(24);
@@ -145,15 +147,15 @@ void Font::init() {
   bank2Store(0);
 
   // #4 FUN_80098f90(0, 0xffffff) — dispatched
-  tomba::guest::dispatchJalToReturn(*c, 0x80098f90u, 0x80075160u, 0u, 0x00ffffffu);
+  tomba::guest::dispatchJalToReturn(*c, {.target = 0x80098f90u, .returnAddress = 0x80075160u}, 0u, 0x00ffffffu);
   // #5 FUN_80091d70(1) — dispatched
-  tomba::guest::dispatchJalToReturn(*c, 0x80091d70u, 0x80075168u, 1u);
+  tomba::guest::dispatchJalToReturn(*c, {.target = 0x80091d70u, .returnAddress = 0x80075168u}, 1u);
   // #6 FUN_80091b50(0x800be3d8, 14, 1) — dispatched
-  tomba::guest::dispatchJalToReturn(*c, 0x80091b50u, 0x8007517Cu, 0x800be3d8u, 14u, 1u);
+  tomba::guest::dispatchJalToReturn(*c, {.target = 0x80091b50u, .returnAddress = 0x8007517Cu}, 0x800be3d8u, 14u, 1u);
   // #7 FUN_80090700(127, 127)  (a1 = a0 in the original delay slot) — dispatched
-  tomba::guest::dispatchJalToReturn(*c, 0x80090700u, 0x80075188u, 127u, 127u);
+  tomba::guest::dispatchJalToReturn(*c, {.target = 0x80090700u, .returnAddress = 0x80075188u}, 127u, 127u);
   // #8 FUN_80090980() — dispatched
-  tomba::guest::dispatchJalToReturn(*c, 0x80090980u, 0x80075190u);
+  tomba::guest::dispatchJalToReturn(*c, {.target = 0x80090980u, .returnAddress = 0x80075190u});
 
   // direct: *kTextCursorFlagAddr = 0 (sw)  [800751a0/9c]
   c->mem_w32(kTextCursorFlagAddr, 0);
@@ -175,15 +177,15 @@ void Font::init() {
   fntOpen.setSize(16384);
 
   // #10 FUN_80098ce0(1) — dispatched
-  tomba::guest::dispatchJalToReturn(*c, 0x80098ce0u, 0x800751F8u, 1u);
+  tomba::guest::dispatchJalToReturn(*c, {.target = 0x80098ce0u, .returnAddress = 0x800751F8u}, 1u);
   // #11 FUN_80098330(fsp+16) — dispatched (reads the FntOpen struct above)
-  tomba::guest::dispatchJalToReturn(*c, 0x80098330u, 0x80075200u, fntOpen.base);
+  tomba::guest::dispatchJalToReturn(*c, {.target = 0x80098330u, .returnAddress = 0x80075200u}, fntOpen.base);
   // #12 FUN_80098150(1) — dispatched
-  tomba::guest::dispatchJalToReturn(*c, 0x80098150u, 0x80075208u, 1u);
+  tomba::guest::dispatchJalToReturn(*c, {.target = 0x80098150u, .returnAddress = 0x80075208u}, 1u);
   // #13 FUN_80098d30(fsp+16) — dispatched (reads the FntOpen struct)
-  tomba::guest::dispatchJalToReturn(*c, 0x80098d30u, 0x80075210u, fntOpen.base);
+  tomba::guest::dispatchJalToReturn(*c, {.target = 0x80098d30u, .returnAddress = 0x80075210u}, fntOpen.base);
   // #14 FUN_80098db0(1, 0xffffff) — dispatched
-  tomba::guest::dispatchJalToReturn(*c, 0x80098db0u, 0x80075220u, 1u, 0x00ffffffu);
+  tomba::guest::dispatchJalToReturn(*c, {.target = 0x80098db0u, .returnAddress = 0x80075220u}, 1u, 0x00ffffffu);
 
   // direct: kTextStateByteA/B = 0 (sb each)
   c->mem_w8(kTextStateByteA, 0);
@@ -246,7 +248,8 @@ constexpr uint32_t kScrGlyphAdvance = 0x1F800180u; // per-call horizontal-advanc
 // is reached via typed runtime address dispatch and expects the caller's stack-arg convention (5th arg at sp+16 of
 // ITS caller's frame, i.e. THIS frame after the sp-=32 descent) — single exit point, safe for
 // GuestFrame RAII per the tail-jump gotcha in docs/faithful-execution.md.
-void Font::drawText(Core *c, int32_t x, int32_t y, int32_t w, uint32_t str, uint32_t color) {
+void Font::drawText(Core *c, const TextBoxArgs &args) {
+  auto [x, y, w, str, color] = args;
   GuestFrame<32, 1> frame(c, kDrawTextSpills);
 
   // a0' = (int16)x | (y << 16) — packed vertex {x: lo16 sign-extended, y: hi16}
@@ -261,8 +264,12 @@ void Font::drawText(Core *c, int32_t x, int32_t y, int32_t w, uint32_t str, uint
   c->mem_w16(kScrGlyphAdvance, 32); // sh v0(32),384(v1) — scratchpad write, role unconfirmed
 
   c->mem_w32(c->r[29] + 16, color); // 5th arg on stack, at the callee's expected slot
-  tomba::guest::dispatchJalToReturn(
-      *c, 0x80078CA8u, 0x800793B4u, vertex, kA1Const, size, str); // FUN_80078CA8 (still unowned)
+  tomba::guest::dispatchJalToReturn(*c,
+                                    {.target = 0x80078CA8u, .returnAddress = 0x800793B4u},
+                                    vertex,
+                                    kA1Const,
+                                    size,
+                                    str); // FUN_80078CA8 (still unowned)
 }
 
 // ORACLE: guest 0x80079324
@@ -272,7 +279,8 @@ void Font::drawText(Core *c, int32_t x, int32_t y, int32_t w, uint32_t str, uint
 // 0x1F800180 before the call (-32 vs drawText's +32), and the tail-call return-address constant
 // (0x80079364 vs 0x800793B4). Byte-faithful to guest 0x80079324; mirrors the guest frame (sp-=32,
 // ra spilled at sp+24) exactly as drawText does — single exit point, safe for GuestFrame RAII.
-void Font::drawTextSmall(Core *c, int32_t x, int32_t y, int32_t w, uint32_t str, uint32_t color) {
+void Font::drawTextSmall(Core *c, const TextBoxArgs &args) {
+  auto [x, y, w, str, color] = args;
   GuestFrame<32, 1> frame(c, kDrawTextSpills);
 
   // a0' = (int16)x | (y << 16) — packed vertex {x: lo16 sign-extended, y: hi16}
@@ -291,8 +299,9 @@ void Font::drawTextSmall(Core *c, int32_t x, int32_t y, int32_t w, uint32_t str,
 
   c->mem_w16(kScrGlyphAdvance, (uint16_t)-32); // sh -32,384(v1) — scratchpad advance = -32
 
-  c->mem_w32(c->r[29] + 16, color);                                // 5th arg on stack, at the callee's expected slot
-  tomba::guest::dispatchJalToReturn(*c, 0x80078CA8u, 0x80079364u); // ra=0x80079364; FUN_80078CA8 (still unowned)
+  c->mem_w32(c->r[29] + 16, color); // 5th arg on stack, at the callee's expected slot
+  tomba::guest::dispatchJalToReturn(
+      *c, {.target = 0x80078CA8u, .returnAddress = 0x80079364u}); // ra=0x80079364; FUN_80078CA8 (still unowned)
 }
 
 // FUN_80078CA8 — the font/glyph emitter drawText() tail-calls. WIDE-RE TIER DRAFT (2026-07-10,
@@ -338,7 +347,6 @@ void reportTextEmit(Core *c, const char *producer, int x, int y) {
 } // namespace
 
 void Font::glyphEmit(Core *c) {
-  const uint32_t string = c->r[7];
   uint32_t sp0 = c->r[29];
   c->r[29] = sp0 - 56u;
   c->mem_w32(c->r[29] + 44u, c->r[21]);
@@ -575,15 +583,15 @@ L_80078F04: {
   // A glyph is an object of its own, named by its character's address.
   const auto glyph = c->emission.instance(c->r[16]);
   // prepend a 4-word GP0 packet from the packet pool into the OT bucket for this colorArg.
-  const tomba2::render::PacketPool glyphPackets(*c);
-  const auto glyphOt = tomba2::render::OrderingTable::active(*c);
+  const tomba::render::PacketPool glyphPackets(*c);
+  const auto glyphOt = tomba::render::OrderingTable::active(*c);
   const uint32_t command[4] = {
       c->mem_r32(c->r[18] + 4u), c->mem_r32(c->r[18] + 8u), c->mem_r32(c->r[18] + 12u), c->mem_r32(c->r[18] + 16u)};
-  c->r[6] = tomba2::render::PacketPool::kCursor;
+  c->r[6] = tomba::render::PacketPool::kCursor;
   c->r[4] = glyphPackets.cursor();
   c->r[5] = glyphOt.slot(c->r[19]);
   c->r[3] = 4u << 24;
-  c->r[2] = glyphOt.link(c->r[4], 4u, c->r[19]);
+  c->r[2] = glyphOt.link({.packet = c->r[4], .words = 4u, .bucket = c->r[19]});
   c->r[4] = c->r[4] + 4u;
   c->r[2] = command[0];
   c->r[16] = c->r[16] + 1u;
@@ -600,7 +608,9 @@ L_80078F04: {
   c->r[2] = (uint32_t)c->mem_r16(c->r[18] + 8u);
   c->r[4] = c->r[4] + 4u;
   glyphPackets.setCursor(c->r[4]);
-  tomba2::ui::GlyphState::save(*c, command, c->r[19]);
+  tomba::render::AnchoredPackets drawn(command[1], kGlyphTexturePage);
+  drawn.add(c->r[19], command);
+  drawn.save(*c);
 }
 L_80078F70:
   c->r[2] = c->r[2] + 8u;
@@ -618,8 +628,8 @@ L_80078F88:
   // tail: final OT-chained packet via the already-owned guest 0x80083DE0 (draw-mode/texwin header).
   c->r[5] = c->r[0] + c->r[0];
   c->r[6] = c->r[5] + c->r[0];
-  const tomba2::render::PacketPool tailPackets(*c);
-  c->r[17] = tomba2::render::PacketPool::kCursor;
+  const tomba::render::PacketPool tailPackets(*c);
+  c->r[17] = tomba::render::PacketPool::kCursor;
   c->r[16] = tailPackets.cursor();
   c->r[7] = c->r[0] + 31u;
   c->mem_w32(c->r[29] + 16u, c->r[0]);
@@ -629,10 +639,10 @@ L_80078F88:
                                    0x80083DE0u,
                                    psx::cpu::ExecutionBudget::currentTurn(*c),
                                    __func__); // guest 0x80083DE0 -- already owned, process-globally wired
-  const auto tailOt = tomba2::render::OrderingTable::active(*c);
+  const auto tailOt = tomba::render::OrderingTable::active(*c);
   c->r[4] = tailOt.slot(c->r[19]);
   c->r[3] = 2u << 24;
-  c->r[2] = tailOt.link(c->r[16], 2u, c->r[19]);
+  c->r[2] = tailOt.link({.packet = c->r[16], .words = 2u, .bucket = c->r[19]});
   c->r[3] = tailPackets.cursor() + 12u;
   tailPackets.setCursor(c->r[3]);
   c->r[3] = c->r[21] & 65535u;
@@ -673,7 +683,7 @@ void ov_drawText(Core *c) {
   int32_t w = (int32_t)c->r[6];
   uint32_t str = c->r[7];
   uint32_t color = c->mem_r32(c->r[29] + 16u);
-  Font::drawText(c, x, y, w, str, color);
+  Font::drawText(c, {.x = x, .y = y, .w = w, .str = str, .color = color});
 }
 
 // ov_drawTextSmall: sibling of ov_drawText for FUN_80079324 — same guest-ABI arg extraction (a0..a2
@@ -684,7 +694,7 @@ void ov_drawTextSmall(Core *c) {
   int32_t w = (int32_t)c->r[6];
   uint32_t str = c->r[7];
   uint32_t color = c->mem_r32(c->r[29] + 16u);
-  Font::drawTextSmall(c, x, y, w, str, color);
+  Font::drawTextSmall(c, {.x = x, .y = y, .w = w, .str = str, .color = color});
 }
 
 constexpr uint32_t kIconScratch = 0x1F800020u;
@@ -710,10 +720,10 @@ struct IconScratch {
   Core *c;
 
   int16_t x() const {
-    return c->mem_r16s(kIconScratch + 8u);
+    return (int16_t)c->mem_r16(kIconScratch + 8u);
   }
   int16_t y() const {
-    return c->mem_r16s(kIconScratch + 10u);
+    return (int16_t)c->mem_r16(kIconScratch + 10u);
   }
   uint16_t clut() const {
     return c->mem_r16(kIconScratch + 14u);
@@ -731,8 +741,10 @@ struct IconScratch {
   void setY(int y) {
     c->mem_w16(kIconScratch + 10u, (uint16_t)y);
   }
-  void setUv(int u, int v) {
+  void setU(uint32_t u) {
     c->mem_w8(kIconScratch + 12u, (uint8_t)u);
+  }
+  void setV(uint32_t v) {
     c->mem_w8(kIconScratch + 13u, (uint8_t)v);
   }
   void setClut(uint16_t value) {
@@ -741,9 +753,9 @@ struct IconScratch {
 };
 
 void emitGuestIconSprite(Core *c, uint32_t bucket) {
-  const tomba2::render::PacketPool packets(*c);
+  const tomba::render::PacketPool packets(*c);
   const uint32_t packet = packets.cursor();
-  tomba2::render::OrderingTable::active(*c).link(packet, kSpritePacketWords, bucket);
+  tomba::render::OrderingTable::active(*c).link({.packet = packet, .words = kSpritePacketWords, .bucket = bucket});
   c->mem_w32(packet + 4u, c->mem_r32(kIconScratch + 4u));
   c->mem_w32(packet + 8u, c->mem_r32(kIconScratch + 8u));
   c->mem_w32(packet + 12u, c->mem_r32(kIconScratch + 12u));
@@ -788,8 +800,8 @@ void Font::iconGlyphEmit(Core *c) {
   scratch = kIconScratch;
   savedBucket = bucket;
   savedOriginX = rawOriginX;
-  packetPoolBase = tomba2::render::PacketPool::kCursorPage;
-  otBaseRegister = tomba2::render::OrderingTable::kBasePointerPage;
+  packetPoolBase = tomba::render::PacketPool::kCursorPage;
+  otBaseRegister = tomba::render::OrderingTable::kBasePointerPage;
   bucketOffset = bucket * 4u;
 
   // Census (channel "iconglyph"). A token that misses the table becomes kNoGlyph and only advances
@@ -811,19 +823,17 @@ void Font::iconGlyphEmit(Core *c) {
     uint32_t rawCode = kNoGlyph;
     if (pair == kNewlineGlyph) {
       rawCode = kNewlineGlyph;
-    } else if (((pair + 32160u) & 0xFFFFu) < 26u) {
+    } else if (((pair + 32160u) & 0xFFFFu) < 26u || ((pair + 32177u) & 0xFFFFu) < 10u) {
       rawCode = pair + 32193u;
     } else if (((pair + 32127u) & 0xFFFFu) < 26u) {
       rawCode = pair + 32192u;
-    } else if (((pair + 32177u) & 0xFFFFu) < 10u) {
-      rawCode = pair + 32193u;
     } else {
       tokenEntry = kIconTokenTable;
       while (c->mem_r32(tokenEntry) != 0) {
         c->r[4] = c->mem_r32(tokenEntry);
         c->r[5] = cursor;
         c->r[6] = 2u;
-        tomba::guest::dispatchJalToReturn(*c, 0x8009A640u, 0x80078AA4u);
+        tomba::guest::dispatchJalToReturn(*c, {.target = 0x8009A640u, .returnAddress = 0x80078AA4u});
         if (c->r[2] == 0) {
           rawCode = c->mem_r16(tokenEntry + 4u);
           break;
@@ -848,7 +858,8 @@ void Font::iconGlyphEmit(Core *c) {
       continue;
     }
 
-    glyph.setUv((code & 31u) << 3, ((code & 0xFFFu) >> 5) << 3);
+    glyph.setU((code & 31u) << 3);
+    glyph.setV(((code & 0xFFFu) >> 5) << 3);
     emitGuestIconSprite(c, savedBucket);
     ++glyphsEmitted;
     lucent::debug("iconglyph",
@@ -863,27 +874,28 @@ void Font::iconGlyphEmit(Core *c) {
     glyph.setX(glyph.x() + 8);
 
     if (code & 0x8000u) {
-      glyph.setUv((code & 0x1000u) ? 64 : 56, 64);
+      glyph.setU((code & 0x1000u) ? 64u : 56u);
+      glyph.setV(64u);
       emitGuestIconSprite(c, savedBucket);
       ++glyphsEmitted;
       glyph.setX(glyph.x() + 5);
     }
   }
 
-  const tomba2::render::PacketPool packets(*c);
+  const tomba::render::PacketPool packets(*c);
   const uint32_t drawModePacket = packets.cursor();
   tokenEntry = drawModePacket;
-  cursor = tomba2::render::PacketPool::kCursorPage;
+  cursor = tomba::render::PacketPool::kCursorPage;
   c->mem_w32(c->r[29] + 16u, 0u);
   c->r[4] = drawModePacket;
   c->r[5] = 0u;
   c->r[6] = 0u;
   c->r[7] = 31u;
-  tomba::guest::dispatchJalToReturn(*c, 0x80083DE0u, 0x80078C30u);
+  tomba::guest::dispatchJalToReturn(*c, {.target = 0x80083DE0u, .returnAddress = 0x80078C30u});
 
-  const auto ot = tomba2::render::OrderingTable::active(*c);
+  const auto ot = tomba::render::OrderingTable::active(*c);
   c->r[4] = ot.slot(savedBucket);
-  ot.link(drawModePacket, kDrawModePacketWords, savedBucket);
+  ot.link({.packet = drawModePacket, .words = kDrawModePacketWords, .bucket = savedBucket});
   packets.setCursor(drawModePacket + 12u);
 
   lucent::debug("iconglyph",
@@ -901,15 +913,16 @@ void Font::iconGlyphEmit(Core *c) {
   c->r[2] = (uint32_t)((int32_t)glyph.x() - originX);
 }
 
-void Font::registerStateRenders(Core &core) {
-  tomba2::ui::GlyphState::registerRender(core, kGlyphEmit);
+void Font::registerStateRenders(psx::present::StateProducerTable &renders) {
+  renders.install(kGlyphEmit, tomba::render::AnchoredPackets::render());
 }
 
-void Font::registerOverrides() {
-  tomba::native::declareOverride(0x80079374u, "ov_drawText", ov_drawText);
-  tomba::native::declareOverride(0x80079324u, "ov_drawTextSmall", ov_drawTextSmall); // 8x8 sibling of drawText
+void Font::registerOverrides(native::NativeOverrideCatalog &natives) {
+  natives.declare(0x80079374u, "ov_drawText", ov_drawText);
+  natives.declare(0x80079324u, "ov_drawTextSmall", ov_drawTextSmall); // 8x8 sibling of drawText
   // A text draw is the object of its string (a3); each glyph names its byte offset in it.
-  tomba::native::declareOverride(
-      kGlyphEmit, "Font::glyphEmit", Font::glyphEmit, psx::present::Producer{psx::present::Arg::A3});
-  tomba::native::declareOverride(0x80078988u, "Font::iconGlyphEmit", Font::iconGlyphEmit); // icon/SJIS glyph strings
+  natives.declare(kGlyphEmit, "Font::glyphEmit", Font::glyphEmit, psx::present::Producer{psx::present::Arg::A3});
+  natives.declare(0x80078988u, "Font::iconGlyphEmit", Font::iconGlyphEmit); // icon/SJIS glyph strings
 }
+
+} // namespace tomba

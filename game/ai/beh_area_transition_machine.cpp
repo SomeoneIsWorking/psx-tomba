@@ -35,9 +35,8 @@
 // + verifiable via the A/B gate the moment a transition is triggered. Byte-exact gate is the safety net.
 
 #include "camera/cutscene_camera.h" // CutsceneCamera::runInitSeedGrp (was typed runtime address dispatch 0x8006CBA8)
-#include "cfg.h"
 #include "core.h"
-#include "core/entry/game_ctx.h"
+#include "entry/tomba_session.h"
 #include "graphics_bind.h" // ov_obj_record_init
 #include "guest_abi.h"     // GuestFrame — mirror the guest stack frame (CLAUDE.md)
 #include "guest_call.h"
@@ -49,6 +48,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+namespace tomba {
 
 namespace {
 
@@ -64,7 +65,7 @@ constexpr uint32_t G_f5c = 0x800E7F5Cu;
 constexpr uint32_t G_806c = 0x800E806Cu, G_8074 = 0x800E8074u, G_8076 = 0x800E8076u, G_8078 = 0x800E8078u;
 
 static inline int16_t s16(Core *c, uint32_t a) {
-  return c->mem_r16s(a);
+  return (int16_t)c->mem_r16(a);
 }
 
 static void cd0_tail(Core *c, uint32_t nd) { // @0x80127cd0
@@ -148,7 +149,7 @@ static void node6_phase(Core *c, uint32_t nd) {
     c->mem_w8(G_806c, 1); // s3 = 1
     c->mem_w16(G_8078, 0);
     c->mem_w16(G_8074, (uint16_t)(int16_t)-1400);
-    eng(c).sfx.trigger(0x25, 0, 0); // FUN_80074590 (native)
+    eng(c).sfx.trigger({.id = 0x25, .pan = 0, .pitchBend = 0}); // FUN_80074590 (native)
     break;
   }
   case 3: { // @0x80127ba0 — integrate camera deltas
@@ -283,3 +284,5 @@ void beh_area_transition_machine(Core *c) {
   psx::cpu::dispatchGuestToReturn0(
       *c, 0x80041194u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // FUN_80041194(node, 0, 0, 0)
 }
+
+} // namespace tomba

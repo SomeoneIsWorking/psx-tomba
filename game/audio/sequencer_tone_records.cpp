@@ -6,10 +6,9 @@
 #include "audio/libsnd_globals.h"
 #include "audio/sequencer_record.h"
 #include "core.h"
-#include "core/entry/game_ctx.h"
 #include "core/overrides/guest_jal.h"
 #include "core/overrides/native_override_catalog.h"
-#include "execution_services.h"
+#include "entry/tomba_session.h"
 #include "game.h"
 #include "guest_abi.h"
 #include "guest_call.h"
@@ -81,7 +80,7 @@ L_800901FC:;
 // 0x80092310 — tone record copy. Stack frame mirrored (sp-32).
 void Sequencer::channelToneRecordCopy() {
   Core *c = core;
-  static constexpr GuestFrameSpill kSpills[] = {{16, 16}, {17, 20}, {31, 24}}; // -32
+  constexpr GuestFrameSpill kSpills[] = {{16, 16}, {17, 20}, {31, 24}}; // -32
   GuestFrame<32, 3> frame(c, kSpills);
   c->r[4] = c->r[4] << 16;
   c->r[4] = (uint32_t)((int32_t)c->r[4] >> 16);
@@ -143,7 +142,7 @@ L_80092400:; // return value already in r2 (0 on success, -1 on guard fail)
 // 0x80092420 — the wide tone record copy. Stack frame mirrored (sp-32).
 void Sequencer::channelToneRecordCopyWide() {
   Core *c = core;
-  static constexpr GuestFrameSpill kSpills[] = {{16, 16}, {17, 20}, {31, 24}}; // -32
+  constexpr GuestFrameSpill kSpills[] = {{16, 16}, {17, 20}, {31, 24}}; // -32
   GuestFrame<32, 3> frame(c, kSpills);
   c->r[17] = c->r[6] + c->r[0];
   c->r[4] = c->r[4] << 16;
@@ -167,7 +166,7 @@ L_8009245C:
   c->r[5] = (uint32_t)((int32_t)c->r[5] >> 16);
   channelVoiceSelectPrep(); // 0x800962B0 owned -- direct native call
   c->r[3] = (uint32_t)32784u << 16;
-  c->r[3] = (uint32_t)(int8_t)c->mem_r8(c->r[3] + 23807u);
+  c->r[3] = (uint32_t)c->mem_r8s(c->r[3] + 23807u);
   c->r[2] = (uint32_t)32784u << 16;
   c->r[2] = c->mem_r32(c->r[2] + 23784u);
   c->r[3] = c->r[3] << 4;
@@ -392,11 +391,11 @@ static void nat_channelNotePeriodCompute(Core *c) {
   eng(c).sequencer.channelNotePeriodCompute();
 }
 
-void declareToneRecordOverrides() {
-  tomba::native::declareOverride(0x80090160u, "nat_channelStreamAccumulate", nat_channelStreamAccumulate);
-  tomba::native::declareOverride(0x80092310u, "nat_channelToneRecordCopy", nat_channelToneRecordCopy);
-  tomba::native::declareOverride(0x80092420u, "nat_channelToneRecordCopyWide", nat_channelToneRecordCopyWide);
-  tomba::native::declareOverride(0x80094474u, "nat_channelNotePeriodCompute", nat_channelNotePeriodCompute);
+void declareToneRecordOverrides(native::NativeOverrideCatalog &natives) {
+  natives.declare(0x80090160u, "nat_channelStreamAccumulate", nat_channelStreamAccumulate);
+  natives.declare(0x80092310u, "nat_channelToneRecordCopy", nat_channelToneRecordCopy);
+  natives.declare(0x80092420u, "nat_channelToneRecordCopyWide", nat_channelToneRecordCopyWide);
+  natives.declare(0x80094474u, "nat_channelNotePeriodCompute", nat_channelNotePeriodCompute);
 }
 
 } // namespace tomba::audio

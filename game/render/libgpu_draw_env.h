@@ -40,6 +40,12 @@ constexpr uint32_t kClearBlue = 27;   // u8
 // Read-only lens over a guest DRAWENV. `Raw` accessors are the zero-extended (lhu) reads; the plain
 // ones are sign-extended (lh) — the distinction is load-bearing, the clip size is compared SIGNED
 // against the framebuffer limit but stored back UNSIGNED.
+namespace tomba::native {
+class NativeOverrideCatalog;
+} // namespace tomba::native
+
+namespace tomba {
+
 struct DrawEnvFields {
   Core *mCore;
   uint32_t mBase;
@@ -101,6 +107,8 @@ struct DrawEnvFields {
   }
 };
 
+} // namespace tomba
+
 // ------------------------------------------------------------------------------------------------
 // DR_ENV — the GPU command packet SetDrawEnv produces, living at DRAWENV+28. Word 0 is the OT tag
 // (its top byte is the word count that follows); words 1.. are raw GP0 commands the DMA sends
@@ -119,6 +127,8 @@ constexpr uint32_t kClearSize = 36;      // packed {w, h}
 } // namespace drenv
 
 // Write lens over the DR_ENV packet. One store per setter, on one line — see the header note.
+namespace tomba {
+
 struct DrawEnvPacket {
   Core *mCore;
   uint32_t mBase;
@@ -155,6 +165,8 @@ struct DrawEnvPacket {
   }
 };
 
+} // namespace tomba
+
 // ------------------------------------------------------------------------------------------------
 // The clear rectangle SetDrawEnv assembles on its OWN guest stack frame (sp+16..sp+23) before
 // copying it into the packet as two 32-bit words. It is a real guest-memory RECT, not a C local:
@@ -165,6 +177,8 @@ constexpr uint32_t kY = 18;
 constexpr uint32_t kW = 20;
 constexpr uint32_t kH = 22;
 } // namespace clearrect
+
+namespace tomba {
 
 struct ClearRectScratch {
   Core *mCore;
@@ -215,11 +229,17 @@ public:
   // environment into the GP0 command packet PutDrawEnv/DrawOTagEnv hand to the GPU DMA.
   static void setDrawEnv(Core *c);
 
-  static void registerOverrides(Game *game);
+  static void registerOverrides(native::NativeOverrideCatalog &natives);
 
 private:
+  struct ClampToFrameBufferArgs {
+    int32_t value;
+    uint32_t limitAddr;
+  };
   // libgpu's "keep the clip rect inside the framebuffer" clamp, shared with the GP0(0xE3)/(0xE4)
   // builders. Reads the limit SIGNED for the comparison and UNSIGNED for the clamped result — that
   // asymmetry is the guest's, not a slip.
-  static uint32_t clampToFrameBuffer(Core *c, int32_t value, uint32_t limitAddr);
+  static uint32_t clampToFrameBuffer(Core *c, const ClampToFrameBufferArgs &args);
 };
+
+} // namespace tomba

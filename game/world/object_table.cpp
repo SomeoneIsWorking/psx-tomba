@@ -1,12 +1,12 @@
 // ObjectTable::dispatch — see object_table.h. Faithful port of guest FUN_80026C88 with the
 // existing `disp26c88verify` A/B gate preserved.
 #include "object_table.h"
-#include "cfg.h"
 #include "core.h"
 #include "core/engine/engine.h" // eng(c).animation etc (not needed here but consistent)
-#include "core/entry/game_ctx.h"
+#include "entry/tomba_session.h"
 #include "game.h"
 #include "guest_call.h"
+#include <lucent/log.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -24,6 +24,8 @@
 //   * 2 = (unused): no-op (guest instruction path: `if (bVar1 != 2 && bVar1 == 3)` false → nothing).
 //   * 3 = DESPAWN: dispatch FUN_8007B2AC (substrate pool return).
 // Ghidra decomp scratch/decomp/objtable_handler_27254.c. NO SFX (verified).
+namespace tomba {
+
 namespace {
 
 constexpr uint32_t H_27254 = 0x80027254u;
@@ -151,21 +153,22 @@ void ObjectTable::dispatch() {
         handler27254(obj);
         continue;
       } // native — the only real entry
-      psx::cpu::dispatchGuestToReturn0(*c,
-                                       fn,
-                                       psx::cpu::ExecutionBudget::currentTurn(*c),
-                                       __func__); // any other handler (defensive; the table only holds H_27254 today)
+      psx::cpu::dispatchGuestToReturn0(
+          *c,
+          fn,
+          psx::cpu::ExecutionBudget::currentTurn(*c),
+          "object_table"); // any other handler (defensive; the table only holds H_27254 today)
     }
   };
 
-  int s_v = gctx(c)->verification.on("disp26c88verify");
+  int s_v = tombaSession(c).verification.on("disp26c88verify");
   if (!s_v) {
     body();
     return;
   }
 
-  uint8_t *ram0 = gctx(c)->verification.ram0();
-  uint8_t *ramN = gctx(c)->verification.ramN();
+  uint8_t *ram0 = tombaSession(c).verification.ram0();
+  uint8_t *ramN = tombaSession(c).verification.ramN();
   uint8_t spad0[0x400], spadN[0x400];
   uint32_t regs0[32];
   memcpy(regs0, c->r, sizeof regs0);
@@ -196,13 +199,15 @@ void ObjectTable::dispatch() {
       break;
     }
   }
-  tomba::VerificationCounter &chk = gctx(c)->verification.objectTable;
+  tomba::VerificationCounter &chk = tombaSession(c).verification.objectTable;
   long &ng = chk.nMatch, &nb = chk.nMismatch;
   if (ro >= 0 || so >= 0) {
     if (nb++ < 40) {
-      cfg_logi("disp26c88verify", "MISMATCH ram@%x spad@%x sp=%x", ro, so, sp);
+      lucent::info("disp26c88verify", "MISMATCH ram@{:x} spad@{:x} sp={:x}", ro, so, sp);
     }
   } else if (++ng % 50 == 0) {
-    cfg_logi("disp26c88verify", "%ld matches", ng);
+    lucent::info("disp26c88verify", "{} matches", ng);
   }
 }
+
+} // namespace tomba

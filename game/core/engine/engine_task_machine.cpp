@@ -9,14 +9,13 @@
 //
 // The class's own header (game/core/engine.h) remains the single declaration of every method below;
 // nothing is redeclared here.
-#include "c_subsys.h" // disc_findFile — the native ISO9660 resolver
 #include "core.h"
 #include "core/assets/asset.h" // class Asset
 #include "core/engine/engine.h"
 #include "core/engine/task_sm.h"         // TaskSm — the typed lens over the task record, owned in one header
 #include "core/overrides/guest_jal.h"    // tomba::guest::dispatchJalToReturn — the guest call convention
 #include "core/overrides/guest_resume.h" // requestGuestContinuation
-#include "entry/game_ctx.h"
+#include "entry/tomba_session.h"
 #include "game.h" // Game — the per-Core product the Engine drives
 #include "guest_abi.h"
 #include "guest_call.h"
@@ -35,17 +34,21 @@
 // sub-machine state, run the per-area setup fns. (GAME.BIN 0x801086e0) Verified
 // runtime-exercised + RAM 0-diff. GUEST FRAME MIRROR (abi_extract --contract,
 // single epilogue label -> GuestFrame RAII is safe): sp-24, ra@+16.
+namespace tomba {
+
 void Engine::stageAreaInit() {
   Core *c = core;
-  static constexpr GuestFrameSpill kSpills[] = {{31, 16}};
+  constexpr GuestFrameSpill kSpills[] = {{31, 16}};
   GuestFrame<24, 1> frame(c, kSpills);
   TaskSm sm(c);
   sm.setTop(2); // sm[0x48] = 2 (running)
   sm.setSubMode(0);
   sm.setStage4c(0);
   sm.setF69(0);
-  tomba::guest::dispatchJalToReturn(*c, 0x8007a8e0u, 0x80108708u); // per-area setup (resident system, synchronous)
-  tomba::guest::dispatchJalToReturn(*c, 0x8007b38cu, 0x80108710u); // per-area setup (resident system, synchronous)
+  tomba::guest::dispatchJalToReturn(
+      *c, {.target = 0x8007a8e0u, .returnAddress = 0x80108708u}); // per-area setup (resident system, synchronous)
+  tomba::guest::dispatchJalToReturn(
+      *c, {.target = 0x8007b38cu, .returnAddress = 0x80108710u}); // per-area setup (resident system, synchronous)
 }
 
 // sm[0x48] == 1 — area RESUME-INIT (re-enter a running area, sub-mode 1): like
@@ -57,7 +60,7 @@ void Engine::stageAreaInit() {
 // epilogue label -> GuestFrame RAII is safe): sp-24, ra@+16.
 void Engine::stageResumeInit() {
   Core *c = core;
-  static constexpr GuestFrameSpill kSpills[] = {{31, 16}};
+  constexpr GuestFrameSpill kSpills[] = {{31, 16}};
   GuestFrame<24, 1> frame(c, kSpills);
   TaskSm sm(c);
   sm.setTop(2); // sm[0x48] = 2 (running)
@@ -67,8 +70,9 @@ void Engine::stageResumeInit() {
   c->mem_w8(0x1f8001ffu, 0xff); // DAT_1f8001ff = 0xff
   c->mem_w16(0x1f800278u,
              0); // DAT_1f800278 = 0 (16-bit; delay-slot before the setup call)
-  tomba::guest::dispatchJalToReturn(*c, 0x8007b3f4u, 0x80108760u); // per-area setup (resident system, synchronous)
-  c->mem_w8(0x1f800206u, 0);                                       // display flags cleared after setup
+  tomba::guest::dispatchJalToReturn(
+      *c, {.target = 0x8007b3f4u, .returnAddress = 0x80108760u}); // per-area setup (resident system, synchronous)
+  c->mem_w8(0x1f800206u, 0);                                      // display flags cleared after setup
   c->mem_w8(0x1f800236u, 0);
   c->mem_w8(0x1f800234u, 0);
 }
@@ -188,7 +192,7 @@ void Engine::areaLoadState() {
       sm.setF6b(0);
       sm.setS4e(0);
       sm.setS50(0);
-      eng(c).sfx.trigger(0x11, 0, 0); // native — was FUN_80074590(0x11,0,0)
+      eng(c).sfx.trigger({.id = 0x11, .pan = 0, .pitchBend = 0}); // native — was FUN_80074590(0x11,0,0)
     }
     if ((c->mem_r16(0x800E7E68u) & 0x10u) == 0) {
     areaload_joined_68f4:
@@ -206,7 +210,7 @@ void Engine::areaLoadState() {
       sm.setS4e((uint16_t)(sm.s4e() - 1));
     }
   areaload_lab_106918:
-    eng(c).sfx.trigger(0x15, 0, 0); // native — was FUN_80074590(0x15,0,0)
+    eng(c).sfx.trigger({.id = 0x15, .pan = 0, .pitchBend = 0}); // native — was FUN_80074590(0x15,0,0)
     break;
   }
   case 4: {
@@ -221,7 +225,7 @@ void Engine::areaLoadState() {
         sm.setS4e(0);
         sm.setF6b(0);
         sm.setStage4c((uint16_t)s);
-        eng(c).sfx.trigger(0x14, -9, 0); // native — was FUN_80074590(0x14,-9,0)
+        eng(c).sfx.trigger({.id = 0x14, .pan = -9, .pitchBend = 0}); // native — was FUN_80074590(0x14,-9,0)
         goto areaload_case4_edge;
       }
     } else {
@@ -247,7 +251,7 @@ void Engine::areaLoadState() {
       sm.setF6b(0);
       sm.setS4e(0);
       sm.setS50(0);
-      eng(c).sfx.trigger(0x11, 0, 0); // native — was FUN_80074590(0x11,0,0)
+      eng(c).sfx.trigger({.id = 0x11, .pan = 0, .pitchBend = 0}); // native — was FUN_80074590(0x11,0,0)
     }
   areaload_case4_edge:
     if ((c->mem_r16(0x800E7E68u) & 0x10u) == 0) {
@@ -285,7 +289,7 @@ void Engine::areaLoadState() {
       sm.setS4e(0);
       sm.setF6b(0);
       sm.setStage4c((uint16_t)s);
-      eng(c).sfx.trigger(0x14, -9, 0); // native — was FUN_80074590(0x14,-9,0)
+      eng(c).sfx.trigger({.id = 0x14, .pan = -9, .pitchBend = 0}); // native — was FUN_80074590(0x14,-9,0)
       return;
     }
     if (c->mem_r16(0x800E7E68u) & 0x10u) {
@@ -303,7 +307,7 @@ void Engine::areaLoadState() {
     sm.setS4e(0);
     break;
   case 7: {
-    tomba::scene::stepCardLoadMachine(*c, 0u, 1u); // = jal 0x8007BF20(0,1): LOAD page, native+sync
+    tomba::scene::stepCardLoadMachine(*c, {.mode = 0u, .inGame = 1u}); // = jal 0x8007BF20(0,1): LOAD page, native+sync
     uint8_t result = sm.f6b();
     if (result == 7) {
       reloadEntityPool(); // native — was FUN_8007B3F4()
@@ -321,7 +325,8 @@ void Engine::areaLoadState() {
     break;
   }
   case 8: {
-    tomba::scene::stepCardLoadMachine(*c, 0x81u, 1u); // = jal 0x8007BF20(0x81,1): SAVE page, native+sync
+    tomba::scene::stepCardLoadMachine(
+        *c, {.mode = 0x81u, .inGame = 1u}); // = jal 0x8007BF20(0x81,1): SAVE page, native+sync
     uint8_t result = sm.f6b();
     if (result == 9) {
       sm.setF6b(0);
@@ -343,6 +348,8 @@ void Engine::areaLoadState() {
   }
 }
 
+} // namespace tomba
+
 // ---- NATIVE PER-FRAME GAME LOOP (game_native path, mirrors DEMO demo_native)
 // ------------------------ The GAME stage is owned as a native per-frame
 // dispatcher instead of guest-continuationing into the guest loop 0x801063F4: each
@@ -356,7 +363,8 @@ void Engine::areaLoadState() {
 #include "camera/cutscene_camera.h" // class CutsceneCamera — resident driver 0x8006EC44 (native)
 #include "render/screen_fade.h"     // class ScreenFade — the single fade driver
 #include "sop.h"                    // class Sop — transitionAreaLoad (sync FIELD transition load)
-                                    // menu + cursor/page-transition handling
+#include <lucent/log.h>
+  // menu + cursor/page-transition handling
 
 // FUN_8010810C page-1 dim-fade branch (task+0x6B == 1, "draw main pause menu" —
 // see game/ui/menu.cpp's RE of the same dispatcher). Disasm
@@ -369,6 +377,8 @@ void Engine::areaLoadState() {
 // + the dispatcher's bounds-check/table jump stay guest instruction path via psx::cpu::callGuestNow(*c, __func__,
 // 0x8010810cu) (own-caller-before-callee: the caller (ov_field_frame et al.) is already native, but the callee's other
 // pages are unexplored, so full transcription is out of scope).
+namespace tomba {
+
 void Engine::submitPage810c() {
   Core *c = core;
   uint32_t task = c->mem_r32(0x1F800138u);
@@ -401,7 +411,7 @@ void Engine::submitPage810c() {
 // ra@+16.
 void Engine::stageRunning() {
   Core *c = core;
-  static const uint32_t handler[6] = {
+  constexpr uint32_t handler[6] = {
       0x8010882cu,
       0x801088d8u,
       0x80106478u,
@@ -409,7 +419,7 @@ void Engine::stageRunning() {
       0x801089c4u,
       0x80108a60u,
   };
-  static const uint32_t jal_ra[6] = {
+  constexpr uint32_t jal_ra[6] = {
       // 80108784's per-case jal sites
       0x801087CCu,
       0x801087DCu,
@@ -418,12 +428,12 @@ void Engine::stageRunning() {
       0x8010880Cu,
       0x8010881Cu,
   };
-  static constexpr GuestFrameSpill kSpills[] = {{31, 16}};
+  constexpr GuestFrameSpill kSpills[] = {{31, 16}};
   GuestFrame<24, 1> frame(c, kSpills);
   TaskSm sm(c);
   uint16_t s4a = sm.subMode();
-  if (cfg_dbg("stage") && s4a != mLast4a) {
-    cfg_logf("stage", "stageRunning: sm[0x4a]=%u sm[0x4c]=%u", s4a, sm.stage4c());
+  if (s4a != mLast4a) {
+    lucent::debug("stage", "stageRunning: sm[0x4a]={} sm[0x4c]={}", s4a, sm.stage4c());
     mLast4a = s4a;
   }
   if (s4a < 6) {
@@ -453,7 +463,7 @@ void Engine::stageRunning() {
 // ra@+36; live r16=0x1F800000.
 void Engine::submode0() {
   Core *c = core;
-  static constexpr GuestFrameSpill kSpills[] = {{16, 32}, {31, 36}};
+  constexpr GuestFrameSpill kSpills[] = {{16, 32}, {31, 36}};
   GuestFrame<40, 2> frame(c, kSpills);
   c->r[16] = 0x1F800000u;
   TaskSm sm(c);
@@ -462,7 +472,8 @@ void Engine::submode0() {
       c->r[4] = 0;
       c->r[5] = 0;
       c->r[6] = 0;
-      tomba::guest::dispatchJalToReturn(*c, 0x8005082cu, 0x8010888Cu); // input reset (leaf, no yield)
+      tomba::guest::dispatchJalToReturn(
+          *c, {.target = 0x8005082cu, .returnAddress = 0x8010888Cu}); // input reset (leaf, no yield)
       TaskSm(c).setS50(0); // re-derive base: input reset may relocate the task record
       TaskSm(c).setS4e((uint16_t)(TaskSm(c).s4e() + 1));
     } else if (sm.s4e() == 1) {
@@ -586,6 +597,8 @@ void Engine::sceneEventFifo() {
   }
   psx::cpu::callGuestNow(*c, __func__, 0x80077b5cu, B);
 }
+
+} // namespace tomba
 
 // Native FUN_8004FE84 — a 2-phase scene/render-list builder driver (struct
 // @0x800bf548). base[0] is the phase: 0 -> ARM (snapshot list ptr 0x800ecf64

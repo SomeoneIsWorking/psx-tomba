@@ -7,6 +7,8 @@
 #include <cstdint>
 class Core;
 
+namespace tomba {
+
 class AreaFadeSequencer {
 public:
   // Back-pointer wired once by Core's constructor.
@@ -14,3 +16,5 @@ public:
 
   void step(uint32_t node);
 };
+
+} // namespace tomba

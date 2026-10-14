@@ -3,6 +3,7 @@ id: kanban-077
 title: Camera blocked by geometry vanilla does not show — 2 spots, stage GAME (USER)
 status: open
 labels: [bug, render]
+features: [F-RENDER]
 ---
 
 

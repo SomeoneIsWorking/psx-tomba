@@ -21,6 +21,12 @@
 struct Core;
 class Game;
 
+namespace tomba::native {
+class NativeOverrideCatalog;
+} // namespace tomba::native
+
+namespace tomba {
+
 class QuadRtptSubmit {
 public:
   // FUN_8003B054(dst=a0, src=a1, cornerIndex=a2): rotates the 4 (u16 or s8-pair) corner fields of
@@ -58,5 +64,7 @@ public:
   // are reached by a direct C call the recorded binary evidence generates (`guest 0x8003B054(c)`/`guest
   // 0x8003B320(c)`), never typed runtime address dispatch, so this ONE registration (called once per Game) covers every
   // call site, including both SBS cores.
-  static void registerOverrides(Game *game);
+  static void registerOverrides(native::NativeOverrideCatalog &natives);
 };
+
+} // namespace tomba

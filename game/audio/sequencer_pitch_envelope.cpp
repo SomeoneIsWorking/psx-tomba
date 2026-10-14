@@ -6,9 +6,9 @@
 #include "audio/libsnd_globals.h"
 #include "audio/sequencer_record.h"
 #include "core.h"
-#include "core/entry/game_ctx.h"
 #include "core/overrides/guest_jal.h"
 #include "core/overrides/native_override_catalog.h"
+#include "entry/tomba_session.h"
 #include "execution_services.h"
 #include "game.h"
 #include "guest_abi.h"
@@ -32,8 +32,7 @@ void Sequencer::channelPitchSlideTick() {
   // transcription never read/wrote a callee-saved register, so hoisting the frame here captures the
   // identical pre-call values gen's own spill sequence did). Internal control flow/register usage
   // kept LITERAL past this point — see this function's header comment for why.
-  static constexpr GuestFrameSpill kSpills[] = {
-      {21, 44}, {31, 48}, {20, 40}, {19, 36}, {18, 32}, {17, 28}, {16, 24}}; // -56
+  constexpr GuestFrameSpill kSpills[] = {{21, 44}, {31, 48}, {20, 40}, {19, 36}, {18, 32}, {17, 28}, {16, 24}}; // -56
   GuestFrame<56, 7> frame(c, kSpills);
   c->r[2] = c->r[4] << 16;
   c->r[3] = libsnd::kSeqPtrArray;

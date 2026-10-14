@@ -3,7 +3,7 @@
 #include "game.h"
 #include "lightrec_executor.h"
 #include "render/guest_ordering_table.h"
-#include "stub_runtime.h"
+#include "stub_game_runtime.h"
 
 #include <cstdint>
 #include <lucent/log.h>
@@ -56,26 +56,28 @@ void prepareCall(Core &core) {
 } // namespace
 
 int main(int argc, char **argv) {
+  tomba::native::NativeOverrideCatalog natives;
   if (argc != 5) {
     lucent::error("real-overlay-test", "expected A03 path/digest and A0B path/digest from the manifest verifier");
     return 2;
   }
-  const auto a03Bytes = tomba::test::readAuthenticatedImage(argv[1], argv[2], 0x200000u - (kModeSlot & 0x1fffffffu));
-  const auto a0bBytes = tomba::test::readAuthenticatedImage(argv[3], argv[4], 0x200000u - (kModeSlot & 0x1fffffffu));
+  const auto a03Bytes = tomba::test::readAuthenticatedImage(
+      {.path = argv[1], .sha256 = argv[2], .maxBytes = 0x200000u - (kModeSlot & 0x1fffffffu)});
+  const auto a0bBytes = tomba::test::readAuthenticatedImage(
+      {.path = argv[3], .sha256 = argv[4], .maxBytes = 0x200000u - (kModeSlot & 0x1fffffffu)});
   if (!a03Bytes || !a0bBytes) {
     return 2;
   }
 
-  tomba::test::StubRuntime runtime;
-  psxport_install_game(runtime);
-  auto game = std::make_unique<Game>();
+  psx::test::StubGameRuntime runtime;
+  auto game = std::make_unique<Game>(runtime, psx::config::Config{});
   Core &core = game->core;
-  tomba::native::declareOverlayOverride("A03", kCollision, "diagnostic A03", a03DiagnosticOwner);
-  tomba::native::declareOverlayOverride("A0B", kCollision, "diagnostic A0B", a0bDiagnosticOwner);
+  natives.declareOverlay("A03", kCollision, "diagnostic A03", a03DiagnosticOwner);
+  natives.declareOverlay("A0B", kCollision, "diagnostic A0B", a0bDiagnosticOwner);
   std::optional<psx::cpu::ImageIdentity> active;
 
   copyMode(core, *a03Bytes, 6u);
-  const auto a03 = tomba::native::activateModeOverlay(core, active, 6u);
+  const auto a03 = natives.activateModeOverlay(core, active, 6u);
   prepareCall(core);
   const auto nativeA03 = psx::cpu::dispatchGuest(core, kCollision, kBudget);
   if (!check(nativeA03.returned() && a03Calls == 1 && a0bCalls == 0 && core.r[2] == 43u,
@@ -84,7 +86,7 @@ int main(int argc, char **argv) {
   }
   // The guest's pool-capacity branch returns before drawing or calling resident
   // services. This proves the real A03 wrapper and callee's early exit only.
-  constexpr std::uint32_t kPoolCursorAddress = tomba2::render::PacketPool::kCursor;
+  constexpr std::uint32_t kPoolCursorAddress = tomba::render::PacketPool::kCursor;
   constexpr std::uint32_t kPoolFullCursor = 0x000ffff0u;
   core.mem_w32(kPoolCursorAddress, kPoolFullCursor);
   prepareCall(core);
@@ -99,7 +101,7 @@ int main(int argc, char **argv) {
   const auto beforeCopy = core.lightrecExecutor().counters().invalidations;
   copyMode(core, *a0bBytes, 14u);
   const auto copyInvalidations = core.lightrecExecutor().counters().invalidations - beforeCopy;
-  const auto a0b = tomba::native::activateModeOverlay(core, active, 14u);
+  const auto a0b = natives.activateModeOverlay(core, active, 14u);
   prepareCall(core);
   const auto nativeA0B = psx::cpu::dispatchGuest(core, kCollision, kBudget);
   if (!check(nativeA0B.returned() && a03Calls == 1 && a0bCalls == 1 && core.r[2] == 47u &&
@@ -118,8 +120,8 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  tomba::native::retireOverlay(core, active);
-  const auto unrelated = tomba::native::activateOverlay(
+  natives.retireOverlay(core, active);
+  const auto unrelated = natives.activateOverlay(
       core,
       active,
       "unrelated",

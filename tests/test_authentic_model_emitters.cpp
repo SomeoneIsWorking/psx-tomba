@@ -9,15 +9,16 @@
 #include "core/overrides/native_override_catalog.h"
 #include "game.h"
 #include "gte_registers.h"
-#include "hw_bind.h"
+#include "guest_snapshot.h"
 #include "lightrec_executor.h"
 #include "lit_model_emitter.h"
 #include "overlay_ground_gt3gt4.h"
 #include "overlay_gt3gt4.h"
 #include "psx_exe_image.h"
 #include "render/guest_ordering_table.h"
+#include "state_producer.h"
 #include "state_render_check.h"
-#include "stub_runtime.h"
+#include "stub_game_runtime.h"
 #include "sway_model_emitter.h"
 #include "unlit_model_emitter.h"
 
@@ -25,6 +26,7 @@
 #include <array>
 #include <cstdint>
 #include <cstring>
+#include <exception>
 #include <lucent/log.h>
 #include <memory>
 #include <optional>
@@ -34,14 +36,15 @@
 
 namespace {
 
+// What the product keeps in TombaSession::stateProducers.
+psx::present::StateProducerTable stateProducers;
+
 constexpr std::uint32_t kModeSlot = 0x80108F9Cu;
 constexpr std::uint32_t kRecords = 0x80190000u;
 constexpr std::uint32_t kOt = 0x801B0000u;
 constexpr std::uint32_t kPool = 0x001A0000u;
 constexpr std::uint32_t kStack = 0x801FFF00u;
 constexpr std::uint32_t kReturn = 0x80010100u;
-constexpr std::uint32_t kBuckets = 0x800u;
-constexpr std::uint32_t kChainEnd = 0x00FFFFFFu;
 constexpr std::uint32_t kLight = 0x1F800160u;
 constexpr std::uint32_t kHideWord = 0x1F80009Cu;
 constexpr std::uint32_t kA01SwayPhase = 0x80139004u;
@@ -64,40 +67,24 @@ struct Overlay {
 
 constexpr std::string_view kResident = "MAIN.EXE";
 
-struct State {
-  std::vector<std::uint8_t> ram;
-  std::array<std::uint8_t, 0x400> scratch{};
-  std::array<std::uint32_t, 32> r{};
-};
-
-State capture(const Core &core) {
-  State state;
-  state.ram.assign(core.ram, core.ram + sizeof(core.ram));
-  std::memcpy(state.scratch.data(), core.scratch, sizeof(core.scratch));
-  std::copy(std::begin(core.r), std::end(core.r), state.r.begin());
-  return state;
-}
-
-void restore(Core &core, const State &state) {
-  std::memcpy(core.ram, state.ram.data(), sizeof(core.ram));
-  std::memcpy(core.scratch, state.scratch.data(), sizeof(core.scratch));
-  std::copy(state.r.begin(), state.r.end(), std::begin(core.r));
-}
+using State = tomba::test::GuestSnapshot;
+using tomba::test::capture;
+using tomba::test::restore;
 
 // A fixed camera: a tilted rotation, the retail projection (OFX 160, OFY 120, H 350) and a far colour.
 // A short `focal` lets on-screen records sit close enough for the near clamp.
-void resetGte(std::uint32_t focal) {
+void resetGte(Core &core, std::uint32_t focal) {
   constexpr std::array<std::uint32_t, 32> kControl = {
       0x00000F80u, 0x0000FE00u, 0x01C00F00u, 0x0F80FE40u, 0x00000F00u, 0u,          0u,          0u,
       0u,          0u,          0u,          0u,          0u,          0x00000180u, 0x00000200u, 0x00000280u,
       0u,          0u,          0u,          0u,          0u,          0x00000300u, 0x00000400u, 0x00000500u,
       160u << 16,  120u << 16,  0u,          0xFFFFFF00u, 0x01400000u, 0x155u,      0x100u,      0u};
   for (std::uint32_t reg = 0; reg < 31u; ++reg) {
-    gte_write_ctrl(reg, kControl[reg]);
+    core.gte().writeControl(reg, kControl[reg]);
   }
-  gte_write_ctrl(26u, focal);
+  core.gte().writeControl(26u, focal);
   for (std::uint32_t reg = 0; reg < 12u; ++reg) {
-    gte_write_data(reg, 0u);
+    core.gte().writeData(reg, 0u);
   }
 }
 
@@ -120,8 +107,8 @@ void writeRecords(Core &core, std::mt19937 &rng, const Emitter &emitter, std::ui
     for (std::uint32_t offset = 0; offset < emitter.recordBytes; offset += 4u) {
       core.mem_w32(record + offset, word(rng));
     }
-    // The packets are polygons whatever the case, as the game's records are.
-    const std::uint32_t code = (emitter.quad ? 0x38u : 0x30u) | ((word(rng) & 3u) << 1);
+    // Gouraud textured polygons, opaque or not, as the game's records are: the packet length is the GT3/GT4 one.
+    const std::uint32_t code = (emitter.quad ? 0x3Cu : 0x34u) | ((word(rng) & 1u) << 1);
     core.mem_w32(record, (core.mem_r32(record) & 0x00FFFFFFu) | (code << 24));
     const int pick = flag(rng);
     const std::uint32_t flagByte = pick < 8 ? static_cast<std::uint32_t>(pick) : (word(rng) & 0xFFu);
@@ -156,12 +143,10 @@ void prepare(Core &core, std::mt19937 &rng, const Overlay &overlay, const Emitte
   std::uniform_int_distribution<int> light(-1500, 1500);
   std::uniform_int_distribution<std::uint32_t> intensity(0u, 0x5000u);
   std::uniform_int_distribution<std::uint32_t> word;
-  core.mem_w32(tomba2::render::OrderingTable::kBasePointer, kOt);
-  for (std::uint32_t bucket = 0; bucket < kBuckets; ++bucket) {
-    core.mem_w32(kOt + bucket * 4u, kChainEnd);
-  }
-  tomba2::render::PacketPool(core).setCursor(kPool);
-  core.mem_w16(OverlayGt3Gt4::kA08Scroll, static_cast<std::uint16_t>(word(rng)));
+  core.mem_w32(tomba::render::OrderingTable::kBasePointer, kOt);
+  tomba::test::clearOrderingTable(core, kOt);
+  tomba::render::PacketPool(core).setCursor(kPool);
+  core.mem_w16(tomba::OverlayGt3Gt4::kA08Scroll, static_cast<std::uint16_t>(word(rng)));
   for (std::uint32_t offset = 0; offset < 0x400u; offset += 4u) {
     core.mem_w32(0x1F800000u + offset, word(rng));
   }
@@ -177,7 +162,7 @@ void prepare(Core &core, std::mt19937 &rng, const Overlay &overlay, const Emitte
     core.mem_w8(kA01ScrollV, static_cast<std::uint8_t>(word(rng)));
   }
   if (overlay.name == "A06") {
-    core.mem_w16(tomba2::render::UnlitModelEmitter::kA06Scroll.uScroll, static_cast<std::uint16_t>(word(rng)));
+    core.mem_w16(tomba::render::UnlitModelEmitter::kA06Scroll.uScroll, static_cast<std::uint16_t>(word(rng)));
   }
   const std::uint32_t records = count(rng);
   writeRecords(core, rng, emitter, records);
@@ -192,29 +177,22 @@ void prepare(Core &core, std::mt19937 &rng, const Overlay &overlay, const Emitte
   core.r[31] = kReturn;
 }
 
-std::optional<std::uint32_t> firstDifference(const std::uint8_t *a, const std::uint8_t *b, std::size_t size) {
-  for (std::size_t offset = 0; offset < size; ++offset) {
-    if (a[offset] != b[offset]) {
-      return static_cast<std::uint32_t>(offset);
-    }
-  }
-  return std::nullopt;
-}
+using tomba::test::firstDifference;
 
 std::uint32_t poolCursor(const State &state) {
   std::uint32_t cursor = 0;
-  std::memcpy(&cursor, state.ram.data() + (tomba2::render::PacketPool::kCursor & 0x1FFFFFu), sizeof(cursor));
+  std::memcpy(&cursor, state.ram.data() + (tomba::render::PacketPool::kCursor & 0x1FFFFFu), sizeof(cursor));
   return cursor;
 }
 
 // The emitter's state render at t = 1 draws the packets its native body just linked, from the saved call
 // alone, and writes nothing to the guest.
 bool renderMatches(Core &core, const Overlay &overlay, const Emitter &emitter, int run, const State &afterEmit) {
-  const psx::present::FrameRecord frame = tomba::test::walkOrderingTable(core, kOt);
+  const psx::present::FrameRecord frame = tomba::test::submittedFrame(core, kOt);
   const psx::present::FrameState state = core.frameStates.collect(frame);
   core.frameStates.clear();
   const auto guestPrimitives = tomba::test::primitivesOf(frame, emitter.entry);
-  const psx::present::StateProducer *render = core.stateProducers.find(emitter.entry);
+  const psx::present::StateProducer *render = stateProducers.find(emitter.entry);
   const auto saved = state.find({emitter.entry, kRecords});
   if (render == nullptr || (!guestPrimitives.empty() && !saved)) {
     lucent::error("authentic-emitters",
@@ -229,17 +207,17 @@ bool renderMatches(Core &core, const Overlay &overlay, const Emitter &emitter, i
   if (!saved) {
     return true;
   }
-  tomba::test::CollectedSink sink;
-  render->render(*saved, *saved, 1.0f, sink);
+  const auto drawn = tomba::test::composedPrimitives(
+      stateProducers, {.shown = frame, .from = state, .to = state}, {emitter.entry, kRecords});
   const State afterRender = capture(core);
-  if (!tomba::test::sameFrame(sink.drawn, guestPrimitives) || afterRender.ram != afterEmit.ram ||
+  if (!tomba::test::sameFrame(drawn, guestPrimitives) || afterRender.ram != afterEmit.ram ||
       afterRender.scratch != afterEmit.scratch || afterRender.r != afterEmit.r) {
     lucent::error("authentic-emitters",
                   "{} 0x{:08X} case {}: the t = 1 render drew {} primitives against the guest body's {}, guest {}",
                   overlay.name,
                   emitter.entry,
                   run,
-                  sink.drawn.size(),
+                  drawn.size(),
                   guestPrimitives.size(),
                   afterRender.ram != afterEmit.ram || afterRender.scratch != afterEmit.scratch ||
                           afterRender.r != afterEmit.r
@@ -264,12 +242,12 @@ bool compareEmitter(
     const State before = capture(core);
     const std::uint32_t focal = run % 4 == 3 ? 40u : 350u;
 
-    resetGte(focal);
+    resetGte(core, focal);
     const auto guest = psx::cpu::callOriginal(core, {image, emitter.entry}, kBudget);
     const State guestState = capture(core);
 
     restore(core, before);
-    resetGte(focal);
+    resetGte(core, focal);
     std::optional<psx::cpu::ExecutionResult> native;
     {
       // A00's pair runs inside its caller's block scope in the game.
@@ -309,14 +287,17 @@ bool compareEmitter(
       return false;
     }
     totals.cases++;
-    totals.packets += tomba2::render::PacketPool(core).cursor() - kPool;
+    totals.packets += tomba::render::PacketPool(core).cursor() - kPool;
   }
   return true;
 }
 
 } // namespace
 
-int main(int argc, char **argv) {
+namespace {
+
+int runTests(int argc, char **argv) {
+  tomba::native::NativeOverrideCatalog natives;
   const std::array<std::string_view, 19> names = {"A00",
                                                   "A01",
                                                   "A02",
@@ -340,44 +321,44 @@ int main(int argc, char **argv) {
     lucent::error("authentic-emitters", "expected MAIN.EXE path/digest then a path/digest pair per overlay in `names`");
     return 2;
   }
-  const auto exe = tomba::test::readAuthenticatedImage(argv[1], argv[2], psx::cpu::kPsxExeMaxBytes);
+  const auto exe =
+      tomba::test::readAuthenticatedImage({.path = argv[1], .sha256 = argv[2], .maxBytes = psx::cpu::kPsxExeMaxBytes});
   if (!exe) {
     return 2;
   }
   std::array<std::vector<std::uint8_t>, names.size()> overlays;
   for (std::size_t index = 0; index < names.size(); ++index) {
-    const auto bytes = tomba::test::readAuthenticatedImage(
-        argv[3 + 2 * index], argv[4 + 2 * index], 0x200000u - (kModeSlot & 0x1FFFFFFFu));
+    const auto bytes = tomba::test::readAuthenticatedImage({.path = argv[3 + 2 * index],
+                                                            .sha256 = argv[4 + 2 * index],
+                                                            .maxBytes = 0x200000u - (kModeSlot & 0x1FFFFFFFu)});
     if (!bytes) {
       return 2;
     }
     overlays[index] = *bytes;
   }
 
-  tomba::test::StubRuntime runtime;
-  psxport_install_game(runtime);
-  auto game = std::make_unique<Game>();
+  psx::test::StubGameRuntime runtime;
+  auto game = std::make_unique<Game>(runtime, psx::config::Config{});
   Core &core = game->core;
   game->mods.aspect = ASPECT_4_3; // the guest's 320-column cull, whatever the local settings say
   auto loaded = psx::cpu::loadPsxExeImage(core, *exe, "MAIN.EXE");
-  if (!loaded) {
+  if (!loaded.identity) {
     lucent::error("authentic-emitters", "MAIN.EXE did not map through the shipping loader");
     return 1;
   }
-  gte_bind(&core);
-  tomba2::render::LitModelEmitter::registerStateRenders(core);
-  tomba2::render::UnlitModelEmitter::registerStateRenders(core);
-  tomba2::render::SwayModelEmitter::registerStateRenders(core);
-  OverlayGt3Gt4::registerStateRenders(core);
-  OverlayGroundGt3Gt4::registerStateRenders(core);
-  core.otTables.name(tomba::test::kOtTable, kOt, kBuckets, sizeof(std::uint32_t), psx::gpu::OtWalk::HighToLow);
-  tomba2::render::LitModelEmitter::registerOverrides();
-  tomba2::render::UnlitModelEmitter::registerOverrides();
-  tomba2::render::SwayModelEmitter::registerOverrides();
-  OverlayGt3Gt4::registerOverrides(game.get());
-  OverlayGroundGt3Gt4::registerOverrides(game.get());
+  core.gte().bind();
+  tomba::render::LitModelEmitter::registerStateRenders(stateProducers, core);
+  tomba::render::UnlitModelEmitter::registerStateRenders(stateProducers, core);
+  tomba::render::SwayModelEmitter::registerStateRenders(stateProducers, core);
+  tomba::OverlayGt3Gt4::registerStateRenders(stateProducers, core);
+  tomba::OverlayGroundGt3Gt4::registerStateRenders(stateProducers, core);
+  tomba::render::LitModelEmitter::registerOverrides(natives);
+  tomba::render::UnlitModelEmitter::registerOverrides(natives);
+  tomba::render::SwayModelEmitter::registerOverrides(natives);
+  tomba::OverlayGt3Gt4::registerOverrides(natives);
+  tomba::OverlayGroundGt3Gt4::registerOverrides(natives);
   const psx::cpu::ImageIdentity resident = *loaded.identity;
-  tomba::native::bindResident(core, resident, loaded.image.physicalText);
+  natives.bindResident(core, resident, loaded.image.physicalText);
 
   const std::array<Overlay, 20> plan = {{
       {kResident, {{0x8007FDB0u, 0x24u, false}, {0x8008007Cu, 0x2Cu, true}}},
@@ -466,8 +447,8 @@ int main(int argc, char **argv) {
         core.mem_w8(kModeSlot + static_cast<std::uint32_t>(offset), bytes[offset]);
       }
       const std::uint32_t text = kModeSlot & 0x1FFFFFFFu;
-      image = tomba::native::activateOverlay(
-          core, mode, overlay.name, {text, text + static_cast<std::uint32_t>(bytes.size())});
+      image =
+          natives.activateOverlay(core, mode, overlay.name, {text, text + static_cast<std::uint32_t>(bytes.size())});
     }
     for (const Emitter &emitter : overlay.emitters) {
       if (!core.nativeDispatcher().isInstalled({image, emitter.entry})) {
@@ -490,4 +471,15 @@ int main(int argc, char **argv) {
                counters.executedBlocks,
                counters.fallback.calls);
   return counters.fallback.calls == 0 ? 0 : 1;
+}
+
+} // namespace
+
+int main(int argc, char **argv) {
+  try {
+    return runTests(argc, argv);
+  } catch (const std::exception &error) {
+    lucent::error("test", "FAIL: {}", error.what());
+    return 1;
+  }
 }

@@ -16,7 +16,7 @@ needed). Raw listings: `801401B8.disas.txt`, `80115300.disas.txt` (covers 0x8011
 
 ## (a) 0x801401B8 boundary + verdict: ALREADY OWNED, and NOT a sprite drawer
 
-`docs/codemap.md` returns `OverlayGroundGt3Gt4::entityLoop` (LIVE,
+`docs/guest-addresses.md` returns `OverlayGroundGt3Gt4::entityLoop` (LIVE,
 `game/render/overlay_ground_gt3gt4.cpp:363`), wired via `A00 tomba::native::declareOverride`, SBS-gated. The live
 disassembly (`801401B8.disas.txt` lines 2-65, function ends at `80140298`/`801402b4` jr ra) matches
 the existing port instruction-for-instruction:
@@ -42,7 +42,7 @@ touches `0x1f8001a0-0x1f8001a6` = pad input state) — almost certainly an objec
 that happens to sit adjacent in the overlay's code region, unrelated to the sprite question. Not
 pursued further (out of scope).
 
-**Conclusion for docs/native-render-rebuild.md's Track A note:** the WWATCH attribution "store-pc
+**Conclusion:** the WWATCH attribution "store-pc
 0x801401B8 ... 12.6k stores/90s, a direct leaf of the dispatch" for the op-0x7C sprite pool writes
 is WRONG / stale — 0x801401B8 never touches an 0x7C command byte. The watch almost certainly
 attributed a store elsewhere to the *containing function at the top of the observed call frame*
@@ -185,7 +185,7 @@ external UV table read).
 5. **Not yet RE'd, needed before porting**: the `0x800158e0` driver function's 4-way state dispatch
    (0/1/2/3) that decides WHEN this emitter runs across frames, and the `0x80083de0` OT-splice
    helper's exact semantics (a shared primitive likely already used elsewhere — check
-   `docs/codemap.md` before re-deriving it).
+   `docs/guest-addresses.md` before re-deriving it).
 
 ## (g) Shared-template verdict: 0x801401B8 vs 0x80115364/80115598 — DIFFERENT, not a shared template
 
@@ -224,7 +224,7 @@ function-splitter tables, and `authenticated executable/overlay evidence` cross-
   (`authenticated executable/overlay evidence`, confirmed) — a genuine ROM artifact — but this AREA_TYPE case is
   unrelated to the field's own AREA_TYPE (0): `Engine::areaModeDispatch`'s mode-idx-0 handler (the
   SAME 0x800BF870 selector byte) is the REAL, different, literal address 0x8011534Cu
-  (`game/core/engine.cpp:2419`). This call path was never chased further — it doesn't matter for the
+  (`game/core/engine/`). This call path was never chased further — it doesn't matter for the
   field tile-grid, and per CLAUDE.md ("own it only if reachable") isn't worth force-fixing here.
 - The REAL live callers (found by grepping for existing native call sites, not by walking the
   dispatch tree): `Engine::areaModeDispatch`/`areaModeDispatchFaithful` (mode idx 0 -> typed runtime address dispatch

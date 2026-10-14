@@ -6,7 +6,11 @@
 
 class Core;
 
-namespace tomba2::render {
+namespace tomba::native {
+class NativeOverrideCatalog;
+} // namespace tomba::native
+
+namespace tomba::render {
 
 class LetterboxBars {
 public:
@@ -22,7 +26,7 @@ public:
   // FUN_80026864(slot=a0): steps the bar height and draws a black 0x60 rect at the top and bottom.
   // The rects span the guest's 320 columns plus `margin` each side, so the wide canvas is covered.
   static void tick(Core &core, std::uint32_t slot, int margin);
-  static void registerOverrides();
+  static void registerOverrides(native::NativeOverrideCatalog &natives);
 };
 
-} // namespace tomba2::render
+} // namespace tomba::render

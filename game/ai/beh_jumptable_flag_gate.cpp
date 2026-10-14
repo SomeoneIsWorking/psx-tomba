@@ -27,15 +27,16 @@
 // gated byte-exact (full RAM+scratchpad A/B vs original guest-body call). Most sub-states are scene/progress driven
 // and only exercise when a scene drives them (same caveat as the sibling orchestrators) — see Report.
 
-#include "cfg.h"
 #include "core.h"
-#include "core/entry/game_ctx.h"
+#include "entry/tomba_session.h"
 #include "graphics_bind.h" // ov_obj_record_init
 #include "guest_abi.h"     // GuestFrame — mirror the guest stack frame (CLAUDE.md)
 #include "spawn.h"         // class Spawn (eng(c).spawn.despawn / dispatch / spawnAndInit)
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+namespace tomba {
 
 namespace {
 
@@ -98,9 +99,14 @@ inline void advance_node32(Core *c, uint32_t obj) {    // 0x8012d78c
   tail_set1_and_render(c, obj);                          // 8012D7D0 j 0x8012d844 -> node[1]=1, render
 }
 
+struct GateThenFlagArgs {
+  uint32_t obj;
+  uint32_t thr;
+};
 // LAB_8012d85c (jt[2]/jt[3]) and 8012d87c (jt[4]): "gate-then-flag" — if DAT_800bf9df != 0 -> node[1]=1;
 // else if (0x1F800207) >= thr -> node[1]=1; else epilogue. (thr=0x1f for jt2/3, 0x20 for jt4.)
-inline void gate_then_flag(Core *c, uint32_t obj, uint32_t thr) {
+inline void gate_then_flag(Core *c, const GateThenFlagArgs &args) {
+  auto [obj, thr] = args;
   if (c->mem_r8(0x800BF9DFu) != 0) { // 8012D860/880 lbu -0x621 ; bnez -> 0x8012d8e0
     c->mem_w8(obj + 1, 1);           // 8012D8E0/E4 v0=1 ; 8012D8E8 sb v0,1(s0)
     return;                          // -> epilogue
@@ -178,8 +184,8 @@ void beh_jumptable_flag_gate(Core *c) {
   if (p0 < 0x16) {
     return; // 8012D5C0 bnez(p0<0x16) -> 0x8012d8f4 epilogue
   }
-  if (p0 == 0x16) {                         // 8012D5C8 bne a0,0x16 -> 0x8012d5e4 (skip when !=)
-    int16_t cnt = c->mem_r16s(0x800E7EB6u); // 8012D5D0 lh v0,0x36(a1)  (a1=0x800e7e80)
+  if (p0 == 0x16) {                                 // 8012D5C8 bne a0,0x16 -> 0x8012d5e4 (skip when !=)
+    int16_t cnt = (int16_t)c->mem_r16(0x800E7EB6u); // 8012D5D0 lh v0,0x36(a1)  (a1=0x800e7e80)
     if (cnt < 0x2a30) {
       return; // 8012D5DC bnez(cnt<0x2a30) -> 0x8012d8f4 epilogue
     }
@@ -267,12 +273,12 @@ void beh_jumptable_flag_gate(Core *c) {
   }
 
   case 2:
-  case 3:                         // jt[2]==jt[3] = 0x8012d85c
-    gate_then_flag(c, obj, 0x1f); // 8012D85C..  thr=0x1f (sltiu p,0x1f)
+  case 3:                                         // jt[2]==jt[3] = 0x8012d85c
+    gate_then_flag(c, {.obj = obj, .thr = 0x1f}); // 8012D85C..  thr=0x1f (sltiu p,0x1f)
     return;
 
-  case 4:                         // jt[4] = 0x8012d87c
-    gate_then_flag(c, obj, 0x20); // 8012D87C..  thr=0x20 (sltiu p,0x20)
+  case 4:                                         // jt[4] = 0x8012d87c
+    gate_then_flag(c, {.obj = obj, .thr = 0x20}); // 8012D87C..  thr=0x20 (sltiu p,0x20)
     return;
 
   case 5: {                            // jt[5] = 0x8012d89c
@@ -293,5 +299,9 @@ void beh_jumptable_flag_gate(Core *c) {
     return;
   }
 
+  default:
+    break;
   } // switch(n3)
 }
+
+} // namespace tomba

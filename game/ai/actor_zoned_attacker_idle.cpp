@@ -2,10 +2,9 @@
 
 #include "ai/zoned_attacker_abi.h"
 #include "core.h"
-#include "core/entry/game_ctx.h"
 #include "core/overrides/native_override_catalog.h"
+#include "entry/tomba_session.h"
 #include "game.h"
-#include "guest_abi.h"
 #include "guest_call.h"
 #include "object/actor.h"
 #include "spawn.h"
@@ -29,7 +28,7 @@ void ActorZonedAttacker::idleTick(Core *c) {
     if (c->mem_r8(node + 6) == 0) {
       c->r[R_A0] = 4;
       psx::cpu::dispatchGuestToReturn0(*c, kLeaf_80026100, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
-      call2(c, node, kSetAnimStateCue, 2u, 4u);
+      psx::cpu::callGuestNow(*c, "actor_zoned_attacker_idle", kSetAnimStateCue, node, 2u, 4u);
       c->mem_w16(node + 0x84, 0x14);
       c->mem_w16(node + 0x86, 100);
       c->r[R_A0] = 0x89u;
@@ -102,7 +101,7 @@ void ActorZonedAttacker::idleTick(Core *c) {
         }
       } else if (bVar6 == 2) {
         a.setPosY((uint16_t)(a.posY() + 0x10));
-        call1(c, node, kMotionAnimStep);
+        psx::cpu::callGuestNow(*c, "actor_zoned_attacker_idle", kMotionAnimStep, node);
         uint16_t v42 = c->mem_r16(node + 0x42);
         c->mem_w16(node + 0x42, (uint16_t)(v42 - 1));
         if ((int32_t)((int16_t)v42) < 1) {
@@ -120,9 +119,9 @@ void ActorZonedAttacker::idleTick(Core *c) {
           lerp(0x19);
           lerp(0x1a);
         }
-        call1(c, node, kLeaf_8014243C);
+        psx::cpu::callGuestNow(*c, "actor_zoned_attacker_idle", kLeaf_8014243C, node);
         const int32_t sVar4 = (int32_t)(int16_t)c->r[R_V0];
-        call1(c, node, kAnimationStep);
+        psx::cpu::callGuestNow(*c, "actor_zoned_attacker_idle", kAnimationStep, node);
         if (sVar4 != 0) {
           c->mem_w8(node + 0, 1);
           c->mem_w8(node + 0xd, (uint8_t)(c->mem_r8(node + 0xd) & 0xfd));
@@ -134,7 +133,7 @@ void ActorZonedAttacker::idleTick(Core *c) {
       }
       goto idle_after_substate;
     LAB_80144d20:
-      call1(c, node, kLeaf_80140AF4);
+      psx::cpu::callGuestNow(*c, "actor_zoned_attacker_idle", kLeaf_80140AF4, node);
       {
         const int32_t sVar4 = (int32_t)(int16_t)c->r[R_V0];
         if (c->mem_r8(node + 5) == 4) {
@@ -143,7 +142,7 @@ void ActorZonedAttacker::idleTick(Core *c) {
             c->mem_w16(node + 0x42, 0x5a);
           }
         } else {
-          call1(c, node, kAnimationStep);
+          psx::cpu::callGuestNow(*c, "actor_zoned_attacker_idle", kAnimationStep, node);
           if (sVar4 != 0) {
             c->mem_w16(node + 6, 3);
           }
@@ -159,7 +158,7 @@ void ActorZonedAttacker::idleTick(Core *c) {
             c->mem_w16(gsp + 0x12, (uint16_t)a.posX_u());
             c->mem_w16(gsp + 0x16, (uint16_t)c->mem_r16(node + 0x6a));
             c->mem_w16(gsp + 0x1a, (uint16_t)a.posZ_u());
-            eng(c).spawn.spawnAndInit(8u, gsp + 0x10, (uint32_t)(int32_t)-0x50);
+            eng(c).spawn.spawnAndInit({.a0 = 8u, .posSrc = gsp + 0x10, .a2 = (uint32_t)(int32_t)-0x50});
             c->mem_w8(kCountdown, 10);
           }
           c->mem_w16(node + 0x68, 0);
@@ -177,7 +176,7 @@ void ActorZonedAttacker::idleTick(Core *c) {
   case 8:
     goto switchD_caseD_8;
   case 10: {
-    call1(c, node, kLeaf_801280E8);
+    psx::cpu::callGuestNow(*c, "actor_zoned_attacker_idle", kLeaf_801280E8, node);
     const int32_t sVar4 = (int32_t)(int16_t)c->r[R_V0];
     if (sVar4 != 0) {
       goto LAB_801451b0;
@@ -201,7 +200,7 @@ void ActorZonedAttacker::idleTick(Core *c) {
 
 switchD_caseD_2:
   if (c->mem_r8(node + 6) == 0) {
-    call2(c, node, kSetAnimStateCue, 2u, 4u);
+    psx::cpu::callGuestNow(*c, "actor_zoned_attacker_idle", kSetAnimStateCue, node, 2u, 4u);
     c->r[R_A0] = (uint32_t)a.interactState() << 4;
     c->r[R_A1] = (uint32_t)a.triggerParam();
     c->r[R_A2] = 0;
@@ -268,16 +267,16 @@ LAB_801451b0:
   return;
 
 LAB_801451a0:
-  call1(c, node, kAnimationStep);
+  psx::cpu::callGuestNow(*c, "actor_zoned_attacker_idle", kAnimationStep, node);
 
 switchD_caseD_3:
-  call1(c, node, kGateCheck);
+  psx::cpu::callGuestNow(*c, "actor_zoned_attacker_idle", kGateCheck, node);
   {
     const int32_t iVar5 = (int32_t)c->r[R_V0];
     if (iVar5 == 0) {
-      call1(c, node, kCullWrapperFlag2);
+      psx::cpu::callGuestNow(*c, "actor_zoned_attacker_idle", kCullWrapperFlag2, node);
       if (c->r[R_V0] != 0) {
-        call1(c, node, kObjMatrixCompose);
+        psx::cpu::callGuestNow(*c, "actor_zoned_attacker_idle", kObjMatrixCompose, node);
         uint8_t bVar6;
         if (c->mem_r8(node + 0x29) == 0) {
           bVar6 = (uint8_t)(c->mem_r8(node + 0xb) & 0x3f);

@@ -1,8 +1,10 @@
 // Array8Dispatch::tick — see array8_dispatch.h. Faithful port of guest FUN_80026368.
 #include "array8_dispatch.h"
 #include "core.h"
-#include "core/entry/game_ctx.h"
+#include "entry/tomba_session.h"
 #include "game.h"
+
+namespace tomba {
 
 void Array8Dispatch::tick() {
   Core *c = core;
@@ -13,6 +15,8 @@ void Array8Dispatch::tick() {
     }
     uint32_t type = c->mem_r8(slot + 2);
     uint32_t h = c->mem_r32(METHOD_TABLE + type * 4u);
-    eng(c).behaviors.dispatchObj(slot, h);
+    eng(c).behaviors.dispatchObj({.object = slot, .handler = h});
   }
 }
+
+} // namespace tomba

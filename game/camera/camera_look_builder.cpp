@@ -5,7 +5,7 @@
 
 #include "camera/camera_guest_math.h"
 #include "camera/cutscene_camera.h"
-#include "core/entry/game_ctx.h"
+#include "entry/tomba_session.h"
 #include "guest_call.h"
 #include "trig.h"
 
@@ -15,7 +15,12 @@ namespace tomba::camera {
 
 // guest 0x8006E570: the signed look delta the table-1 branches of table1Delta share.
 namespace {
-int32_t table1Entry(Core &core, uint32_t globalBlock, uint32_t cam) {
+struct Table1EntryArgs {
+  uint32_t globalBlock;
+  uint32_t cam;
+};
+int32_t table1Entry(Core &core, const Table1EntryArgs &args) {
+  auto [globalBlock, cam] = args;
   int32_t g140 = core.mem_r16s(globalBlock + 0x140), g56 = core.mem_r16s(globalBlock + 0x56);
   int32_t cam56 = (int32_t)core.mem_r16(cam + 0x56);
   return (g140 == g56) ? cam56 : -cam56;
@@ -35,7 +40,8 @@ void LookAngleBuilder::yawDistAccumulate(int32_t dx, int32_t dz) {
   }
 }
 
-void LookAngleBuilder::lookatTail(int32_t theta, int32_t radius) {
+void LookAngleBuilder::lookatTail(const LookatTailArgs &args) {
+  auto [theta, radius] = args;
   int32_t rc = trigOf(c).rcos(theta);
   int32_t lookX = (int32_t)r16(0x1F800160u) + ((rc * radius) >> 12);
   int32_t rs = trigOf(c).rsin(theta);
@@ -94,11 +100,12 @@ void LookAngleBuilder::headBuildB() { // FUN_8006DEF0
   }
 }
 
-void LookAngleBuilder::joinE640(int32_t delta, int32_t radius) {
+void LookAngleBuilder::joinE640(const JoinE640Args &args) {
+  auto [delta, radius] = args;
   int32_t sum = (int32_t)r16(kCamGlobal + 0x140) + (int32_t)camR16(0x52) + delta;
   uint16_t theta16 = (uint16_t)sum;
   camW16(0x8C, theta16);
-  lookatTail((int16_t)theta16, radius);
+  lookatTail({.theta = (int16_t)theta16, .radius = radius});
 }
 
 int32_t LookAngleBuilder::table1Delta() {
@@ -108,7 +115,7 @@ int32_t LookAngleBuilder::table1Delta() {
   case 9:
   case 11: {
     if (r32(kCamGlobal + 0x158) == 0) {
-      return table1Entry(*c, kCamGlobal, cam_);
+      return table1Entry(*c, {.globalBlock = kCamGlobal, .cam = cam_});
     }
     int32_t g140 = (int16_t)r16(kCamGlobal + 0x140), g56 = (int16_t)r16(kCamGlobal + 0x56);
     int32_t cam56 = (int32_t)camR16(0x56);
@@ -116,10 +123,10 @@ int32_t LookAngleBuilder::table1Delta() {
   }
   case 3: {
     if (camR8(0x77) != 0) {
-      return table1Entry(*c, kCamGlobal, cam_);
+      return table1Entry(*c, {.globalBlock = kCamGlobal, .cam = cam_});
     }
     if (r8(0x800BF870u) == 6) {
-      return table1Entry(*c, kCamGlobal, cam_);
+      return table1Entry(*c, {.globalBlock = kCamGlobal, .cam = cam_});
     }
     int32_t g140 = (int16_t)r16(kCamGlobal + 0x140), g56 = (int16_t)r16(kCamGlobal + 0x56);
     int32_t cam56 = (int32_t)camR16(0x56);
@@ -127,7 +134,7 @@ int32_t LookAngleBuilder::table1Delta() {
     return (g140 != g56) ? (g168 - cam56) : (cam56 - g168);
   }
   default:
-    return table1Entry(*c, kCamGlobal, cam_);
+    return table1Entry(*c, {.globalBlock = kCamGlobal, .cam = cam_});
   }
 }
 
@@ -146,8 +153,9 @@ void LookAngleBuilder::table2(int32_t radius) {
     }
   } else if (idx2 == 1) {
     if (a1 & 1) {
-      int32_t r = Trig::angleCmp(
-          (int16_t)r16(kCamGlobal + 0x56), (int16_t)r16(kCamGlobal + 0x140), 0); // FUN_80077768(a,b,mode=0) -> native
+      int32_t r = Trig::angleCmp({.a = (int16_t)r16(kCamGlobal + 0x56),
+                                  .b = (int16_t)r16(kCamGlobal + 0x140),
+                                  .mode = 0}); // FUN_80077768(a,b,mode=0) -> native
       theta = (int32_t)r16(kCamGlobal + 0x140) + (r == 0 ? 512 : 1536);
     } else {
       int32_t a = (int16_t)r16(0x1F800194u);
@@ -164,7 +172,7 @@ void LookAngleBuilder::table2(int32_t radius) {
   } else {
     theta = (int32_t)r16(kCamGlobal + 0x140) + 512;
   }
-  lookatTail(theta & 0xfff, radius);
+  lookatTail({.theta = theta & 0xfff, .radius = radius});
 }
 
 void LookAngleBuilder::rotBuild() { // FUN_8006E464
@@ -180,7 +188,7 @@ void LookAngleBuilder::rotBuild() { // FUN_8006E464
   int32_t radius = (int16_t)negEE;
   uint8_t c114 = camR8(0x72);
   if (c114 & 0x40) {
-    lookatTail((int16_t)camR16(0x8C), radius);
+    lookatTail({.theta = (int16_t)camR16(0x8C), .radius = radius});
     return;
   } // SHAPE A
   if (a0 != 0 && (a1 & 1) == 0) {
@@ -188,35 +196,24 @@ void LookAngleBuilder::rotBuild() { // FUN_8006E464
     return;
   }
   if (r8(kCamGlobal + 0x17a)) {
-    joinE640(0, (int16_t)(negEE - 600));
+    joinE640({.delta = 0, .radius = (int16_t)(negEE - 600)});
     return;
   } // radius override
   if (c114 & 2) {
     int32_t delta = (c114 & 1) ? -(int32_t)camR16(0x56) : (int32_t)camR16(0x56);
-    joinE640(delta, radius);
+    joinE640({.delta = delta, .radius = radius});
     return;
   }
-  joinE640(table1Delta(), radius); // TABLE 1
+  joinE640({.delta = table1Delta(), .radius = radius}); // TABLE 1
 }
 
 // ── distSolve (distance/zoom solver) ─────────────────────────────────────────────────────────────
 void LookAngleBuilder::distSolve() { // FUN_8006D2AC
   // 1. settle timer cam[+0x22]
   uint8_t g61 = r8(kCamGlobal + 0x61);
-  int16_t timer;
-  if (g61 & 0x80) {
-    timer = 0;
-  } else if (r8(kCamGlobal + 0x17a)) {
-    timer = 0;
-  } else if ((g61 & 0xff) == 0) {
-    timer = 240;
-  } else if (g61 & 1) {
-    timer = 240;
-  } else if (r8(0x800BF816u)) {
-    timer = 0;
-  } else {
-    timer = 240;
-  }
+  const bool settled =
+      (g61 & 0x80) != 0 || r8(kCamGlobal + 0x17a) != 0 || (g61 != 0 && (g61 & 1) == 0 && r8(0x800BF816u) != 0);
+  const int16_t timer = settled ? 0 : 240;
   camW16(0x22, (uint16_t)timer);
   uint8_t flags = camR8(0x72);
   if (flags & 4) {

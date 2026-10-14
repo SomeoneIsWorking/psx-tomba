@@ -1,5 +1,6 @@
 #include "level_load.h"
 
+#include "cd/engine_cd_loader.h"
 #include "core.h"
 #include "core/overrides/native_override_catalog.h"
 #include "game.h"
@@ -24,29 +25,30 @@ void requireImageRange(std::uint32_t stage, std::uint32_t size) {
 
 } // namespace
 
-psx::cpu::ImageIdentity
-activateLoaded(Core &core, std::optional<psx::cpu::ImageIdentity> &active, std::uint32_t stage, std::uint32_t size) {
+psx::cpu::ImageIdentity activateLoaded(const native::NativeOverrideCatalog &natives,
+                                       Core &core,
+                                       std::optional<psx::cpu::ImageIdentity> &active,
+                                       std::uint32_t stage,
+                                       std::uint32_t size) {
   requireImageRange(stage, size);
-  return native::activateOverlay(core, active, kNames[stage], {kSlot, kSlot + size});
+  return natives.activateOverlay(core, active, kNames[stage], {kSlot, kSlot + size});
 }
 
-void loadOverlay(Core &core,
-                 std::optional<psx::cpu::ImageIdentity> &active,
-                 std::uint32_t taskFields,
-                 std::uint32_t stage) {
+void loadOverlay(const native::NativeOverrideCatalog &natives, Core &core, const LoadOverlayArgs &args) {
+  auto [active, taskFields, stage] = args;
   if (stage > kNames.size()) {
     lucent::error("tomba-stage", "refused invalid stage index {}", stage);
     std::abort();
   }
 
   if (stage == kNames.size()) {
-    native::retireOverlay(core, active);
+    natives.retireOverlay(core, active);
   } else {
     const std::uint32_t lba = core.mem_r32(kFileTable + stage * 8u);
     const std::uint32_t size = core.mem_r32(kFileTable + stage * 8u + 4u);
     requireImageRange(stage, size);
-    core.game->cd.loadFile(0x80000000u | kSlot, lba, size);
-    activateLoaded(core, active, stage, size);
+    tomba::EngineCdLoader(core).loadFile(0x80000000u | kSlot, lba, size);
+    activateLoaded(natives, core, active, stage, size);
   }
 
   const std::uint32_t entry = core.mem_r32(kEntryTable + stage * 4u);

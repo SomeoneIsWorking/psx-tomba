@@ -2,7 +2,7 @@
 #include "game.h"
 #include "guest_ordering_table.h"
 #include "letterbox_bars.h"
-#include "stub_runtime.h"
+#include "stub_game_runtime.h"
 
 #include <cstdint>
 #include <lucent/log.h>
@@ -10,9 +10,9 @@
 
 namespace {
 
-using tomba2::render::LetterboxBars;
-using tomba2::render::OrderingTable;
-using tomba2::render::PacketPool;
+using tomba::render::LetterboxBars;
+using tomba::render::OrderingTable;
+using tomba::render::PacketPool;
 
 constexpr std::uint32_t kSlot = 0x80100400u;
 constexpr std::uint32_t kOt = 0x801B0000u;
@@ -108,9 +108,8 @@ void testRects(Core &core, int margin) {
 } // namespace
 
 int main() {
-  tomba::test::StubRuntime runtime;
-  psxport_install_game(runtime);
-  auto game = std::make_unique<Game>();
+  psx::test::StubGameRuntime runtime;
+  auto game = std::make_unique<Game>(runtime, psx::config::Config{});
   Core &core = game->core;
   testHeightMachine(core);
   testRects(core, 0);

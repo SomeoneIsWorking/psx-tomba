@@ -21,34 +21,22 @@
 // scratchpad vs original guest-body call) is the safety net. NO GTE/render.
 
 #include "animation.h" // Animation::step (FUN_80076D68)
-#include "cfg.h"
 #include "core.h"
-#include "core/entry/game_ctx.h"
 #include "core/overrides/guest_jal.h"
+#include "entry/tomba_session.h"
 #include "guest_abi.h"
 #include "guest_call.h"
 #include "spawn.h" // class Spawn (eng(c).spawn.despawn / dispatch / spawnAndInit)
+#include <lucent/log.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+namespace tomba {
+
 namespace {
 
 constexpr uint32_t BEH_FN = 0x8013B2E4u;
-
-static inline uint32_t leafr(Core *c, uint32_t a0, uint32_t fn) {
-  c->r[4] = a0;
-  psx::cpu::dispatchGuestToReturn0(*c, fn, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
-  return c->r[2];
-}
-static inline uint32_t leaf4r(Core *c, uint32_t a0, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t fn) {
-  c->r[4] = a0;
-  c->r[5] = a1;
-  c->r[6] = a2;
-  c->r[7] = a3;
-  psx::cpu::dispatchGuestToReturn0(*c, fn, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
-  return c->r[2];
-}
 
 } // namespace
 static constexpr GuestFrameSpill kSpills_8013B2E4[3] = {
@@ -61,9 +49,7 @@ void beh_flagbit_timer_machine(Core *c) {
   GuestFrame<32, 3> frame(c, kSpills_8013B2E4);
   uint32_t nd = c->r[4];           // s1 = a0 (node)
   uint32_t s0 = c->mem_r8(nd + 4); // node[4] = outer state
-  if (getenv("PSXPORT_FLAGBIT_ENTRY")) {
-    cfg_logi("flagbit-entry", "core=%p node=%08X s0=%u stage=%08X", (void *)c, nd, s0, c->mem_r32(0x801fe00c));
-  }
+  lucent::debug("flagbit-entry", "core={} node={:08X} s0={} stage={:08X}", (void *)c, nd, s0, c->mem_r32(0x801fe00c));
 
   if (s0 == 1) {
     goto L42c;
@@ -86,15 +72,14 @@ void beh_flagbit_timer_machine(Core *c) {
 // ================= STATE 0 (INIT) =================
 S0: {
   uint32_t a2v = c->mem_r32(0x800ecfd4u);
-  if (getenv("PSXPORT_FLAGBIT_TRACE")) {
-    cfg_logi("flagbit",
-             "core=%p S0 node=%08X cnt_before=%d stage=%08X",
-             (void *)c,
-             nd,
-             (int)c->mem_r16s(0x800ED098u),
-             c->mem_r32(0x801fe00c));
-  }
-  if (leaf4r(c, nd, 3, a2v, 0x8014aabcu, 0x800519e0u) != 0) {
+  lucent::debug("flagbit",
+                "core={} S0 node={:08X} cnt_before={} stage={:08X}",
+                (void *)c,
+                nd,
+                (int)c->mem_r16s(0x800ED098u),
+                c->mem_r32(0x801fe00c));
+
+  if (psx::cpu::callGuestNowResult(*c, "beh_flagbit_timer_machine", 0x800519e0u, nd, 3, a2v, 0x8014aabcu) != 0) {
     goto Lret; // FUN_800519E0 (Slip #6 fix: was 0x8015AABC — 0x1000 hex-typo, verified against guest instruction path
                // overlay guest 0x8013B2E4 line 24959 which computes r[7] = (0x8015<<16) + (-21828) = 0x8014AABC)
   }
@@ -109,10 +94,11 @@ S0: {
     c->mem_w8(nd + 0x5e, 0);
     a2c = 0;
   } else {
-    tomba::guest::dispatchLeafToReturn(*c, 0x8013af18u, nd, 1, 31);
+    psx::cpu::callGuestNowResult(*c, "beh_flagbit_timer_machine", 0x8013af18u, nd, 1, 31);
     a2c = 1;
   } // FUN_8013AF18(node,1,31)
-  tomba::guest::dispatchLeafToReturn(*c, 0x80077c40u, nd, 0x8001b7b0u, a2c); // FUN_80077C40(node,0x8001B7B0,a2)
+  psx::cpu::callGuestNowResult(
+      *c, "beh_flagbit_timer_machine", 0x80077c40u, nd, 0x8001b7b0u, a2c); // FUN_80077C40(node,0x8001B7B0,a2)
   c->mem_w8(nd + 0, 1);
   c->mem_w16(nd + 0x80, 400);
   c->mem_w16(nd + 0x82, 800);
@@ -132,7 +118,7 @@ S0: {
 
 // ================= STATE 1 =================
 L42c: {
-  if (leafr(c, nd, 0x8007778cu) == 0) {
+  if (psx::cpu::callGuestNowResult(*c, "beh_flagbit_timer_machine", 0x8007778cu, nd) == 0) {
     goto L50c; // FUN_8007778C
   }
   eng(c).animation.step(nd); // FUN_80076D68 (native)
@@ -164,7 +150,7 @@ L484: {
   uint8_t n5e = c->mem_r8(nd + 0x5e);
   c->mem_w8(nd + 6, (uint8_t)(n6 + 1));
   uint32_t a0 = (n5e != 0) ? 97u : 98u;
-  tomba::guest::dispatchLeafToReturn(*c, 0x8004ed94u, a0, 65); // FUN_8004ED94(97|98, 65)
+  psx::cpu::callGuestNowResult(*c, "beh_flagbit_timer_machine", 0x8004ed94u, a0, 65); // FUN_8004ED94(97|98, 65)
   c->mem_w8(0x800bf809u, 1);
   goto L4f8;
 }
@@ -180,8 +166,8 @@ L4cc: {
   goto L4f8;
 }
 L4f8: {
-  tomba::guest::dispatchLeafToReturn(*c, 0x8013b024u, nd, 31); // FUN_8013B024(node, 31)
-  tomba::guest::dispatchLeafToReturn(*c, 0x800518fcu, nd);     // FUN_800518FC(node)
+  psx::cpu::callGuestNowResult(*c, "beh_flagbit_timer_machine", 0x8013b024u, nd, 31); // FUN_8013B024(node, 31)
+  psx::cpu::callGuestNowResult(*c, "beh_flagbit_timer_machine", 0x800518fcu, nd);     // FUN_800518FC(node)
   goto L50c;
 }
 L50c: {
@@ -193,3 +179,5 @@ L50c: {
 Lret:
   return;
 }
+
+} // namespace tomba

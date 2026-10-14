@@ -103,6 +103,8 @@
 #include "core/overrides/native_override_catalog.h"
 #include "guest_abi.h"
 
+namespace tomba {
+
 namespace {
 // The one stroke phase the companion arms on: the assembly's "first half-stroke reached" code.
 constexpr int32_t kStrokePhaseFirstHalfReached = 1;
@@ -258,7 +260,7 @@ void AssemblyCompanion::composeRigAndApplyPartScales(Core *c) {
 
   // (1) Pose the rig: the companion's own world matrix, then every sub-part chained off it at unit
   // scale. buildAxis tail-calls propagateAxis, so this one call does the whole skeleton.
-  tomba::guest::dispatchJalToReturn(*c, kNodeXformBuildAxis, kRaAfterComposeRig);
+  tomba::guest::dispatchJalToReturn(*c, {.target = kNodeXformBuildAxis, .returnAddress = kRaAfterComposeRig});
 
   const AssemblyCompanion companion(c, self);
   GuestReg<17> partIndex(c);
@@ -282,17 +284,17 @@ void AssemblyCompanion::composeRigAndApplyPartScales(Core *c) {
     c->r[6] = (uint32_t)part.scaleY();
     c->r[7] = (uint32_t)part.scaleZ();
     slot += 4; // guest advances the cursor in the jal's delay slot
-    tomba::guest::dispatchJalToReturn(*c, kNodeXformSeedDiag, kRaAfterSeedDiag);
+    tomba::guest::dispatchJalToReturn(*c, {.target = kNodeXformSeedDiag, .returnAddress = kRaAfterSeedDiag});
 
     c->r[4] = part.frameMatrixPtr(); // MulMatrix0(frameMatrix, diag): scale it, in place
     c->r[5] = diagScale;
-    tomba::guest::dispatchJalToReturn(*c, kMulMatrix0, kRaAfterMulMatrix);
+    tomba::guest::dispatchJalToReturn(*c, {.target = kMulMatrix0, .returnAddress = kRaAfterMulMatrix});
 
     partIndex += 1;
   } while ((int32_t)(uint32_t)partIndex < (int32_t)companion.partCount());
 }
 
-void AssemblyCompanion::registerOverrides() {
+void AssemblyCompanion::registerOverrides(native::NativeOverrideCatalog &natives) {
   // Both are A00, from the image: of 23 authenticated MODE images only A00 holds a function at each
   // address (40 and 39 words), each inside A00's loaded text range.
   //
@@ -303,12 +305,14 @@ void AssemblyCompanion::registerOverrides() {
   // function really does restore `$ra` and return at 0x80138A60 (`addiu sp,sp,0x38` in its delay
   // slot), and 0x80138A64 does open a different function, which is what this file's own TRUE EXTENT
   // note above already recorded.
-  tomba::native::declareOverlayOverride("A00",
-                                        0x80138A64u,
-                                        "AssemblyCompanion::endCamHoldAndRearmOnStroke",
-                                        &AssemblyCompanion::endCamHoldAndRearmOnStroke);
-  tomba::native::declareOverlayOverride("A00",
-                                        0x801389C8u,
-                                        "AssemblyCompanion::composeRigAndApplyPartScales",
-                                        &AssemblyCompanion::composeRigAndApplyPartScales);
+  natives.declareOverlay("A00",
+                         0x80138A64u,
+                         "AssemblyCompanion::endCamHoldAndRearmOnStroke",
+                         &AssemblyCompanion::endCamHoldAndRearmOnStroke);
+  natives.declareOverlay("A00",
+                         0x801389C8u,
+                         "AssemblyCompanion::composeRigAndApplyPartScales",
+                         &AssemblyCompanion::composeRigAndApplyPartScales);
 }
+
+} // namespace tomba

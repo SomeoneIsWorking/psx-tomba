@@ -16,11 +16,9 @@
 // arc (no Core arg on the method surface; reach Core via `this->core`).
 #include "core.h"
 #include "core/engine/engine.h"
-#include "core/entry/game_ctx.h"
 #include "core/overrides/native_override_catalog.h"
-#include "gpu_vk.h" // gpu_vk_wide_engine / _ofx — the widescreen projection centre
+#include "entry/tomba_session.h"
 #include "guest_call.h"
-#include "proj_params.h" // libgte_set_geom_offset / _screen — SetGeomOffset / SetGeomScreen
 #include <stdint.h>
 
 // FUN_80051794 (identity 3x3 rotation matrix + zero translation) is owned by `Mtx::identity`
@@ -39,6 +37,8 @@
 // being a mode or an id — that reading comes from a comment elsewhere and an xref pass did not
 // resolve it. The argument's ROLE IS UNKNOWN and is left unknown here rather than guessed.
 // ORACLE: guest 0x8008913C
+namespace tomba {
+
 void Engine::allocRecordForSelector() {
   Core *c = this->core;
   c->r[2] = (uint32_t)32784u << 16;
@@ -58,11 +58,7 @@ L_80089154:;
 void Engine::initFrameState() {
   Core *c = this->core;
   // FUN_80050A0C stores DAT_1F800235 from a literal `li v0,0x2` (word 0x24020002) and zeroes the
-  // vblank counter. The frame-rate DECISION is FrameCadence's, not this function's: it is the
-  // port's to hold, and publishing it here puts the port's number in the guest's own field
-  // through the same single byte store. Before this, the literal `2` lived in three homes — here,
-  // game_config.cpp's `paceQuota`, and the per-frame read in Engine::frameUpdate — and nothing
-  // connected them to the image.
+  // vblank counter. The frame-rate decision is FrameCadence's; this publishes it into that field.
   cadence_.publish();
   c->mem_w16(tomba::FrameCadence::kDwellCounterAddress, 0); // vblank counter (sh)
   c->mem_w8(0x1F800135, 0);                                 // double-buffer parity
@@ -94,25 +90,17 @@ void Engine::initDisplay() {
   c->mem_w16(0x800E7E70, 0); // DAT_800e7e70
   c->mem_w16(0x800E7E72, 8); // DAT_800e7e72
   // InitGeom (FUN_80083ff8): GTE projection control registers.
-  gte_write_ctrl(29, 0x155);      // ZSF3
-  gte_write_ctrl(30, 0x100);      // ZSF4
-  gte_write_ctrl(26, 1000);       // H (replaced by SetGeomScreen below)
-  gte_write_ctrl(27, 0xFFFFEF9E); // DQA
-  gte_write_ctrl(28, 0x01400000); // DQB
-  gte_write_ctrl(24, 0);          // OFX
-  gte_write_ctrl(25, 0);          // OFY
+  c->gte().writeControl(29, 0x155);      // ZSF3
+  c->gte().writeControl(30, 0x100);      // ZSF4
+  c->gte().writeControl(26, 1000);       // H (replaced by SetGeomScreen below)
+  c->gte().writeControl(27, 0xFFFFEF9E); // DQA
+  c->gte().writeControl(28, 0x01400000); // DQB
+  c->gte().writeControl(24, 0);          // OFX
+  c->gte().writeControl(25, 0);          // OFY
 
-  // SetGeomOffset (FUN_800846d0) / SetGeomScreen (FUN_800846f0), through the framework leaves that own
-  // them. Going through those — rather than writing CR24/25/26 here — is what keeps the GTE and the
-  // NATIVE CAMERA's copy of the projection in step: the render path reads that copy
-  // (ProjParams::requireGeom) instead of reading the control registers back out of the GTE.
-  //
-  // Widescreen shifts the projection centre to the aspect centre (nw/2 = 214@16:9, 280@21:9) so the
-  // GUEST GTE itself projects the wider FOV — the guest OT packets and every native re-projection then
-  // agree on one centre, which is what avoids the ~54px double-image when only the native pass is
-  // widened. Off at 4:3 and on the oracle, so the substrate/SBS reference keeps the stock 160.
-  const int centreX = gpu_vk_wide_engine(c) ? gpu_vk_wide_engine_ofx(c) : kScreenCentreX;
-  libgte_set_geom_offset(c, centreX, kScreenCentreY);
+  // SetGeomOffset (FUN_800846d0) / SetGeomScreen (FUN_800846f0) through the framework leaves, so the
+  // recorded projection copy follows the GTE. The retail centre stands; the Record canvas adds the margins.
+  libgte_set_geom_offset(c, kScreenCentreX, kScreenCentreY);
 
   c->mem_w16(0x801003F8, kProjectionPlaneH); // DAT_801003f8 — initCamera reads H back from here
   libgte_set_geom_screen(c, kProjectionPlaneH);
@@ -395,6 +383,8 @@ void ov_allocRecordForSelector(Core *c) {
 }
 } // namespace
 
-void startup_overrides_install() {
-  tomba::native::declareOverride(0x8008913Cu, "ov_allocRecordForSelector", ov_allocRecordForSelector);
+void startup_overrides_install(native::NativeOverrideCatalog &natives) {
+  natives.declare(0x8008913Cu, "ov_allocRecordForSelector", ov_allocRecordForSelector);
 }
+
+} // namespace tomba

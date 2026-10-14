@@ -164,8 +164,8 @@ public:
   // is initialised, and the whole halfword is then overwritten with the solved step divisor. The
   // two names below are the two readings, so a reader cannot mistake the divisor for the request.
   // The request is read SIGNED: the guest sign-extends the high byte, so 0x80 means -128 steps.
-  int8_t requestedStepCount() const {
-    return static_cast<int8_t>(extraHalfword0() >> 8);
+  int32_t requestedStepCount() const {
+    return static_cast<int32_t>(static_cast<uint32_t>(extraHalfword0()) << 16) >> 24;
   }
   uint16_t stepDivisor() const {
     return extraHalfword0();

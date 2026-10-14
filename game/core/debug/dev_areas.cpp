@@ -1,7 +1,4 @@
-// dev_areas.cpp — the game's area index for the DEV WARP selector (GameHooks::devAreaCount /
-// devAreaName / devWarpAllowed). Game-side on purpose: the framework must #include no game header and
-// must not know a Tomba guest address, so the area count, the names and the "is a warp legal right now"
-// test all live here and reach the framework only through the hook table.
+// dev_areas.cpp — the area index for the Debug tab's warp selector.
 //
 // COUNT: 22 areas, ids 0..21. Established 2026-07-22 (kanban #24) three independent ways — 22 A0*.BIN
 // files on the disc, 22 entries in every one of MAIN's six per-area handler tables, and GAME.BIN's
@@ -15,11 +12,13 @@
 // "area 22" that does not exist, and #26 against a "Temple interior" that is the ghost pig boss arena.
 // So an unnamed area shows as "Area N" here rather than a guess. See docs/areas.md; add a row there in
 // the same commit as a name added below.
+#include "debug/dev_areas.h"
+
 #include "core.h"
 #include "debug/dev_gate.h"
 #include "debug/dev_warp.h"
-#include "engine/engine.h"
-#include "game.h"
+
+namespace tomba {
 
 namespace {
 
@@ -53,18 +52,23 @@ const char *const kAreaNames[AREA_COUNT] = {
 
 } // namespace
 
-int Engine::devAreaCount() {
+} // namespace tomba
+
+namespace tomba {
+
+int TombaDevWarp::areaCount() const {
   return AREA_COUNT;
 }
 
-// Display label for the selector row. Static storage: the caller only formats it into a row value.
-const char *Engine::devAreaName(int area) {
+const char *TombaDevWarp::areaName(int area) const {
   if (area < 0 || area >= AREA_COUNT) {
     return "";
   }
   return kAreaNames[area];
 }
 
-bool Engine::devWarpAllowed(Core *c) {
-  return tomba::DevGate::inGameStage(*c);
+bool TombaDevWarp::warpAllowed() const {
+  return DevGate::inGameStage(core_);
 }
+
+} // namespace tomba

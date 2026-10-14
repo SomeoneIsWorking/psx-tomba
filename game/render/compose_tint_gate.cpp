@@ -24,13 +24,15 @@
 // node[+0x0B] == 0x0F is passed through to the emitter as a bool. It is a sub-type flag; what it
 // selects lives inside FUN_8003F07C, which is not ported yet, so it is forwarded rather than named.
 #include "core.h"
-#include "core/entry/game_ctx.h" // rend(c) — the Render instance
 #include "core/overrides/native_override_catalog.h"
+#include "entry/tomba_session.h" // rend(c) — the Render instance
 #include "guest_call.h"
 #include "guest_ordering_table.h"
 #include "render.h"
 
 // Render::effectColorAdd, which already owns this address
+
+namespace tomba {
 
 namespace {
 
@@ -54,7 +56,7 @@ void Render::composeTintGate(Core *c) {
   c->mem_w32(frame + 20, c->r[17]);
   c->mem_w32(frame + 16, c->r[16]);
 
-  const uint32_t poolBefore = tomba2::render::PacketPool(*c).cursor();
+  const uint32_t poolBefore = tomba::render::PacketPool(*c).cursor();
   const uint32_t subtype = (c->mem_r8(node + NODE_SUBTYPE) == SUBTYPE_MATCH) ? 1u : 0u;
   const uint32_t mode = c->mem_r8(node + NODE_MODE) & 0x0Fu;
 
@@ -75,7 +77,7 @@ void Render::composeTintGate(Core *c) {
     // so the override registry routes it to Render::effectColorAdd rather than the substrate body.
     c->r[4] = node;
     c->r[5] = poolBefore;
-    c->r[6] = tomba2::render::PacketPool(*c).cursor();
+    c->r[6] = tomba::render::PacketPool(*c).cursor();
     c->r[31] = 0x8003F00Cu; // jal-site ra
     psx::cpu::dispatchGuestToReturn0(*c, 0x8003D584u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
   }
@@ -91,6 +93,8 @@ static void ov_compose_tint_gate(Core *c) {
   Render::composeTintGate(c);
 }
 
-void compose_tint_gate_install() {
-  tomba::native::declareOverride(0x8003EF9Cu, "Render::composeTintGate", ov_compose_tint_gate);
+void compose_tint_gate_install(native::NativeOverrideCatalog &natives) {
+  natives.declare(0x8003EF9Cu, "Render::composeTintGate", ov_compose_tint_gate);
 }
+
+} // namespace tomba

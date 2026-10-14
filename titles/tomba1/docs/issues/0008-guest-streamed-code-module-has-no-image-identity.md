@@ -7,7 +7,7 @@ state_items: S004
 tags: tomba1,image-identity,module-load,cd,executor-boundary
 created: 2026-09-29
 updated: 2026-10-14
-framework_owner: psxport — `runtime/psx/cd_override.cpp` (`cd_read_stock_sync`) and the absence of a title-facing module-residency seam
+framework_owner: psxport — `runtime/psx/cd/stock_libcd.cpp` (`StockLibcd`) and `psx::code_module::publishStockReadLanding`
 ---
 
 ## Resolution (2026-10-14)
@@ -69,7 +69,7 @@ there are real code: **14 of 16** words in `[0x800E7D50, 0x800E7D90)` are non-ze
 | site | what it publishes |
 |---|---|
 | `runtime/psx/psx_exe_image.cpp:109` | the main PS-X EXE, once, at boot |
-| `game/core/native_override_catalog.cpp:242` | **Tomba! 2's own** overlay load, from its native scene code |
+| `game/core/overrides/native_override_catalog.cpp:242` | **Tomba! 2's own** overlay load, from its native scene code |
 | `titles/tomba1/tests/test_guest_task_budget_resume.cpp:371` | a test fixture |
 
 **Tomba! 1 has zero production call sites.** It has no native scene code, so the Tomba! 2 route
@@ -79,7 +79,7 @@ publishes no identity for a module its own guest loads.
 ## The read-only-looking half of this is a FRAMEWORK defect, measured
 
 `ImageCatalog::activate` is the only publisher and the only caller is the main-executable loader.
-That alone would be a design choice. What makes it a defect is the invalidation half:
+That alone would be a design choice. What made it a defect was the invalidation half (pre-fix; `cd_override.cpp` is gone and `StockLibcd` now writes through `Core::mem_write`):
 
     $ grep -n 'notifyExecutableWrite' external/psxport/runtime/psx/cd_override.cpp
     606:  ...        (inside cd_loadfile)

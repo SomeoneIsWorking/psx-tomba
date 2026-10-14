@@ -26,9 +26,8 @@
 // ((int16)v>>8)&0xf and sign bit = (int16)v & 0x8000; scroll math uses arithmetic >>2 on a signed delta. Byte-exact A/B
 // gate (full RAM+scratchpad vs original guest-body call) is the safety net.
 
-#include "cfg.h"
 #include "core.h"
-#include "core/entry/game_ctx.h"
+#include "entry/tomba_session.h"
 #include "guest_abi.h" // GuestFrame — mirror the guest stack frame (CLAUDE.md)
 #include "guest_call.h"
 #include "spawn.h" // class Spawn (eng(c).spawn.despawn / dispatch / spawnAndInit)
@@ -36,12 +35,14 @@
 #include <stdlib.h>
 #include <string.h>
 
+namespace tomba {
+
 namespace {
 
 constexpr uint32_t BEH_FN = 0x80059ED8u;
 
 static inline int16_t s16(Core *c, uint32_t a) {
-  return c->mem_r16s(a);
+  return (int16_t)c->mem_r16(a);
 }
 
 } // namespace
@@ -247,3 +248,5 @@ void beh_camera_target_follow(Core *c) {
     }
   }
 }
+
+} // namespace tomba

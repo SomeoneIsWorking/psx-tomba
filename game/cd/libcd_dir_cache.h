@@ -15,6 +15,8 @@
 #include <cstdint>
 class Core;
 
+namespace tomba {
+
 class LibcdDirCache {
 public:
   explicit LibcdDirCache(Core &core) : core_(core) {}
@@ -52,3 +54,5 @@ private:
 
   Core &core_;
 };
+
+} // namespace tomba

@@ -6,12 +6,20 @@
 // (wide_window.h), so on the record canvas the margins fade with the buffer. At 4:3 the packets are
 // the guest's.
 #pragma once
+#include "state_producer.h"
+
 #include <cstdint>
 class Core;
 
-namespace tomba2::wide_window {
+namespace tomba::native {
+class NativeOverrideCatalog;
+} // namespace tomba::native
+
+namespace tomba::wide_window {
 struct Window;
 }
+
+namespace tomba {
 
 class ScreenFade {
 public:
@@ -29,6 +37,10 @@ public:
   void applyLeafCall(uint32_t color, uint32_t blend, uint32_t otSlot);
 
   // FUN_8007E9C8 with the guest's register arguments; the fill spans `window`'s columns.
-  static void draw(Core &core, const tomba2::wide_window::Window &window);
-  static void registerOverrides();
+  static void draw(Core &core, const tomba::wide_window::Window &window);
+  static void registerOverrides(native::NativeOverrideCatalog &natives);
+  // Each call is an object saved as its colour, span and blend; the render moves the colour.
+  static void registerStateRenders(psx::present::StateProducerTable &renders);
 };
+
+} // namespace tomba

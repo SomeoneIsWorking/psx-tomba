@@ -4,12 +4,14 @@
 // (GTE registers, scratchpad, packet pool, ordering table) the guest body writes. The picture is the
 // guest's GP0 output on the GPU device; nothing here draws to the host.
 //
-// Owned by Core via a pointer (`Core::mRender`), constructed in game_ctx.cpp.
+// Owned by Core via a pointer (`Core::mRender`), constructed by TombaSession.
 #pragma once
 #include "margin_render.h"
 #include "node_xform.h"
 #include <cstdint>
 class Core;
+
+namespace tomba {
 
 class Render {
 public:
@@ -47,11 +49,16 @@ public:
   void billboardEmit();
 
   // Effect modifiers over a just-emitted packet-pool span [lo,hi) (effect_mod.cpp).
-  void effectSemiOn(uint32_t node, uint32_t lo, uint32_t hi);   // FUN_8003F3F4
-  void effectSemiOff(uint32_t node, uint32_t lo, uint32_t hi);  // FUN_8003F4C4
-  void effectClutSwap(uint32_t node, uint32_t lo, uint32_t hi); // FUN_8003F344
-  void effectFlatTint(uint32_t node, uint32_t lo, uint32_t hi); // FUN_8003F594
-  void effectColorAdd(uint32_t node, uint32_t lo, uint32_t hi); // FUN_8003D584
+  void effectSemiOn(uint32_t node, uint32_t lo, uint32_t hi);  // FUN_8003F3F4
+  void effectSemiOff(uint32_t node, uint32_t lo, uint32_t hi); // FUN_8003F4C4
+  struct EffectRangeArgs {
+    uint32_t node;
+    uint32_t lo;
+    uint32_t hi;
+  };
+  void effectClutSwap(const EffectRangeArgs &args); // FUN_8003F344
+  void effectFlatTint(const EffectRangeArgs &args); // FUN_8003F594
+  void effectColorAdd(const EffectRangeArgs &args); // FUN_8003D584
 
   static void composeTintGate(Core *c);     // FUN_8003EF9C — per-type render gate
   static void subPartWalk(Core *c);         // FUN_8003F174 — articulated sub-part submit
@@ -77,3 +84,5 @@ public:
   void objListWalk3(); // FUN_8003BF00
   void objListWalk4(); // FUN_8003EEC0
 };
+
+} // namespace tomba

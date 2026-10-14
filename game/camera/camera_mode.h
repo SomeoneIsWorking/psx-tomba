@@ -1,15 +1,7 @@
 // game/camera/camera_mode.h — the camera DRIVER'S MODE TABLE, in one place.
 //
-// WHY THIS FILE EXISTS. `CutsceneCamera` ran the same eighteen modes through two independent 18-arm
-// switches: `dispatchMode` for the native path and `dispatchModeFaithful` for the guest-faithful
-// mirror. They agreed on which mode did what and disagreed only on HOW they reached it — one called
-// a C++ method, the other dispatched to the guest address with that arm's own return constant. Two
-// tables describing one policy is duplicated policy, and it is the kind that drifts: a thirteenth
-// mode added to one switch and not the other would run a different camera in the two execution paths,
-// with nothing to notice.
-//
-// This header is the ONE table. It names all eighteen modes, says what each one follows, and gives
-// each its guest entry point. The two dispatchers read it; neither owns the policy any more.
+// It names all eighteen modes, says what each one follows, and gives each its guest entry point;
+// `CutsceneCamera::dispatchMode` reads it.
 //
 // THE NAMES, and where they stop. Eleven of the eighteen say what the mode DOES to the camera, read
 // off the body each arm runs. Four do not, and are named for the ONE store they perform rather than

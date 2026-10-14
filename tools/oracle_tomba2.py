@@ -43,7 +43,7 @@ name = "Tomba! 2 (SCUS_944.54)"
 # The addresses the ROUTE reads are title_prompts' (see the module docstring). What is left here is
 # what only the comparison needs.
 AREA_INDEX = 0x800BF870
-DWELL_COUNTER = 0x800E809C       # VBlanks since the main loop last passed its vblank gate (GameConfig)
+DWELL_COUNTER = 0x800E809C       # VBlanks since the main loop last passed its vblank gate (FrameCadence)
 PAD_CURRENT = 0x800ECF54         # frame fence FUN_800788AC: this frame's pad word (docs/engine_re.md)
 PAD_PRESSED = 0x800E7E68         # ... buttons newly pressed this frame
 PAD_RELEASED = 0x800F23A4        # ... buttons newly released this frame

@@ -44,12 +44,13 @@
 // Native override like every other `beh_*`; the test-only verification leg takes the guest body via
 // the typed runtime address dispatcher, so this cannot affect the differential gate.
 
-#include "cfg.h"
 #include "core.h"
 #include "core/engine/engine.h" // eng(c).spawn
-#include "core/entry/game_ctx.h"
+#include "entry/tomba_session.h"
 #include "guest_abi.h" // GuestFrame — mirror the guest stack frame (CLAUDE.md)
 #include "spawn.h"     // Spawn::dispatch / despawn (FUN_8007A980 / FUN_8007A624, native)
+
+namespace tomba {
 
 namespace {
 constexpr uint32_t SHADOW_HANDLER = 0x8010AB38u; // this file's own per-frame tick (node+0x1C)
@@ -59,8 +60,9 @@ constexpr uint8_t BEAT_LIMIT = 5;               // ramp updates run while beat <
 } // namespace
 
 // FUN_8010AE30(parent) -> node ptr (0 on pool exhaustion).
-uint32_t native_sop_overlay_shadow_spawn(Core *c, uint32_t parent) {        // FUN_8010AE30
-  uint32_t node = eng(c).spawn.dispatch(/*cls=*/0, /*type=*/6, /*list=*/1); // FUN_8007A980
+uint32_t native_sop_overlay_shadow_spawn(Core *c, uint32_t parent) { // FUN_8010AE30
+  uint32_t node =
+      eng(c).spawn.dispatch({.cls_in = /*cls=*/0, .type_in = /*type=*/6, .list = /*list=*/1}); // FUN_8007A980
   if (node == 0) {
     return 0;
   }
@@ -142,3 +144,5 @@ void beh_sop_overlay_shadow(Core *c) {
     eng(c).spawn.despawn(node);
   }
 }
+
+} // namespace tomba

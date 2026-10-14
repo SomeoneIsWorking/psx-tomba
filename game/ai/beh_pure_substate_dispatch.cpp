@@ -16,15 +16,16 @@
 // a dead edge in the guest, kept for fidelity). The byte-exact A/B gate (full RAM+scratchpad vs
 // original guest-body call) is the safety net. NO GTE/render.
 
-#include "cfg.h"
 #include "core.h"
-#include "core/entry/game_ctx.h"
 #include "core/overrides/guest_jal.h"
+#include "entry/tomba_session.h"
 #include "guest_abi.h"
 #include "spawn.h" // class Spawn (eng(c).spawn.despawn / dispatch / spawnAndInit)
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+namespace tomba {
 
 namespace {
 
@@ -47,7 +48,7 @@ void beh_pure_substate_dispatch(Core *c) {
   }
   if ((int32_t)s0 < 2) {
     if (s0 == 0) {
-      tomba::guest::dispatchLeafToReturn(*c, 0x801253E8u, s1);
+      psx::cpu::callGuestNowResult(*c, "beh_pure_substate_dispatch", 0x801253E8u, s1);
     }
     goto Lret;
   } // STATE 0
@@ -61,17 +62,17 @@ void beh_pure_substate_dispatch(Core *c) {
   goto Lret; // s0 >= 4
 
 S1: {
-  tomba::guest::dispatchLeafToReturn(*c, 0x8007778Cu, s1); // FUN_8007778C(node)
-  uint8_t n5 = c->mem_r8(s1 + 5);                          // node[5]
+  psx::cpu::callGuestNowResult(*c, "beh_pure_substate_dispatch", 0x8007778Cu, s1); // FUN_8007778C(node)
+  uint8_t n5 = c->mem_r8(s1 + 5);                                                  // node[5]
   switch (n5) {
   case 0:
-    tomba::guest::dispatchLeafToReturn(*c, 0x80125FE0u, s1);
+    psx::cpu::callGuestNowResult(*c, "beh_pure_substate_dispatch", 0x80125FE0u, s1);
     break;
   case 1:
-    tomba::guest::dispatchLeafToReturn(*c, 0x801255CCu, s1);
+    psx::cpu::callGuestNowResult(*c, "beh_pure_substate_dispatch", 0x801255CCu, s1);
     break;
   case 2:
-    tomba::guest::dispatchLeafToReturn(*c, 0x80125800u, s1);
+    psx::cpu::callGuestNowResult(*c, "beh_pure_substate_dispatch", 0x80125800u, s1);
     break;
   default:
     break; // node[5] >= 3: none
@@ -80,18 +81,20 @@ S1: {
 }
 
 S2: {
-  tomba::guest::dispatchLeafToReturn(*c, 0x8007778Cu, s1);   // FUN_8007778C(node)
-  int32_t n5 = (int32_t)c->mem_r8(s1 + 5);                   // node[5] (bltz test, always >= 0 for an lbu)
-  if (n5 >= 0 && n5 >= 2 && n5 < 4) {                        // node[5] in {2,3}
-    tomba::guest::dispatchLeafToReturn(*c, 0x801261FCu, s1); // FUN_801261FC(node)
+  psx::cpu::callGuestNowResult(*c, "beh_pure_substate_dispatch", 0x8007778Cu, s1); // FUN_8007778C(node)
+  int32_t n5 = (int32_t)c->mem_r8(s1 + 5); // node[5] (bltz test, always >= 0 for an lbu)
+  if (n5 >= 0 && n5 >= 2 && n5 < 4) {      // node[5] in {2,3}
+    psx::cpu::callGuestNowResult(*c, "beh_pure_substate_dispatch", 0x801261FCu, s1); // FUN_801261FC(node)
   }
   goto Ltail;
 }
 
-Ltail:                                                       // common tail @0x80125f14
-  if (c->mem_r8(s1 + 1) != 0) {                              // node[1]
-    tomba::guest::dispatchLeafToReturn(*c, 0x800518FCu, s1); // FUN_800518FC(node)
+Ltail:                                                                               // common tail @0x80125f14
+  if (c->mem_r8(s1 + 1) != 0) {                                                      // node[1]
+    psx::cpu::callGuestNowResult(*c, "beh_pure_substate_dispatch", 0x800518FCu, s1); // FUN_800518FC(node)
   }
 Lret:
   return;
 }
+
+} // namespace tomba

@@ -23,6 +23,8 @@
 #include <cstdint>
 class Core;
 
+namespace tomba {
+
 class Pool {
 public:
   Core *core = nullptr;
@@ -59,4 +61,6 @@ public:
   //   0x800ED8C5 / 0x800ED8C4. Ghidra decomp scratch/decomp/pool_init_leads.c.
   void initTypedPools();
 };
+
+} // namespace tomba
 #endif

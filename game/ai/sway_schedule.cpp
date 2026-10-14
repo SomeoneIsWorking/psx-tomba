@@ -74,6 +74,8 @@
 #include "core/overrides/native_override_catalog.h"
 #include "guest_abi.h"
 
+namespace tomba {
+
 namespace {
 
 // tools/binary ABI evidence 0x8012D27C --scaffold --guestabi
@@ -203,20 +205,21 @@ void SwaySchedule::advanceRateThenSway(Core *c) {
   const uint8_t variant = self.variant();
   if (variant < kVariantWideMax && variant != kVariantNarrow) {
     c->r[4] = self.mAt;
-    tomba::guest::dispatchJalToReturn(*c, 0x8012CF4Cu, kRaAfterWideSway);
+    tomba::guest::dispatchJalToReturn(*c, {.target = 0x8012CF4Cu, .returnAddress = kRaAfterWideSway});
   } else if (variant == kVariantNarrow) {
     c->r[4] = self.mAt;
-    tomba::guest::dispatchJalToReturn(*c, 0x8012D05Cu, kRaAfterNarrowSway);
+    tomba::guest::dispatchJalToReturn(*c, {.target = 0x8012D05Cu, .returnAddress = kRaAfterNarrowSway});
   } else if (variant == kVariantReverse) {
     c->r[4] = self.mAt;
-    tomba::guest::dispatchJalToReturn(*c, 0x8012D16Cu, kRaAfterReverseSway);
+    tomba::guest::dispatchJalToReturn(*c, {.target = 0x8012D16Cu, .returnAddress = kRaAfterReverseSway});
   }
 }
 
-void SwaySchedule::registerOverrides() {
+void SwaySchedule::registerOverrides(native::NativeOverrideCatalog &natives) {
   // A00, from the image: of 23 authenticated MODE images only A00 holds a function at 0x8012D27C
   // (98 words), and the address is inside A00's loaded text range. This is the MODULE note above,
   // applied.
-  tomba::native::declareOverlayOverride(
-      "A00", 0x8012D27Cu, "SwaySchedule::advanceRateThenSway", &SwaySchedule::advanceRateThenSway);
+  natives.declareOverlay("A00", 0x8012D27Cu, "SwaySchedule::advanceRateThenSway", &SwaySchedule::advanceRateThenSway);
 }
+
+} // namespace tomba

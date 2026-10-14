@@ -14,6 +14,14 @@
 #include <cstdint>
 class Core;
 
+class Game;
+
+namespace tomba::native {
+class NativeOverrideCatalog;
+} // namespace tomba::native
+
+namespace tomba {
+
 class Trig {
 public:
   static constexpr uint32_t SIN_TAB = 0x800A5AF0u;
@@ -32,12 +40,17 @@ public:
   //   fixup (2048 - v for x_neg, negate for y_neg).
   int32_t ratan2(int32_t y, int32_t x) const;
 
+  struct AngleCmpArgs {
+    int32_t a;
+    int32_t b;
+    int32_t mode;
+  };
   // angleCmp (guest FUN_80077768): angle-signed-half compare. Returns 1 iff `(a-b-1024) & 0xFFF`
   //   sits in the first half [0, 2048) of the 12-bit angle circle (when mode==0), OR in the second
   //   half [2048, 4096) (when mode!=0). A "does angle a lead angle b by π/4..3π/4" test used by the
   //   scripted-camera path (CutsceneCamera::snapFollowA). Pure computation over int32 inputs — no
   //   Core access, kept static.
-  static int32_t angleCmp(int32_t a, int32_t b, int32_t mode);
+  static int32_t angleCmp(const AngleCmpArgs &args);
 
   // vecLen (guest FUN_80078240): the integer 3-D length APPROXIMATION libgte-style code uses where a
   //   real sqrt is not worth it. Takes |x|,|y|,|z|, sorts so x is the largest, then returns
@@ -53,5 +66,7 @@ public:
   // leaves. These read the SAME guest tables (SIN_TAB/ATAN_TAB) as the substrate, so byte-exact;
   // MIRROR_VERIFY-gated (102593/79617 passes). angleCmp (0x80077768) deferred — not exercised by
   // current replays (cutscene-camera caller). Found by codemap --substrate-fallthrough.
-  static void registerOverrides(class Game *game);
+  static void registerOverrides(native::NativeOverrideCatalog &natives);
 };
+
+} // namespace tomba

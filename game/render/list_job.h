@@ -15,15 +15,16 @@
 #include <span>
 #include <vector>
 
-namespace tomba2::render {
+namespace tomba::render {
 
 // The registers an emitter takes and the stack it runs on.
 struct ListCall {
   std::uint32_t list = 0;  // a0
-  std::uint32_t ot = 0;    // a1
+  std::uint32_t ot = 0;    // the OT it links into
   std::uint32_t count = 0; // a2
   std::uint32_t a3 = 0;
   std::uint32_t sp = 0;
+  std::uint32_t a1 = 0; // `ot` for an emitter handed its OT; another argument for one that reads the active OT
 
   static ListCall fromRegisters(const Core &core);
 };
@@ -52,7 +53,7 @@ struct ListJobHeader {
 };
 
 // How an input between two calls of one list moves with t.
-enum class InputBlend : std::uint32_t {
+enum class InputBlend : std::uint8_t {
   Held,    // the later call's bytes
   Wrapped, // an s16 position that repeats every `modulus`, moved the short way round
 };
@@ -105,4 +106,4 @@ private:
   std::vector<ListJobInput> inputs_;
 };
 
-} // namespace tomba2::render
+} // namespace tomba::render

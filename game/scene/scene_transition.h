@@ -32,6 +32,8 @@
 #include <cstdint>
 class Core;
 
+namespace tomba {
+
 class SceneTransition {
 public:
   // Back-pointer wired once by Core's constructor (same pattern as ScreenFade::core).
@@ -84,3 +86,5 @@ public:
   //                          node[+0x14A] = v; node[+0x149] = v; }
   void clearSwapBlock(uint32_t node);
 };
+
+} // namespace tomba

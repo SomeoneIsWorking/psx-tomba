@@ -33,6 +33,12 @@
 // and in the journal, and although it lives at +0x19 of the 104-byte control block at 0x800BF808
 // (Pool::resetControlBlock, game/world/pool.cpp), that reset only seeds +7/+40/+41, so +0x19 is
 // merely zeroed at area reset and never named. This comment is the first record of it.
+namespace tomba::native {
+class NativeOverrideCatalog;
+} // namespace tomba::native
+
+namespace tomba {
+
 constexpr uint32_t kCamPitchMode = 0x800BF821u;
 // The value 0 this family writes to release it. It never writes a literal non-zero: the claim path
 // COPIES the parent assembly's stroke-phase code into this byte, which is why the two share one
@@ -138,9 +144,11 @@ public:
   // FUN_801389C8 — the per-visible-frame rig pose. See the banner in assembly_companion.cpp.
   static void composeRigAndApplyPartScales(Core *c);
 
-  static void registerOverrides();
+  static void registerOverrides(native::NativeOverrideCatalog &natives);
 
 private:
   Core *mCore;
   uint32_t mAt;
 };
+
+} // namespace tomba

@@ -7,12 +7,12 @@
 
 #include <cstdint>
 
-namespace tomba2::render {
+namespace tomba::render {
 
-enum class ModelList : std::uint32_t { Gt3 = 1, Gt4 = 2 };
+enum class ModelList : std::uint8_t { Gt3 = 1, Gt4 = 2, PackedMesh = 3 };
 
 inline constexpr std::uint32_t modelElement(ModelList list, std::uint32_t index) {
   return (static_cast<std::uint32_t>(list) << 16) | index;
 }
 
-} // namespace tomba2::render
+} // namespace tomba::render

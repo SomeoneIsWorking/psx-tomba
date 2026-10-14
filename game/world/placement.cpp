@@ -1,11 +1,11 @@
 // game/world/placement.cpp — PC-native field OBJECT-PLACEMENT subsystem. See placement.h.
 #include "placement.h"
-#include "cfg.h"
 #include "core.h"
-#include "core/entry/game_ctx.h"
+#include "entry/tomba_session.h"
 #include "game.h"
 #include "guest_call.h"
 #include "spawn.h" // class Spawn (eng(c).spawn.dispatch)
+#include <lucent/log.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -38,6 +38,8 @@
 //   area8: sub<9 0x8014304C / sub<16 0x801432B8 / sub<21 0x80143470 / else 0x80143614 ;
 //   area0x15: sub 0..4 -> 0x80115004/18/F4/180/1F8 / else 0x80115310 ;
 //   default: if (u16@0x800BF870 == 0x704) none; else 0x800A4C28[area] (0 -> none).
+namespace tomba {
+
 static uint32_t place_select_table(Core *c) {
   uint8_t area = c->mem_r8(0x800BF870u);
   uint8_t sub = c->mem_r8(0x800BF871u);
@@ -107,7 +109,7 @@ static void place_objects(Core *c) {
   }
   uint8_t area = c->mem_r8(0x800BF870u);
   do {
-    int16_t cond = c->mem_r16s(rec + 0x0e);
+    int16_t cond = (int16_t)c->mem_r16(rec + 0x0e);
     bool skip = false;
     if (cond == 1) {
       uint32_t bits = c->mem_r16(0x800BFE56u); // u16, zero-extended
@@ -121,9 +123,9 @@ static void place_objects(Core *c) {
     }
     if (!skip) {
       uint8_t cls = c->mem_r8(rec + 1);
-      uint32_t node = eng(c).spawn.dispatch(/*cls=*/(uint32_t)(c->mem_r8(rec) & 0x7fu),
-                                            /*type=*/(cls == 3) ? 3u : cls,
-                                            /*list=*/(cls == 3) ? 1u : 0u);
+      uint32_t node = eng(c).spawn.dispatch({.cls_in = /*cls=*/(uint32_t)(c->mem_r8(rec) & 0x7fu),
+                                             .type_in = /*type=*/(cls == 3) ? 3u : cls,
+                                             .list = /*list=*/(cls == 3) ? 1u : 0u});
       if (node != 0) {
         c->mem_w8(node + 0x28, c->mem_r8(rec));
         c->mem_w32(node + 0x1c, c->mem_r32(rec + 0x10));
@@ -133,8 +135,8 @@ static void place_objects(Core *c) {
         c->mem_w16(node + 0x32, c->mem_r16(rec + 4));
         c->mem_w16(node + 0x54, 0);
         c->mem_w16(node + 0x36, c->mem_r16(rec + 6));
-        c->mem_w16(node + 0x56, place_deg2ang(c->mem_r16s(rec + 0x0a)));
-        c->mem_w16(node + 0x58, place_deg2ang(c->mem_r16s(rec + 0x0c)));
+        c->mem_w16(node + 0x56, place_deg2ang((int16_t)c->mem_r16(rec + 0x0a)));
+        c->mem_w16(node + 0x58, place_deg2ang((int16_t)c->mem_r16(rec + 0x0c)));
       }
     }
     rec += 0x14;
@@ -143,13 +145,13 @@ static void place_objects(Core *c) {
 
 void Placement::placeAreaObjects() {
   Core *c = core;
-  int s_v = gctx(c)->verification.on("placeverify");
+  int s_v = tombaSession(c).verification.on("placeverify");
   if (!s_v) {
     place_objects(c);
     return;
   }
-  uint8_t *ram0 = gctx(c)->verification.ram0();
-  uint8_t *ramN = gctx(c)->verification.ramN();
+  uint8_t *ram0 = tombaSession(c).verification.ram0();
+  uint8_t *ramN = tombaSession(c).verification.ramN();
   uint8_t spad0[0x400], spadN[0x400];
   uint32_t regs0[32];
   memcpy(regs0, c->r, sizeof regs0);
@@ -178,14 +180,14 @@ void Placement::placeAreaObjects() {
       break;
     }
   }
-  tomba::VerificationCounter &chk = gctx(c)->verification.placement;
+  tomba::VerificationCounter &chk = tombaSession(c).verification.placement;
   long &ng = chk.nMatch, &nb = chk.nMismatch;
   if (ro >= 0 || so >= 0) {
     if (nb++ < 40) {
-      cfg_logi("placeverify", "MISMATCH area=%u sub=%u ram@%x spad@%x sp=%x", area, sub, ro, so, sp);
+      lucent::info("placeverify", "MISMATCH area={} sub={} ram@{:x} spad@{:x} sp={:x}", area, sub, ro, so, sp);
     }
   } else {
-    cfg_logi("placeverify", "match #%ld (area=%u sub=%u)", ++ng, area, sub);
+    lucent::info("placeverify", "match #{} (area={} sub={})", ++ng, area, sub);
   }
 }
 
@@ -198,9 +200,9 @@ void Placement::placeAreaObjects() {
 //     return node;
 static uint32_t spawn_with_parent(Core *c) {
   uint32_t parent = c->r[4], type = c->r[5], cls = c->r[6] & 0xffu, flag = c->r[7];
-  uint32_t node = eng(c).spawn.dispatch(/*cls=*/type & 0x7fu,
-                                        /*type=*/(cls == 3) ? 3u : cls,
-                                        /*list=*/(cls == 3) ? 1u : 0u);
+  uint32_t node = eng(c).spawn.dispatch({.cls_in = /*cls=*/type & 0x7fu,
+                                         .type_in = /*type=*/(cls == 3) ? 3u : cls,
+                                         .list = /*list=*/(cls == 3) ? 1u : 0u});
   if (node != 0) {
     c->mem_w8(node + 0x28, type & 0xffu); // full type byte (s0 = original a1, unmasked)
     c->mem_w32(node + 0x10, parent);
@@ -210,13 +212,13 @@ static uint32_t spawn_with_parent(Core *c) {
 }
 void Placement::spawnWithParent() {
   Core *c = core;
-  int s_v = gctx(c)->verification.on("spawnparentverify");
+  int s_v = tombaSession(c).verification.on("spawnparentverify");
   if (!s_v) {
     c->r[2] = spawn_with_parent(c);
     return;
   }
-  uint8_t *ram0 = gctx(c)->verification.ram0();
-  uint8_t *ramN = gctx(c)->verification.ramN();
+  uint8_t *ram0 = tombaSession(c).verification.ram0();
+  uint8_t *ramN = tombaSession(c).verification.ramN();
   uint8_t spad0[0x400], spadN[0x400];
   uint32_t regs0[32];
   memcpy(regs0, c->r, sizeof regs0);
@@ -246,13 +248,15 @@ void Placement::spawnWithParent() {
       break;
     }
   }
-  tomba::VerificationCounter &chk = gctx(c)->verification.spawnParent;
+  tomba::VerificationCounter &chk = tombaSession(c).verification.spawnParent;
   long &ng = chk.nMatch, &nb = chk.nMismatch;
   if (ro >= 0 || so >= 0 || v0_n != v0_o) {
     if (nb++ < 40) {
-      cfg_logi("spawnparentverify", "MISMATCH v0 n=%x o=%x ram@%x spad@%x", v0_n, v0_o, ro, so);
+      lucent::info("spawnparentverify", "MISMATCH v0 n={:x} o={:x} ram@{:x} spad@{:x}", v0_n, v0_o, ro, so);
     }
   } else if (++ng % 20 == 0) {
-    cfg_logi("spawnparentverify", "%ld matches", ng);
+    lucent::info("spawnparentverify", "{} matches", ng);
   }
 }
+
+} // namespace tomba

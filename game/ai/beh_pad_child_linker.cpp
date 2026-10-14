@@ -33,9 +33,8 @@
 //   address dispatch(0x8007E038u)
 // PC calls PC directly for both (no typed runtime address dispatch indirection) now that they're native.
 
-#include "cfg.h"
 #include "core.h"
-#include "core/entry/game_ctx.h"
+#include "entry/tomba_session.h"
 #include "graphics_bind.h" // ov_record_alloc_g (FUN_8007AAE8)
 #include "guest_abi.h"     // GuestFrame — mirror the guest stack frame (CLAUDE.md)
 #include "guest_call.h"
@@ -44,6 +43,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+namespace tomba {
 
 namespace {
 
@@ -134,7 +135,7 @@ L3b0:
   c->mem_w16(p + 10, 0);
   p = c->mem_r32(s0 + 0xC0);
   c->mem_w16(p + 12, 0);
-  idx = c->mem_r16s(s1 + 6);
+  idx = (int16_t)c->mem_r16(s1 + 6);
   s1 += 8;
   v0 = c->mem_r32(s5 + ((uint32_t)(int32_t)idx << 2));
   p = c->mem_r32(s0 + 0xC0);
@@ -300,7 +301,6 @@ L6cc:
   if (v0 != 0) {
     goto L708;
   }
-  v0 = 3584; // f6e8 delay
   v1 = c->mem_r32(obj + 0xC0);
   c->mem_w16(v1 + 8, 512);
   v1 = c->mem_r32(obj + 0xC0);
@@ -363,8 +363,8 @@ L7cc:
   if (v0 != 0) {
     goto L800;
   }
-  v0 = eng(c).spawn.spawnOverlayVariant((uint16_t)(uint32_t)((int32_t)c->mem_r8(obj + 1) - 1),
-                                        0); // FUN_8007E038 (native)
+  v0 = eng(c).spawn.spawnOverlayVariant(
+      {.recordIndex = (uint16_t)(uint32_t)((int32_t)c->mem_r8(obj + 1) - 1), .variant = 0}); // FUN_8007E038 (native)
   c->mem_w32(obj + 0x14, v0);
   eng(c).bit.setFE34((int32_t)c->mem_r8(obj + 1) - 1); // FUN_8006F02C (native)
   goto L87c;
@@ -436,7 +436,7 @@ L8ac:
   if (v0 != 0) {
     goto L93c;
   }
-  v0 = eng(c).spawn.spawnOverlayVariant((uint16_t)s0, 0); // FUN_8007E038 (native)
+  v0 = eng(c).spawn.spawnOverlayVariant({.recordIndex = (uint16_t)s0, .variant = 0}); // FUN_8007E038 (native)
   c->mem_w32(obj + 0x10, v0);
   eng(c).bit.setFE34((int32_t)s0); // FUN_8006F02C (native)
   c->mem_w8(obj + 0x46, (uint8_t)s0);
@@ -469,3 +469,5 @@ L970:
 L9ac:
   c->mem_w8(0x800BF840u, 0); // epilogue: every exit clears this area flag
 }
+
+} // namespace tomba

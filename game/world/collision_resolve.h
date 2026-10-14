@@ -8,6 +8,12 @@
 struct Core;
 class Game;
 
+namespace tomba::native {
+class NativeOverrideCatalog;
+} // namespace tomba::native
+
+namespace tomba {
+
 class CollisionResolve {
 public:
   // FUN_80023D48(actor = a0, other = a1, anchor = a2, flags = a3) -> v0, where v0 is an OUTCOME
@@ -61,5 +67,7 @@ public:
   // below this function's sp unwritten while substrate core B writes them, and SBS compares that
   // memory. The body therefore invokes them through their generated func_XXXX wrappers, which is
   // what binary evidence emits and what keeps the guest stack byte-identical.
-  static void registerOverrides(Game *game);
+  static void registerOverrides(native::NativeOverrideCatalog &natives);
 };
+
+} // namespace tomba

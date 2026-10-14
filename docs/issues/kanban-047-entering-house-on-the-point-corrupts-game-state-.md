@@ -3,6 +3,7 @@ id: kanban-047
 title: pc_skip: entering 'House on the Point' corrupts state (music stops, camera unfollows, interior vibrates)
 status: open
 labels: [bug, pc-skip]
+features: [F-TURN]
 ---
 
 

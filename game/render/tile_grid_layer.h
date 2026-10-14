@@ -17,11 +17,19 @@
 // resolves to these two addresses at runtime).
 //
 #pragma once
+
 #include "emit_memory.h"
+#include "state_producer.h"
 #include <cstdint>
 
 struct Core;
 class Game;
+
+namespace tomba::native {
+class NativeOverrideCatalog;
+} // namespace tomba::native
+
+namespace tomba {
 
 class TileGridLayer {
 public:
@@ -38,13 +46,17 @@ public:
   // A0B 0x801141B0 and its A0A/A0D/A0F copies: A00's emitter with no V bias (A0B's starry backdrop).
   static void emitUnbiased(Core *c);
 
-  static void registerOverrides(Game *game);
+  static void registerOverrides(native::NativeOverrideCatalog &natives);
   // The grid as one object keyed by its node: its state render, at each of the six emitter entries.
-  static void registerStateRenders(Core &core);
+  static void registerStateRenders(psx::present::StateProducerTable &renders, Core &core);
 
+  struct EmitGridArgs {
+    uint32_t node;
+    uint32_t tileVBias;
+  };
   // The grid walk both emitters share, over the guest or a render's host memory: the sprites of every tile the
   // draw window shows, chained under a draw mode packet at the background bucket.
-  static void emitGrid(const psx::present::EmitMemory &memory, std::uint32_t node, std::uint32_t tileVBias);
+  static void emitGrid(const psx::present::EmitMemory &memory, const EmitGridArgs &args);
 
 private:
   // Saves the grid's state, then draws it.
@@ -53,3 +65,5 @@ private:
   // countdown runs out. Uses the caller's frame for the RECT at sp+0x18.
   static void cycleSopPalettes(Core *c);
 };
+
+} // namespace tomba

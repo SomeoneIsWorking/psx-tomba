@@ -1,8 +1,9 @@
 // libcd_dir_cache.cpp — see header.
 #include "libcd_dir_cache.h"
 #include "core.h"
-#include "disc.h" // disc_read_sector — native by-LBA disc backend
 #include "game.h" // Game::disc
+
+namespace tomba {
 
 namespace {
 uint32_t le32(const uint8_t *p) {
@@ -121,3 +122,5 @@ void LibcdDirCache::cacheFile(uint32_t dir_idx) {
 void LibcdDirCache::stampMediaCookie() {
   core_.mem_w32(kMediaCookieDst, core_.mem_r32(kMediaCookieSrc));
 }
+
+} // namespace tomba

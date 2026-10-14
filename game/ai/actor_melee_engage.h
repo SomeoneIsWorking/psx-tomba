@@ -80,13 +80,24 @@
 class Core;
 class Game;
 
+namespace tomba::native {
+class NativeOverrideCatalog;
+} // namespace tomba::native
+
+namespace tomba {
+
 class ActorMeleeEngage {
 public:
   Core *core = nullptr;
 
+  struct DoItArgs {
+    uint32_t self;
+    uint32_t target;
+    uint32_t anchor;
+  };
   // doIt (FUN_80112188): native-C-stack call, NOT guest-ABI framed. Use this from any future NATIVE
   // caller (no guest stack frame needed). Returns v0 (0/1/2), see the .h banner above.
-  int32_t doIt(uint32_t self, uint32_t target, uint32_t anchor);
+  int32_t doIt(const DoItArgs &args);
 
   // doItFramed: guest-ABI-facing twin used by the A00 tomba::native::declareOverride trampoline (see .cpp) —
   // mirrors the real 64-byte guest frame (spills s0..s7/s8/ra at their RE'd offsets) around doIt(),
@@ -97,6 +108,8 @@ public:
   // tomba::native::declareOverride (the recorded binary evidence's per-overlay call table — the only real callers found
   // are direct `overlay guest 0x80112188(c)` sites) as the setter so both that call shape and typed runtime address
   // dispatch (native-caller tracing) reach the native. See .cpp.
-  static void registerOverrides(Game *game);
+  static void registerOverrides(native::NativeOverrideCatalog &natives);
 };
+
+} // namespace tomba
 #endif

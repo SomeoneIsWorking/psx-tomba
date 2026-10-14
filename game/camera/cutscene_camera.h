@@ -29,13 +29,17 @@
 
 class Game;
 
+namespace tomba::native {
+class NativeOverrideCatalog;
+} // namespace tomba::native
+
 namespace tomba::camera {
 
 class CutsceneCamera : private CameraState {
 public:
   // Installs the camera's RE-ahead leaves (resetFollowAccum/pushMode/restoreMode/
   // snapToMasterOffsetY200/orbitTick) in the shared override registry. See cutscene_camera.cpp.
-  static void registerOverrides(Game *game);
+  static void registerOverrides(native::NativeOverrideCatalog &natives);
 
   CutsceneCamera(Core *core, uint32_t cameraObject) : CameraState(*core, cameraObject), look_(*this) {}
 
@@ -45,10 +49,6 @@ public:
   //   one of the follow orchestrators / a still-substrate leaf / a field-overlay handler, and runs
   //   the post-mode shake tail.
   void update();
-  // The guest-stack-faithful mirror of 0x8006EC44: it reproduces the gen's own frame (r29-=24,
-  // r16@sp+16 / r31@sp+20) and arms r31 with the exact jal-site constant before every callee, so
-  // downstream still-substrate leaves see the same guest stack. See cutscene_camera.cpp.
-  void updateFaithful();
   void init();                    // 0x8006EA7C — first-frame field reset and render-mode-keyed mode select.
   void initPlace();               // FUN_8006E918 — place camera X/Z base (scratch+0x02/+0x0a) from heading.
   void initSeedGrp(uint32_t src); // FUN_8006CBA8 — seed cam[0x3a/0x3e/0x42] from a source group.
@@ -89,51 +89,24 @@ public:
   void shakeTail();                // FUN_8006C988 — the camera SHAKE state machine; runs after every mode.
 
 private:
+  struct FollowAxisArgs {
+    uint32_t accAddr;
+    uint32_t tgt32Addr;
+    uint16_t tgtInt;
+    uint16_t curInt;
+    int16_t maxStep;
+  };
   // One follow-accumulator axis, shared by trackXZ/trackY: snap when within +/-10 of the target's
   // integer, else take a rate-limited step. Returns true iff it SNAPPED (settled) this frame.
-  bool followAxis(uint32_t accAddr, uint32_t tgt32Addr, uint16_t tgtInt, uint16_t curInt, int16_t maxStep);
+  bool followAxis(const FollowAxisArgs &args);
   // Dispatch a still-unowned resident camera leaf (or a field-overlay handler) via the substrate,
   // mirroring the driver's `jal fn`: set only a0 (= cam_), and a1 when given.
   void sub(uint32_t fn) {
     c->r[4] = cam_;
     psx::cpu::dispatchGuestToReturn0(*c, fn, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
   }
-  void sub(uint32_t fn, uint32_t a1) {
-    c->r[4] = cam_;
-    c->r[5] = a1;
-    psx::cpu::dispatchGuestToReturn0(*c, fn, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
-  }
-  // The same call with the guest's own return constant armed in `ra` first, which the guest-faithful
-  // dispatch needs: a body that pushes a frame writes that address into guest stack bytes, so it has
-  // to be the reference's value and not this core's stale return. `sub` above is this with the
-  // constant left alone; both are the one guest-call convention, not two.
-  void subAtReturn(uint32_t fn, uint32_t returnAddress) {
-    c->r[31] = returnAddress;
-    sub(fn);
-  }
-  void subAtReturn(uint32_t fn, uint32_t returnAddress, uint32_t a1) {
-    c->r[31] = returnAddress;
-    sub(fn, a1);
-  }
-  // The faithful arm that passes the CAMERA OBJECT the faithful driver hardcoded into r[16], not this
-  // instance's `cam_`: updateFaithful's dispatch runs inside that frame, so a0 is that value.
-  void subFaithfulAtReturn(uint32_t fn, uint32_t returnAddress) {
-    c->r[31] = returnAddress;
-    c->r[4] = c->r[16];
-    psx::cpu::dispatchGuestToReturn0(*c, fn, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
-  }
-  void subFaithfulAtReturn(uint32_t fn, uint32_t returnAddress, uint32_t a1) {
-    c->r[31] = returnAddress;
-    c->r[4] = c->r[16];
-    c->r[5] = a1;
-    psx::cpu::dispatchGuestToReturn0(*c, fn, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
-  }
   // update()'s MODE-byte (cam[0x64]&0x3F) dispatch.
   void dispatchMode(uint8_t mode);
-  // The guest-stack-faithful mirror of dispatchMode, driven by updateFaithful(): the same 18-entry
-  // mode table (cases 7/14 and 11/12 share a body, matching the gen's shared jump-table targets),
-  // with r[31] armed before every callee. Runs only under updateFaithful's already-descended frame.
-  void dispatchModeFaithful(uint8_t mode);
 
   LookAngleBuilder look_;
 

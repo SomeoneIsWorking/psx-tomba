@@ -37,9 +37,8 @@
 // path is exercised by the gate; the input/scene-driven sub-states are faithfully transcribed and verify
 // when a scene drives them (same caveat as the sibling orchestrators) — see Report.
 
-#include "cfg.h"
 #include "core.h"
-#include "core/entry/game_ctx.h"
+#include "entry/tomba_session.h"
 #include "graphics_bind.h" // ov_obj_record_init
 #include "guest_abi.h"     // GuestFrame — mirror the guest stack frame (CLAUDE.md)
 #include "guest_call.h"
@@ -49,6 +48,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+namespace tomba {
 
 namespace {
 
@@ -120,7 +121,7 @@ void beh_typed_jumptable_pair(Core *c) {
       // node[0x60]: if TC.lh@0 != 0 -> node[0x60] = TC.lhu@0 - node[0x2e]; else node[0x60] = TC.lhu@0
       uint8_t n3 = c->mem_r8(obj + 3);                 // 80139098 lbu a0, 3(s0)
       uint32_t e = TC + (uint32_t)n3 * 12;             // 801390A0..AC sll/addu/sll/addu -> TC + n3*12
-      int16_t e0s = c->mem_r16s(e + 0);                // 801390B0 lh   v1, (v0)
+      int16_t e0s = (int16_t)c->mem_r16(e + 0);        // 801390B0 lh   v1, (v0)
       uint16_t e0u = c->mem_r16(e + 0);                // 801390B4 lhu  a0, (v0)
       if (e0s != 0) {                                  // 801390B8 beqz v1 -> 0x801390d4
         uint16_t n2e = c->mem_r16(obj + 0x2e);         // 801390C0 lhu  v0, 0x2e(s0)
@@ -131,7 +132,7 @@ void beh_typed_jumptable_pair(Core *c) {
       // node[0x64]: TC struct re-derived (n3 reloaded), uses .lh@4 / .lhu@4
       n3 = c->mem_r8(obj + 3);                         // 801390DC lbu a0, 3(s0)
       e = TC + (uint32_t)n3 * 12;                      // 801390E0..F0
-      int16_t e4s = c->mem_r16s(e + 4);                // 801390F4 lh   v1, 4(v0)
+      int16_t e4s = (int16_t)c->mem_r16(e + 4);        // 801390F4 lh   v1, 4(v0)
       uint16_t e4u = c->mem_r16(e + 4);                // 801390F8 lhu  a0, 4(v0)
       if (e4s != 0) {                                  // 801390FC beqz v1 -> 0x80139118
         uint16_t n36 = c->mem_r16(obj + 0x36);         // 80139104 lhu  v0, 0x36(s0)
@@ -148,8 +149,9 @@ void beh_typed_jumptable_pair(Core *c) {
       uint16_t e8 = c->mem_r16(e2 + 8); // 80139174 lhu v0, 8(v0)
       c->mem_w16(obj + 0x82, e8);       // 8013917C sh v0, 0x82(s0)
       // node[0x80] = (sign-extend e8) >> 1  with round-toward-zero (sra after +sign>>31)
-      int16_t e8s = (int16_t)e8;                                             // 80139180/84 sll 16 ; sra 16
-      int32_t half80 = ((int32_t)e8s + ((uint32_t)(int32_t)e8s >> 31)) >> 1; // 80139188..90 srl 31 ; addu ; sra 1
+      int16_t e8s = (int16_t)e8; // 80139180/84 sll 16 ; sra 16
+      int32_t half80 =
+          ((int32_t)e8s + (int32_t)((uint32_t)(int32_t)e8s >> 31)) >> 1; // 80139188..90 srl 31 ; addu ; sra 1
       // a0 path uses node3 again for node[0x86]/node[0x84]
       uint32_t e3 = TC + (uint32_t)c->mem_r8(obj + 3) * 12; // 80139194..A0 (a0 path; a0 still = node3)
       c->mem_w8(obj + 0, 1);                                // 801391AC/B0 addiu v1,zero,1 ; sb v1, (s0)
@@ -157,8 +159,8 @@ void beh_typed_jumptable_pair(Core *c) {
       c->mem_w16(obj + 0x80, (uint16_t)(int16_t)half80);    // 801391A4 sh v1(=half80), 0x80(s0)
       c->mem_w16(obj + 0x86, ea);                           // 801391B4 sh v0, 0x86(s0)
       int16_t eas = (int16_t)ea;                            // 801391B8/BC sll 16 ; sra 16
-      int32_t half84 = ((int32_t)eas + ((uint32_t)(int32_t)eas >> 31)) >> 1; // 801391C0..C8
-      c->mem_w16(obj + 0x84, (uint16_t)(int16_t)half84);                     // 801391CC sh v1(=half84), 0x84(s0)
+      int32_t half84 = ((int32_t)eas + (int32_t)((uint32_t)(int32_t)eas >> 31)) >> 1; // 801391C0..C8
+      c->mem_w16(obj + 0x84, (uint16_t)(int16_t)half84); // 801391CC sh v1(=half84), 0x84(s0)
     }
 
     // ---- 0x801391D0: node[3]-keyed jump table JT0 (node[3] in [0,5]) ----
@@ -196,6 +198,8 @@ void beh_typed_jumptable_pair(Core *c) {
     case 5:                                                               // jt0[5] = 0x80139260
       c->mem_w16(obj + 0x56, (uint16_t)(c->mem_r16(obj + 0x56) - 0x600)); // 80139260/68/70 lhu ; -0x600 ; sh
       return;                                                             // 8013926C j 0x801395ac
+    default:
+      break;
     }
     return;
   }
@@ -283,15 +287,15 @@ void beh_typed_jumptable_pair(Core *c) {
 
     case 1: {                                           // jt1[1] = 0x801393f8
       (void)eng(c).sceneTransition.stepSwapWaiter(obj); // was typed runtime address dispatch 0x80073328 (v0 discarded)
-      eng(c).spawn.tickLinkedOverlay(obj,
-                                     0x45); // 80139400/04/08 was typed runtime address dispatch(0x800735F4u, a1=0x45)
-      break;                                // 8013940C j 0x80139580
+      eng(c).spawn.tickLinkedOverlay(
+          {.obj = obj, .recordId = 0x45}); // 80139400/04/08 was typed runtime address dispatch(0x800735F4u, a1=0x45)
+      break;                               // 8013940C j 0x80139580
     }
 
     case 2: {                                           // jt1[2] = 0x80139414
       (void)eng(c).sceneTransition.stepSwapWaiter(obj); // was typed runtime address dispatch 0x80073328 (v0 discarded)
-      eng(c).spawn.tickLinkedOverlay(obj,
-                                     0x46); // 8013941C/20/24 was typed runtime address dispatch(0x800735F4u, a1=0x46)
+      eng(c).spawn.tickLinkedOverlay(
+          {.obj = obj, .recordId = 0x46}); // 8013941C/20/24 was typed runtime address dispatch(0x800735F4u, a1=0x46)
       // 0x800c0000 - 0x7ec = 0x800BF814 ; v0 = lw & 0xffff0000 ; compare to 0x02010000
       uint32_t g = c->mem_r32(0x800BF814u) & 0xFFFF0000u; // 8013942C lw v0 ; 80139434 and v0,v1(0xffff0000)
       if (g != 0x02010000u) {                             // 80139438 lui v1,0x201 ; 8013943C bne -> 0x80139470
@@ -328,8 +332,8 @@ void beh_typed_jumptable_pair(Core *c) {
           c->r[5] = 0x41; // 80139518 a0=0x6d ; 80139520 a1=0x41
           psx::cpu::dispatchGuestToReturn0(
               *c, 0x8004ED94u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // 8013951C jal 0x8004ed94
-          eng(c).sfx.trigger(0x19, 0, 0xF); // 8013952C jal 0x80074590 (native)
-          break;                            // 80139534 j 0x80139580
+          eng(c).sfx.trigger({.id = 0x19, .pan = 0, .pitchBend = 0xF}); // 8013952C jal 0x80074590 (native)
+          break;                                                        // 80139534 j 0x80139580
         }
         if (n6 == s5) { // 801394E8 beq v0,v1 (v1==node[5]==1) -> 0x8013953c
           // ---- 0x8013953c ----
@@ -373,7 +377,7 @@ void beh_typed_jumptable_pair(Core *c) {
           *c, 0x80138C70u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // 80139578 jal 0x80138c70 (a0=s0)
       break;                                                                      // (no j; falls into tail @0x80139580)
 
-    case 5: // jt1[5] = 0x80139580 (== tail; no-op)
+    default: // jt1[5] = 0x80139580 (== tail; no-op)
       break;
     }
   }
@@ -386,3 +390,5 @@ void beh_typed_jumptable_pair(Core *c) {
   c->mem_w8(obj + 0x29, 0); // 80139598 sb zero, 0x29(s0)
   c->mem_w8(obj + 0x2b, 0); // 801395A0 sb zero, 0x2b(s0)  (delay slot of j epilogue)
 }
+
+} // namespace tomba

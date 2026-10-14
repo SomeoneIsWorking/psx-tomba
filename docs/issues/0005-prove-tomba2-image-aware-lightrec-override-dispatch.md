@@ -7,6 +7,7 @@ state_items: S001
 tags: tomba2,dynarec,lightrec,overrides,overlays
 created: 2026-09-04
 updated: 2026-09-12
+features: [F-BOOT]
 ---
 
 ## Required discriminator

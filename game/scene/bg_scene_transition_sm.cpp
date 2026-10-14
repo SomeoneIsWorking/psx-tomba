@@ -27,20 +27,22 @@
 // (absolute) in state 4. Byte-exact A/B gate (full RAM+scratchpad vs original guest-body call).
 
 #include "bg_scene_transition_sm.h"
-#include "cfg.h"
 #include "core.h"
 #include "core/engine/engine.h"
-#include "core/entry/game_ctx.h"
-#include "core/overrides/native_override_catalog.h" // tomba::native::declareOverride — the one native-override registry
+#include "core/overrides/native_override_catalog.h"
+#include "entry/tomba_session.h"
 #include "game.h"
 #include "guest_call.h"
 #include "render/screen_fade.h" // class ScreenFade — the single fade driver
+#include <lucent/log.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 // Ground-truth substrate bodies (the ORACLE gen leg runs these) + the two still-substrate sub-leaves
 // opSceneEventArmWait calls (kept pure-PSX via their func_ thunks, byte-faithful to the guest-visible behavior).
+
+namespace tomba {
 
 namespace {
 
@@ -59,7 +61,7 @@ constexpr uint32_t NODE_SUBSTATE = 120; // node+0x78 — u8 opcode sub-state
 
 // Guest FUN_8007E9C8(color, P[3], 4).
 void BgSceneTransitionSm::fadeRect(Core *c, uint32_t color) {
-  cfg_logf("fadesites", "[fadesite] BgSm-state%u color=%06x dir=%u", c->mem_r8(P + 4), color, c->mem_r8(P + 3));
+  lucent::debug("fadesites", "[fadesite] BgSm-state{} color={:06x} dir={}", c->mem_r8(P + 4), color, c->mem_r8(P + 3));
   fade(c).applyLeafCall(color, c->mem_r8(P + 3), 4);
 }
 
@@ -163,7 +165,7 @@ void BgSceneTransitionSm::body(Core *c) {
   case 1: {
     uint32_t u = (uint32_t)(((int)c->mem_r16s(P + 0xa) * (int)c->mem_r16s(P + 8)) & 0xff);
     fadeRect(c, (u << 16) | (u << 8) | u);
-    int16_t before = c->mem_r16s(P + 8);
+    int16_t before = (int16_t)c->mem_r16(P + 8);
     c->mem_w16(P + 8, (uint16_t)(before - 1));
     if (before == 1) {
       c->mem_w8(P + 4, (uint8_t)(c->mem_r8(P + 4) + 1));
@@ -218,13 +220,13 @@ void BgSceneTransitionSm::body(Core *c) {
 }
 
 void BgSceneTransitionSm::verifyBody(Core *c) {
-  int s_v = gctx(c)->verification.on("bgscenesmverify");
+  int s_v = tombaSession(c).verification.on("bgscenesmverify");
   if (!s_v) {
     body(c);
     return;
   }
-  uint8_t *ram0 = gctx(c)->verification.ram0();
-  uint8_t *ramN = gctx(c)->verification.ramN();
+  uint8_t *ram0 = tombaSession(c).verification.ram0();
+  uint8_t *ramN = tombaSession(c).verification.ramN();
   uint8_t spad0[0x400], spadN[0x400];
   uint32_t regs0[32];
   memcpy(regs0, c->r, sizeof regs0);
@@ -253,20 +255,20 @@ void BgSceneTransitionSm::verifyBody(Core *c) {
       break;
     }
   }
-  tomba::VerificationCounter &chk = gctx(c)->verification.backgroundScene;
+  tomba::VerificationCounter &chk = tombaSession(c).verification.backgroundScene;
   long &ng = chk.nMatch, &nb = chk.nMismatch;
   if (ro >= 0 || so >= 0) {
     if (nb++ < 40) {
-      cfg_logi("bgscenesmverify",
-               "MISMATCH st=%u ram@%x (nat=%02x ora=%02x) spad@%x",
-               c->mem_r8(P + 4),
-               ro,
-               ro >= 0 ? ramN[ro] : 0,
-               ro >= 0 ? c->ram[ro] : 0,
-               so);
+      lucent::info("bgscenesmverify",
+                   "MISMATCH st={} ram@{:x} (nat={:02x} ora={:02x}) spad@{:x}",
+                   c->mem_r8(P + 4),
+                   ro,
+                   ro >= 0 ? ramN[ro] : 0,
+                   ro >= 0 ? c->ram[ro] : 0,
+                   so);
     }
   } else if (++ng % 50 == 0) {
-    cfg_logi("bgscenesmverify", "%ld matches", ng);
+    lucent::info("bgscenesmverify", "{} matches", ng);
   }
 }
 
@@ -368,7 +370,9 @@ static void eov_opClearSceneFlag80a(Core *c) {
   BgSceneTransitionSm::opClearSceneFlag80a(c);
 }
 
-void BgSceneTransitionSm::registerOverrides() {
-  tomba::native::declareOverride(0x80042758u, "BgSceneTransitionSm::opSceneEventArmWait", eov_opSceneEventArmWait);
-  tomba::native::declareOverride(0x80042884u, "BgSceneTransitionSm::opClearSceneFlag80a", eov_opClearSceneFlag80a);
+void BgSceneTransitionSm::registerOverrides(native::NativeOverrideCatalog &natives) {
+  natives.declare(0x80042758u, "BgSceneTransitionSm::opSceneEventArmWait", eov_opSceneEventArmWait);
+  natives.declare(0x80042884u, "BgSceneTransitionSm::opClearSceneFlag80a", eov_opClearSceneFlag80a);
 }
+
+} // namespace tomba

@@ -27,6 +27,8 @@
 #include "core.h"
 #include <cstdint>
 
+namespace tomba {
+
 namespace {
 constexpr uint32_t OFF_SUBTYPE = 0x03;         // dialog box subtype (0-5 gated, >=6 plain)
 constexpr uint32_t OFF_STATE = 0x05;           // box top-level state (owned by FUN_8007D594)
@@ -35,7 +37,9 @@ constexpr uint32_t OFF_COL = 0x2A;             // glyph column counter on curren
 constexpr uint32_t OFF_MODE_TIMER = 0x40;      // render-mode timer (applyRenderMode + 0xFC control byte)
 constexpr uint32_t OFF_BOX_TIMER = 0x42;       // secondary per-box timer (0xF8/0xF9 mode-marker, 0xFF term)
 constexpr uint32_t G_TEXT_SPEED = 0x800BF8A3u; // DAT_800bf8a3 -- text-speed/language mode byte
-enum { R_A0 = 4, R_A1 = 5, R_V0 = 2 };
+constexpr int R_A0 = 4;
+constexpr int R_A1 = 5;
+constexpr int R_V0 = 2;
 } // namespace
 
 // FUN_8007D0D0(obj a0) -- LEAF (guest 0x8007D0D0 has no `sp` descent). Cross-checked verbatim
@@ -61,3 +65,5 @@ void DialogTextStream::applyRenderMode(Core *c) {
     c->mem_w16(obj + OFF_MODE_TIMER, 1);
   }
 }
+
+} // namespace tomba

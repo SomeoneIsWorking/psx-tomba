@@ -20,9 +20,8 @@
 // blend) into the shared packet-pool bump allocator + OT linked list. Every GTE op and guest write
 // below is required.
 #include "overlay_gt3gt4.h"
-#include "cfg.h"
 #include "core.h"
-#include "core/overrides/native_override_catalog.h" // tomba::native::declareOverride — declared, not locally extern'd
+#include "core/overrides/native_override_catalog.h"
 #include "game.h"
 #include "guest_call.h"
 #include "guest_ordering_table.h"
@@ -31,6 +30,7 @@
 #include "model_element.h"
 #include "model_packet.h"
 #include <cstddef>
+#include <lucent/log.h>
 #include <memory>
 #include <stdio.h>
 #include <string_view>
@@ -39,38 +39,12 @@
   0xFFF0F0F0u // low-nibble-per-byte clear on RGB889 words (matches the GPU;
               // same constant as game/render/submit.cpp)
 
-// Shared near-plane-aware OTZ pick: given the record's "blend/flag" byte (top byte of the record's
-// second colour word) and the 3 raw SZ FIFO values (GTE data regs 17/18/19, i.e. SZ1/SZ2/SZ3 —
-// RTPT/RTPS write SZ1..SZ3, leaving SZ0 the prior value), reproduce the exact clamp-then-average
-// the guest instruction path performs when flag != 0. flag&2 selects min-clamp (additive-style blend, whose
-// nearer faces should NOT lose the depth sort to a farther match) vs max-clamp (subtractive-style).
-static int32_t overlay_gt_z_blend(uint32_t flag, int32_t sz1, int32_t sz2, int32_t sz3) {
-  int32_t a = sz1, b = sz2;
-  if (flag & 2u) {
-    if (a - b >= 0) {
-      a = b; // additive: clamp a down to the nearer of (a,b)
-    }
-    int32_t r = a >> 2;
-    if (a - sz3 >= 0) {
-      r = sz3 >> 2; // then to the nearer of (that, sz3)
-    }
-    return r;
-  } else {
-    if (a - b <= 0) {
-      a = b; // subtractive: clamp a up to the farther of (a,b)
-    }
-    int32_t r = a >> 2;
-    if (a - sz3 <= 0) {
-      r = sz3 >> 2; // then to the farther of (that, sz3)
-    }
-    return r;
-  }
-}
+namespace tomba {
 
 // Both leaves' OT bucket, or kNoBucket outside the exclusive (4, 0x7FF); a dropped record's
 // packet-pool writes are orphaned, as in the guest.
 static int32_t overlay_gt_otz_index(int32_t z) {
-  using tomba2::render::OrderingTable;
+  using tomba::render::OrderingTable;
   const int32_t idx = OrderingTable::compressDepth(z);
   return OrderingTable::inDepthRangeExclusive(idx) ? idx : OrderingTable::kNoBucket;
 }
@@ -81,9 +55,16 @@ static constexpr uint32_t kScrollFlag = 4u;
 static constexpr uint32_t kGt3ScrolledUv[] = {12u, 24u, 12u};
 static constexpr uint32_t kGt4ScrolledUv[] = {12u, 24u, 36u, 48u};
 
+// A packet and the guest halfword holding its UV scroll offset.
+struct ScrolledPacket {
+  uint32_t pool;
+  uint32_t uvScroll;
+};
+
 template <std::size_t N>
 static void
-scrollUv(const psx::present::EmitMemory &memory, uint32_t pool, uint32_t uvScroll, const uint32_t (&halfwords)[N]) {
+scrollUv(const psx::present::EmitMemory &memory, const ScrolledPacket &packet, const uint32_t (&halfwords)[N]) {
+  const auto [pool, uvScroll] = packet;
   const int16_t offset = static_cast<int16_t>(memory.mem_r16(uvScroll));
   for (const uint32_t halfword : halfwords) {
     memory.mem_w16(pool + halfword,
@@ -163,13 +144,6 @@ void OverlayGt3Gt4::submitBlock(Core *c) {
   c->r[17] = c->mem_r32(sp + kSpillS1);
   c->r[16] = c->mem_r32(sp + kSpillS0);
   c->r[29] = sp + kFrameSize;
-
-  if (cfg_dbg("ovgt")) {
-    static long n = 0;
-    if (n++ % 512 == 0) {
-      cfg_logf("ovgt", "submitBlock call#%ld block=%08X gt3=%u gt4=%u", n, block, counts & 0xFFFFu, counts >> 16);
-    }
-  }
 }
 
 // FUN_801465EC — POLY_GT3 (gouraud-textured triangle) emit, GTE-driven, guest-writing.
@@ -180,39 +154,33 @@ void OverlayGt3Gt4::submitBlock(Core *c) {
 //   the guest instruction path: this record's colour0 word never passes through COL_MASK), +8 SXY0,
 //   +12 uv0|clut, +16 rgb1&MASK, +20 SXY1, +24 uv1|tpage, +28 rgb2&MASK, +32 SXY2, +36 uv2hi}.
 uint32_t OverlayGt3Gt4::emitGt3(const psx::present::EmitMemory &memory,
-                                const tomba2::render::ListCall &call,
+                                const tomba::render::ListCall &call,
                                 uint32_t uvScroll,
-                                const tomba2::horizontal_cull::Visibility &visible) {
+                                const tomba::horizontal_cull::Visibility &visible) {
   Core *const c = &memory.core();
   uint32_t rec = call.list, count = call.count;
-  if (cfg_dbg("ovgt")) {
-    static long n = 0;
-    if (n++ % 512 == 0) {
-      cfg_logf("ovgt", "gt3 call#%ld count=%u", n, count);
-    }
-  }
   if (count == 0) {
     return rec;
   }
-  uint32_t pool = tomba2::render::PacketPool(memory).cursor();
+  uint32_t pool = tomba::render::PacketPool(memory).cursor();
   const uint32_t list = rec;
   for (; count != 0; count--, rec += 36) {
     const psx::present::ElementScope primitive(
-        memory, tomba2::render::modelElement(tomba2::render::ModelList::Gt3, (rec - list) / 36));
-    gte_write_data(0, memory.mem_r32(rec + 16)); // VXY0
+        memory, tomba::render::modelElement(tomba::render::ModelList::Gt3, (rec - list) / 36));
+    c->gte().writeData(0, memory.mem_r32(rec + 16)); // VXY0
     uint32_t vz01 = memory.mem_r32(rec + 20);
-    gte_write_data(2, memory.mem_r32(rec + 24)); // VXY1
-    gte_write_data(1, vz01);                     // VZ0
-    gte_write_data(4, memory.mem_r32(rec + 28)); // VXY2
+    c->gte().writeData(2, memory.mem_r32(rec + 24)); // VXY1
+    c->gte().writeData(1, vz01);                     // VZ0
+    c->gte().writeData(4, memory.mem_r32(rec + 28)); // VXY2
     uint32_t vz23 = memory.mem_r32(rec + 32);
-    gte_write_data(3, vz01 >> 16);         // VZ1
-    gte_write_data(5, vz23);               // VZ2
+    c->gte().writeData(3, vz01 >> 16);     // VZ1
+    c->gte().writeData(5, vz23);           // VZ2
     memory.mem_w32(pool + 36, vz23 >> 16); // uv2hi staged (pre-RTPT scratch write)
-    gte_op(c, 0x4A280030u);                // RTPT (triple perspective transform)
+    c->gte().execute(0x4A280030u);         // RTPT (triple perspective transform)
 
     uint32_t uv0 = memory.mem_r32(rec + 8), uv1 = memory.mem_r32(rec + 12);
     uint32_t rgb0_code = memory.mem_r32(rec + 0), rgb1_src = memory.mem_r32(rec + 4);
-    uint32_t flagreg = gte_read_ctrl(31);
+    uint32_t flagreg = c->gte().readControl(31);
     memory.mem_w32(pool + 12, uv0);
     memory.mem_w32(pool + 24, uv1); // both writes happen regardless of flag
     if ((int32_t)flagreg < 0) {
@@ -222,7 +190,8 @@ uint32_t OverlayGt3Gt4::emitGt3(const psx::present::EmitMemory &memory,
     memory.storeGteXy(pool + 8, 12);  // SXY0
     memory.storeGteXy(pool + 20, 13); // SXY1
     memory.storeGteXy(pool + 32, 14); // SXY2
-    int32_t sxy0 = (int32_t)gte_read_data(12), sxy1 = (int32_t)gte_read_data(13), sxy2 = (int32_t)gte_read_data(14);
+    int32_t sxy0 = (int32_t)c->gte().readData(12), sxy1 = (int32_t)c->gte().readData(13),
+            sxy2 = (int32_t)c->gte().readData(14);
 
     // Frustum reject, the recovered predicate: unsigned-compare the packed SXY words against the
     // frame HEIGHT, then (after <<16 each) against the draw WIDTH — an OR over corners on each axis,
@@ -240,7 +209,7 @@ uint32_t OverlayGt3Gt4::emitGt3(const psx::present::EmitMemory &memory,
     // a leftover: the publication is guest 0x800509B4, which sets OFX/OFY = 160/120 and H = 350, and
     // widening OFX at unchanged OFY and H leaves the vertical field of view alone. The frame is 2*OFY
     // tall at every canvas width, so 240 is the height and only the width moves.
-    const std::uint32_t height16 = static_cast<std::uint32_t>(tomba2::horizontal_cull::kGuestFrameHeight) << 16;
+    const std::uint32_t height16 = static_cast<std::uint32_t>(tomba::horizontal_cull::kGuestFrameHeight) << 16;
     if (!((static_cast<std::uint32_t>(sxy0) < height16) || (static_cast<std::uint32_t>(sxy1) < height16) ||
           (static_cast<std::uint32_t>(sxy2) < height16))) {
       continue;
@@ -248,15 +217,15 @@ uint32_t OverlayGt3Gt4::emitGt3(const psx::present::EmitMemory &memory,
     const std::uint32_t xs[3] = {static_cast<std::uint32_t>(sxy0) << 16,
                                  static_cast<std::uint32_t>(sxy1) << 16,
                                  static_cast<std::uint32_t>(sxy2) << 16};
-    if (!visible.keepsX(xs, 3, tomba2::horizontal_cull::Domain::Fixed16_16)) {
+    if (!visible.keepsX(xs, 3, tomba::horizontal_cull::Domain::Fixed16_16)) {
       continue;
     }
 
-    gte_op(c, 0x4B400006u);                         // NCLIP (backface / MAC0)
+    c->gte().execute(0x4B400006u);                  // NCLIP (backface / MAC0)
     memory.mem_w32(pool + 16, rgb1_src & COL_MASK); // rgb1
     memory.mem_w32(pool + 4, rgb0_code);            // rgb0|code, UNMASKED (faithful)
     uint32_t rgb2 = (rgb1_src << 4) & COL_MASK;
-    int32_t mac0 = (int32_t)gte_read_data(24);
+    int32_t mac0 = (int32_t)c->gte().readData(24);
     memory.mem_w32(pool + 28, rgb2);
     if (mac0 <= 0) {
       continue; // backface cull
@@ -264,15 +233,17 @@ uint32_t OverlayGt3Gt4::emitGt3(const psx::present::EmitMemory &memory,
 
     uint32_t flagbyte = rgb1_src >> 24;
     if (uvScroll != kNoScroll && (flagbyte & kScrollFlag) != 0) {
-      scrollUv(memory, pool, uvScroll, kGt3ScrolledUv);
+      scrollUv(memory, {.pool = pool, .uvScroll = uvScroll}, kGt3ScrolledUv);
     }
     int32_t z;
     if (flagbyte == 0) {
-      gte_op(c, 0x4B58002Du); // AVSZ3 (straight OTZ average)
-      z = (int32_t)gte_read_data(7);
+      c->gte().execute(0x4B58002Du); // AVSZ3 (straight OTZ average)
+      z = (int32_t)c->gte().readData(7);
     } else {
-      int32_t sz1 = (int32_t)gte_read_data(17), sz2 = (int32_t)gte_read_data(18), sz3 = (int32_t)gte_read_data(19);
-      z = overlay_gt_z_blend(flagbyte, sz1, sz2, sz3);
+      int32_t sz1 = (int32_t)c->gte().readData(17), sz2 = (int32_t)c->gte().readData(18),
+              sz3 = (int32_t)c->gte().readData(19);
+      // flag bit 1 picks the nearest SZ (additive blend), else the farthest.
+      z = tomba::render::OrderingTable::extremeDepth((flagbyte & 2u) == 0, std::array{sz1, sz2, sz3});
     }
 
     int32_t idx = overlay_gt_otz_index(z);
@@ -280,10 +251,10 @@ uint32_t OverlayGt3Gt4::emitGt3(const psx::present::EmitMemory &memory,
       continue;
     }
 
-    tomba2::render::OrderingTable(memory, call.ot).link(pool, 9u, (uint32_t)idx);
+    tomba::render::OrderingTable(memory, call.ot).link({.packet = pool, .words = 9u, .bucket = (uint32_t)idx});
     pool += 40;
   }
-  tomba2::render::PacketPool(memory).setCursor(pool);
+  tomba::render::PacketPool(memory).setCursor(pool);
   return rec;
 }
 
@@ -295,35 +266,34 @@ uint32_t OverlayGt3Gt4::emitGt3(const psx::present::EmitMemory &memory,
 //   +12 uv0|clut, +16 rgb1&MASK, +20 SXY1, +24 uv1|tpage, +28 rgb2&MASK, +32 SXY2, +36 uv2,
 //   +40 rgb3&MASK, +44 SXY3, +48 uv3}. Unlike the GT3 leaf above, rgb0 here IS masked — verified
 // against the guest instruction path, not "fixed" to match GT3 (the asymmetry is faithful, not a bug).
-uint32_t OverlayGt3Gt4::emitGt4(const psx::present::EmitMemory &memory,
-                                const tomba2::render::ListCall &call,
-                                uint32_t uvScroll) {
+uint32_t
+OverlayGt3Gt4::emitGt4(const psx::present::EmitMemory &memory, const tomba::render::ListCall &call, uint32_t uvScroll) {
   Core *const c = &memory.core();
   uint32_t rec = call.list, count = call.count;
   if (count == 0) {
     return rec;
   }
-  uint32_t pool = tomba2::render::PacketPool(memory).cursor();
+  uint32_t pool = tomba::render::PacketPool(memory).cursor();
   const uint32_t list = rec;
   for (; count != 0; count--, rec += 44) {
     const psx::present::ElementScope primitive(
-        memory, tomba2::render::modelElement(tomba2::render::ModelList::Gt4, (rec - list) / 44));
-    gte_write_data(0, memory.mem_r32(rec + 20)); // VXY0
+        memory, tomba::render::modelElement(tomba::render::ModelList::Gt4, (rec - list) / 44));
+    c->gte().writeData(0, memory.mem_r32(rec + 20)); // VXY0
     uint32_t vz01 = memory.mem_r32(rec + 24);
-    gte_write_data(2, memory.mem_r32(rec + 28)); // VXY1
-    gte_write_data(1, vz01);                     // VZ0
-    gte_write_data(4, memory.mem_r32(rec + 32)); // VXY2
+    c->gte().writeData(2, memory.mem_r32(rec + 28)); // VXY1
+    c->gte().writeData(1, vz01);                     // VZ0
+    c->gte().writeData(4, memory.mem_r32(rec + 32)); // VXY2
     uint32_t vz23 = memory.mem_r32(rec + 36);
-    gte_write_data(3, vz01 >> 16); // VZ1
-    gte_write_data(5, vz23);       // VZ2
-    gte_op(c, 0x4A280030u);        // RTPT (verts 0..2)
+    c->gte().writeData(3, vz01 >> 16); // VZ1
+    c->gte().writeData(5, vz23);       // VZ2
+    c->gte().execute(0x4A280030u);     // RTPT (verts 0..2)
 
-    uint32_t flagreg = gte_read_ctrl(31);
+    uint32_t flagreg = c->gte().readControl(31);
     if ((int32_t)flagreg < 0) {
       continue;
     }
-    gte_op(c, 0x4B400006u); // NCLIP (backface / MAC0)
-    int32_t mac0 = (int32_t)gte_read_data(24);
+    c->gte().execute(0x4B400006u); // NCLIP (backface / MAC0)
+    int32_t mac0 = (int32_t)c->gte().readData(24);
     if (mac0 <= 0) {
       continue; // backface cull
     }
@@ -344,10 +314,10 @@ uint32_t OverlayGt3Gt4::emitGt4(const psx::present::EmitMemory &memory,
     memory.mem_w32(pool + 36, uv23);                        // uv2 (lo half)
     memory.mem_w32(pool + 48, uv23 >> 16);                  // uv3 (hi half)
 
-    gte_write_data(0, memory.mem_r32(rec + 40)); // VXY3
-    gte_write_data(1, vz23 >> 16);               // VZ3
-    gte_op(c, 0x4A180001u);                      // RTPS (4th point, single transform)
-    uint32_t flagreg2 = gte_read_ctrl(31);
+    c->gte().writeData(0, memory.mem_r32(rec + 40)); // VXY3
+    c->gte().writeData(1, vz23 >> 16);               // VZ3
+    c->gte().execute(0x4A180001u);                   // RTPS (4th point, single transform)
+    uint32_t flagreg2 = c->gte().readControl(31);
     if ((int32_t)flagreg2 < 0) {
       continue;
     }
@@ -355,15 +325,15 @@ uint32_t OverlayGt3Gt4::emitGt4(const psx::present::EmitMemory &memory,
 
     uint32_t flagbyte = rgb2_src >> 24;
     if (uvScroll != kNoScroll && (flagbyte & kScrollFlag) != 0) {
-      scrollUv(memory, pool, uvScroll, kGt4ScrolledUv);
+      scrollUv(memory, {.pool = pool, .uvScroll = uvScroll}, kGt4ScrolledUv);
     }
     int32_t z;
     if (flagbyte == 0) {
-      gte_op(c, 0x4B68002Eu); // AVSZ4 (straight OTZ average, 4 pts)
-      z = (int32_t)gte_read_data(7);
+      c->gte().execute(0x4B68002Eu); // AVSZ4 (straight OTZ average, 4 pts)
+      z = (int32_t)c->gte().readData(7);
     } else {
-      int32_t sz1 = (int32_t)gte_read_data(16), sz2 = (int32_t)gte_read_data(17), sz3 = (int32_t)gte_read_data(18),
-              sz4 = (int32_t)gte_read_data(19);
+      int32_t sz1 = (int32_t)c->gte().readData(16), sz2 = (int32_t)c->gte().readData(17),
+              sz3 = (int32_t)c->gte().readData(18), sz4 = (int32_t)c->gte().readData(19);
       // 4-point variant: clamp sz1 vs sz2 and sz3 vs sz4 pairwise first, then combine — the
       // guest instruction path's exact widened form of the 3-point blend above (see FUN_801467bc decomp).
       int32_t a = sz1, b = sz2, e = sz3, f = sz4;
@@ -399,25 +369,25 @@ uint32_t OverlayGt3Gt4::emitGt4(const psx::present::EmitMemory &memory,
       continue;
     }
 
-    tomba2::render::OrderingTable(memory, call.ot).link(pool, 12u, (uint32_t)idx);
+    tomba::render::OrderingTable(memory, call.ot).link({.packet = pool, .words = 12u, .bucket = (uint32_t)idx});
     pool += 52;
   }
-  tomba2::render::PacketPool(memory).setCursor(pool);
+  tomba::render::PacketPool(memory).setCursor(pool);
   return rec;
 }
 
-void OverlayGt3Gt4::gt3(Core &core, uint32_t uvScroll, const tomba2::horizontal_cull::Visibility &visible) {
-  core.r[2] = emitGt3(core, tomba2::render::ListCall::fromRegisters(core), uvScroll, visible);
+void OverlayGt3Gt4::gt3(Core &core, uint32_t uvScroll, const tomba::horizontal_cull::Visibility &visible) {
+  core.r[2] = emitGt3(core, tomba::render::ListCall::fromRegisters(core), uvScroll, visible);
 }
 
 void OverlayGt3Gt4::gt4(Core &core, uint32_t uvScroll) {
-  core.r[2] = emitGt4(core, tomba2::render::ListCall::fromRegisters(core), uvScroll);
+  core.r[2] = emitGt4(core, tomba::render::ListCall::fromRegisters(core), uvScroll);
 }
 
 namespace {
 
 using psx::present::EmitMemory;
-using tomba2::render::ListCall;
+using tomba::render::ListCall;
 
 constexpr uint32_t kA08Gt3 = 0x80140FBCu;
 constexpr uint32_t kA08Gt4 = 0x801411D8u;
@@ -425,9 +395,9 @@ constexpr uint32_t kA08Gt4 = 0x801411D8u;
 // A leaf's call is its own drawing object: (leaf, the object that reached it), or (leaf, list) outside one.
 template <uint32_t Entry, bool Quad, uint32_t Scroll> void emitAt(Core *c) {
   const ListCall call = ListCall::fromRegisters(*c);
-  const tomba2::render::EmitterObject object(c->emission, Entry, call.list);
-  const tomba2::render::ModelShape &shape = Quad ? tomba2::render::kModelGt4 : tomba2::render::kModelGt3;
-  tomba2::render::ListJobWriter job(*c, Quad ? 1u : 0u, call, call.count * shape.packetBytes);
+  const tomba::render::EmitterObject object(c->emission, Entry, call.list);
+  const tomba::render::ModelShape &shape = Quad ? tomba::render::kModelGt4 : tomba::render::kModelGt3;
+  tomba::render::ListJobWriter job(*c, Quad ? 1u : 0u, call, call.count * shape.packetBytes);
   job.input(*c, call.list, call.count * shape.recordBytes);
   if (Scroll != OverlayGt3Gt4::kNoScroll) {
     job.input(*c, Scroll, sizeof(uint16_t));
@@ -435,7 +405,7 @@ template <uint32_t Entry, bool Quad, uint32_t Scroll> void emitAt(Core *c) {
   if constexpr (Quad) {
     c->r[2] = OverlayGt3Gt4::emitGt4(*c, call, Scroll);
   } else {
-    c->r[2] = OverlayGt3Gt4::emitGt3(*c, call, Scroll, tomba2::horizontal_cull::forDrawWindow(c));
+    c->r[2] = OverlayGt3Gt4::emitGt3(*c, call, Scroll, tomba::horizontal_cull::forDrawWindow(c));
   }
   job.save(*c);
 }
@@ -463,7 +433,7 @@ constexpr Leaf kLeaves[] = {
     {"A08", kA08Gt4, true, kA08Scroll, &emitAt<kA08Gt4, true, kA08Scroll>},
 };
 
-class LeafStateProducer final : public tomba2::render::ListStateProducer {
+class LeafStateProducer final : public tomba::render::ListStateProducer {
 public:
   LeafStateProducer(Core &core, bool quad, uint32_t scroll) : ListStateProducer(core), mQuad(quad), mScroll(scroll) {}
 
@@ -472,7 +442,7 @@ protected:
     if (mQuad) {
       OverlayGt3Gt4::emitGt4(memory, call, mScroll);
     } else {
-      OverlayGt3Gt4::emitGt3(memory, call, mScroll, tomba2::horizontal_cull::forDrawWindow(&core()));
+      OverlayGt3Gt4::emitGt3(memory, call, mScroll, tomba::horizontal_cull::forDrawWindow(&core()));
     }
   }
 
@@ -483,16 +453,17 @@ private:
 
 } // namespace
 
-void OverlayGt3Gt4::registerStateRenders(Core &core) {
+void OverlayGt3Gt4::registerStateRenders(psx::present::StateProducerTable &renders, Core &core) {
   for (const Leaf &leaf : kLeaves) {
-    core.stateProducers.install(leaf.entry, std::make_unique<LeafStateProducer>(core, leaf.quad, leaf.scroll));
+    renders.install(leaf.entry, std::make_unique<LeafStateProducer>(core, leaf.quad, leaf.scroll));
   }
 }
 
-void OverlayGt3Gt4::registerOverrides(Game *) {
-  tomba::native::declareOverlayOverride("A00", 0x80146478u, "&OverlayGt3Gt4::submitBlock", &OverlayGt3Gt4::submitBlock);
+void OverlayGt3Gt4::registerOverrides(native::NativeOverrideCatalog &natives) {
+  natives.declareOverlay("A00", 0x80146478u, "&OverlayGt3Gt4::submitBlock", &OverlayGt3Gt4::submitBlock);
   for (const Leaf &leaf : kLeaves) {
-    tomba::native::declareOverlayOverride(
-        leaf.image, leaf.entry, leaf.quad ? "OverlayGt3Gt4::gt4" : "OverlayGt3Gt4::gt3", leaf.body);
+    natives.declareOverlay(leaf.image, leaf.entry, leaf.quad ? "OverlayGt3Gt4::gt4" : "OverlayGt3Gt4::gt3", leaf.body);
   }
 }
+
+} // namespace tomba

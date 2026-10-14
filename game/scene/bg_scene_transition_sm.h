@@ -15,6 +15,12 @@
 #include <cstdint>
 class Core;
 
+namespace tomba::native {
+class NativeOverrideCatalog;
+} // namespace tomba::native
+
+namespace tomba {
+
 class BgSceneTransitionSm {
 public:
   Core *core = nullptr;
@@ -30,7 +36,7 @@ public:
   bool readyForProgress() const;
 
   // registerOverrides — install the native leaves this class owns into the one override registry.
-  void registerOverrides();
+  void registerOverrides(native::NativeOverrideCatalog &natives);
 
   // opSceneEventArmWait (FUN_80042758): cutscene-script opcode leaf. Sub-state at node+120 drives a
   // two-step wait: state 0 arms a scene event via SceneEvents::arm(node+114) and, once armed and
@@ -54,3 +60,5 @@ private:
   static void audioStub264BC(Core *c);             // FUN_800264BC
   static void bf816Dispatch(Core *c);              // FUN_80050970
 };
+
+} // namespace tomba

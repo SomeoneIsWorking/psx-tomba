@@ -3,6 +3,10 @@
 struct Core;
 class Game;
 
+namespace tomba::native {
+class NativeOverrideCatalog;
+} // namespace tomba::native
+
 namespace tomba::ai {
 
 class ActorZonedAttacker {
@@ -23,7 +27,7 @@ public:
   static void zoneClassify(Core *c);
 
   // Installs all seven guest addresses in the shared override registry.
-  static void registerOverrides(Game *game);
+  static void registerOverrides(native::NativeOverrideCatalog &natives);
 };
 
 } // namespace tomba::ai

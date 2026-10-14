@@ -44,17 +44,19 @@
 //     typed runtime address dispatch's it; case's own r31/table-value 0x8003C2AC is a pure no-op (skip) entry.
 //   - advance: r16 = r17; loop while r16 != 0.
 //   - epilogue: restore r31/r19/r18/r17/r16 from their spill slots, sp += 112, return.
-#include "cfg.h"
 #include "core.h"
-#include "core/entry/game_ctx.h"
 #include "core/overrides/native_override_catalog.h"
+#include "entry/tomba_session.h"
 #include "game.h"
 #include "guest_call.h"
 #include "render.h"
+#include <lucent/log.h>
 #include <stdio.h>
 // guest 0x8003C048 fallback for the oracle-gated thunk. image-qualified runtime dispatcher is process-global (shared by
 // SBS core A and core B), so the oracle side MUST keep running the real guest body — see
 // perobj_billboard.cpp's identical banner for the full rationale.
+
+namespace tomba {
 
 namespace {
 constexpr uint32_t RENDER_LIST_HEAD = 0x800F2624u; // *this = head of the global render-node list
@@ -169,7 +171,7 @@ void Render::renderWalk() {
       const uint32_t idxByte = c->mem_r8(node + 11u);
       if (idxByte < 33u) {
         const uint32_t target = c->mem_r32(c->r[19] + idxByte * 4u);
-        cfg_logf("walk", "node=%08x idx=%u table=%08x target=%08x", node, idxByte, c->r[19], target);
+        lucent::debug("walk", "node={:08x} idx={} table={:08x} target={:08x}", node, idxByte, c->r[19], target);
         switch (target) {
         case 0x8003C0B4u:
           c->r[4] = c->r[16];
@@ -277,6 +279,8 @@ void ov_renderWalk(Core *c) {
 }
 } // namespace
 
-void render_walk_dispatch_install() {
-  tomba::native::declareOverride(0x8003C048u, "ov_renderWalk", ov_renderWalk);
+void render_walk_dispatch_install(native::NativeOverrideCatalog &natives) {
+  natives.declare(0x8003C048u, "ov_renderWalk", ov_renderWalk);
 }
+
+} // namespace tomba

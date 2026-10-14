@@ -1,6 +1,5 @@
 #pragma once
 
-#include "cfg.h"
 #include "core.h"
 
 #include <array>
@@ -27,13 +26,18 @@ struct VerificationCounters {
   VerificationCounter despawn;
   VerificationCounter placement;
   VerificationCounter spawnParent;
+  VerificationCounter listScan;
+  VerificationCounter gridSetup;
+  VerificationCounter gridQuery;
+  VerificationCounter gridResolve;
+  VerificationCounter gridStep;
 
   void bind(Core &core) {
     core_ = &core;
   }
 
   bool on(const char *channel) const {
-    return cfg_dbg(channel);
+    return lucent::channel_on(channel);
   }
 
   unsigned char *ram0() {

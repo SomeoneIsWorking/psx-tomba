@@ -1,49 +1,39 @@
 #include "frame/frame_driver.h"
 
-#include "cfg.h"
 #include "core.h"
 #include "debug/dev_control.h"
-#include "entry/game_ctx.h"
+#include "entry/tomba_runtime.h"
+#include "entry/tomba_session.h"
 #include "game.h"
-#include "gpu_vk.h"
 #include "guest_call.h"
 #include "hle/libapi_intr.h"
 #include "render.h"
+#include "render/guest_ordering_table.h"
 
+#include <array>
 #include <cstdlib>
 #include <lucent/log.h>
 
 namespace tomba {
 namespace {
 
-const GameConfig &requireMeasuredConfig(Core &core) {
-  if (!core.cfg) {
-    lucent::error("tomba-frame", "TombaFrameDriver requires Tomba! 2's measured compatibility facts");
-    std::abort();
-  }
-  return *core.cfg;
-}
+using tomba::render::OrderingTable;
+using tomba::render::PacketPool;
 
-// The wide engine's screen-centre offset, into this Core's GTE (bound by the frame-loop shell).
-void applyWideEngineOffset(Core &core) {
-  if (gpu_vk_wide_engine(&core)) {
-    const int ofx = gpu_vk_wide_engine_ofx(&core);
-    gte_write_ctrl(24u, static_cast<uint32_t>(ofx) << 16);
-    core.rsub.projParams.setGeomOfxForAspect(static_cast<float>(ofx));
-  }
-}
+// The events FUN_80050B08's pass delivers: root counter 2, VBlank and the CD.
+constexpr std::array<uint32_t, 3> kFrameEvents{0xF2000003u, 0xF0000001u, 0xF0000009u};
 
 uint8_t bufferParity(Core &core) {
   return core.mem_r8(kBufferParityAddress);
 }
 
-uint32_t currentEnv(Core &core, const GameConfig &cfg) {
-  return core.mem_r32(cfg.otBasePtr);
+uint32_t currentEnv(Core &core) {
+  return core.mem_r32(OrderingTable::kBasePointer);
 }
 
-void clearOrderingTable(Core &core, const GameConfig &cfg, uint32_t env) {
+void clearOrderingTable(Core &core, uint32_t env) {
   psx::cpu::dispatchGuestToReturn2(
-      core, cfg.clearOtagR, env, kOtEntries, psx::cpu::ExecutionBudget::currentTurn(core), __func__);
+      core, kClearOTagR, env, kOtEntries, psx::cpu::ExecutionBudget::currentTurn(core), __func__);
 }
 
 void putDispEnv(Core &core, uint32_t env) {
@@ -52,37 +42,37 @@ void putDispEnv(Core &core, uint32_t env) {
 }
 
 // Flip the parity and point the env pointer at that buffer, as 0x80050C6C does.
-uint32_t flipBuffer(Core &core, const GameConfig &cfg) {
+uint32_t flipBuffer(Core &core) {
   const uint8_t parity = static_cast<uint8_t>(1u - bufferParity(core));
   core.mem_w8(kBufferParityAddress, parity);
-  const uint32_t env = cfg.otRegionBase + parity * cfg.otRegionStride;
-  core.mem_w32(cfg.otBasePtr, env);
+  const uint32_t env = kDisplayBufferBase + parity * kDisplayBufferStride;
+  core.mem_w32(OrderingTable::kBasePointer, env);
   return env;
 }
 
 // The pass top after the dwell reset: this pass draws into the pool of the current parity.
-void rotatePacketPool(Core &core, const GameConfig &cfg) {
-  core.mem_w32(cfg.poolPtrLast, core.mem_r32(cfg.poolPtrCur));
-  core.mem_w32(cfg.poolPtrCur, (cfg.packetPoolBase + bufferParity(core) * cfg.packetPoolStride) & 0xffffffu);
+void rotatePacketPool(Core &core) {
+  core.mem_w32(PacketPool::kLastCursor, core.mem_r32(PacketPool::kCursor));
+  core.mem_w32(PacketPool::kCursor, (PacketPool::kBase + bufferParity(core) * PacketPool::kStride) & 0xffffffu);
 }
 
-void finishPass(Core &core, const GameConfig &cfg) {
-  const uint32_t env = currentEnv(core, cfg);
+void finishPass(Core &core) {
+  const uint32_t env = currentEnv(core);
   switch (static_cast<PresentState>(core.mem_r8(kPresentStateAddress))) {
   case PresentState::Present:
     putDispEnv(core, env);
     psx::cpu::dispatchGuestToReturn1(
-        core, cfg.putDrawEnv, env + kDrawEnvOffset, psx::cpu::ExecutionBudget::currentTurn(core), __func__);
+        core, kPutDrawEnv, env + kDrawEnvOffset, psx::cpu::ExecutionBudget::currentTurn(core), __func__);
     eng(&core).drawOTag(env + kOtHeadOffset);
-    clearOrderingTable(core, cfg, flipBuffer(core, cfg));
+    clearOrderingTable(core, flipBuffer(core));
     return;
   case PresentState::Swap:
     putDispEnv(core, env);
     core.mem_w8(kPresentStateAddress, static_cast<uint8_t>(PresentState::Hold));
-    flipBuffer(core, cfg);
+    flipBuffer(core);
     return;
   case PresentState::Clear:
-    clearOrderingTable(core, cfg, env);
+    clearOrderingTable(core, env);
     return;
   case PresentState::Hold:
     return;
@@ -94,16 +84,15 @@ void finishPass(Core &core, const GameConfig &cfg) {
 TombaFrameDriver::TombaFrameDriver(Game &game) : game_(&game) {}
 
 void TombaFrameDriver::enterLoop(Core &core) {
-  const GameConfig &cfg = requireMeasuredConfig(core);
   for (uint32_t buffer = 0; buffer < 2u; ++buffer) {
-    const uint32_t base = cfg.otRegionBase + buffer * cfg.otRegionStride;
+    const uint32_t base = kDisplayBufferBase + buffer * kDisplayBufferStride;
     core.otTables.name(kOtTable, base, kOtEntries, sizeof(uint32_t), psx::gpu::OtWalk::HighToLow);
   }
   const uint8_t parity = bufferParity(core);
-  core.mem_w32(cfg.poolPtrCur, cfg.packetPoolBase + (1u - parity) * cfg.packetPoolStride);
-  const uint32_t env = cfg.otRegionBase + parity * cfg.otRegionStride;
-  core.mem_w32(cfg.otBasePtr, env);
-  clearOrderingTable(core, cfg, env);
+  core.mem_w32(PacketPool::kCursor, PacketPool::kBase + (1u - parity) * PacketPool::kStride);
+  const uint32_t env = kDisplayBufferBase + parity * kDisplayBufferStride;
+  core.mem_w32(OrderingTable::kBasePointer, env);
+  clearOrderingTable(core, env);
 }
 
 void TombaFrameDriver::stepFrame(Core &core, uint32_t frame) {
@@ -118,10 +107,9 @@ void TombaFrameDriver::stepFrame(Core &core, uint32_t frame) {
   }
 
   Game &game = *game_;
-  const GameConfig &cfg = requireMeasuredConfig(core);
+  TombaSession &session = tombaSession(&core);
 
   autoDrive_.beforeFrame(core, frame);
-  applyWideEngineOffset(core);
   game.timing.logicFrame = frame;
   game.perf.frameBegin();
   game.timing.frameTick();
@@ -131,35 +119,37 @@ void TombaFrameDriver::stepFrame(Core &core, uint32_t frame) {
   // frame counts against this frame and not the last one. FrameCadence owns the decision; the
   // frame driver only sequences it. The one check that matters is at the bottom.
   eng(&core).cadence().beginLogicFrame();
-  rotatePacketPool(core, cfg);
-  for (uint32_t eventClass : cfg.irqEventClasses) {
+  rotatePacketPool(core);
+  session.callSites.beginFrame();
+  for (uint32_t eventClass : kFrameEvents) {
     game.hle.deliverEvent(eventClass, 0xffffffffu);
   }
 
   game.pad.serviceFrame();
-  game.cd.audioTrace("pre");
+  session.cd.audioTrace("pre");
   game.perf.markPre();
 
   // The pending capture is consumed before any producer begins this frame. Engine::frameUpdate owns
   // Tomba's pad-edge and per-VBlank audio work; this driver owns the one presentation fence.
   eng(&core).frameUpdate();
   game.perf.phaseBegin(GpuPerf::Phase::Present);
-  game.presentation.commit(&core, 0, game.temporalPresentation.get());
+  game.presentation.commit(&core, FrameCadence::kRetailVblanksPerLogicFrame);
   // Packet spans live as long as the record: the OT walked last pass is sealed by this commit.
   core.rsub.otAttr.beginLogicFrame(frame);
   game.perf.phaseEnd(GpuPerf::Phase::Present);
 
   devControl_.applyArmed(core, frame);
-  game.cd.audioTrace("post");
+  session.cd.audioTrace("post");
   game.perf.phaseBegin(GpuPerf::Phase::GameLogic);
-  game.pcSched.step();
+  session.scheduler.step();
   game.perf.phaseEnd(GpuPerf::Phase::GameLogic);
 
   eng(&core).musicCoord.tick();
-  game.cd.audioTrace("coord");
-  psx::cpu::dispatchGuestToReturn1(core, cfg.drawSync, 0, psx::cpu::ExecutionBudget::currentTurn(core), __func__);
-  game.pcSched.tickSleepCountdown();
-  finishPass(core, cfg);
+  session.cd.audioTrace("coord");
+  psx::cpu::dispatchGuestToReturn1(
+      core, kStockLibgpu.drawSync, 0, psx::cpu::ExecutionBudget::currentTurn(core), __func__);
+  session.scheduler.tickSleepCountdown();
+  finishPass(core);
   eng(&core).frameCut().notePassEnded(core);
   game.perf.frameEnd();
   // Close the frame's cadence transaction, once per frame, with the counts named. This reports on

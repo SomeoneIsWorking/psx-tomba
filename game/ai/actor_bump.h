@@ -31,6 +31,12 @@ constexpr uint32_t kRecoilTimer = 370;  // 0x172 — u16, set to 120 on a recoil
 constexpr uint32_t kStateBusyMask = 6;  // state bits that block a recoil entirely
 } // namespace actorbump
 
+namespace tomba::native {
+class NativeOverrideCatalog;
+} // namespace tomba::native
+
+namespace tomba {
+
 struct BumpActor {
   Core *mCore;
   uint32_t mAt;
@@ -111,5 +117,7 @@ public:
   // 0x8010EA80 — a0 = the actor, a1 = the object he ran into.
   static void respondToContact(Core *c);
 
-  static void registerOverrides();
+  static void registerOverrides(native::NativeOverrideCatalog &natives);
 };
+
+} // namespace tomba

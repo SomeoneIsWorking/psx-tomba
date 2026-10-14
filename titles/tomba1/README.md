@@ -22,10 +22,10 @@ The selected-disc provisioner verifies `SYSTEM.CNF` and the measured 559,104-byt
 target/PC/register fields at the first `A(39h)` call, including forced-mismatch and too-short
 negative cases.
 
-Pre-migration product evidence reaches visible SCEA and Whoopee Camp presentation and advances the
-movie stream beyond LBA 58739. The next boundary is issue 0006: public `CdSync` `0x800648C8`
-forwards to internal `0x80065470`, whose timeout reaches fatal guest VSync with return address
-`0x800654A4`. DMA callback registration at `0x80067E84` installs callback `0x80066D80`.
+The product shows the publisher card, the Whoopee Camp logo and the opening movies through Lightrec;
+the title screen is the next boundary (`docs/project-state.md` S004). Public `CdSync` `0x800648C8`
+forwards to internal `0x80065470`; both are title-bound so its timeout never reaches the fatal guest
+VSync (return address `0x800654A4`). DMA callback registration at `0x80067E84` installs `0x80066D80`.
 These are behavioral/address facts to preserve, not instructions to rebuild the generated path.
 
 The offline-emitted guest-source path is already removed and is not a fallback. When this title resumes,

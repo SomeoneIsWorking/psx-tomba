@@ -14,7 +14,7 @@ public:
   void afterFrame(Core &core, uint32_t frame);
 
 private:
-  enum class SkipPhase {
+  enum class SkipPhase : std::uint8_t {
     Uninitialized,
     ReachGame,
     AwaitCutscene,

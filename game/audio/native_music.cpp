@@ -10,7 +10,10 @@
 #include <cstring>
 #include <pthread.h>
 
-int NativeMusic::play(const uint8_t *data, long seqOff, long vabOff) {
+namespace tomba {
+
+int NativeMusic::play(const PlayArgs &args) {
+  auto [data, seqOff, vabOff] = args;
   pthread_mutex_lock(&mLock);
   if (mPlaying) {
     na_seq_free(&mSeq);
@@ -52,10 +55,10 @@ int NativeMusic::render(int16_t *out, int nframes) {
     memset(out, 0, (size_t)nframes * 2 * sizeof(int16_t));
     return 0;
   }
-  int got = na_seq_render(&mSeq, out, nframes, 44100);
+  int got = na_seq_render(&mSeq, out, nframes);
   // zero any tail the synth didn't fill (song ended mid-chunk)
   if (got < nframes) {
-    memset(out + got * 2, 0, (size_t)(nframes - got) * 2 * sizeof(int16_t));
+    memset(out + static_cast<std::ptrdiff_t>(got) * 2, 0, (size_t)(nframes - got) * 2 * sizeof(int16_t));
   }
   // once the song fully drains, mark it stopped so active() reports idle
   if (got < nframes) {
@@ -65,3 +68,5 @@ int NativeMusic::render(int16_t *out, int nframes) {
   pthread_mutex_unlock(&mLock);
   return got;
 }
+
+} // namespace tomba

@@ -11,7 +11,7 @@
 #include <optional>
 #include <vector>
 
-namespace tomba2::render {
+namespace tomba::render {
 namespace {
 
 constexpr std::uint32_t kScratchBase = 0x1F800000u;
@@ -39,8 +39,15 @@ bool samePart(const ListJob &a, const ListJob &b) {
   return true;
 }
 
-// An s16 position `t` of the way from `from` to `to`, the short way round a repeat of `modulus`.
-std::uint16_t lerpWrapped(std::uint16_t from, std::uint16_t to, std::uint32_t modulus, float t) {
+// Two s16 positions on a circle that repeats every `modulus`.
+struct WrappedSpan {
+  std::uint16_t from;
+  std::uint16_t to;
+  std::uint32_t modulus;
+};
+// The position `t` of the way from `from` to `to`, the short way round.
+std::uint16_t lerpWrapped(const WrappedSpan &span, float t) {
+  const auto [from, to, modulus] = span;
   const auto turn = static_cast<std::int32_t>(modulus);
   const std::int32_t gap = static_cast<std::int16_t>(to) - static_cast<std::int16_t>(from) + turn / 2;
   const std::int32_t delta = (gap % turn + turn) % turn - turn / 2;
@@ -48,7 +55,7 @@ std::uint16_t lerpWrapped(std::uint16_t from, std::uint16_t to, std::uint32_t mo
 }
 
 // The bytes of input `index` of `to`, moved toward `from`'s by `t` as the input says.
-std::vector<std::byte> blendedInput(const ListJob &from, const ListJob &to, std::size_t index, float t) {
+std::vector<std::byte> blendedInput(std::size_t index, const ListJob &from, const ListJob &to, float t) {
   const ListJobInput &input = to.inputs()[index];
   std::vector<std::byte> bytes(input.bytes.begin(), input.bytes.end());
   if (input.blend == InputBlend::Wrapped && bytes.size() == sizeof(std::uint16_t) && t < 1.0f) {
@@ -56,7 +63,7 @@ std::vector<std::byte> blendedInput(const ListJob &from, const ListJob &to, std:
     std::uint16_t after = 0;
     std::memcpy(&before, from.inputs()[index].bytes.data(), sizeof(before));
     std::memcpy(&after, bytes.data(), sizeof(after));
-    const std::uint16_t moved = lerpWrapped(before, after, input.modulus, t);
+    const std::uint16_t moved = lerpWrapped({.from = before, .to = after, .modulus = input.modulus}, t);
     std::memcpy(bytes.data(), &moved, sizeof(moved));
   }
   return bytes;
@@ -97,7 +104,7 @@ void ListStateProducer::render(std::span<const std::byte> from,
   inputs.reserve(job.inputs().size());
   for (std::size_t index = 0; index < job.inputs().size(); ++index) {
     inputs.push_back(paired
-                         ? blendedInput(*earlier, job, index, t)
+                         ? blendedInput(index, *earlier, job, t)
                          : std::vector<std::byte>(job.inputs()[index].bytes.begin(), job.inputs()[index].bytes.end()));
   }
 
@@ -133,4 +140,4 @@ void ListStateProducer::render(std::span<const std::byte> from,
   psx::present::emitHostOrderingTable(host, table, sink);
 }
 
-} // namespace tomba2::render
+} // namespace tomba::render

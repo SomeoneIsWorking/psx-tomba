@@ -66,6 +66,8 @@
 #include "core/overrides/native_override_catalog.h"
 #include "guest_abi.h"
 
+namespace tomba {
+
 namespace {
 
 // tools/binary ABI evidence 0x80125FE0 --scaffold --guestabi
@@ -106,13 +108,15 @@ void TiltFollower::applyHalvedOwnerPartPitch(Core *c) {
     return;
   }
   c->r[4] = self.mAt;
-  tomba::guest::dispatchJalToReturn(*c, 0x80125C4Cu, kRaAfterContactBehaviour);
+  tomba::guest::dispatchJalToReturn(*c, {.target = 0x80125C4Cu, .returnAddress = kRaAfterContactBehaviour});
 }
 
-void TiltFollower::registerOverrides() {
+void TiltFollower::registerOverrides(native::NativeOverrideCatalog &natives) {
   // A00, from the image: of 23 authenticated MODE images only A00 holds a function at 0x80125FE0
   // (24 words), and the address is inside A00's loaded text range. This is the MODULE note above,
   // applied.
-  tomba::native::declareOverlayOverride(
+  natives.declareOverlay(
       "A00", 0x80125FE0u, "TiltFollower::applyHalvedOwnerPartPitch", &TiltFollower::applyHalvedOwnerPartPitch);
 }
+
+} // namespace tomba

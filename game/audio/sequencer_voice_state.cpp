@@ -6,12 +6,10 @@
 #include "audio/libsnd_globals.h"
 #include "audio/sequencer_record.h"
 #include "core.h"
-#include "core/entry/game_ctx.h"
 #include "core/overrides/guest_jal.h"
 #include "core/overrides/native_override_catalog.h"
-#include "execution_services.h"
+#include "entry/tomba_session.h"
 #include "game.h"
-#include "guest_abi.h"
 #include "guest_call.h"
 
 namespace tomba::audio {
@@ -27,10 +25,10 @@ void Sequencer::voiceStateFlush() {
   // which is the only way a reader can tell why a body still writes to s1 twenty lines after the
   // prologue. r1 is the guest's assembler-at, not callee-saved, and is spilled at +16..+76 by the
   // body itself.
-  static constexpr uint32_t kSpillSlot0 = 16, kSpillSlot1 = 20, kSpillSlot2 = 24, kSpillSlot3 = 26, kSpillSlot4 = 36,
-                            kSpillSlot5 = 44, kSpillSlot6 = 74, kSpillSlot7 = 76;
-  static constexpr uint32_t kSpillS0 = 80, kSpillS1 = 84, kSpillS2 = 88, kSpillS3 = 92, kSpillS4 = 96, kSpillS5 = 100,
-                            kSpillS6 = 104, kSpillS7 = 108, kSpillRa = 112;
+  constexpr uint32_t kSpillSlot0 = 16, kSpillSlot1 = 20, kSpillSlot2 = 24, kSpillSlot3 = 26, kSpillSlot4 = 36,
+                     kSpillSlot5 = 44, kSpillSlot6 = 74, kSpillSlot7 = 76;
+  constexpr uint32_t kSpillS0 = 80, kSpillS1 = 84, kSpillS2 = 88, kSpillS3 = 92, kSpillS4 = 96, kSpillS5 = 100,
+                     kSpillS6 = 104, kSpillS7 = 108, kSpillRa = 112;
   c->r[2] = libsnd::kBase;
   c->r[2] = c->mem_r32((c->r[2] + libsnd::kVoiceCursor));
   c->r[29] = c->r[29] + (uint32_t)-120;
@@ -52,7 +50,7 @@ void Sequencer::voiceStateFlush() {
   c->r[1] = c->r[1] + c->r[2];
   c->mem_w32((c->r[1] + libsnd::kVoiceStateTable), c->r[0]);
   c->r[2] = libsnd::kBase;
-  c->r[2] = (uint32_t)(int8_t)c->mem_r8((c->r[2] + libsnd::kSpuKeyScanCount));
+  c->r[2] = (uint32_t)c->mem_r8s((c->r[2] + libsnd::kSpuKeyScanCount));
   c->r[3] = libsnd::kBase;
   c->r[3] = c->r[3] + libsnd::kVoiceStateTable;
   {
@@ -92,7 +90,7 @@ L_8009323C:;
 L_80093284:;
   c->r[18] = c->r[18] + (uint32_t)56;
   c->r[2] = libsnd::kBase;
-  c->r[2] = (uint32_t)(int8_t)c->mem_r8((c->r[2] + libsnd::kSpuKeyScanCount));
+  c->r[2] = (uint32_t)c->mem_r8s((c->r[2] + libsnd::kSpuKeyScanCount));
   c->r[16] = c->r[16] + (uint32_t)1;
   c->r[2] = (uint32_t)((int32_t)c->r[16] < (int32_t)c->r[2]);
   {
@@ -104,7 +102,7 @@ L_80093284:;
   }
 L_800932A0:;
   c->r[2] = libsnd::kBase;
-  c->r[2] = (uint32_t)(int8_t)c->mem_r8((c->r[2] + libsnd::kToneCursor));
+  c->r[2] = (uint32_t)c->mem_r8s((c->r[2] + libsnd::kToneCursor));
   {
     int _t = (c->r[2] != c->r[0]);
     c->r[16] = c->r[0] + c->r[0];
@@ -128,7 +126,7 @@ L_800932C0:;
     }
   }
   c->r[2] = libsnd::kBase;
-  c->r[2] = (uint32_t)(int8_t)c->mem_r8((c->r[2] + libsnd::kSpuKeyScanCount));
+  c->r[2] = (uint32_t)c->mem_r8s((c->r[2] + libsnd::kSpuKeyScanCount));
   {
     int _t = ((int32_t)c->r[2] <= 0);
     c->r[16] = c->r[0] + c->r[0];
@@ -149,7 +147,7 @@ L_800932FC:;
       goto L_80093350;
     }
   }
-  c->r[2] = (uint32_t)(int8_t)c->mem_r8((c->r[17] + (uint32_t)0));
+  c->r[2] = (uint32_t)c->mem_r8s((c->r[17] + (uint32_t)0));
   {
     int _t = (c->r[2] != c->r[20]);
     c->r[2] = (uint32_t)((int32_t)c->r[16] < 16);
@@ -180,7 +178,7 @@ L_8009334C:;
   c->mem_w8((c->r[17] + (uint32_t)0), (uint8_t)c->r[0]);
 L_80093350:;
   c->r[2] = libsnd::kBase;
-  c->r[2] = (uint32_t)(int8_t)c->mem_r8((c->r[2] + libsnd::kSpuKeyScanCount));
+  c->r[2] = (uint32_t)c->mem_r8s((c->r[2] + libsnd::kSpuKeyScanCount));
   c->r[16] = c->r[16] + (uint32_t)1;
   c->r[2] = (uint32_t)((int32_t)c->r[16] < (int32_t)c->r[2]);
   {
@@ -406,8 +404,8 @@ static void nat_voiceStateFlush(Core *c) {
   eng(c).sequencer.voiceStateFlush();
 }
 
-void declareVoiceStateOverrides() {
-  tomba::native::declareOverride(0x800931C0u, "nat_voiceStateFlush", nat_voiceStateFlush);
+void declareVoiceStateOverrides(native::NativeOverrideCatalog &natives) {
+  natives.declare(0x800931C0u, "nat_voiceStateFlush", nat_voiceStateFlush);
 }
 
 } // namespace tomba::audio

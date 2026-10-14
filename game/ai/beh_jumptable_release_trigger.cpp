@@ -24,9 +24,8 @@
 //   0x800BF8BC (lbu, jt[6] gate; ==0xff)
 //   0x800BF870 (base; +0x177 -> 0x800BF9E7, +0x178 -> 0x800BF9E8 bit-set tables in despawn tail)
 
-#include "cfg.h"
 #include "core.h"
-#include "core/entry/game_ctx.h"
+#include "entry/tomba_session.h"
 #include "graphics_bind.h" // ov_obj_set_geom
 #include "guest_abi.h"     // GuestFrame — mirror the guest stack frame (CLAUDE.md)
 #include "guest_call.h"
@@ -38,12 +37,18 @@
 #include <stdlib.h>
 #include <string.h>
 
+namespace tomba {
+
 namespace {
 
 constexpr uint32_t BEH_FN = 0x80124E74u;
 
 } // namespace
 
+struct ReleasePosition801244e8Args {
+  uint32_t obj;
+  uint32_t mode;
+};
 // FUN_801244E8 — release-trigger POSITION / RESPAWN sub-behavior. Called from TWO of this file's
 // jump-table entries (jt[1] node[0x5e]==0 branch with mode=0; jt[4] node[0x5e]==0/2 branches with
 // mode=0/1) as `jal 0x801244e8(a0=obj, a1=mode)`. RE'd verbatim from disas 0x801244E8..0x801246B0 —
@@ -62,7 +67,8 @@ constexpr uint32_t BEH_FN = 0x80124E74u;
 //       reposition obj[0x2e/32/36] from ref + a random lateral offset table term; obj[5]=0, obj[6]=0,
 //       obj[0x5e]=1   (RE-ARMS state 0 for the next release)
 //     elif DAT_800bf9dd<0xe: FUN_80124328(obj)                              (still-PSX leaf)
-static void release_position_801244e8(Core *c, uint32_t obj, uint32_t mode) {
+static void release_position_801244e8(Core *c, const ReleasePosition801244e8Args &args) {
+  auto [obj, mode] = args;
   const uint32_t ref = c->mem_r32(obj + 0x10);
   const uint8_t st = c->mem_r8(obj + 5);
   if (st == 0) {
@@ -106,7 +112,7 @@ static void release_position_801244e8(Core *c, uint32_t obj, uint32_t mode) {
     psx::cpu::dispatchGuestToReturn0(
         *c, 0x8009A450u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // FUN_8009A450 (rand, still-PSX leaf)
     if ((c->r[2] & 0x3f) == 0) {
-      eng(c).spawn.spawnAndInit(0x107u, obj + 0x2c, (uint32_t)-10); // FUN_8003116C (native)
+      eng(c).spawn.spawnAndInit({.a0 = 0x107u, .posSrc = obj + 0x2c, .a2 = (uint32_t)-10}); // FUN_8003116C (native)
     }
     psx::cpu::dispatchGuestToReturn0(*c, 0x8009A450u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
     const uint32_t r2 = c->r[2] & 3u;
@@ -203,9 +209,9 @@ void beh_jumptable_release_trigger(Core *c) {
       // 80124F8C beqz -> 0x80125130 (delay move a0,s2) ; 80124F94 bne v1,1 -> 0x801251e8
       if (v == 0) {
         // 80125130: jal 0x801244e8(a0=s2, a1=0)
-        release_position_801244e8(c, obj, 0); // FUN_801244E8 (native)
-        c->mem_w8(obj + 0x29, 0);             // 80125140 sb zero, 0x29(s2)  (delay slot)
-        goto epilogue;                        // 8012513C j 0x801252a4
+        release_position_801244e8(c, {.obj = obj, .mode = 0}); // FUN_801244E8 (native)
+        c->mem_w8(obj + 0x29, 0);                              // 80125140 sb zero, 0x29(s2)  (delay slot)
+        goto epilogue;                                         // 8012513C j 0x801252a4
       }
       if (v != 1) {
         goto epi_done; // 80124F94 bne v1,1 -> 0x801251e8
@@ -316,17 +322,17 @@ void beh_jumptable_release_trigger(Core *c) {
       }
       if (v < 2) {
         // v==0 -> 80125134 (80125108 beqz v1 -> 0x80125134, delay move a0,s2)
-        release_position_801244e8(c, obj, 0); // FUN_801244E8 (native)
-        c->mem_w8(obj + 0x29, 0);             // 80125140 sb zero, 0x29(s2)  (delay slot)
-        goto epilogue;                        // 8012513C j 0x801252a4
+        release_position_801244e8(c, {.obj = obj, .mode = 0}); // FUN_801244E8 (native)
+        c->mem_w8(obj + 0x29, 0);                              // 80125140 sb zero, 0x29(s2)  (delay slot)
+        goto epilogue;                                         // 8012513C j 0x801252a4
       }
       // v>=2 -> 8012511c
       // 8012511C addiu v0,zero,2 ; 80125120 beq v1,2 -> 0x80125154 ; else j epi
       if (v == 2) {
         // ---- 80125154 ----
-        release_position_801244e8(c, obj, 1); // FUN_801244E8 (native)
-        c->mem_w8(obj + 0x29, 0);             // 80125160 sb zero, 0x29(s2)  (delay slot)
-        goto epilogue;                        // 8012515C j 0x801252a4
+        release_position_801244e8(c, {.obj = obj, .mode = 1}); // FUN_801244E8 (native)
+        c->mem_w8(obj + 0x29, 0);                              // 80125160 sb zero, 0x29(s2)  (delay slot)
+        goto epilogue;                                         // 8012515C j 0x801252a4
       }
       c->mem_w8(obj + 0x29, 0); // 8012512C sb zero, 0x29(s2)  (delay slot of j epi @ 80125128)
       goto epilogue;            // 80125128 j 0x801252a4
@@ -371,6 +377,8 @@ void beh_jumptable_release_trigger(Core *c) {
       goto epi_done;                             // (falls to 0x801251e8 region)
     }
 
+    default:
+      break;
     } // switch(n3)
   }
 
@@ -389,25 +397,25 @@ state2:
   // STATE 2 (0x801251f0): cull, then node[5]-range special-area release
   // ============================================================================================
   {
-    Actor(c, obj).boundsCull();       // 801251F0 jal 0x8007778c (result IGNORED) — Actor::boundsCull (native)
-    int8_t sub = c->mem_r8s(obj + 5); // 801251F8 lbu v1, 5(s2)
+    Actor(c, obj).boundsCull();              // 801251F0 jal 0x8007778c (result IGNORED) — Actor::boundsCull (native)
+    int8_t sub = (int8_t)c->mem_r8(obj + 5); // 801251F8 lbu v1, 5(s2)
     // 80125200 bltz v1 -> epilogue ; 80125204 slti v0,v1,2 ; 80125208 bnez -> epilogue (v1<2)
     // 8012520C slti v0,v1,4 ; 80125210 beqz -> epilogue (v1>=4)   => active only when 2<=v1<4
     if (sub < 0 || sub < 2 || sub >= 4) {
       return; // 801252A4 epilogue
     }
     // 2 <= node[5] < 4:
-    inv(c).giveAndFlag(0x77, 1); // 8012521C jal 0x8004d4c4 [native]
+    inv(c).giveAndFlag({.type = 0x77, .amount = 1}); // 8012521C jal 0x8004d4c4 [native]
     c->r[4] = obj;
     psx::cpu::dispatchGuestToReturn0(
         *c, 0x8004B0D8u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // 80125224 jal 0x8004b0d8 (a0=s2)
-    eng(c).sfx.trigger(0x11, 0, 0);                                             // 80125234 jal 0x80074590 (native)
+    eng(c).sfx.trigger({.id = 0x11, .pan = 0, .pitchBend = 0});                 // 80125234 jal 0x80074590 (native)
     uint8_t n3 = c->mem_r8(obj + 3);                                            // 8012523C lbu v1, 3(s2)
     c->mem_w8(obj + 4, 3); // 80125248 sb v0(=3), 4(s2)  -> state 3  (delay slot)
     // 80125244 bnez v1 -> 0x8012526c
     if (n3 == 0) {
       // ---- 8012524c: node[3]==0 -> set bit (1<<node[0x60]) in 0x800BF9E7 ----
-      int16_t sh = c->mem_r16s(obj + 0x60);         // 80125254 lh v1, 0x60(s2)  (signed lh; shift amount)
+      int16_t sh = (int16_t)c->mem_r16(obj + 0x60); // 80125254 lh v1, 0x60(s2)  (signed lh; shift amount)
       uint8_t cur = c->mem_r8(0x800BF9E7u);         // 80125258 lbu a0, 0x177(v0=0x800bf870)
       uint32_t bit = (uint32_t)1u << (sh & 31);     // 8012525C sllv v1, s0(=1), v1
       c->mem_w8(0x800BF9E7u, (uint8_t)(cur | bit)); // 80125260 or ; 80125268 sb a0, 0x177(v0)
@@ -416,7 +424,7 @@ state2:
     // 8012526C beq v1,1 -> 0x8012527c ; 80125270 (delay v0=5) ; 80125274 bne v1,5 -> epilogue
     if (n3 == 1 || n3 == 5) {
       // ---- 8012527c: node[3]==1 or 5 -> set bit (1<<node[0x60]) in 0x800BF9E8 ----
-      int16_t sh = c->mem_r16s(obj + 0x60);         // 80125284 lh v1, 0x60(s2)
+      int16_t sh = (int16_t)c->mem_r16(obj + 0x60); // 80125284 lh v1, 0x60(s2)
       uint8_t cur = c->mem_r8(0x800BF9E8u);         // 80125288 lbu a0, 0x178(v0=0x800bf870)
       uint32_t bit = (uint32_t)1u << (sh & 31);     // 8012528C sllv v1, s0(=1), v1
       c->mem_w8(0x800BF9E8u, (uint8_t)(cur | bit)); // 80125290 or ; 80125298 sb a0, 0x178(v0)
@@ -425,3 +433,5 @@ state2:
     return; // 80125274 bne -> epilogue (other n3)
   }
 }
+
+} // namespace tomba

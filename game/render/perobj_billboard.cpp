@@ -7,7 +7,7 @@
 // RE method: Ghidra headless decompile of a live free-roam RAM dump cross-checked against the ACTUAL
 // guest body in authenticated executable/overlay evidence (C2D4), shard_1.c (C464), shard_4.c (C8F4), shard_5.c (CCA4),
 // authenticated executable/overlay evidence (image-qualified runtime dispatcher slot wiring) — the recorded binary
-// evidence's gte_write_ctrl/gte_write_data/ gte_op/gte_read_data calls are ground truth, not Ghidra's COP2 pseudo-C.
+// evidence's GTE register writes, commands and reads are ground truth, not Ghidra's COP2 pseudo-C.
 // All 4 addresses confirmed unowned via tools/codemap.py before porting.
 //
 // ==================================================================================================
@@ -63,9 +63,10 @@
 //      BUF+4..+36) at the packet-pool tail, prepended into the OT bucket
 //      `depth` (OrderingTable::link) — the identical packet-chain mechanism perobj_dispatch.cpp's
 //      cmdListDispatch/perModeDispatch already documents.
+#include "billboard_state.h"
 #include "core.h"
-#include "core/entry/game_ctx.h"
 #include "core/overrides/native_override_catalog.h"
+#include "entry/tomba_session.h"
 #include "game.h"
 #include "guest_call.h"
 #include "guest_ordering_table.h"
@@ -81,6 +82,8 @@
 // Still-substrate leaves called by these 4 (declared, called via plain guest-ABI intra-shard calls —
 // exactly as the authenticated executable/overlay evidence reaches them; image-qualified runtime dispatcher still gates
 // each, so if one is ever owned later these calls transparently pick that up).
+
+namespace tomba {
 
 namespace {
 
@@ -200,40 +203,40 @@ void Render::perObjRenderDispatch() {
     break;
   }
   case 0x8003CD10u: {
-    const uint32_t pre = tomba2::render::PacketPool(*c).cursor();
+    const uint32_t pre = tomba::render::PacketPool(*c).cursor();
     c->r[4] = node;
     c->r[5] = flag;
     c->r[31] = 0x8003CD20u;
     rend(c)->cmdListDispatch();
-    const uint32_t post = tomba2::render::PacketPool(*c).cursor();
+    const uint32_t post = tomba::render::PacketPool(*c).cursor();
     c->r[4] = node;
     c->r[5] = pre;
     c->r[6] = post;
     c->r[31] = 0x8003CD30u;
-    rend(c)->effectColorAdd(node, pre, post);
+    rend(c)->effectColorAdd({.node = node, .lo = pre, .hi = post});
     break;
   }
   case 0x8003CD38u: {
-    const uint32_t pre = tomba2::render::PacketPool(*c).cursor();
+    const uint32_t pre = tomba::render::PacketPool(*c).cursor();
     c->r[4] = node;
     c->r[5] = flag;
     c->r[31] = 0x8003CD48u;
     rend(c)->cmdListDispatch();
-    const uint32_t post = tomba2::render::PacketPool(*c).cursor();
+    const uint32_t post = tomba::render::PacketPool(*c).cursor();
     c->r[4] = node;
     c->r[5] = pre;
     c->r[6] = post;
     c->r[31] = 0x8003CD58u;
-    rend(c)->effectClutSwap(node, pre, post);
+    rend(c)->effectClutSwap({.node = node, .lo = pre, .hi = post});
     break;
   }
   case 0x8003CD60u: {
-    const uint32_t pre = tomba2::render::PacketPool(*c).cursor();
+    const uint32_t pre = tomba::render::PacketPool(*c).cursor();
     c->r[4] = node;
     c->r[5] = flag;
     c->r[31] = 0x8003CD70u;
     rend(c)->cmdListDispatch();
-    const uint32_t post = tomba2::render::PacketPool(*c).cursor();
+    const uint32_t post = tomba::render::PacketPool(*c).cursor();
     c->r[4] = node;
     c->r[5] = pre;
     c->r[6] = post;
@@ -251,17 +254,17 @@ void Render::perObjRenderDispatch() {
     break;
   }
   case 0x8003CDA0u: {
-    const uint32_t pre = tomba2::render::PacketPool(*c).cursor();
+    const uint32_t pre = tomba::render::PacketPool(*c).cursor();
     c->r[4] = node;
     c->r[5] = flag;
     c->r[31] = 0x8003CDB0u;
     rend(c)->cmdListDispatch();
-    const uint32_t post = tomba2::render::PacketPool(*c).cursor();
+    const uint32_t post = tomba::render::PacketPool(*c).cursor();
     c->r[4] = node;
     c->r[5] = pre;
     c->r[6] = post;
     c->r[31] = 0x8003CDC0u;
-    rend(c)->effectFlatTint(node, pre, post);
+    rend(c)->effectFlatTint({.node = node, .lo = pre, .hi = post});
     break;
   }
   case 0x8003CDC0u:
@@ -274,38 +277,44 @@ void Render::perObjRenderDispatch() {
   }
 }
 
+struct BillboardComposeTailArgs {
+  uint32_t node;
+  uint32_t flag;
+  uint32_t outMat = MAT_OUT;
+};
 // ==================================================================================================
 // Shared tail: compose CAM2 (camera rotation+translation) onto WORLD_POS, add it into outMat.t,
 // reload CR0-7 from outMat, then hand off to billboardEmit(node, flag).
 // outMat = the BUF slot holding the composed matrix. C2D4/C464 land it in MAT_OUT (BUF+0x40); C788
 // (billboardCompose3) composes in place in MAT_ROTZ (BUF+0x20) — its gen loads CR0-7 from BUF+0x20,
 // not BUF+0x40 — so the tail is parameterized by that slot instead of hardcoding MAT_OUT.
-static void billboardComposeTail(Core *c, uint32_t node, uint32_t flag, uint32_t outMat = MAT_OUT) {
+static void billboardComposeTail(Core *c, const BillboardComposeTailArgs &args) {
+  auto [node, flag, outMat] = args;
   c->mem_w16(WORLD_POS + 0, c->mem_r16(node + 46));
   c->mem_w16(WORLD_POS + 2, c->mem_r16(node + 50));
   c->mem_w16(WORLD_POS + 4, c->mem_r16(node + 54));
-  gte_write_ctrl(0, c->mem_r32(CAM2 + 0));
-  gte_write_ctrl(1, c->mem_r32(CAM2 + 4));
-  gte_write_ctrl(2, c->mem_r32(CAM2 + 8));
-  gte_write_ctrl(3, c->mem_r32(CAM2 + 12));
-  gte_write_ctrl(4, c->mem_r32(CAM2 + 16));
-  gte_write_data(0, c->mem_r32(WORLD_POS + 0));
-  gte_write_data(1, c->mem_r32(WORLD_POS + 4));
-  gte_op(c, MVMVA_TRANS);
-  c->mem_w32(outMat + 0x14, gte_read_data(25));
-  c->mem_w32(outMat + 0x18, gte_read_data(26));
-  c->mem_w32(outMat + 0x1C, gte_read_data(27));
+  c->gte().writeControl(0, c->mem_r32(CAM2 + 0));
+  c->gte().writeControl(1, c->mem_r32(CAM2 + 4));
+  c->gte().writeControl(2, c->mem_r32(CAM2 + 8));
+  c->gte().writeControl(3, c->mem_r32(CAM2 + 12));
+  c->gte().writeControl(4, c->mem_r32(CAM2 + 16));
+  c->gte().writeData(0, c->mem_r32(WORLD_POS + 0));
+  c->gte().writeData(1, c->mem_r32(WORLD_POS + 4));
+  c->gte().execute(MVMVA_TRANS);
+  c->mem_w32(outMat + 0x14, c->gte().readData(25));
+  c->mem_w32(outMat + 0x18, c->gte().readData(26));
+  c->mem_w32(outMat + 0x1C, c->gte().readData(27));
   c->mem_w32(outMat + 0x14, c->mem_r32(outMat + 0x14) + c->mem_r32(CAM2 + 0x14));
   c->mem_w32(outMat + 0x18, c->mem_r32(outMat + 0x18) + c->mem_r32(CAM2 + 0x18));
   c->mem_w32(outMat + 0x1C, c->mem_r32(outMat + 0x1C) + c->mem_r32(CAM2 + 0x1C));
-  gte_write_ctrl(0, c->mem_r32(outMat + 0));
-  gte_write_ctrl(1, c->mem_r32(outMat + 4));
-  gte_write_ctrl(2, c->mem_r32(outMat + 8));
-  gte_write_ctrl(3, c->mem_r32(outMat + 12));
-  gte_write_ctrl(4, c->mem_r32(outMat + 16));
-  gte_write_ctrl(5, c->mem_r32(outMat + 0x14));
-  gte_write_ctrl(6, c->mem_r32(outMat + 0x18));
-  gte_write_ctrl(7, c->mem_r32(outMat + 0x1C));
+  c->gte().writeControl(0, c->mem_r32(outMat + 0));
+  c->gte().writeControl(1, c->mem_r32(outMat + 4));
+  c->gte().writeControl(2, c->mem_r32(outMat + 8));
+  c->gte().writeControl(3, c->mem_r32(outMat + 12));
+  c->gte().writeControl(4, c->mem_r32(outMat + 16));
+  c->gte().writeControl(5, c->mem_r32(outMat + 0x14));
+  c->gte().writeControl(6, c->mem_r32(outMat + 0x18));
+  c->gte().writeControl(7, c->mem_r32(outMat + 0x1C));
   c->r[4] = node;
   c->r[5] = flag;
   rend(c)->billboardEmit();
@@ -332,7 +341,7 @@ void Render::billboardCompose1() {
   mtxOf(c).identity(MAT_ROTZ);
   mathOf(c).rotZ((int16_t)c->mem_r16(node + 90), MAT_ROTZ);
   const uint32_t flag = c->mem_r8(node + 71) & 1u;
-  mathOf(c).matMul(MAT_ROTZ, MAT_A, MAT_OUT);
+  mathOf(c).matMul({.rPtr = MAT_ROTZ, .mPtr = MAT_A, .outPtr = MAT_OUT});
   // gen's live callee-saved state at the guest 0x8003C8F4 call site (L4593-4595): billboardEmit
   // spills these as its "caller" registers, so they must hold gen's values here.
   c->r[16] = MAT_OUT;
@@ -340,7 +349,7 @@ void Render::billboardCompose1() {
   c->r[18] = flag;
   c->r[19] = node;
   c->r[31] = 0x8003C448u;
-  billboardComposeTail(c, node, flag);
+  billboardComposeTail(c, {.node = node, .flag = flag});
   // Epilogue restore (guest 0x8003C2D4 L4597-4601): read the caller's values back from the spill
   // slots. MUST restore — the reassignments above (esp. r31=0x8003C448) would otherwise leak to the
   // substrate render-walk caller and corrupt its control flow (registers aren't SBS-compared, but
@@ -375,7 +384,7 @@ void Render::billboardCompose2() {
   mtxOf(c).identity(MAT_ROTZ);
   mathOf(c).rotZ((int16_t)c->mem_r16(node + 90), MAT_ROTZ);
   const uint32_t flag = c->mem_r8(node + 71) & 1u;
-  mathOf(c).matMul(MAT_ROTZ, MAT_A, MAT_OUT);
+  mathOf(c).matMul({.rPtr = MAT_ROTZ, .mPtr = MAT_A, .outPtr = MAT_OUT});
   // gen's live callee-saved state at the guest 0x8003C8F4 call site (L5993-5995) — NOTE C464 differs
   // from C2D4: r17=flag (not MAT_A) and r18=node (gen reassigns r17 to flag at L5931 and keeps
   // r18=node from the prologue). billboardEmit spills these, so match gen exactly.
@@ -383,7 +392,7 @@ void Render::billboardCompose2() {
   c->r[17] = flag;
   c->r[18] = node;
   c->r[31] = 0x8003C5E0u;
-  billboardComposeTail(c, node, flag);
+  billboardComposeTail(c, {.node = node, .flag = flag});
   // Epilogue restore (guest 0x8003C464): read the caller's values back from the spill slots
   // (r16/r17/r18/ra — C464 does not save r19). Same anti-leak discipline as billboardCompose1.
   c->r[16] = c->mem_r32(sp + 16);
@@ -416,14 +425,15 @@ void Render::billboardCompose3() {
   c->mem_w32(sp + 28, c->r[31]);
   mtxOf(c).identity(MAT_A);
   const uint32_t flag = c->mem_r8(node + 71) & 1u;
-  mathOf(c).matMul(node + 152, MAT_A, MAT_ROTZ); // MAT_ROTZ = (node+152 matrix) x identity
+  mathOf(c).matMul({.rPtr = node + 152, .mPtr = MAT_A, .outPtr = MAT_ROTZ}); // MAT_ROTZ = (node+152 matrix) x identity
   // gen's live callee-saved state at the billboardEmit call site (abi_extract call [2]): r16=MAT_ROTZ,
   // r17=flag, r18=node. billboardEmit spills these as its caller regs, so match gen exactly.
   c->r[16] = MAT_ROTZ;
   c->r[17] = flag;
   c->r[18] = node;
   c->r[31] = 0x8003C8DCu;
-  billboardComposeTail(c, node, flag, MAT_ROTZ); // same GTE world-translate tail as C2D4/C464, on MAT_ROTZ
+  billboardComposeTail(
+      c, {.node = node, .flag = flag, .outMat = MAT_ROTZ}); // same GTE world-translate tail as C2D4/C464, on MAT_ROTZ
   // Epilogue restore (guest 0x8003C788 L_8003C8DC): read the caller's r16/r17/r18/ra back.
   c->r[16] = c->mem_r32(sp + 16);
   c->r[17] = c->mem_r32(sp + 20);
@@ -458,9 +468,9 @@ void Render::billboardComposeC5F8() {
   c->mem_w32(sp + 32, c->r[31]);
   mtxOf(c).identity(MAT_A);
   mtxOf(c).identity(MAT_ROTZ);
-  mathOf(c).rotMatSoft(node + 84, MAT_ROTZ); // MAT_ROTZ = software RotMatrix(SVECTOR @ node+84)
+  mathOf(c).rotMatSoft({.anglesPtr = node + 84, .out = MAT_ROTZ}); // MAT_ROTZ = software RotMatrix(SVECTOR @ node+84)
   const uint32_t flag = c->mem_r8(node + 71) & 1u;
-  mathOf(c).matMul(MAT_ROTZ, MAT_A, MAT_OUT);
+  mathOf(c).matMul({.rPtr = MAT_ROTZ, .mPtr = MAT_A, .outPtr = MAT_OUT});
   // gen's live callee-saved state at the billboardEmit (guest 0x8003C8F4) call site: r16=MAT_OUT,
   // r17=MAT_A, r18=flag, r19=node — identical to C2D4. billboardEmit spills these as its caller regs.
   c->r[16] = MAT_OUT;
@@ -468,7 +478,7 @@ void Render::billboardComposeC5F8() {
   c->r[18] = flag;
   c->r[19] = node;
   c->r[31] = 0x8003C76Cu;
-  billboardComposeTail(c, node, flag);
+  billboardComposeTail(c, {.node = node, .flag = flag});
   // Epilogue restore (guest 0x8003C5F8 L_8003C76C): read the caller's r16..r19/ra back from the
   // spill slots — same anti-leak discipline as C2D4.
   c->r[16] = c->mem_r32(sp + 16);
@@ -487,6 +497,10 @@ void Render::billboardEmit() {
   if (c->mem_r32(node + 56) == 0) {
     return;
   }
+  // The node's particles are one object: its render record's current life.
+  const psx::present::EmissionScope::Guard object(
+      c->emission, tomba::render::BillboardState::kEmitter, eng(c).graphicsBind.records.object(node), 0);
+  tomba::render::BillboardState drawn;
   GuestFrame frame(c, 96); // real guest stack frame: guest 0x8003B220 writes through this as a real
                            // guest address, and callers' own frames must already be allocated
                            // (see GuestFrame's comment) for this base to land on the same bytes
@@ -524,33 +538,33 @@ void Render::billboardEmit() {
     c->r[6] = particle;
     psx::cpu::dispatchGuestToReturn0(*c, 0x8003B220u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
 
-    gte_write_data(0, c->mem_r32(FR(16) + 0));
-    gte_write_data(1, c->mem_r32(FR(16) + 4));
-    gte_write_data(2, c->mem_r32(FR(16) + 8));
-    gte_write_data(3, c->mem_r32(FR(16) + 12));
-    gte_write_data(4, c->mem_r32(FR(16) + 16));
-    gte_write_data(5, c->mem_r32(FR(16) + 20));
-    gte_op(c, 0x4A280030u); // RTPT: project V0-2 -> SXY0-2
-    int32_t ctrl31 = (int32_t)gte_read_ctrl(31);
+    c->gte().writeData(0, c->mem_r32(FR(16) + 0));
+    c->gte().writeData(1, c->mem_r32(FR(16) + 4));
+    c->gte().writeData(2, c->mem_r32(FR(16) + 8));
+    c->gte().writeData(3, c->mem_r32(FR(16) + 12));
+    c->gte().writeData(4, c->mem_r32(FR(16) + 16));
+    c->gte().writeData(5, c->mem_r32(FR(16) + 20));
+    c->gte().execute(0x4A280030u); // RTPT: project V0-2 -> SXY0-2
+    int32_t ctrl31 = (int32_t)c->gte().readControl(31);
     c->mem_w32(FR(48), (uint32_t)ctrl31);
     int32_t depth;
     if (ctrl31 < 0) {
       depth = DEFAULT_DEPTH;
     } else {
-      c->mem_w32(BUF + 8, gte_read_data(12));
-      c->mem_w32(BUF + 16, gte_read_data(13));
-      c->mem_w32(BUF + 24, gte_read_data(14));
-      gte_op(c, 0x4B400006u); // AVSZ3
-      c->mem_w32(FR(48), gte_read_data(24));
-      gte_write_data(0, c->mem_r32(FR(40) + 0));
-      gte_write_data(1, c->mem_r32(FR(40) + 4));
-      gte_op(c, 0x4A180001u); // RTPS: project V3
-      ctrl31 = (int32_t)gte_read_ctrl(31);
+      c->mem_w32(BUF + 8, c->gte().readData(12));
+      c->mem_w32(BUF + 16, c->gte().readData(13));
+      c->mem_w32(BUF + 24, c->gte().readData(14));
+      c->gte().execute(0x4B400006u); // AVSZ3
+      c->mem_w32(FR(48), c->gte().readData(24));
+      c->gte().writeData(0, c->mem_r32(FR(40) + 0));
+      c->gte().writeData(1, c->mem_r32(FR(40) + 4));
+      c->gte().execute(0x4A180001u); // RTPS: project V3
+      ctrl31 = (int32_t)c->gte().readControl(31);
       c->mem_w32(FR(48), (uint32_t)ctrl31);
       if (ctrl31 >= 0) {
-        c->mem_w32(BUF + 32, gte_read_data(14));
-        gte_op(c, 0x4B68002Eu); // AVSZ4 -> OTZ
-        c->mem_w32(FR(52), gte_read_data(7));
+        c->mem_w32(BUF + 32, c->gte().readData(14));
+        c->gte().execute(0x4B68002Eu); // AVSZ4 -> OTZ
+        c->mem_w32(FR(52), c->gte().readData(7));
         depth = (int32_t)c->mem_r32(FR(52));
       } else {
         depth = DEFAULT_DEPTH;
@@ -560,7 +574,7 @@ void Render::billboardEmit() {
 
     // 2) Off-screen cull: X over the draw window, Y under 240, unsigned 16-bit as the guest.
     const std::uint32_t xs[4] = {c->mem_r16(BUF + 8), c->mem_r16(BUF + 16), c->mem_r16(BUF + 24), c->mem_r16(BUF + 32)};
-    bool onX = tomba2::horizontal_cull::forDrawWindow(c).keepsX(xs, 4, tomba2::horizontal_cull::Domain::Packed16);
+    bool onX = tomba::horizontal_cull::forDrawWindow(c).keepsX(xs, 4, tomba::horizontal_cull::Domain::Packed16);
     if (!onX) {
       continue;
     }
@@ -574,9 +588,9 @@ void Render::billboardEmit() {
     // the valid range, else reset to invalid (-1).
     {
       int32_t a = (int32_t)c->mem_r32(FR(56)) + (int8_t)c->mem_r8(node + 8);
-      int32_t d = tomba2::render::OrderingTable::compressDepth(a);
+      int32_t d = tomba::render::OrderingTable::compressDepth(a);
       c->mem_w32(FR(56), (uint32_t)d);
-      if (!tomba2::render::OrderingTable::inDepthRange(d)) {
+      if (!tomba::render::OrderingTable::inDepthRange(d)) {
         c->mem_w32(FR(56), (uint32_t)DEFAULT_DEPTH);
       }
     }
@@ -629,16 +643,25 @@ void Render::billboardEmit() {
     }
 
     // 5) Emit the 10-word packet (tag + 9 data words) at the pool tail, prepended into the OT bucket.
-    const tomba2::render::PacketPool packets(*c);
+    const tomba::render::PacketPool packets(*c);
     uint32_t tail = packets.cursor();
-    tomba2::render::OrderingTable::active(*c).link(tail, 9u, c->mem_r32(FR(56)));
+    const uint32_t bucket = c->mem_r32(FR(56));
+    tomba::render::OrderingTable::active(*c).link({.packet = tail, .words = 9u, .bucket = bucket});
     tail += 4;
-    for (uint32_t off = 4; off <= 36; off += 4) {
-      c->mem_w32(tail, c->mem_r32(BUF + off));
+    std::array<uint32_t, tomba::render::BillboardState::kPacketWords> command{};
+    for (uint32_t word = 0; word < command.size(); ++word) {
+      command[word] = c->mem_r32(BUF + 4u + word * 4u);
+      c->mem_w32(tail, command[word]);
       tail += 4;
     }
     packets.setCursor(tail);
+    std::array<uint32_t, tomba::render::BillboardState::kCornerWords> corners{};
+    for (uint32_t word = 0; word < corners.size(); ++word) {
+      corners[word] = c->mem_r32(FR(16) + word * 4u);
+    }
+    drawn.add(corners, bucket, command);
   }
+  drawn.save(*c);
 }
 
 // ==================================================================================================
@@ -668,15 +691,17 @@ void ov_billboardEmit(Core *c) {
 }
 } // namespace
 
-void perobj_billboard_install() {
+void perobj_billboard_install(native::NativeOverrideCatalog &natives) {
   // tomba::native::declareOverride (runtime/psx/override_registry.h) installs into the ONE
   // process-global override registry, which runs original guest instructions on the oracle leg (core B) and the
   // native handler everywhere else — NOT a raw tomba::native::declareOverride, since these are engine/game
   // natives and the oracle must run the pure guest body for them.
-  tomba::native::declareOverride(0x8003CCA4u, "ov_perObjRenderDispatch", ov_perObjRenderDispatch);
-  tomba::native::declareOverride(0x8003C2D4u, "ov_billboardCompose1", ov_billboardCompose1);
-  tomba::native::declareOverride(0x8003C464u, "ov_billboardCompose2", ov_billboardCompose2);
-  tomba::native::declareOverride(0x8003C788u, "ov_billboardCompose3", ov_billboardCompose3);
-  tomba::native::declareOverride(0x8003C5F8u, "ov_billboardComposeC5F8", ov_billboardComposeC5F8);
-  tomba::native::declareOverride(0x8003C8F4u, "ov_billboardEmit", ov_billboardEmit);
+  natives.declare(0x8003CCA4u, "ov_perObjRenderDispatch", ov_perObjRenderDispatch);
+  natives.declare(0x8003C2D4u, "ov_billboardCompose1", ov_billboardCompose1);
+  natives.declare(0x8003C464u, "ov_billboardCompose2", ov_billboardCompose2);
+  natives.declare(0x8003C788u, "ov_billboardCompose3", ov_billboardCompose3);
+  natives.declare(0x8003C5F8u, "ov_billboardComposeC5F8", ov_billboardComposeC5F8);
+  natives.declare(tomba::render::BillboardState::kEmitter, "ov_billboardEmit", ov_billboardEmit);
 }
+
+} // namespace tomba

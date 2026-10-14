@@ -21,9 +21,8 @@
 // v0 is NOT reproduced: the per-object dispatcher (call_handler) ignores the handler return, and the
 // behavior gate (below) compares only RAM+scratchpad — matching the sibling objbeh gates.
 
-#include "cfg.h"
 #include "core.h"
-#include "core/entry/game_ctx.h"
+#include "entry/tomba_session.h"
 #include "guest_abi.h" // GuestFrame — mirror the guest stack frame (CLAUDE.md)
 #include "guest_call.h"
 #include "render/render.h" // Core::mRender (NodeXform)
@@ -31,6 +30,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+namespace tomba {
 
 namespace {
 
@@ -72,3 +73,5 @@ void beh_area_event_dispatch(Core *c) {
     break;
   }
 }
+
+} // namespace tomba

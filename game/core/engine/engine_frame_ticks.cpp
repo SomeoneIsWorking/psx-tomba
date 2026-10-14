@@ -8,7 +8,6 @@
 //
 // The class's own header (game/core/engine.h) remains the single declaration of every method below;
 // nothing is redeclared here.
-#include "c_subsys.h"               // disc_findFile — the native ISO9660 resolver
 #include "camera/cutscene_camera.h" // class CutsceneCamera — the field/follow camera
 #include "core.h"
 #include "core/assets/asset.h" // class Asset
@@ -16,9 +15,8 @@
 #include "core/engine/task_sm.h"         // TaskSm — the typed lens over the task record, owned in one header
 #include "core/overrides/guest_jal.h"    // tomba::guest::dispatchJalToReturn — the guest call convention
 #include "core/overrides/guest_resume.h" // requestGuestContinuation
-#include "entry/game_ctx.h"
+#include "entry/tomba_session.h"
 #include "game.h" // Game — the per-Core product the Engine drives
-#include "guest_abi.h"
 #include "guest_call.h"
 #include "level_load.h"
 #include "math/rng.h" // class Rng
@@ -35,6 +33,8 @@
 // guest 0x80077D8C. Faithful to the disasm: low 7 bits select (== 1: fire FX
 // 41, set b42 = 0x87), (== 2: fire FX 42, clear b42), other/nonzero: decrement
 // b42. Zero = no-op. FX 41/42 leaf FUN_80074590 stays substrate.
+namespace tomba {
+
 void Engine::postRenderTick() {
   Core *c = core;
   uint8_t b = c->mem_r8(0x800BF842u);
@@ -43,12 +43,12 @@ void Engine::postRenderTick() {
   }
   uint8_t low = (uint8_t)(b & 0x7F);
   if (low == 1) {
-    eng(c).sfx.trigger(41, 2, -65); // FUN_80074590 (native; pitchBend -65)
+    eng(c).sfx.trigger({.id = 41, .pan = 2, .pitchBend = -65}); // FUN_80074590 (native; pitchBend -65)
     c->mem_w8(0x800BF842u, 0x87);
     return;
   }
   if (low == 2) {
-    eng(c).sfx.trigger(42, 2, -65); // FUN_80074590 (native; pitchBend -65)
+    eng(c).sfx.trigger({.id = 42, .pan = 2, .pitchBend = -65}); // FUN_80074590 (native; pitchBend -65)
     c->mem_w8(0x800BF842u, 0);
     return;
   }
@@ -64,11 +64,11 @@ void Engine::postRenderTick() {
 void Engine::frameStartTick() {
   Core *c = core;
   // dispatch (d) reaches dynamically-loaded overlay handlers
-  // (0x8010F63C/0x80109024/0x80112220/ 0x8010F654) that can scheduler_yield;
+  // (0x8010F63C/0x80109024/0x80112220/ 0x8010F654) that can TombaScheduler::yield;
   // strict replay check's synchronous strictCheck only supports yield-free mirrors
   // (strictCheck aborts while inCheck), so this fork is a plain call, proven by
   // SBS full (core A vs core B), not strict replay check.
-  static constexpr uint32_t G = 0x800E7E80u; // master G block base (== s0 in the guest)
+  constexpr uint32_t G = 0x800E7E80u; // master G block base (== s0 in the guest)
 
   // (a) counter@0x800BF819: if nonzero, decrement + mask two 12-bit heading
   // fields.
@@ -138,13 +138,16 @@ void Engine::frameStartTick() {
   (void)rngOf(c).next();
 }
 
+} // namespace tomba
+
 // Register the GAME-stage area-init overrides when this just-loaded overlay is
 // GAME.BIN at the stage base. Detect by the fixed entry + handler signatures
 // (START.BIN/DEMO.BIN are smaller and hold stale bytes at these addresses, so
 // they never match). Called from the overlay-load scan (submit.cpp); registered
 // AUTO so it is flushed when GAME.BIN unloads and another overlay reuses the
 // base (mirrors the M3 scan).
-#include "scheduler.h" // CUR_TASK + scheduler_yield
+#include "sched/tomba_scheduler.h"
+#include <lucent/log.h>
 
 // --- PC-native task-0 bootstrap: own the START.BIN resolve + stage-0 overlay
 // load top-down ---------- Replaces the FUN_800499e8 -> FUN_80052078 ->
@@ -165,10 +168,13 @@ void Engine::frameStartTick() {
 // (demo.cpp s5), by task0Bootstrap after the START.BIN file-table build, and by
 // Engine::startBinStage once StartBinStage::runNative has built the file table. Was `native_start_stage`
 // (static) + `demo_start_stage` (public wrapper).
+namespace tomba {
+
 void Engine::startStage(uint32_t stage) {
   Core *c = core;
   uint32_t task = c->mem_r32(0x1f800138); // current task (= task 0, 0x801fe000)
-  tomba::stage::loadOverlay(*c, activeStageOverlay, task + 0xc, stage);
+  tomba::stage::loadOverlay(
+      tombaSession(c).nativeOverrides, *c, {.active = activeStageOverlay, .taskFields = task + 0xc, .stage = stage});
   c->mem_w16(task, 3); // task state = 3 (active)
   c->mem_w8(task + 0x6f, 0);
   psx::cpu::dispatchGuestToReturn0(
@@ -179,7 +185,7 @@ void Engine::startStage(uint32_t stage) {
   psx::cpu::dispatchGuestToReturn0(
       *c, 0x800808a0u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // ExitCriticalSection (BIOS leaf)
   c->r[4] = 0xff000000u;
-  scheduler_yield(c); // ChangeThread — native scheduler yield
+  tomba::sched::taskScheduler(*c).yield(*c); // ChangeThread
 }
 
 // FUN_800499e8: resolve \BIN\START.BIN natively, record its {LBA,size}, switch
@@ -189,12 +195,12 @@ void Engine::task0Bootstrap() {
   Core *c = core;
   uint32_t lba = 0, size = 0;
   if (!disc_find_file(&c->game->disc, "\\BIN\\START.BIN", &lba, &size)) {
-    cfg_loge("native_boot", "FATAL: cannot resolve \\BIN\\START.BIN on disc");
+    lucent::error("native_boot", "FATAL: cannot resolve \\BIN\\START.BIN on disc");
     return;
   }
   c->mem_w32(tomba::stage::kFileTable, lba);      // 0x800be1e0 = START.BIN LBA
   c->mem_w32(tomba::stage::kFileTable + 4, size); // 0x800be1e4 = START.BIN size
-  cfg_logi("native_boot", "START.BIN resolved: LBA %u, %u bytes", lba, size);
+  lucent::info("native_boot", "START.BIN resolved: LBA {}, {} bytes", lba, size);
   startStage(0);
 }
 
@@ -203,10 +209,6 @@ void Engine::task0Bootstrap() {
 void Engine::startBinStage() {
   StartBinStage(*core, asset).runNative();
   startStage(1);
-}
-
-void Engine::startBinStageFaithful() {
-  StartBinStage(*core, asset).runFaithful();
 }
 
 // FUN_80078824 — Engine::setAreaStartPos. Loads the player's per-area spawn
@@ -242,7 +244,7 @@ void ov_engineAnimTick(Core *c) {
   c->r[2] = eng(c).animTick(c->r[4]);
 }
 void ov_engineWalkStart(Core *c) {
-  c->r[2] = eng(c).walkStart(c->r[4], c->r[5], (int16_t)c->r[6]);
+  c->r[2] = eng(c).walkStart({.obj = c->r[4], .mode = c->r[5], .subMode = (int16_t)c->r[6]});
 }
 void ov_engineSetAreaStartPos(Core *c) {
   eng(c).setAreaStartPos();
@@ -258,11 +260,13 @@ void ov_engineRunModeEnter(Core *c) {
 }
 } // namespace
 
-void RegisterEngineAnimLeafOverrides(Game * /*game*/) {
-  tomba::native::declareOverride(0x8004190Cu, "Engine::animTick", ov_engineAnimTick);
-  tomba::native::declareOverride(0x80054D14u, "Engine::walkStart", ov_engineWalkStart);
-  tomba::native::declareOverride(0x80078824u, "Engine::setAreaStartPos", ov_engineSetAreaStartPos);
-  tomba::native::declareOverride(0x80086604u, "Engine::activeModeCtx", ov_engineActiveModeCtx);
-  tomba::native::declareOverride(0x80086738u, "Engine::installModeHandlers", ov_engineInstallModeHandlers);
-  tomba::native::declareOverride(0x80086764u, "Engine::runModeEnter", ov_engineRunModeEnter);
+void RegisterEngineAnimLeafOverrides(native::NativeOverrideCatalog &natives) {
+  natives.declare(0x8004190Cu, "Engine::animTick", ov_engineAnimTick);
+  natives.declare(0x80054D14u, "Engine::walkStart", ov_engineWalkStart);
+  natives.declare(0x80078824u, "Engine::setAreaStartPos", ov_engineSetAreaStartPos);
+  natives.declare(0x80086604u, "Engine::activeModeCtx", ov_engineActiveModeCtx);
+  natives.declare(0x80086738u, "Engine::installModeHandlers", ov_engineInstallModeHandlers);
+  natives.declare(0x80086764u, "Engine::runModeEnter", ov_engineRunModeEnter);
 }
+
+} // namespace tomba

@@ -3,25 +3,24 @@
 #include "cd_native_startup.h"
 #include "context.h"
 #include "core.h"
-#include "dynarec_capabilities.h"
+#include "crt0_boot.h"
 #include "game.h"
-#include "guest_cd_stream_callback_layout.h"
 #include "guest_code_module.h"
 #include "guest_task_slots.h"
 #include "native_boot.h"
 #include "native_dispatch.h"
+#include "platform_hle.h"
 #include "sync_native.h"
 #include "tomba1_frame_driver.h"
-#include "widescreen_projection.h"
 
 #include <cstdlib>
 #include <lucent/log.h>
 
-static_assert(PSXPORT_HAS_DYNAREC_RUNTIME == 1, "Tomba! 1 requires psxport's Lightrec runtime executor");
-
 namespace tomba1 {
 
-const GuestProgramImage Tomba1Runtime::programImage_{
+namespace {
+
+constexpr psx::game::Crt0Image kCrt0{
     .bss = {0x8009AFB0u, 0x800A3348u},
     .stackTopWordAddress = 0x80076E38u,
     .stackReserveWordAddress = 0x80076E3Cu,
@@ -30,34 +29,34 @@ const GuestProgramImage Tomba1Runtime::programImage_{
     .heapBaseStoreAddress = 0x800975BCu,
     .globalPointer = 0x80097FA8u,
     .libcInitEntry = 0x8006B70Cu,
-    .gameMainEntry = 0x800163B0u,
     .crt0Entry = 0x8006B58Cu,
-    .residentText = {0x00010000u, 0x00098000u},
-    .stackBias = {true, -8},
-};
-
-const GuestPadBufferLayout Tomba1Runtime::padBufferLayout_{
-    .slot0Buffer = 0x8009EB58u,
-    .slot1Buffer = 0x8009EB7Au,
+    .stackBias = {.declared = true, .bytes = -8},
 };
 
 // Where the load-list walker 0x80021D70 places a type-0xF0 entry: the code module resident code
 // calls into (jal 0x800E7D5C from 0x80019A7C and 0x80019A94).
 constexpr std::uint32_t kCodeModuleBase = 0x800E7388u;
 
-const GuestCdStreamCallbackLayout kCdStreamCallbackLayout{
-    .readyCallbackPointer = kCdReadyCallbackPointer,
-};
+} // namespace
 
-void *Tomba1Runtime::createContext(Core &core) {
-  return new Context(core);
-}
+Tomba1Runtime::Tomba1Runtime()
+    : vsync_(kVSyncEntry, kVSyncQueryCounter),
+      libcd_({.read = kCdRead, .readSync = kCdReadSync}, {}, kCdReadyCallbackPointer),
+      libgte_({.setGeomOffset = kSetGeomOffset, .setGeomScreen = kSetGeomScreen}),
+      pad_({.slot0Buffer = 0x8009EB58u, .slot1Buffer = 0x8009EB7Au}) {}
 
-void Tomba1Runtime::destroyContext(void *context) {
-  delete static_cast<Context *>(context);
+void Tomba1Runtime::startProgram(Core &core) {
+  psx::game::Crt0Boot{kCrt0}.run(core);
+  // The prefix creates the first task records, so the slots are reachable for it and no longer.
+  const GuestTaskCreationScope creation(context(core).tasks);
+  runNativeBootPrefix(core);
 }
 
 void Tomba1Runtime::registerOverrides(Game &game) {
+  vsync_.bind(game);
+  libcd_.bind(game);
+  libgte_.bind(game);
+  bindTitleLibraryOwners(game);
   const auto install = [&game](std::uint32_t address, std::string_view name, psx::cpu::NativeFunction function) {
     const auto identity = game.core.currentImageIdentity(address);
     if (!identity) {
@@ -73,12 +72,19 @@ void Tomba1Runtime::registerOverrides(Game &game) {
       install(kTaskExitEntry, "GuestTaskSlots::exitOverride", GuestTaskSlots::exitOverride) &&
       install(0x80061480u, "gpuTimeoutBeginOverride", gpuTimeoutBeginOverride) &&
       install(0x800614B4u, "gpuTimeoutExpiredOverride", gpuTimeoutExpiredOverride) &&
-      install(kDmaCallbackEntry, "dmaCallbackOverride", dmaCallbackOverride) &&
-      install(widescreen::kSetDefDrawEnv, "tomba1-wide::SetDefDrawEnv", widescreen::drawEnvironmentOverride);
+      install(kDmaCallbackEntry, "dmaCallbackOverride", dmaCallbackOverride);
   if (!installed) {
     lucent::error("tomba1-runtime", "native override registration refused");
     std::abort();
   }
+}
+
+std::unique_ptr<psx::game::TitleSessionState> Tomba1Runtime::createSession(Game &game) {
+  return std::make_unique<Context>(game.core);
+}
+
+void Tomba1Runtime::deliverPad(Core &core, const psx::input::PadDelivery &delivery) {
+  pad_.deliver(core, delivery);
 }
 
 void Tomba1Runtime::stockCdReadLanded(Core &core, const psx::cd::StockReadLanding &landing) {
@@ -87,34 +93,13 @@ void Tomba1Runtime::stockCdReadLanded(Core &core, const psx::cd::StockReadLandin
   }
 }
 
-void Tomba1Runtime::bootInit(Core &core) {
-  // The prefix creates the first task records, so the slots are reachable for it and no longer.
-  const GuestTaskCreationScope creation(context(core).tasks);
-  runNativeBootPrefix(core);
-}
-
-std::unique_ptr<FrameDriver> Tomba1Runtime::createFrameDriver(Game &game) {
+std::unique_ptr<psx::game::FrameDriver> Tomba1Runtime::createFrameDriver(Game &game) {
   return std::make_unique<Tomba1FrameDriver>(game);
 }
 
-const GuestProgramImage *Tomba1Runtime::guestProgramImage() const {
-  return &programImage_;
-}
-
-const PlatformHlePlan *Tomba1Runtime::platformHlePlan() const {
-  return &tomba1::platformHlePlan();
-}
-
-const GuestPadBufferLayout *Tomba1Runtime::guestPadBufferLayout() const {
-  return &padBufferLayout_;
-}
-
-const GuestCdStreamCallbackLayout *Tomba1Runtime::guestCdStreamCallbackLayout() const {
-  return &kCdStreamCallbackLayout;
-}
-
 RenderCapabilities Tomba1Runtime::renderCapabilities() const {
-  return RenderCapabilities::widescreenOnly();
+  // The picture is the guest's GP0 output replayed from the frame record; native 60 fps, no in-betweens.
+  return RenderCapabilities{.defaultPath = RenderPath::Record, .nativeRenderPath = false};
 }
 
 bool Tomba1Runtime::guestVramIsPicture(const Game &) const {

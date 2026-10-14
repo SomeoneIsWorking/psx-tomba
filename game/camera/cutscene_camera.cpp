@@ -7,11 +7,10 @@
 #include "camera/camera_guest_math.h"
 #include "camera/camera_look_builder.h"
 #include "camera/camera_mode.h"
-#include "cfg.h"
-#include "core/entry/game_ctx.h"
-#include "core/overrides/native_override_catalog.h" // tomba::native::declareOverride — the one native-override registry
-#include "game.h"                                   // c->game->verify — the shared A/B verify scaffold (camverify)
-#include "guest_abi.h"                              // GuestFrame — the guest stack frame contract, spelled once
+#include "core/overrides/native_override_catalog.h"
+#include "entry/tomba_session.h"
+#include "game.h"      // c->game->verify — the shared A/B verify scaffold (camverify)
+#include "guest_abi.h" // GuestFrame — the guest stack frame contract, spelled once
 #include "guest_call.h"
 #include "mtx.h"
 #include "scene/script_globals.h" // the status byte the shore floor branches on
@@ -23,8 +22,8 @@
 
 namespace tomba::camera {
 
-bool CutsceneCamera::followAxis(
-    uint32_t accAddr, uint32_t tgt32Addr, uint16_t tgtInt, uint16_t curInt, int16_t maxStep) {
+bool CutsceneCamera::followAxis(const FollowAxisArgs &args) {
+  auto [accAddr, tgt32Addr, tgtInt, curInt, maxStep] = args;
   int16_t delta = (int16_t)(tgtInt - curInt); // low-16 sign-extended
   if ((uint16_t)(delta + 10) < 21) {          // |delta| <= 10 -> snap to the target
     w32(accAddr, r32(tgt32Addr));
@@ -40,13 +39,25 @@ bool CutsceneCamera::trackXZ(uint32_t target) { // FUN_8006D960
   // (The dev teleport used to be consumed here. It is Engine::devTeleportApply's now — this method
   // only runs in the follow-camera mode, so consuming it here made `tp` a no-op in every area whose
   // camera is in another mode. See engine.h's mCamTpPending banner for the measurement.)
-  bool snapX = followAxis(kCamScratch + 0x0C, target + 0, r16(target + 2), r16(kCamScratch + 0x0E), 6144);
-  bool snapZ = followAxis(kCamScratch + 0x14, target + 8, r16(target + 10), r16(kCamScratch + 0x16), 6144);
+  bool snapX = followAxis({.accAddr = kCamScratch + 0x0C,
+                           .tgt32Addr = target + 0,
+                           .tgtInt = r16(target + 2),
+                           .curInt = r16(kCamScratch + 0x0E),
+                           .maxStep = 6144});
+  bool snapZ = followAxis({.accAddr = kCamScratch + 0x14,
+                           .tgt32Addr = target + 8,
+                           .tgtInt = r16(target + 10),
+                           .curInt = r16(kCamScratch + 0x16),
+                           .maxStep = 6144});
   return snapX && snapZ;
 }
 
 bool CutsceneCamera::trackY(uint32_t target) { // FUN_8006DA54
-  return followAxis(kCamScratch + 0x10, target + 4, r16(target + 6), r16(kCamScratch + 0x12), 5632);
+  return followAxis({.accAddr = kCamScratch + 0x10,
+                     .tgt32Addr = target + 4,
+                     .tgtInt = r16(target + 6),
+                     .curInt = r16(kCamScratch + 0x12),
+                     .maxStep = 5632});
 }
 
 // ── angleStep ────────────────────────────────────────────────────────────────────────────────────
@@ -172,7 +183,7 @@ void CutsceneCamera::pitch() { // FUN_8006D654
   int16_t g17e = (int16_t)r16(kCamGlobal + 0x17e);
   int sign = (g17e & 0x8000) != 0;
 
-  int32_t r5 = g30;
+  int32_t r5;
   int viaC8 = 0;
   uint8_t idx = r8(kCamGlobal + 0x164);
   if (idx >= 13) {
@@ -305,14 +316,10 @@ void CutsceneCamera::heading() { // FUN_8006DCF4
 
   int32_t off = 0;
   uint8_t g61 = r8(kCamGlobal + 0x61);
-  int useTable;
-  if (g61 == 0) {
-    useTable = 1;
-  } else if ((g61 & 1) == 0) {
+  int useTable = 1;
+  if (g61 != 0 && (g61 & 1) == 0) {
     off = 768;
     useTable = 0;
-  } else {
-    useTable = 1;
   }
 
   if (useTable) {
@@ -401,7 +408,7 @@ void CutsceneCamera::lookAt() { // FUN_8006D02C
   // this body (isqrt 0x80077FB0, MR_init 0x80051794, ratan2 0x80085690, MulMatrix0 0x80084250,
   // applyMatrixLV 0x80084470, CopyMatrix 0x800847B0) is frameless per abi_extract, so the own frame is
   // the whole stack footprint.
-  static constexpr GuestFrameSpill kSpills[] = {
+  constexpr GuestFrameSpill kSpills[] = {
       {16, 16}, {17, 20}, {18, 24}, {19, 28}, {20, 32}, {21, 36}, {22, 40}, {23, 44}, {30, 48}, {31, 52}};
   GuestFrame<56, 10> frame(c, kSpills);
   int32_t dX = (int16_t)r16(kCamScratch + 14) - (int16_t)r16(kCamScratch + 2);
@@ -448,7 +455,7 @@ void CutsceneCamera::lookAt() { // FUN_8006D02C
   w16(0x1F8000C0u, (uint16_t)(0u - (uint32_t)r16(kCamScratch + 2)));
   w16(0x1F8000C2u, (uint16_t)(0u - (uint32_t)r16(kCamScratch + 6)));
   w16(0x1F8000C4u, (uint16_t)(0u - (uint32_t)r16(kCamScratch + 10)));
-  mathOf(c).applyMatrixLV((uint32_t)M, 0x1F8000C0u, 0x1F80010Cu); // FUN_80084470 (native)
+  mathOf(c).applyMatrixLV({.mPtr = (uint32_t)M, .inPtr = 0x1F8000C0u, .out = 0x1F80010Cu}); // FUN_80084470 (native)
   guestmath::call(*c, guestmath::kCopyMatrix, (int32_t)M, (int32_t)(kCamScratch + 72));
 }
 
@@ -468,7 +475,7 @@ void CutsceneCamera::snapFollow(uint32_t target) { // FUN_8006E3B0
   // stack bytes byte-match on the SBS-compared leg (reached via the orbitTick override, which preloads
   // r16/r17/r31 with the gen's values at its 0x8006EFE0 jal site). snapAccXZ/snapAccY (0x8006D934/
   // 0x8006D950) are frameless; lookAt mirrors its own 56-byte frame and spills the r16/r17/r31 set here.
-  static constexpr GuestFrameSpill kSpills[] = {{16, 16}, {17, 20}, {31, 24}};
+  constexpr GuestFrameSpill kSpills[] = {{16, 16}, {17, 20}, {31, 24}};
   GuestFrame<32, 3> frame(c, kSpills);
   c->r[16] = cam_;
   c->r[17] = target;
@@ -576,7 +583,13 @@ void CutsceneCamera::shakeTail() { // FUN_8006C988
   };
   // The two height-only jitters, which differ only in amplitude, mask and effect id. These two ARE
   // the same arm, so they are one arm — unlike the axis arm above, which moves three coordinates.
-  const auto jitterHeightOnly = [&](int32_t amplitude, uint32_t mask, uint32_t effectId) {
+  struct HeightJitter {
+    int32_t amplitude;
+    uint32_t mask;
+    uint32_t effectId;
+  };
+  const auto jitterHeightOnly = [&](const HeightJitter &jitter) {
+    const auto [amplitude, mask, effectId] = jitter;
     w16(kCamScratch + 0x06,
         static_cast<uint16_t>(static_cast<int32_t>(camR16(kShakeAnchorY)) - amplitude + drawJitter(mask)));
     guestmath::call(
@@ -620,7 +633,7 @@ void CutsceneCamera::shakeTail() { // FUN_8006C988
     camW8(0x76, static_cast<uint8_t>(State::kJitterHeight));
     break;
   case State::kJitterHeight:
-    jitterHeightOnly(kShakeHeightAmplitude, kShakeMaskWide, kShakeEffectHeight);
+    jitterHeightOnly({.amplitude = kShakeHeightAmplitude, .mask = kShakeMaskWide, .effectId = kShakeEffectHeight});
     break;
   case State::kPulseHeightBegin:
     camW16(kShakeAnchorY, r16(kCamScratch + 0x06));
@@ -631,7 +644,7 @@ void CutsceneCamera::shakeTail() { // FUN_8006C988
       camW8(0x76, static_cast<uint8_t>(State::kIdle));
       break;
     }
-    jitterHeightOnly(kShakeHeightAmplitude, kShakeMaskWide, kShakeEffectAxes);
+    jitterHeightOnly({.amplitude = kShakeHeightAmplitude, .mask = kShakeMaskWide, .effectId = kShakeEffectAxes});
     camW8(0x76, static_cast<uint8_t>(State::kIdle));
     break;
   case State::kPulseHeightSmallBegin:
@@ -643,7 +656,7 @@ void CutsceneCamera::shakeTail() { // FUN_8006C988
       camW8(0x76, static_cast<uint8_t>(State::kIdle));
       break;
     }
-    jitterHeightOnly(kShakeHeightSmallAmplitude, kShakeMaskNarrow, kShakeEffectAxes);
+    jitterHeightOnly({.amplitude = kShakeHeightSmallAmplitude, .mask = kShakeMaskNarrow, .effectId = kShakeEffectAxes});
     camW8(0x76, static_cast<uint8_t>(State::kIdle));
     break;
   case State::kIdle:
@@ -754,7 +767,7 @@ void CutsceneCamera::initPlace() { // FUN_8006E918 (init: place the camera X/Z b
   // r16/r17/r31 with the gen's values at its 0x8006EA60 jal site). rcos (0x80083F50) is frameless; rsin
   // is NOT (24-byte frame, ra@+16 — the reason Trig left it unregistered, trig.cpp), so the gen's rsin
   // call is reproduced through the substrate with its jal-site ra (0x8006E9C0) preloaded.
-  static constexpr GuestFrameSpill kSpills[] = {{16, 16}, {17, 20}, {18, 24}, {19, 28}, {31, 32}};
+  constexpr GuestFrameSpill kSpills[] = {{16, 16}, {17, 20}, {18, 24}, {19, 28}, {31, 32}};
   GuestFrame<40, 5> frame(c, kSpills);
   int32_t g140 = (int16_t)r16(kCamGlobal + 0x140);
   uint16_t cam56 = camR16(0x56);
@@ -828,7 +841,7 @@ void CutsceneCamera::restoreMode() { // FUN_8006E1E4
 // nested call, e.g. lookAt's guestmath::kLookAtIsqrt typed runtime address dispatch, can clobber the shared Core::r[]
 // register file, so the restore is a real requirement, not a formality).
 void CutsceneCamera::snapToMasterOffsetY200() { // FUN_8006EA00
-  static constexpr GuestFrameSpill kSpills[] = {{16, 16}, {17, 20}, {31, 24}};
+  constexpr GuestFrameSpill kSpills[] = {{16, 16}, {17, 20}, {31, 24}};
   GuestFrame<32, 3> frame(c, kSpills);
   c->r[16] = kCameraObject;     // gen: s0 = 0x800E8008 (spilled by initPlace's/lookAt's frames)
   c->r[17] = kCameraObject + 8; // gen: s1 = 0x800E8010 (ditto)
@@ -854,7 +867,7 @@ void CutsceneCamera::snapToMasterOffsetY200() { // FUN_8006EA00
 // snapToMasterOffsetY200 above (own frame + gen s0/s1 register values + per-jal-site ra constants
 // for the frame-pushing callees rsin/snapFollow/lookAt); see that method's comment for the rationale.
 void CutsceneCamera::orbitTick() { // FUN_8006EF38
-  static constexpr GuestFrameSpill kSpills[] = {{16, 16}, {17, 20}, {31, 24}};
+  constexpr GuestFrameSpill kSpills[] = {{16, 16}, {17, 20}, {31, 24}};
   GuestFrame<32, 3> frame(c, kSpills);
   if ((uint8_t)(r8(0x1F800236u) - 3) < 2) { // only during render-timing window {3,4}
     int32_t angle = (int16_t)camR16(0x70);
@@ -898,156 +911,6 @@ void CutsceneCamera::update() { // FUN_8006EC44 (resident per-frame camera drive
     dispatchMode(mode);
   }
   shakeTail(); // post-mode tail (always, after any mode)
-}
-
-// pc_faithful mirror of guest 0x8006EC44 (authenticated executable/overlay evidence). Guest frame: r29-=24,
-// s0(r16)@sp+16 spilled with the CALLER's live value (Engine::fieldFrameFaithful leaves r16=0x1F800000
-// there before calling), ra(r31)@sp+20 spilled with the caller's jal-site (0x80108B90u), s0 reassigned to
-// kCameraObject (hardcoded in the gen, independent of any cam_ this instance was constructed with) for the body,
-// both restored and the frame deallocated on every exit path (including the two early-return/idle paths,
-// which skip shakeTail exactly like the gen's direct goto to the restore tail). Every callee gets r31 set
-// to the exact gen jal-site constant first, matching the reference-mirror style (Engine::fieldFrameFaithful
-// / Sop::fieldModeFaithful). init/mainFollow/rotBuild/trackFollow/snapFollow*/pitchFollow/simpleFollow/
-// shakeTail are dispatched via typed runtime address dispatch(c, addr) to their guest address — since no
-// override-registry entry exists for any of them, this falls straight through to the substrate gen_func body (same code
-// the oracle runs), NOT a call to the native sibling *methods* on this class (those exist for the native_sync path
-// only). Calling convention for the two-arg follow leaves (trackFollow/snapFollowA/pitchFollow/
-// snapFollowB/snapFollow/simpleFollow) is a0(r4)=cam, a1(r5)=cam+56 (or kCamGlobal+0x2C for the "snap-to-master"
-// variants of snapFollow/simpleFollow) — verified against the gen bodies AND the real mode-dispatch jump
-// table at 0x80016A44 (18 uint32 entries, read from scratch/bin/tomba2/MAIN.EXE @ file offset 0x7244).
-void CutsceneCamera::updateFaithful() { // FUN_8006EC44
-  uint8_t outer = camR8(0);
-  static constexpr GuestFrameSpill kSpills[] = {{16, 16}, {31, 20}};
-  GuestFrame<24, 2> frame(c, kSpills);
-  c->r[16] = kCameraObject; // s0 = kCameraObject (0x800E8008, hardcoded in the gen)
-
-  if (outer == 0) {
-    c->mem_w8(c->r[16] + 0, 1);
-    c->r[31] = 0x8006EC84u;
-    c->r[4] = c->r[16];
-    psx::cpu::dispatchGuestToReturn0(*c,
-                                     0x8006EA7Cu,
-                                     psx::cpu::ExecutionBudget::currentTurn(*c),
-                                     __func__); // init FUN_8006EA7C(cam) — substrate until its faithful conversion
-    goto epilogue;
-  }
-  if (outer != 1) {
-    goto epilogue;
-  }
-  {
-    uint8_t ss = c->mem_r8(c->r[16] + 1);
-    if (ss == 0) {
-      c->mem_w8(c->r[16] + 1, 1);
-      c->mem_w8(c->r[16] + 2, 0);
-      c->mem_w8(c->r[16] + 3, 0);
-    } else if (ss != 1) {
-      goto epilogue;
-    }
-    uint8_t mode = (uint8_t)(c->mem_r8(c->r[16] + 100) & 63u);
-    c->mem_w8(c->r[16] + 102, 0);
-    if (mode < 18) {
-      dispatchModeFaithful(mode);
-    }
-    c->r[31] = 0x8006EF28u;
-    c->r[4] = c->r[16];
-    psx::cpu::dispatchGuestToReturn0(
-        *c, 0x8006C988u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // shakeTail FUN_8006C988(cam)
-  }
-epilogue:; // GuestFrame's destructor restores r16/ra and ascends sp on every path
-}
-
-// The guest-faithful mirror of the mode dispatch: the SAME eighteen modes and the SAME policy, read
-// from the same table, reached through guest addresses instead of native calls. What differs from
-// `dispatchMode` above is only that each callee is dispatched with the guest's own return constant
-// armed in `ra` first, so the frame bytes a downstream still-guest leaf spills are the ones the
-// reference wrote. That per-arm constant is the ONLY thing this function owns; the policy — which
-// mode does what, and which render modes get the overlay prologue — is `camera_mode.h`'s.
-void CutsceneCamera::dispatchModeFaithful(uint8_t mode) {
-  // The guest's own call shape for this table: a0 = the camera object, and for the follow modes
-  // a1 = the follow target. `kFollowsCameraSelf` and `kFollowsMaster` differ only in which address
-  // goes in a1, so the descriptor decides that rather than each arm repeating it. The camera object
-  // is read from c->r[16] — the frame `updateFaithful` set — and NOT from this instance's `cam_`,
-  // because the guest's mode dispatch passes the object the driver was handed and the two are not
-  // necessarily the same base.
-  const tomba::camera::ModeDescriptor *const descriptor = tomba::camera::descriptorFor(static_cast<CameraMode>(mode));
-  const uint32_t followTarget = (descriptor != nullptr && descriptor->follows == FollowTarget::kFollowsMaster)
-                                    ? kCamGlobal + 0x2cu
-                                    : c->r[16] + 56u;
-
-  switch (static_cast<CameraMode>(mode)) {
-  case CameraMode::kMainFollow: {
-    const uint8_t rm = c->mem_r8(tomba::camera::kRenderModeByte);
-    if (const RenderModePrologue *prologue = prologueFor(rm)) {
-      subFaithfulAtReturn(prologue->forMainFollow, prologue->mainFollowReturn);
-      return;
-    }
-    if (!(c->mem_r8(c->r[16] + 100) & 0x80)) {
-      subFaithfulAtReturn(0x8006E0F0u, 0x8006ED7Cu); // mainFollow(cam)
-      subFaithfulAtReturn(0x8006E464u, 0x8006ED84u); // rotBuild(cam)
-    }
-    // The render mode is re-read here, as the guest does: the follow above may have changed it.
-    const uint8_t rmAfter = c->mem_r8(tomba::camera::kRenderModeByte);
-    subFaithfulAtReturn(c->mem_r32(tomba::camera::kRenderModeFunctionTable + static_cast<uint32_t>(rmAfter) * 4u),
-                        0x8006EDACu);
-    return;
-  }
-  case CameraMode::kTrackFollow: {
-    const uint8_t rm = c->mem_r8(tomba::camera::kRenderModeByte);
-    if (const RenderModePrologue *prologue = prologueFor(rm)) {
-      subFaithfulAtReturn(prologue->forTrackFollow, prologue->trackFollowReturn);
-      return;
-    }
-    subFaithfulAtReturn(0x8006E228u, 0x8006EE2Cu, followTarget); // trackFollow
-    return;
-  }
-  case CameraMode::kSnapFollowScriptedA:
-    subFaithfulAtReturn(0x8006E294u, 0x8006EE40u, followTarget); // snapFollowA
-    return;
-  case CameraMode::kPitchFollow:
-    subFaithfulAtReturn(0x8006E360u, 0x8006EE54u, followTarget); // pitchFollow
-    return;
-  case CameraMode::kSnapFollowScriptedB:
-    subFaithfulAtReturn(0x8006E2FCu, 0x8006EE68u, followTarget); // snapFollowB
-    return;
-  case CameraMode::kSnapFollowMaster:
-    subFaithfulAtReturn(0x8006E3B0u, 0x8006EE80u, followTarget); // snapFollow
-    return;
-  case CameraMode::kFreezeAtMasterHeight:
-    c->mem_w8(c->r[16] + 100, 0);
-    c->mem_w32(c->r[16] + 12, c->mem_r32(kCamGlobal + 0x30));
-    return;
-  case CameraMode::kSnapFollowSelf:
-  case CameraMode::kSnapFollowSelfAlias:
-    subFaithfulAtReturn(0x8006E3B0u, 0x8006EEF8u, followTarget); // snapFollow
-    return;
-  case CameraMode::kSimpleFollowSelf:
-    subFaithfulAtReturn(0x8006E3F4u, 0x8006EEA8u, followTarget); // simpleFollow
-    return;
-  case CameraMode::kFieldOverlay9:
-    subFaithfulAtReturn(tomba::camera::guestEntryFor(CameraMode::kFieldOverlay9), 0x8006EEB8u);
-    return;
-  case CameraMode::kAreaOverlayScripted:
-    subFaithfulAtReturn(tomba::camera::guestEntryFor(CameraMode::kAreaOverlayScripted), 0x8006EEC8u);
-    return;
-  case CameraMode::kReset:
-  case CameraMode::kForceModeByte:
-    c->mem_w8(c->r[16] + 100, 0);
-    c->mem_w8(c->r[16] + 2, 0);
-    c->mem_w8(c->r[16] + 3, 0);
-    return;
-  case CameraMode::kForceModeSix:
-    c->mem_w8(c->r[16] + 100, tomba::camera::kForceModeSixValue);
-    return;
-  case CameraMode::kSimpleFollowMaster:
-    subFaithfulAtReturn(0x8006E3F4u, 0x8006EF10u, followTarget); // simpleFollow
-    return;
-  case CameraMode::kTailOnly:
-    // No body. The driver's post-mode tail still runs, exactly as the guest's fallthrough does.
-    return;
-  case CameraMode::kFieldOverlay17:
-    subFaithfulAtReturn(tomba::camera::guestEntryFor(CameraMode::kFieldOverlay17), 0x8006EF20u);
-    return;
-  }
 }
 
 void CutsceneCamera::init() { // FUN_8006EA7C (first-frame field reset + render-mode-keyed mode selector)
@@ -1124,9 +987,9 @@ void CutsceneCamera::init() { // FUN_8006EA7C (first-frame field reset + render-
 // evidence, shard_4.c and shard_6.c also call directly (MAIN calling its own resident code — the recorded guest call
 // graph contains that as a plain C call, bypassing typed runtime address dispatch entirely and consulting the recorded
 // binary evidence's OWN image-qualified runtime dispatcher table instead). So pushMode needs the dual-wire
-// (tomba::native::declareOverride setter passed to install(), same pattern as PcScheduler's primitives in
-// game/core/pc_scheduler.cpp); the other 4 only need the typed runtime address dispatch-only registration (setter
-// omitted).
+// (tomba::native::declareOverride setter passed to install(), same pattern as TombaScheduler's primitives in
+// game/core/sched/tomba_scheduler.cpp); the other 4 only need the typed runtime address dispatch-only registration
+// (setter omitted).
 
 static void eov_resetFollowAccum(Core *c) {
   // a0 (c->r[4]) IS the target object base here — NOT hardcoded kCameraObject (see the RE note above
@@ -1146,14 +1009,14 @@ static void eov_orbitTick(Core *c) {
   CutsceneCamera(c, kCameraObject).orbitTick();
 }
 
-void CutsceneCamera::registerOverrides(Game * /*game*/) {
+void CutsceneCamera::registerOverrides(native::NativeOverrideCatalog &natives) {
   // pushMode (0x8006E1C0) has direct same-module callers -> tomba::native::declareOverride installs the thunk;
   // the other four are typed runtime address dispatch-only (setter omitted).
-  tomba::native::declareOverride(0x8006E1C0u, "CutsceneCamera::pushMode", eov_pushMode);
-  tomba::native::declareOverride(0x8006E8F8u, "CutsceneCamera::resetFollowAccum", eov_resetFollowAccum);
-  tomba::native::declareOverride(0x8006E1E4u, "CutsceneCamera::restoreMode", eov_restoreMode);
-  tomba::native::declareOverride(0x8006EA00u, "CutsceneCamera::snapToMasterOffsetY200", eov_snapToMasterOffsetY200);
-  tomba::native::declareOverride(0x8006EF38u, "CutsceneCamera::orbitTick", eov_orbitTick);
+  natives.declare(0x8006E1C0u, "CutsceneCamera::pushMode", eov_pushMode);
+  natives.declare(0x8006E8F8u, "CutsceneCamera::resetFollowAccum", eov_resetFollowAccum);
+  natives.declare(0x8006E1E4u, "CutsceneCamera::restoreMode", eov_restoreMode);
+  natives.declare(0x8006EA00u, "CutsceneCamera::snapToMasterOffsetY200", eov_snapToMasterOffsetY200);
+  natives.declare(0x8006EF38u, "CutsceneCamera::orbitTick", eov_orbitTick);
 }
 
 } // namespace tomba::camera

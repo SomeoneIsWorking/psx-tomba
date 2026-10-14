@@ -1,9 +1,17 @@
 // game/render/rain_streaks.h — A08's rain: FUN_80116904, a render node's custom draw (node+24).
 #pragma once
 
+#include "state_producer.h"
+
 #include <cstdint>
 
 struct Core;
+
+namespace tomba::native {
+class NativeOverrideCatalog;
+} // namespace tomba::native
+
+namespace tomba {
 
 class RainStreaks {
 public:
@@ -14,7 +22,9 @@ public:
   // lattice cell wrapped, or that fails RTPS, restarts its streak. Drop i is an object of its own, named by its trail
   // slot.
   static void draw(Core *c);
-  static void registerOverrides();
+  static void registerOverrides(native::NativeOverrideCatalog &natives);
   // Each streak is an object saved as its two screen points and its bucket; the render moves the points.
-  static void registerStateRenders(Core &core);
+  static void registerStateRenders(psx::present::StateProducerTable &renders);
 };
+
+} // namespace tomba

@@ -1,9 +1,12 @@
 #pragma once
 
+#include "entry/tomba_identity.h"
 #include "entry/tomba_runtime.h"
 #include "title_catalog.h"
+#include "tomba1_identity.h"
 #include "tomba1_runtime.h"
 
+#include <array>
 #include <filesystem>
 #include <memory>
 #include <span>
@@ -16,9 +19,10 @@ public:
   std::string_view productName() const override;
   std::filesystem::path provisioningRoot() const override;
   std::span<const psx::host::TitleIdentity> titles() const override;
-  GameRuntime &runtime(std::size_t index) const override;
+  psx::game::GameRuntime &runtime(std::size_t index) const override;
 
 private:
+  std::array<psx::host::TitleIdentity, 2> identities_{tomba1::identity(), title::bootStubIdentity()};
   // The host asks for a mutable runtime from a const catalog; each runtime is its title's one.
   mutable tomba1::Tomba1Runtime tomba1_;
   mutable TombaRuntime tomba2_;

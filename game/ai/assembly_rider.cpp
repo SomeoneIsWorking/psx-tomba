@@ -90,6 +90,8 @@
 #include "core/overrides/native_override_catalog.h"
 #include "guest_abi.h"
 
+namespace tomba {
+
 namespace {
 
 // ---- guest stack (tools/binary ABI evidence 0x80118B10 --scaffold --guestabi) ----------------------
@@ -245,14 +247,14 @@ submit: {
   rider.setPosY((uint16_t)(anchor.y16() - (uint32_t)kRiderHeightAboveArmEnd));
   rider.setPosZ((uint16_t)anchor.z16());
   c->r[4] = c->r[16];
-  tomba::guest::dispatchJalToReturn(*c, kCullEnqueueQueueC, kRaAfterSubmit);
+  tomba::guest::dispatchJalToReturn(*c, {.target = kCullEnqueueQueueC, .returnAddress = kRaAfterSubmit});
   goto tail;
 }
 
   // ── HOP: two bounces in place above the arm-end ────────────────────────────────────────────────
 state_hop: {
   c->r[4] = c->r[16];
-  tomba::guest::dispatchJalToReturn(*c, kActorBoundsCull, kRaAfterHopCull);
+  tomba::guest::dispatchJalToReturn(*c, {.target = kActorBoundsCull, .returnAddress = kRaAfterHopCull});
   const uint32_t phase = rider.motionPhase();
   if (phase == kHopPhaseFirstBounce) {
     goto hop_bounce_one;
@@ -297,18 +299,18 @@ hop_bounce_two: {
   // ── FLING: thrown off, spiralling to the side the pump stroked ─────────────────────────────────
 state_fling: {
   c->r[4] = c->r[16];
-  tomba::guest::dispatchJalToReturn(*c, kActorBoundsCull, kRaAfterFlingCull);
+  tomba::guest::dispatchJalToReturn(*c, {.target = kActorBoundsCull, .returnAddress = kRaAfterFlingCull});
   c->r[4] = c->r[16];
   c->r[5] = c->r[17];
   c->r[6] = c->r[18];
-  tomba::guest::dispatchJalToReturn(*c, 0x801189B8u, kRaAfterFling);
+  tomba::guest::dispatchJalToReturn(*c, {.target = 0x801189B8u, .returnAddress = kRaAfterFling});
   goto tail;
 }
 
   // ── DORMANT: visibility only ───────────────────────────────────────────────────────────────────
 state_dormant: {
   c->r[4] = c->r[16];
-  tomba::guest::dispatchJalToReturn(*c, kActorBoundsCull, kRaAfterDormantCull);
+  tomba::guest::dispatchJalToReturn(*c, {.target = kActorBoundsCull, .returnAddress = kRaAfterDormantCull});
 }
 
 tail:
@@ -318,10 +320,12 @@ tail:
   }
 }
 
-void AssemblyRider::registerOverrides() {
+void AssemblyRider::registerOverrides(native::NativeOverrideCatalog &natives) {
   // A00, from the image: of 23 authenticated MODE images only A00 holds a function at 0x80118B10
   // (168 words), and the address is inside A00's loaded text range. This is the MODULE note above,
   // applied: the body is A00-only, so the declaration carries the A00 identity.
-  tomba::native::declareOverlayOverride(
+  natives.declareOverlay(
       "A00", 0x80118B10u, "AssemblyRider::rideSlotAndReactToStroke", &AssemblyRider::rideSlotAndReactToStroke);
 }
+
+} // namespace tomba

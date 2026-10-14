@@ -30,6 +30,12 @@ constexpr uint32_t kHeightOffset = 132; // 0x84  — u16, added to the vertical 
 constexpr uint32_t kReachY = 134;       // 0x86  — s16, vertical reach
 } // namespace actorcontact
 
+namespace tomba::native {
+class NativeOverrideCatalog;
+} // namespace tomba::native
+
+namespace tomba {
+
 struct ContactActor {
   Core *mCore;
   uint32_t mAt;
@@ -61,6 +67,8 @@ struct ContactActor {
   }
 };
 
+} // namespace tomba
+
 // ------------------------------------------------------------------------------------------------
 // The OBJECT side. +0x00/+0x03/+0x04/+0x05/+0x06 are the standard node state bytes; +0x62 carries a
 // capability mask whose bit 3 gates the proximity test at all; +0xFC links to the record that holds
@@ -76,6 +84,8 @@ constexpr uint32_t kCapability = 98;   // 0x62 — u16 flags
 constexpr uint32_t kProximityBit = 8;  // bit 3 — this object participates in the proximity test
 constexpr uint32_t kBodyRecord = 252;  // 0xFC — u32, the record carrying the measured position
 } // namespace objcontact
+
+namespace tomba {
 
 struct ContactObject {
   Core *mCore;
@@ -133,5 +143,7 @@ public:
   // 0x8010E258 — a0 = the actor's G-block, a1 = the object.
   static void resolveHitOrProximity(Core *c);
 
-  static void registerOverrides();
+  static void registerOverrides(native::NativeOverrideCatalog &natives);
 };
+
+} // namespace tomba

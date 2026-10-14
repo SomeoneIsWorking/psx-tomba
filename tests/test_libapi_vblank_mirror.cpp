@@ -1,6 +1,6 @@
 #include "core.h"
 #include "core/hle/libapi_intr.h"
-#include "timing.h"
+#include "stub_game_runtime.h"
 
 #include <cstdint>
 #include <cstdio>
@@ -25,9 +25,10 @@ void check(bool condition, const char *detail) {
 } // namespace
 
 int main() {
-  auto core = std::make_unique<Core>();
-  auto unrelated = std::make_unique<Core>();
-  psx::frame::Timing timing;
+  psx::test::StubGameRuntime runtime;
+  auto core = std::make_unique<Core>(runtime);
+  auto unrelated = std::make_unique<Core>(runtime);
+  constexpr std::uint32_t kHostField = 1u;
   core->r[29] = 0x801FFFE0u;
   core->r[31] = 0x80010000u;
   core->mem_w32(kVblankCount, kUntouchedWord);
@@ -36,20 +37,14 @@ int main() {
     core->mem_w32(kCallbackTable + slot * sizeof(std::uint32_t), 0u);
   }
 
-  timing.frameTick();
-  check(timing.vblank == 1u, "shared host field count did not advance");
-  check(core->mem_r32(kVblankCount) == kUntouchedWord && unrelated->mem_r32(kVblankCount) == kUntouchedWord,
-        "shared field tick wrote a title guest address");
-
-  tomba::LibapiIntr::mirrorHostVblank(*core, timing.vblank);
+  tomba::LibapiIntr::mirrorHostVblank(*core, kHostField);
   check(core->mem_r32(kVblankCount) == 1u, "Tomba frame boundary did not mirror the host field count");
   check(unrelated->mem_r32(kVblankCount) == kUntouchedWord, "Tomba mirror wrote another Core's RAM");
 
   tomba::LibapiIntr::runVblankCallbacks(core.get());
   check(core->mem_r32(kVblankCount) == 2u, "Tomba VBlank handler did not apply its second write");
 
-  timing.frameTick();
-  tomba::LibapiIntr::mirrorHostVblank(*core, timing.vblank);
+  tomba::LibapiIntr::mirrorHostVblank(*core, kHostField + 1u);
   check(core->mem_r32(kVblankCount) == 2u, "next Tomba frame did not preserve the measured write order");
   check(unrelated->mem_r32(kVblankCount) == kUntouchedWord, "unrelated Core inherited Tomba's mirror");
 

@@ -5,14 +5,16 @@
 // TransitionState3::walkOnce. The `behhist` diagnostic (from the pre-restructure call_handler)
 // is preserved in the main walk since it feeds top-down ownership decisions.
 #include "object_list.h"
-#include "cfg.h"
 #include "core.h"
-#include "core/entry/game_ctx.h"
+#include "entry/tomba_session.h"
 #include "game.h"
 #include "render.h"       // rend(c)->margin.flush
 #include "tomba2_types.h" // T2_OBJLIST_HEAD_1/2, T2OBJ_HANDLER/NEXT/RENDER_FLAG
+#include <lucent/log.h>
 #include <stdint.h>
 #include <stdio.h>
+
+namespace tomba {
 
 namespace {
 
@@ -21,7 +23,7 @@ namespace {
 // diagnostic feeds top-down ownership decisions, so it lives here on the main walk path.
 inline void call_handler(Core *c, uint32_t node) {
   uint32_t h = c->mem_r32(node + T2OBJ_HANDLER);
-  if (cfg_dbg("behhist")) {
+  if (lucent::channel_on("behhist")) {
     ObjectList &ol = eng(c).objectList;
     uint32_t *addr = ol.mBehAddr;
     long *cnt = ol.mBehCnt;
@@ -42,13 +44,13 @@ inline void call_handler(Core *c, uint32_t node) {
       cnt[i]++;
     }
     if ((++w % 300) == 0) {
-      cfg_logi("behhist", "distinct=%d handlers:", nh);
+      lucent::info("behhist", "distinct={} handlers:", nh);
       for (int j = 0; j < nh; j++) {
-        cfg_logi("behhist", "   %08X  x%ld", addr[j], cnt[j]);
+        lucent::info("behhist", "   {:08X}  x{}", addr[j], cnt[j]);
       }
     }
   }
-  eng(c).behaviors.dispatchObj(node, h);
+  eng(c).behaviors.dispatchObj({.object = node, .handler = h});
 }
 
 inline void walk_list(Core *c, uint32_t head, long *count) {
@@ -70,11 +72,8 @@ void ObjectList::walkAll() {
   walk_list(c, c->mem_r32(T2_OBJLIST_HEAD_2), &nodes);
   rend(c)->margin.flush(c);
 
-  if (mDbg < 0) {
-    mDbg = cfg_dbg("engine") ? 1 : 0;
-  }
-  if (mDbg && (mWalksAll % 300) == 0) {
-    cfg_logi("engine", "objwalk #%ld: %ld nodes", mWalksAll, nodes);
+  if ((mWalksAll % 300) == 0) {
+    lucent::debug("engine", "objwalk #{}: {} nodes", mWalksAll, nodes);
   }
   mWalksAll++;
 }
@@ -86,11 +85,8 @@ void ObjectList::walkList2() {
   // NB: no MarginRenderer::flush here — that belongs to walkAll (walkList2 is a distinct call site
   // from Sop::fieldUpdate, not a replacement of the whole entity walk).
 
-  if (mDbg < 0) {
-    mDbg = cfg_dbg("engine") ? 1 : 0;
-  }
-  if (mDbg && (mWalksL2 % 300) == 0) {
-    cfg_logi("engine", "objwalk_l2 #%ld: %ld nodes", mWalksL2, nodes);
+  if ((mWalksL2 % 300) == 0) {
+    lucent::debug("engine", "objwalk_l2 #{}: {} nodes", mWalksL2, nodes);
   }
   mWalksL2++;
 }
@@ -101,7 +97,9 @@ void ObjectList::walkAux() {
   for (uint32_t n = c->mem_r32(AUX_LIST_HEAD); n;) {
     uint32_t h = c->mem_r32(n + 0x1Cu);
     uint32_t next = c->mem_r32(n + 0x24u);
-    eng(c).behaviors.dispatchObj(n, h);
+    eng(c).behaviors.dispatchObj({.object = n, .handler = h});
     n = next;
   }
 }
+
+} // namespace tomba

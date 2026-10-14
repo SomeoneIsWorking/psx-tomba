@@ -1,14 +1,6 @@
-// game/audio/native_audio.h — the SHARED PC-native audio synth core.
-//
-// This is the ONE codebase used by BOTH the offline renderer (tools/snd_render.c) and the
-// in-game real-time music engine (engine/audio/native_music.c). It owns: VAB ('pBAV') sound-bank
-// parsing, PSX ADPCM (VAG) decode, the per-voice synth (ADSR + pitch resample + vol/pan), and the
-// SEP ('pQES') sequencer interpreter. It does NO file I/O and holds NO global state: every routine
-// operates on a caller-supplied byte buffer + explicit byte offsets, so the same parser serves a
-// whole-file dump (TOMBA2.SND), an area bundle, or guest RAM read live from the running game.
-//
-// Format references: scratch/native_audio_spec.md (the bible) + scratch/handoff_audio_unify.md
-// (the corrected §5b/§6). The SEP stream is libsnd-specific, NOT standard MIDI (see seq_event).
+// The native music synth core: VAB ('pBAV') banks, PSX ADPCM (VAG) decode, the per-voice synth and the
+// SEP ('pQES') sequencer. No I/O and no global state; every routine reads a caller-supplied buffer.
+// The SEP stream is libsnd-specific, not standard MIDI.
 #ifndef NATIVE_AUDIO_H
 #define NATIVE_AUDIO_H
 #include <stdint.h>
@@ -43,8 +35,6 @@ int na_prog_tone_start(const NaVab *v, int p);
 int na_vab_decode_vag(const NaVab *v, int vagIdx, int16_t *out, int outcap, int *loop_start, int *loops);
 
 // ---- voice synth ---------------------------------------------------------------------------
-enum { NA_ADSR_ATTACK, NA_ADSR_DECAY, NA_ADSR_SUSTAIN, NA_ADSR_RELEASE, NA_ADSR_OFF };
-
 // A decoded VAG (PCM cache). The sequencer owns one cache per active VAB.
 typedef struct {
   int16_t *data;
@@ -89,10 +79,10 @@ typedef struct {
 int na_seq_open(NaSeq *s, const uint8_t *buf, NaVab *vab, long seqOff);
 // Free any decoded-VAG caches the sequence allocated (call when done with the sequence).
 void na_seq_free(NaSeq *s);
-// Render up to `nframes` stereo frames @ `rate` into `out` (interleaved L,R int16). Advances
+// Render up to `nframes` 44.1 kHz stereo frames into `out` (interleaved L,R int16). Advances
 // the sequencer + voices. Stops naturally at end-of-track once the release tail drains; returns
 // the number of frames actually produced (may be < nframes if the song ended).
-int na_seq_render(NaSeq *s, int16_t *out, int nframes, int rate);
+int na_seq_render(NaSeq *s, int16_t *out, int nframes);
 
 #ifdef __cplusplus
 }

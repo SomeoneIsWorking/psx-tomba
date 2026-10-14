@@ -15,17 +15,14 @@
 #include <cstdint>
 class Core;
 
+namespace tomba {
+
 class Sop {
 public:
   Core *core = nullptr;
 
   // Live-spine entry points.
-  void fieldMode(); // was ov_sop_field_mode  (per-frame outer state dispatcher)
-  // pc_faithful mirror of overlay guest 0x80109164 — the SOP area-load TASK-1 body, run on a
-  // PcScheduler native fiber (spawned by fieldModeFaithful's 0x80044BD4 dispatch). Substrate
-  // leaves at their RE'd jal sites; ends with done_flag + selfClose. areaLoad() above is the
-  // native_sync sync flavor.
-  void areaLoadFaithful();
+  void fieldMode();   // was ov_sop_field_mode  (per-frame outer state dispatcher)
   void fieldUpdate(); // was ov_sop_field_update (per-frame gameplay body — states 1/2/3)
 
   // Sync area-DATA load entry points (both mirror each other; both end with 1f80019b=1).
@@ -51,7 +48,18 @@ public:
   void scenePrepass(uint32_t table);
 
 private:
+  struct SceneGridGatherArgs {
+    uint32_t table;
+    int32_t x0;
+    int32_t y0;
+    int32_t x1;
+    int32_t y1;
+    int32_t x2;
+    int32_t y2;
+  };
   // sceneGridGather (guest FUN_8010A3AC): scanline-raster the frustum triangle into the scene grid,
   // appending cell ids to table+0x10 / count at table+6. Called only by scenePrepass.
-  void sceneGridGather(uint32_t table, int32_t x0, int32_t y0, int32_t x1, int32_t y1, int32_t x2, int32_t y2);
+  void sceneGridGather(const SceneGridGatherArgs &args);
 };
+
+} // namespace tomba

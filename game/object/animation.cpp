@@ -6,12 +6,12 @@
 // PC-game code structure. The `animvm` diagnostic A/B gate (full RAM+scratchpad vs original guest-body call) is a
 // REPL channel, unchanged.
 #include "animation.h"
-#include "cfg.h"
 #include "core.h"
-#include "core/entry/game_ctx.h"
-#include "core/overrides/native_override_catalog.h" // tomba::native::declareOverride — the one native-override registry
+#include "core/overrides/native_override_catalog.h"
+#include "entry/tomba_session.h"
 #include "game.h"
 #include "guest_call.h"
+#include <lucent/log.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -46,6 +46,8 @@
 // `animvm` gate = full RAM+scratchpad A/B vs original guest-body call (each path runs once from one checkpoint;
 //  the native run is rolled back; the fn's own 40-byte stack frame [sp-40,sp) is excluded — the gen
 //  prologue saves regs there, the native body never touches the guest stack).
+namespace tomba {
+
 static void anim_vm_76d68(Core *c) {
   const uint32_t s0 = c->r[4];
   const uint32_t ctrl = c->mem_r16(s0 + 14); // a0reg (read once)
@@ -65,7 +67,8 @@ static void anim_vm_76d68(Core *c) {
     }
     // 0x80075f0c takes a1 = cnt (the counter, s1 at the jal) — it uses (int16_t)a1==1 to decide whether
     // to set the KSEG0 bit on the cursor (s0+56). The entry register a1 was `addu a1,s1,zero` (=cnt).
-    eng(c).animation.applyFrame(s0, (int32_t)(int16_t)cnt); // apply current frame (native FUN_80075F0C)
+    eng(c).animation.applyFrame(
+        {.node = s0, .snapCursor = (int32_t)(int16_t)cnt}); // apply current frame (native FUN_80075F0C)
     // s0+14 is RE-READ here (the applier 0x80075f0c may have modified it); only bit 0x1000 is kept.
     uint32_t fz = c->mem_r16(s0 + 14) & 0x1000u;
     c->mem_w16(s0 + 14, (uint16_t)(cnt + fz)); // (low12-1) | (post-call s0[14] & 0x1000)
@@ -87,7 +90,7 @@ static void anim_vm_76d68(Core *c) {
     c->r[4] = s0;
     c->r[5] = a1;
     c->r[6] = (uint32_t)c->mem_r16s(s0 + 14);
-    psx::cpu::dispatchGuestToReturn0(*c, 0x80075ff8u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::dispatchGuestToReturn0(*c, 0x80075ff8u, psx::cpu::ExecutionBudget::currentTurn(*c), "animation");
     c->r[2] = retval;
   };
 
@@ -270,12 +273,12 @@ void Animation::step(uint32_t node) {
   Core *c = this->core;
   c->r[4] = node; // taxi-in for the still-taxi internal impl
   // Lazy gate (re-check each call): this fn can run before the REPL `debug animvm` is processed.
-  if (!cfg_dbg("animvm")) {
+  if (!lucent::channel_on("animvm")) {
     anim_vm_76d68(c);
     return;
   }
-  uint8_t *ram0 = gctx(c)->verification.ram0();
-  uint8_t *ramN = gctx(c)->verification.ramN();
+  uint8_t *ram0 = tombaSession(c).verification.ram0();
+  uint8_t *ramN = tombaSession(c).verification.ramN();
   uint8_t spad0[0x400], spadN[0x400];
   uint32_t regs0[32];
   memcpy(regs0, c->r, sizeof regs0);
@@ -311,14 +314,15 @@ void Animation::step(uint32_t node) {
       break;
     }
   }
-  tomba::VerificationCounter &chk = gctx(c)->verification.animation;
+  tomba::VerificationCounter &chk = tombaSession(c).verification.animation;
   long &ng = chk.nMatch, &nb = chk.nMismatch;
   if (ro >= 0 || so >= 0 || v0_n != v0_o) {
     if (nb++ < 40) {
-      cfg_logi("animvm", "MISMATCH s0=%08x v0 n=%x o=%x ram@%x spad@%x sp=%x", s0, v0_n, v0_o, ro, so, sp);
+      lucent::info(
+          "animvm", "MISMATCH s0={:08x} v0 n={:x} o={:x} ram@{:x} spad@{:x} sp={:x}", s0, v0_n, v0_o, ro, so, sp);
     }
   } else if (++ng % 2000 == 0) {
-    cfg_logi("animvm", "%ld matches", ng);
+    lucent::info("animvm", "{} matches", ng);
   }
 }
 
@@ -563,7 +567,8 @@ uint32_t Animation::advanceLinkChain(uint32_t node) {
 // (sp); sw r17,20(sp); sw r16,16(sp)`, RE'd from authenticated executable/overlay evidence guest 0x80077C40) is
 // mirrored below with the same LIVE-spill/restore RAII pattern as NodeXform's frames (node_xform.cpp) and
 // Cull::performBaseCullFramed (cull.cpp). isDeadStackScratch's exclusion in sbs.cpp is REMOVED.
-void Animation::attach(uint32_t node, uint32_t table, uint32_t id) {
+void Animation::attach(const AttachArgs &args) {
+  auto [node, table, id] = args;
   Core *c = this->core;
   uint32_t s16 = c->r[16], s17 = c->r[17], sra = c->r[31];
   c->r[29] -= 32;
@@ -624,7 +629,8 @@ void Animation::attach(uint32_t node, uint32_t table, uint32_t id) {
 // by its stored per-frame delta, then (if any child limbs are registered) advances every child
 // limb's position by ITS OWN delta the same way. RE'd via Ghidra headless (scratch/decomp
 // cluster1.c, function FUN_80075f0c): a0=node, a1=snapCursor (only ever compared against 1).
-void Animation::applyFrame(uint32_t node, int32_t snapCursor) {
+void Animation::applyFrame(const ApplyFrameArgs &args) {
+  auto [node, snapCursor] = args;
   Core *c = this->core;
   c->mem_w16(node + 0x88, (uint16_t)(c->mem_r16(node + 0x88) + c->mem_r16(node + 0x90)));
   c->mem_w16(node + 0x8a, (uint16_t)(c->mem_r16(node + 0x8a) + c->mem_r16(node + 0x92)));
@@ -656,10 +662,10 @@ static void eov_animAdvanceLink(Core *c) {
   c->r[2] = eng(c).animation.advanceLinkChain(c->r[4]);
 }
 static void eov_animAttach(Core *c) {
-  eng(c).animation.attach(c->r[4], c->r[5], c->r[6]);
+  eng(c).animation.attach({.node = c->r[4], .table = c->r[5], .id = c->r[6]});
 }
 static void eov_animApplyFrame(Core *c) {
-  eng(c).animation.applyFrame(c->r[4], (int32_t)c->r[5]);
+  eng(c).animation.applyFrame({.node = c->r[4], .snapCursor = (int32_t)c->r[5]});
 }
 
 // FUN_80076D68 (Animation::step) is DELIBERATELY LEFT UNWIRED here — investigated + reverted
@@ -673,7 +679,7 @@ static void eov_animApplyFrame(Core *c) {
 // the fully UNFRAMED step() instead of stepFramed()) and NOT the decision logic (every TRACED
 // node/return-value pair matched between cores). It isolates to exactly one call: node address
 // 0x800E7E80 — which sits immediately after the active-object-pool free-counter
-// (0x800E7E7C, see game/render/cull.cpp's CULL_FAR_MULT comment) — one specific call-site
+// (0x800E7E7C) — one specific call-site
 // (ra=0x8005AA90) passes this address as FUN_80076D68's node argument. Excluding just that one
 // address from the native route (a targeted A/B test, not a shipped fix) made the divergence
 // disappear completely (0-diff through 7000+ frames). This means anim_vm_76d68 (the existing,
@@ -689,13 +695,15 @@ static void eov_animApplyFrame(Core *c) {
 // own header comment) and via the override registry (ActorZonedAttacker's call1() leaf-dispatch
 // convenience), which never cross the guest ABI/stack boundary in the first place.
 
-void Animation::registerOverrides() {
+void Animation::registerOverrides(native::NativeOverrideCatalog &natives) {
   // 0x80075F0C is ALSO reached by DIRECT substrate `a direct guest-address call` calls (jal), not only via
   // typed runtime address dispatch; install() puts the shared thunk into image-qualified runtime dispatcher so both
   // paths are intercepted uniformly (FUN_80075F0C's guest body has no stack-frame adjustment — authenticated
   // executable/overlay evidence).
-  tomba::native::declareOverride(0x80076904u, "Animation::loadFrame", eov_animLoadFrame);
-  tomba::native::declareOverride(0x80077B5Cu, "Animation::advanceLinkChain", eov_animAdvanceLink);
-  tomba::native::declareOverride(0x80077C40u, "Animation::attach", eov_animAttach);
-  tomba::native::declareOverride(0x80075F0Cu, "Animation::applyFrame", eov_animApplyFrame);
+  natives.declare(0x80076904u, "Animation::loadFrame", eov_animLoadFrame);
+  natives.declare(0x80077B5Cu, "Animation::advanceLinkChain", eov_animAdvanceLink);
+  natives.declare(0x80077C40u, "Animation::attach", eov_animAttach);
+  natives.declare(0x80075F0Cu, "Animation::applyFrame", eov_animApplyFrame);
 }
+
+} // namespace tomba

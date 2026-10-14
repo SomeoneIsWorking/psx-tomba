@@ -17,9 +17,8 @@
 // (node[5] 1..5, the warp/confirm paths) are faithfully transcribed and verify when a scene drives them (same caveat as
 // the camera alt-mode orchestrators).
 
-#include "cfg.h"
 #include "core.h"
-#include "core/entry/game_ctx.h"
+#include "entry/tomba_session.h"
 #include "graphics_bind.h" // ov_obj_record_init — native graphics-bind (game/world)
 #include "guest_abi.h"     // GuestFrame — mirror the guest stack frame (CLAUDE.md)
 #include "guest_call.h"
@@ -28,6 +27,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+namespace tomba {
 
 namespace {
 
@@ -46,7 +47,7 @@ inline void render_and_return(Core *c, uint32_t obj) {
 inline void sfx_advance(Core *c, uint32_t obj) {
   uint8_t v0 = c->mem_r8(obj + 5);
   c->mem_w8(obj + 5, (uint8_t)(v0 + 1));
-  eng(c).sfx.trigger(0x11, 0, 0); // FUN_80074590 (native)
+  eng(c).sfx.trigger({.id = 0x11, .pan = 0, .pitchBend = 0}); // FUN_80074590 (native)
 }
 
 } // namespace
@@ -74,7 +75,7 @@ void beh_scene_ui_trigger(Core *c) {
     }
     // ---- STATE 0: cull-record init + size/box setup ----
     uint8_t area = c->mem_r8(0x800BF870u);
-    int16_t tv = c->mem_r16s(0x800A4C80u + (uint32_t)area * 2);
+    int16_t tv = (int16_t)c->mem_r16(0x800A4C80u + (uint32_t)area * 2);
     c->r[4] = obj;
     c->r[5] = 0xc;
     c->r[6] = (uint32_t)(int32_t)tv;
@@ -184,6 +185,10 @@ void beh_scene_ui_trigger(Core *c) {
     c->mem_w8(obj + 0, 2);
     c->mem_w8(obj + 5, (uint8_t)(v0 + 1));
   } break;
+  default:
+    break;
   }
   render_and_return(c, obj);
 }
+
+} // namespace tomba

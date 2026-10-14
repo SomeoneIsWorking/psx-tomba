@@ -23,15 +23,16 @@
 // sub-behavior CALL stays reachable via typed runtime address dispatch OR routes to its owned equivalent. Ghidra
 // decomp: scratch/decomp/sop_scene_actors.c (FUN_8010ACFC) + scratch/decomp/sop_intro_helpers.c (leaves).
 
-#include "cfg.h"
 #include "core.h"
 #include "core/engine/engine.h" // eng(c).script / eng(c).spawn
-#include "core/entry/game_ctx.h"
+#include "entry/tomba_session.h"
 #include "guest_abi.h" // GuestFrame — mirror the guest stack frame (CLAUDE.md)
 #include "guest_call.h"
 #include "object/actor.h"  // Actor::boundsCull (FUN_8007778C, native)
 #include "render/render.h" // rend(c)->mNodeXform.buildWithOffset (FUN_800518FC)
 #include "spawn.h"         // eng(c).spawn.despawn (FUN_8007A624, native)
+namespace tomba {
+
 uint32_t native_sop_overlay_shadow_spawn(Core *c, uint32_t parent); // FUN_8010AE30, native (sop_overlay_shadow.cpp)
 
 namespace {
@@ -62,10 +63,10 @@ inline int try_model_attach(Core *c, uint32_t obj) {
   return (int)c->r[2]; // 0 = success, non-zero = retry
 }
 inline void anim_env_setup(Core *c, uint32_t obj) {
-  eng(c).script.init(obj, ANIM_ENV_PTR, ANIM_DATA_PTR);
+  eng(c).script.init({.obj = obj, .tableA = ANIM_ENV_PTR, .scriptPtr = ANIM_DATA_PTR});
 } // FUN_80040CDC = ScriptInterp::init (init obj as script-driven: tableA=ANIM_ENV_PTR, script=ANIM_DATA_PTR)
 inline void walk_start(Core *c, uint32_t obj) {
-  eng(c).walkStart(obj, 8, 0);
+  eng(c).walkStart({.obj = obj, .mode = 8, .subMode = 0});
 } // native FUN_80054D14
 inline void overlay_oneshot(Core *c, uint32_t obj) {
   (void)native_sop_overlay_shadow_spawn(c, obj);
@@ -130,3 +131,5 @@ void beh_sop_intro_pilot(Core *c) {
   }
   // else: no-op
 }
+
+} // namespace tomba

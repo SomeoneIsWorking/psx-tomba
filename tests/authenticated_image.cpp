@@ -8,8 +8,8 @@
 
 namespace tomba::test {
 
-std::optional<std::vector<std::uint8_t>>
-readAuthenticatedImage(std::string_view path, std::string_view expectedSha, std::size_t maxBytes) {
+std::optional<std::vector<std::uint8_t>> readAuthenticatedImage(const ImageRequest &request) {
+  const auto [path, expectedSha, maxBytes] = request;
   std::ifstream input(std::string(path), std::ios::binary | std::ios::ate);
   if (!input) {
     lucent::error("authentic-image-test", "cannot open image {}", path);

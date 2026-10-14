@@ -14,15 +14,16 @@
 // the 0x3C store = 32-bit pointer). The byte-exact A/B gate (full RAM+scratchpad vs original guest-body call) is
 // the safety net.
 
-#include "cfg.h"
 #include "core.h"
-#include "core/entry/game_ctx.h"
 #include "core/overrides/guest_jal.h"
+#include "entry/tomba_session.h"
 #include "guest_abi.h"
 #include "spawn.h" // class Spawn (eng(c).spawn.despawn / dispatch / spawnAndInit)
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+namespace tomba {
 
 namespace {
 
@@ -42,15 +43,15 @@ void beh_node3_router(Core *c) {
   if (st == 1) {
     uint8_t n3 = c->mem_r8(nd + 3);
     if (n3 == 0) {
-      tomba::guest::dispatchLeafToReturn(*c, 0x8011c674u, nd); // FUN_8011C674
+      psx::cpu::callGuestNowResult(*c, "beh_node3_router", 0x8011c674u, nd); // FUN_8011C674
     } else if (n3 == 1) {
-      tomba::guest::dispatchLeafToReturn(*c, 0x8011ca04u, nd); // FUN_8011CA04
+      psx::cpu::callGuestNowResult(*c, "beh_node3_router", 0x8011ca04u, nd); // FUN_8011CA04
     }
     if (c->mem_r8(nd + 1) != 0) {
-      tomba::guest::dispatchLeafToReturn(*c, 0x800518fcu, nd); // FUN_800518FC
+      psx::cpu::callGuestNowResult(*c, "beh_node3_router", 0x800518fcu, nd); // FUN_800518FC
     }
     c->mem_w8(nd + 0x2b, 0);
-    tomba::guest::dispatchLeafToReturn(*c, 0x8011cd14u, nd); // FUN_8011CD14
+    psx::cpu::callGuestNowResult(*c, "beh_node3_router", 0x8011cd14u, nd); // FUN_8011CD14
   } else if (st < 2) {
     if (st == 0 && c->mem_r8(0x800bf89cu) > 3) {
       c->mem_w8(nd + 0x0b, 0x40);
@@ -73,3 +74,5 @@ void beh_node3_router(Core *c) {
     eng(c).spawn.despawn(nd); // FUN_8007A624
   }
 }
+
+} // namespace tomba

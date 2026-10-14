@@ -24,9 +24,8 @@
 // which leaves a0=rec); we therefore must NOT write c->r[4] before each FUN_8007aae8, exactly as the guest instruction
 // path doesn't. Byte-exact A/B gate (full RAM+scratchpad vs original guest-body call) is the safety net.
 
-#include "cfg.h"
 #include "core.h"
-#include "core/entry/game_ctx.h"
+#include "entry/tomba_session.h"
 #include "graphics_bind.h" // ov_obj_render_update (FUN_800517F8)
 #include "guest_abi.h"     // GuestFrame — mirror the guest stack frame (CLAUDE.md)
 #include "guest_call.h"
@@ -36,6 +35,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+namespace tomba {
 
 namespace {
 
@@ -149,7 +150,8 @@ void beh_cube_text_spawn(Core *c) {
       c->mem_w16(c->mem_r32(s0 + 0xc0) + 8, 0);
       c->mem_w16(c->mem_r32(s0 + 0xc0) + 0xa, 0);
       c->mem_w16(c->mem_r32(s0 + 0xc0) + 0xc, 0);
-      eng(c).graphicsBind.installSceneRecord(c->mem_r32(s0 + 0xc0), 1, uVar7); // FUN_80051B04 (native)
+      eng(c).graphicsBind.installSceneRecord(
+          {.rec = c->mem_r32(s0 + 0xc0), .classArg = 1, .itemArg = uVar7}); // FUN_80051B04 (native)
       c->mem_w8(c->mem_r32(s0 + 0xc0) + 0x3e, 0);
       c->mem_w8(c->mem_r32(s0 + 0xc0) + 0x3f, (uint8_t)i6);
       i6++;
@@ -172,3 +174,5 @@ void beh_cube_text_spawn(Core *c) {
   }
   c->mem_w8(nd + 0x5e, 1);
 }
+
+} // namespace tomba

@@ -24,6 +24,8 @@
 
 // ---------------------------------------------------------------------------------------------
 // Guest globals this state machine reads.
+namespace tomba {
+
 constexpr uint32_t kGblAreaId = 0x800BF870u;     // u8  current area index
 constexpr uint32_t kGblAreaSub = 0x800BF871u;    // u8  area sub-state
 constexpr uint32_t kGblAreaGate = 0x800BFA59u;   // u8  per-area "props may tick" flag (0x800BF870+489)
@@ -156,7 +158,7 @@ void PlacedPropSm::step(Core *c) {
       // short (it then parks the prop in state 3 itself), in which case we stay in sub 0 and retry.
       c->r[5] = prop.variant();
       c->r[4] = node;
-      tomba::guest::dispatchJalToReturn(*c, 0x80040410u, kRaBuildPieces);
+      tomba::guest::dispatchJalToReturn(*c, {.target = 0x80040410u, .returnAddress = kRaBuildPieces});
       if (c->r[2] != 0) {
         prop.setPropSub((uint8_t)(prop.sub() + 1));
       }
@@ -180,32 +182,32 @@ void PlacedPropSm::step(Core *c) {
       switch (prop.kind()) {
       case kKindGroundAligned: // JT[0] = 0x80040650
         c->r[4] = node;
-        tomba::guest::dispatchJalToReturn(*c, 0x8003FBC4u, kRaKind0Init);
+        tomba::guest::dispatchJalToReturn(*c, {.target = 0x8003FBC4u, .returnAddress = kRaKind0Init});
         break;
       case kKindGroundProbeAhead: // JT[1] = 0x80040660
         c->r[4] = node;
-        tomba::guest::dispatchJalToReturn(*c, 0x8003FC00u, kRaKind1Init);
+        tomba::guest::dispatchJalToReturn(*c, {.target = 0x8003FC00u, .returnAddress = kRaKind1Init});
         break;
       case kKindOwnedPiece: // JT[2] = 0x80040670
         c->r[4] = node;
-        tomba::guest::dispatchJalToReturn(*c, kFnKind2Init, kRaKind2Init);
+        tomba::guest::dispatchJalToReturn(*c, {.target = kFnKind2Init, .returnAddress = kRaKind2Init});
         break;
       case kKindFixedYaw: // JT[4] = 0x80040680
         c->r[4] = node;
-        tomba::guest::dispatchJalToReturn(*c, 0x8003FC78u, kRaKind4Init);
+        tomba::guest::dispatchJalToReturn(*c, {.target = 0x8003FC78u, .returnAddress = kRaKind4Init});
         break;
       case kKindOverlayA04: // JT[5] = 0x80040690
         c->r[4] = node;
-        tomba::guest::dispatchJalToReturn(*c, kFnKind5Init, kRaKind5Init);
+        tomba::guest::dispatchJalToReturn(*c, {.target = kFnKind5Init, .returnAddress = kRaKind5Init});
         break;
       case kKindRoomGatedGround: // JT[6] = 0x800406A0
         c->r[4] = node;
-        tomba::guest::dispatchJalToReturn(*c, 0x8003FC8Cu, kRaKind6Init);
+        tomba::guest::dispatchJalToReturn(*c, {.target = 0x8003FC8Cu, .returnAddress = kRaKind6Init});
         initDone = (c->r[2] != 0);
         break;
       case kKindOverlayA05: // JT[7] = 0x800406B0
         c->r[4] = node;
-        tomba::guest::dispatchJalToReturn(*c, kFnKind7Init, kRaKind7Init);
+        tomba::guest::dispatchJalToReturn(*c, {.target = kFnKind7Init, .returnAddress = kRaKind7Init});
         initDone = (c->r[2] != 0);
         break;
       default: // JT[3], and kind >= 8 -> 0x800406C0
@@ -243,27 +245,27 @@ void PlacedPropSm::step(Core *c) {
     switch (prop.sub()) {
     case kActiveWobble: // JT[0] = 0x80040750
       c->r[4] = node;
-      tomba::guest::dispatchJalToReturn(*c, 0x8003FD10u, kRaSub0Tick);
+      tomba::guest::dispatchJalToReturn(*c, {.target = 0x8003FD10u, .returnAddress = kRaSub0Tick});
       break;
     case kActiveWobbleSfx: // JT[1] = 0x80040760
       c->r[4] = node;
-      tomba::guest::dispatchJalToReturn(*c, 0x8003FED8u, kRaSub1Tick);
+      tomba::guest::dispatchJalToReturn(*c, {.target = 0x8003FED8u, .returnAddress = kRaSub1Tick});
       break;
     case kActiveReleaseDrop: // JT[2] = 0x80040770
       c->r[4] = node;
-      tomba::guest::dispatchJalToReturn(*c, 0x8003FFCCu, kRaSub2Tick);
+      tomba::guest::dispatchJalToReturn(*c, {.target = 0x8003FFCCu, .returnAddress = kRaSub2Tick});
       break;
     case kActiveFall: // JT[3] = 0x80040780
       c->r[4] = node;
-      tomba::guest::dispatchJalToReturn(*c, 0x8004022Cu, kRaSub3Tick);
+      tomba::guest::dispatchJalToReturn(*c, {.target = 0x8004022Cu, .returnAddress = kRaSub3Tick});
       break;
     case kActiveBurstOnContact: // JT[4] = 0x80040790
       c->r[4] = node;
-      tomba::guest::dispatchJalToReturn(*c, 0x80040390u, kRaSub4Tick);
+      tomba::guest::dispatchJalToReturn(*c, {.target = 0x80040390u, .returnAddress = kRaSub4Tick});
       break;
     case kActiveOverlayTick: // JT[5] = 0x800407A0
       c->r[4] = node;
-      tomba::guest::dispatchJalToReturn(*c, kFnSub5Tick, kRaSub5Tick);
+      tomba::guest::dispatchJalToReturn(*c, {.target = kFnSub5Tick, .returnAddress = kRaSub5Tick});
       break;
     default:
       break; // node[5] >= 6 -> straight to 0x800407A8
@@ -273,7 +275,7 @@ void PlacedPropSm::step(Core *c) {
     switch (prop.kind()) {
     case kKindOverlayA05: // JT[7] = 0x800407D8
       c->r[4] = node;
-      tomba::guest::dispatchJalToReturn(*c, kFnKind7PreDraw, kRaKind7PreDraw);
+      tomba::guest::dispatchJalToReturn(*c, {.target = kFnKind7PreDraw, .returnAddress = kRaKind7PreDraw});
       [[fallthrough]];
     case kKindGroundAligned: // JT[0,1,3,4,6] = 0x800407E0
     case kKindGroundProbeAhead:
@@ -288,24 +290,24 @@ void PlacedPropSm::step(Core *c) {
         }
         prop.setPropVisible(1);
         c->r[4] = node;
-        tomba::guest::dispatchJalToReturn(*c, 0x80077E7Cu, kRaActiveEnqueue);
+        tomba::guest::dispatchJalToReturn(*c, {.target = 0x80077E7Cu, .returnAddress = kRaActiveEnqueue});
       } else { // 0x80040834
         if ((prop.flags28() & kFlagSkipCull) != 0) {
           goto activeClearGate;
         }
         if (c->mem_r8(kGblAreaId) == kAreaOverlayCull) {
           c->r[4] = node;
-          tomba::guest::dispatchJalToReturn(*c, kFnOverlayCull, kRaActiveOverlayCull);
+          tomba::guest::dispatchJalToReturn(*c, {.target = kFnOverlayCull, .returnAddress = kRaActiveOverlayCull});
         } else {
           c->r[4] = node;
-          tomba::guest::dispatchJalToReturn(*c, 0x8007778Cu, kRaActiveBoundsCull);
+          tomba::guest::dispatchJalToReturn(*c, {.target = 0x8007778Cu, .returnAddress = kRaActiveBoundsCull});
         }
         if (c->r[2] == 0) {
           goto activeClearGate; // 0x80040870 — culled
         }
       }
       c->r[4] = node; // 0x80040878 — visible: transform + draw
-      tomba::guest::dispatchJalToReturn(*c, 0x800517F8u, kRaActiveDraw);
+      tomba::guest::dispatchJalToReturn(*c, {.target = 0x800517F8u, .returnAddress = kRaActiveDraw});
       prop.setPropGate(0);
       goto activeEndOfFrame;
     }
@@ -317,15 +319,15 @@ void PlacedPropSm::step(Core *c) {
         goto activeClearGate;
       }
       c->r[4] = node;
-      tomba::guest::dispatchJalToReturn(*c, kFnOwnedPieceSync, kRaOwnedPieceSync);
+      tomba::guest::dispatchJalToReturn(*c, {.target = kFnOwnedPieceSync, .returnAddress = kRaOwnedPieceSync});
       c->r[4] = node;
-      tomba::guest::dispatchJalToReturn(*c, 0x80077E7Cu, kRaOwnedPieceEnqueue);
+      tomba::guest::dispatchJalToReturn(*c, {.target = 0x80077E7Cu, .returnAddress = kRaOwnedPieceEnqueue});
       prop.setPropGate(0);
       goto activeEndOfFrame;
     }
     case kKindOverlayA04: // JT[5] = 0x800408C0
       c->r[4] = node;
-      tomba::guest::dispatchJalToReturn(*c, kFnKind5Draw, kRaKind5Draw);
+      tomba::guest::dispatchJalToReturn(*c, {.target = kFnKind5Draw, .returnAddress = kRaKind5Draw});
       [[fallthrough]];
     default: // kind >= 8 lands here too
       break;
@@ -344,7 +346,7 @@ void PlacedPropSm::step(Core *c) {
     case kFinishArmEvent: // JT[1] = 0x80040904
       if (prop.variant() == 0 && c->mem_r8(kGblFinishGate) == 0) {
         c->r[4] = 56; // scene-event id 56
-        tomba::guest::dispatchJalToReturn(*c, 0x80040B48u, kRaArmSceneEvent);
+        tomba::guest::dispatchJalToReturn(*c, {.target = 0x80040B48u, .returnAddress = kRaArmSceneEvent});
       }
       if (prop.kind() != kKindOwnedPiece) {
         goto finishRender; // 0x8004092C
@@ -353,11 +355,11 @@ void PlacedPropSm::step(Core *c) {
       break;
     case kFinishRestart: // JT[2] = 0x8004094C
       c->r[4] = node;
-      tomba::guest::dispatchJalToReturn(*c, 0x8003FE00u, kRaFinishSub2);
+      tomba::guest::dispatchJalToReturn(*c, {.target = 0x8003FE00u, .returnAddress = kRaFinishSub2});
       break;
     case kFinishWobbleSfx: // JT[3] = 0x8004095C
       c->r[4] = node;
-      tomba::guest::dispatchJalToReturn(*c, 0x8003FED8u, kRaFinishSub3);
+      tomba::guest::dispatchJalToReturn(*c, {.target = 0x8003FED8u, .returnAddress = kRaFinishSub3});
       break;
     default:
       break; // JT[0], JT[4], node[5] >= 5
@@ -369,9 +371,9 @@ void PlacedPropSm::step(Core *c) {
     }
     prop.setPropVisible(c->mem_r8(prop.owner() + PlacedProp::kOffVisible));
     c->r[4] = node;
-    tomba::guest::dispatchJalToReturn(*c, kFnOwnedPieceSync, kRaFinishOwnedSync);
+    tomba::guest::dispatchJalToReturn(*c, {.target = kFnOwnedPieceSync, .returnAddress = kRaFinishOwnedSync});
     c->r[4] = node;
-    tomba::guest::dispatchJalToReturn(*c, 0x80077E7Cu, kRaFinishOwnedEnqueue);
+    tomba::guest::dispatchJalToReturn(*c, {.target = 0x80077E7Cu, .returnAddress = kRaFinishOwnedEnqueue});
     break;
 
   finishRender: // 0x8004099C
@@ -382,31 +384,31 @@ void PlacedPropSm::step(Core *c) {
       }
       prop.setPropVisible(1);
       c->r[4] = node;
-      tomba::guest::dispatchJalToReturn(*c, 0x80077E7Cu, kRaFinishEnqueue);
+      tomba::guest::dispatchJalToReturn(*c, {.target = 0x80077E7Cu, .returnAddress = kRaFinishEnqueue});
     } else { // 0x800409EC
       if ((prop.flags28() & kFlagSkipCull) != 0) {
         break;
       }
       if (c->mem_r8(kGblAreaId) == kAreaOverlayCull) {
         c->r[4] = node;
-        tomba::guest::dispatchJalToReturn(*c, kFnOverlayCull, kRaFinishOverlayCull);
+        tomba::guest::dispatchJalToReturn(*c, {.target = kFnOverlayCull, .returnAddress = kRaFinishOverlayCull});
       } else {
         c->r[4] = node;
-        tomba::guest::dispatchJalToReturn(*c, 0x8007778Cu, kRaFinishBoundsCull);
+        tomba::guest::dispatchJalToReturn(*c, {.target = 0x8007778Cu, .returnAddress = kRaFinishBoundsCull});
       }
       if (c->r[2] == 0) {
         break; // 0x80040A28 — culled
       }
     }
     c->r[4] = node; // 0x80040A30
-    tomba::guest::dispatchJalToReturn(*c, 0x800517F8u, kRaFinishDraw);
+    tomba::guest::dispatchJalToReturn(*c, {.target = 0x800517F8u, .returnAddress = kRaFinishDraw});
     break;
   }
 
   // ======================= STATE 3 — DESPAWN (0x80040A40) =====================
   case kStateDespawn:
     c->r[4] = node;
-    tomba::guest::dispatchJalToReturn(*c, 0x8007A624u, kRaDespawn);
+    tomba::guest::dispatchJalToReturn(*c, {.target = 0x8007A624u, .returnAddress = kRaDespawn});
     break;
 
   default:
@@ -414,6 +416,8 @@ void PlacedPropSm::step(Core *c) {
   }
 }
 
-void PlacedPropSm::registerOverrides(Game *) {
-  tomba::native::declareOverride(0x80040558u, "PlacedPropSm::step", &PlacedPropSm::step);
+void PlacedPropSm::registerOverrides(native::NativeOverrideCatalog &natives) {
+  natives.declare(0x80040558u, "PlacedPropSm::step", &PlacedPropSm::step);
 }
+
+} // namespace tomba

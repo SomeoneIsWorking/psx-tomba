@@ -7,8 +7,8 @@
 #include "player/actor_interaction.h"
 
 #include "core.h"
-#include "core/entry/game_ctx.h"
 #include "core/overrides/guest_jal.h"
+#include "entry/tomba_session.h"
 #include "guest_abi.h"
 #include "guest_call.h"
 #include "player/actor_tomba.h"
@@ -145,7 +145,8 @@ void ActorInteraction::subHitboxCheck(uint32_t item) {
 }
 
 // FUN_80020364 — postInteractWalk case 0xF/0x14/0x56 (mode=0) / 0x2F (mode=2).
-uint8_t ActorInteraction::stepModeInteract(uint32_t item, uint32_t mode) {
+uint8_t ActorInteraction::stepModeInteract(const StepModeInteractArgs &args) {
+  auto [item, mode] = args;
   Core *c = tomba_.core;
   const uint32_t G = ActorTomba::G_ADDR;
 
@@ -271,23 +272,25 @@ void ActorInteraction::type8Interact(uint32_t item) {
   Core *c = tomba_.core;
   const uint32_t G = ActorTomba::G_ADDR;
   // Guest frame per abi_extract --contract 0x800205CC: single epilogue label -> RAII is safe.
-  static constexpr GuestFrameSpill kSpills[] = {{17, 20}, {18, 24}, {31, 28}, {16, 16}};
+  constexpr GuestFrameSpill kSpills[] = {{17, 20}, {18, 24}, {31, 28}, {16, 16}};
   GuestFrame<32, 4> frameGuard(c, kSpills);
   TombaState tomba{c, G};
   TombaState other{c, item};
 
   if (c->mem_r8(item) == 5) {
     if ((tomba.growthFlags() & 0x200u) == 0 && tomba.frozenFlag() == 0) {
-      tomba::guest::dispatchJalToReturn(*c, kLeafNiladicCue, 0x80020620u);
+      tomba::guest::dispatchJalToReturn(*c, {.target = kLeafNiladicCue, .returnAddress = 0x80020620u});
     }
   } else if (tomba.growthFlags() & 0x8000u) {
-    tomba::guest::dispatchJalToReturn(*c, kLeafGrownDelegate, 0x80020644u, G, item);
+    tomba::guest::dispatchJalToReturn(*c, {.target = kLeafGrownDelegate, .returnAddress = 0x80020644u}, G, item);
   } else {
-    const int32_t v0 = (int32_t)tomba::guest::dispatchJalToReturn(*c, kLeafProximityStep, 0x80020658u, G, item, 0u);
+    const int32_t v0 = (int32_t)tomba::guest::dispatchJalToReturn(
+        *c, {.target = kLeafProximityStep, .returnAddress = 0x80020658u}, G, item, 0u);
     if (v0 >= 0) {
       if (c->mem_r8(item) == 1) {
         if (tomba.justTransitioned() == 1 && v0 < 2) {
-          tomba::guest::dispatchJalToReturn(*c, kLeafAltTagSet, 0x8002069Cu, item, (uint32_t)-32766, 3u, 30u);
+          tomba::guest::dispatchJalToReturn(
+              *c, {.target = kLeafAltTagSet, .returnAddress = 0x8002069Cu}, item, (uint32_t)-32766, 3u, 30u);
         } else if ((tomba.growthFlags() & 0x200u) == 0) {
           if ((v0 & 1) == 0) {
             if ((tomba.statusFlags() & 4u) == 0) {
@@ -301,7 +304,8 @@ void ActorInteraction::type8Interact(uint32_t item) {
             tomba.setGroundContactFlag(1);
             // Heading arg is the full 32-bit kOutHeadingSlot word (Ghidra: `iVar7 = (int)_DAT_1f80009c`
             // — a straight int cast, no 16-bit truncation, matching stepModeInteract's bVar6 fix).
-            const int32_t cmp = Trig::angleCmp((int32_t)c->mem_r32(0x1F80009Cu), (int32_t)tomba.facing(), 1);
+            const int32_t cmp =
+                Trig::angleCmp({.a = (int32_t)c->mem_r32(0x1F80009Cu), .b = (int32_t)tomba.facing(), .mode = 1});
             tomba.setFlag95((uint8_t)(cmp + 2));
           } else if (v0 == 1 && (tomba.groundedGate() & 1u) == 0) {
             // G+0x32 = item[0x32] - (G[0x84] + item[0x84]) (all u16, unsigned per gen), THEN
@@ -326,18 +330,19 @@ uint8_t ActorInteraction::type7Interact(uint32_t item) {
   Core *c = tomba_.core;
   const uint32_t G = ActorTomba::G_ADDR;
   // Guest frame per abi_extract --contract 0x800235A0: single epilogue label -> RAII is safe.
-  static constexpr GuestFrameSpill kSpills[] = {{16, 16}, {17, 20}, {31, 24}};
+  constexpr GuestFrameSpill kSpills[] = {{16, 16}, {17, 20}, {31, 24}};
   GuestFrame<32, 3> frameGuard(c, kSpills);
   TombaState tomba{c, G};
 
-  const int32_t v0 = (int32_t)tomba::guest::dispatchJalToReturn(*c, kLeafProximityStep, 0x800235C0u, G, item, 1u);
+  const int32_t v0 = (int32_t)tomba::guest::dispatchJalToReturn(
+      *c, {.target = kLeafProximityStep, .returnAddress = 0x800235C0u}, G, item, 1u);
   uint8_t result = 0;
   if (v0 >= 0) {
     const uint32_t flag = (tomba.transitionSlot() == 0x0Cu) ? 4u : 1u;
     c->r[4] = G;
     c->r[5] = item;
     c->r[7] = flag;
-    tomba::guest::dispatchJalToReturn(*c, kLeafStepModeFlag, 0x80023600u);
+    tomba::guest::dispatchJalToReturn(*c, {.target = kLeafStepModeFlag, .returnAddress = 0x80023600u});
     result = 1;
   }
   return result;

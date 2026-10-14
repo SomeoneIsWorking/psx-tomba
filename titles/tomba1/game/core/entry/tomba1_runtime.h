@@ -1,38 +1,36 @@
 #pragma once
 
-#include "execution_exit.h"
 #include "game_runtime.h"
 #include "guest_widescreen_projection.h"
+#include "stock_libcd.h"
+#include "stock_libgte.h"
+#include "stock_pad_buffers.h"
+#include "stock_vsync.h"
 
 #include <cstdint>
 #include <memory>
 
 namespace tomba1 {
 
-class Tomba1Runtime final : public GameRuntime {
+class Tomba1Runtime final : public psx::game::GameRuntime {
 public:
-  Tomba1Runtime() = default;
+  Tomba1Runtime();
 
-  void *createContext(Core &core) override;
-  void destroyContext(void *context) override;
+  void startProgram(Core &core) override;
   void registerOverrides(Game &game) override;
-  void bootInit(Core &core) override;
-  std::unique_ptr<FrameDriver> createFrameDriver(Game &game) override;
-  const GuestProgramImage *guestProgramImage() const override;
-  const PlatformHlePlan *platformHlePlan() const override;
-  const GuestPadBufferLayout *guestPadBufferLayout() const override;
-  const GuestCdStreamCallbackLayout *guestCdStreamCallbackLayout() const override;
+  std::unique_ptr<psx::game::TitleSessionState> createSession(Game &game) override;
+  std::unique_ptr<psx::game::FrameDriver> createFrameDriver(Game &game) override;
+  void deliverPad(Core &core, const psx::input::PadDelivery &delivery) override;
   void stockCdReadLanded(Core &core, const psx::cd::StockReadLanding &landing) override;
   RenderCapabilities renderCapabilities() const override;
   bool guestVramIsPicture(const Game &game) const override;
   const GuestWidescreenProjection *guestWidescreenProjection() const override;
 
 private:
-  static const GuestProgramImage programImage_;
-  static const GuestPadBufferLayout padBufferLayout_;
-
-  // Process-lifetime because it is stateless: it names the selected aspect and holds no plan. The
-  // plan itself is per-Core, on `Context::widescreen`.
+  psx::hle::StockVSync vsync_;
+  psx::cd::StockLibcd libcd_;
+  psx::hle::StockLibgte libgte_;
+  psx::input::StockPadBuffers pad_;
   GuestWidescreenProjection widescreenPolicy_;
 };
 

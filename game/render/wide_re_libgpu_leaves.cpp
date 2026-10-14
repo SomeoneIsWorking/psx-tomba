@@ -45,12 +45,14 @@
 //     graph. 0x80082734 turned out NOT to be part of this cluster (a separate, larger LoadImage-style
 //     FIFO streamer) — still MAPPED only, see the new file's header.
 #include "core.h"
-#include "core/entry/game_ctx.h"
-#include "core/overrides/native_override_catalog.h" // tomba::native::declareOverride — declared, not locally extern'd
+#include "core/overrides/native_override_catalog.h"
+#include "entry/tomba_session.h"
 #include "guest_call.h"
 #include "libgpu_draw_mode.h"
 #include "render.h"
 #include <stdint.h>
+
+namespace tomba {
 
 namespace {
 constexpr uint32_t GPU_SYS_BASE = (32778u << 16);            // 0x800A0000
@@ -231,11 +233,11 @@ void ov_clearOTagR(Core *c) {
 static void libgpuSetDrawMode(Core *c);    // SetDrawMode — defined below, wired here
 static void libgpuDmaStatusReset(Core *c); // GPU-DMA status-block reset — ditto
 
-void gpu_libgpu_leaves_install() {
-  tomba::native::declareOverride(0x80080F6Cu, "ov_drawSync", ov_drawSync);
-  tomba::native::declareOverride(0x80081458u, "ov_clearOTagR", ov_clearOTagR);
-  tomba::native::declareOverride(0x80083DE0u, "libgpuSetDrawMode", libgpuSetDrawMode);
-  tomba::native::declareOverride(0x80082C68u, "libgpuDmaStatusReset", libgpuDmaStatusReset);
+void gpu_libgpu_leaves_install(native::NativeOverrideCatalog &natives) {
+  natives.declare(0x80080F6Cu, "ov_drawSync", ov_drawSync);
+  natives.declare(0x80081458u, "ov_clearOTagR", ov_clearOTagR);
+  natives.declare(0x80083DE0u, "libgpuSetDrawMode", libgpuSetDrawMode);
+  natives.declare(0x80082C68u, "libgpuDmaStatusReset", libgpuDmaStatusReset);
 }
 
 // libgpuDmaStatusReset (0x80082C68) — GPU-DMA status-block RESET. RE-VERIFIED + WIRED 2026-07-29
@@ -290,8 +292,12 @@ static void libgpuDmaStatusReset(Core *c) {
 // assignment to be exact instead of leaving whatever the previous call left in r2.
 static void libgpuSetDrawMode(Core *c) {
   // 5th arg: o32 outgoing-arg stack slot
-  c->r[2] = tomba2::render::setDrawMode(
-      psx::present::EmitMemory(*c), c->r[4], c->r[5], c->r[6], c->r[7], c->mem_r32(c->r[29] + 16));
+  c->r[2] = tomba::render::setDrawMode(psx::present::EmitMemory(*c),
+                                       {.packet = c->r[4],
+                                        .drawOnDisplay = c->r[5],
+                                        .dither = c->r[6],
+                                        .texturePage = c->r[7],
+                                        .window = c->mem_r32(c->r[29] + 16)});
 }
 
 // vertexHeaderRepack (0x800847B0) — 20-byte SoA->AoS vertex-header REPACK. DRAFT. RE'd from authenticated
@@ -325,3 +331,5 @@ static void vertexHeaderRepack(Core *c) {
   c->mem_w16(dst + 4, (uint16_t)w3);
   c->mem_w16(dst + 16, (uint16_t)h4);
 }
+
+} // namespace tomba

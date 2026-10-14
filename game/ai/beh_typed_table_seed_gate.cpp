@@ -70,9 +70,8 @@
 // NO GTE, NO render packets here. Gated byte-exact (full RAM+scratchpad A/B vs original guest-body call) via
 // channel "typed_table_seed_gateverify".
 
-#include "cfg.h"
 #include "core.h"
-#include "core/entry/game_ctx.h"
+#include "entry/tomba_session.h"
 #include "graphics_bind.h" // GraphicsBind::recordInit / renderUpdate
 #include "guest_abi.h"     // GuestFrame — mirror the guest stack frame (CLAUDE.md)
 #include "guest_call.h"
@@ -80,6 +79,8 @@
 #include "rng.h"          // class Rng (rngOf(c).next()) — FUN_8009A450 (seed 0x80105EE8)
 #include "spawn.h"        // class Spawn (eng(c).spawn.despawn)
 #include "trig.h"         // class Trig (trigOf(c).rcos)  — FUN_80083F50 (Q12 cos LUT)
+
+namespace tomba {
 
 namespace {
 constexpr uint32_t BEH_FN = 0x80133C14u;
@@ -115,7 +116,7 @@ bool run_turn_setup(Actor &a) {
   // Turn direction: signed-half angle compare — "does target-facing lead current rotY by π/4..3π/4?"
   // Returns 1 for TURN LEFT (+256), 0 for TURN RIGHT (-256). Was typed runtime address dispatch(0x80077768); now native
   // via class Trig (game/math/trig.h — Trig::angleCmp is FUN_80077768 owned static).
-  int32_t leadCw = Trig::angleCmp((int32_t)facing << 4, (int32_t)rotY, 0);
+  int32_t leadCw = Trig::angleCmp({.a = (int32_t)facing << 4, .b = (int32_t)rotY, .mode = 0});
   a.setTargetDelta((leadCw != 0) ? (int16_t)256 : (int16_t)-256);
   a.setInteractState(0);
   return true;
@@ -126,7 +127,6 @@ bool run_turn_setup(Actor &a) {
 // docstring + docs/findings/sbs.md for the semantic model.
 void state_one_tick(Actor &a) {
   Core *c = a.core();
-  const uint32_t obj = a.addr();
 
   // ---- Section A — reset transients when stateEcho != 0 -----------------------------------------
   if (a.stateEcho() != 0) {
@@ -383,3 +383,5 @@ void beh_typed_table_seed_gate(Core *c) {
   c->r[4] = a.addr();
   eng(c).graphicsBind.renderUpdate();
 }
+
+} // namespace tomba

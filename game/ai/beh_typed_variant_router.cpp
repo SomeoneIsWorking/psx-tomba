@@ -26,9 +26,8 @@
 // stack below entry sp (inside the gate's excluded [sp-0x800,sp) window) and dispatching with that frame sp. Byte-exact
 // A/B gate (full RAM+scratchpad vs original guest-body call) is the safety net.
 
-#include "cfg.h"
 #include "core.h"
-#include "core/entry/game_ctx.h"
+#include "entry/tomba_session.h"
 #include "graphics_bind.h" // ov_obj_set_geom
 #include "guest_call.h"
 #include "rng.h"   // class Rng (via rngOf(c).next())
@@ -37,19 +36,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+namespace tomba {
+
 namespace {
 
 constexpr uint32_t BEH_FN = 0x8011C164u;
 
-static inline void leaf1(Core *c, uint32_t a0, uint32_t fn) {
-  c->r[4] = a0;
-  psx::cpu::dispatchGuestToReturn0(*c, fn, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
-}
-static inline uint32_t leafr1(Core *c, uint32_t a0, uint32_t fn) {
-  c->r[4] = a0;
-  psx::cpu::dispatchGuestToReturn0(*c, fn, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
-  return c->r[2];
-}
 static inline uint32_t prng(Core *c) {
   return (uint32_t)rngOf(c).next();
 } // FUN_8009A450 -> class Rng
@@ -68,13 +60,13 @@ static void state1_appear(Core *c, uint32_t nd) {
     c->mem_w8(nd + 0x29, 0);
     return;
   } // sltiu <26
-  if (leafr1(c, nd, 0x80077870u) == 0) {
+  if (psx::cpu::callGuestNowResult(*c, "beh_typed_variant_router", 0x80077870u, nd) == 0) {
     c->mem_w8(nd + 0x29, 0);
     return;
   }
   uint8_t sub = c->mem_r8(nd + 6);
   if (sub == 1) {
-    leaf1(c, nd, 0x8011BC3Cu); // FUN_8011bc3c
+    psx::cpu::callGuestNow(*c, "beh_typed_variant_router", 0x8011BC3Cu, nd); // FUN_8011bc3c
   } else if (sub == 0) {
     uint32_t r = prng(c) & 7;
     if (r == 0) {
@@ -84,7 +76,7 @@ static void state1_appear(Core *c, uint32_t nd) {
     }
     c->mem_w8(nd + 7, 0); // break -> param_1[7]=0
   } else if (sub == 2) {
-    leaf1(c, nd, 0x80077B5Cu); // FUN_80077b5c
+    psx::cpu::callGuestNow(*c, "beh_typed_variant_router", 0x80077B5Cu, nd); // FUN_80077b5c
     uint8_t s7 = c->mem_r8(nd + 7);
     if (s7 == 0) {
       call_77b38(c, nd, 7); // FUN_80077b38(node,...,7)
@@ -141,9 +133,9 @@ void beh_typed_variant_router(Core *c) {
       c->r[29] = fsp;
       eng(c).graphicsBind.posCompose(); // FUN_8004bd64
       c->r[29] = save_sp;
-      leaf1(c, nd, 0x80077B5Cu); // FUN_80077b5c
+      psx::cpu::callGuestNow(*c, "beh_typed_variant_router", 0x80077B5Cu, nd); // FUN_80077b5c
       c->mem_w8(nd + 1, 1);
-      leaf1(c, nd, 0x80077E7Cu); // FUN_80077e7c
+      psx::cpu::callGuestNow(*c, "beh_typed_variant_router", 0x80077E7Cu, nd); // FUN_80077e7c
       c->mem_w8(nd + 0x29, 0);
       return;
     }
@@ -151,28 +143,28 @@ void beh_typed_variant_router(Core *c) {
     case 7:
     case 8:
     case 9:
-      leaf1(c, nd, 0x8011B324u); // FUN_8011b324
-      leaf1(c, nd, 0x80077B5Cu); // FUN_80077b5c
+      psx::cpu::callGuestNow(*c, "beh_typed_variant_router", 0x8011B324u, nd); // FUN_8011b324
+      psx::cpu::callGuestNow(*c, "beh_typed_variant_router", 0x80077B5Cu, nd); // FUN_80077b5c
       c->mem_w8(nd + 1, 1);
-      leaf1(c, nd, 0x80077E7Cu); // FUN_80077e7c
+      psx::cpu::callGuestNow(*c, "beh_typed_variant_router", 0x80077E7Cu, nd); // FUN_80077e7c
       c->mem_w8(nd + 0x29, 0);
       return;
     case 4:
     case 5:
     case 6:
-      leaf1(c, nd, 0x8011B738u); // FUN_8011b738
+      psx::cpu::callGuestNow(*c, "beh_typed_variant_router", 0x8011B738u, nd); // FUN_8011b738
       c->mem_w8(nd + 0x29, 0);
       return;
     case 10:
     case 11:
     case 12:
     case 13:
-      leaf1(c, nd, 0x8011ADA8u); // FUN_8011ada8
+      psx::cpu::callGuestNow(*c, "beh_typed_variant_router", 0x8011ADA8u, nd); // FUN_8011ada8
       c->mem_w8(nd + 0x29, 0);
       return;
     case 0x14:
-      if (leafr1(c, nd, 0x8007778Cu) != 0) {
-        leaf1(c, nd, 0x8011BF04u); // FUN_8007778c / FUN_8011bf04
+      if (psx::cpu::callGuestNowResult(*c, "beh_typed_variant_router", 0x8007778Cu, nd) != 0) {
+        psx::cpu::callGuestNow(*c, "beh_typed_variant_router", 0x8011BF04u, nd); // FUN_8007778c / FUN_8011bf04
       }
       c->mem_w8(nd + 0x29, 0);
       return;
@@ -218,7 +210,7 @@ void beh_typed_variant_router(Core *c) {
 
   if (st == 2) {
     // ---- STATE 2: ENTER ----
-    leaf1(c, nd, 0x80077E7Cu); // FUN_80077e7c
+    psx::cpu::callGuestNow(*c, "beh_typed_variant_router", 0x80077E7Cu, nd); // FUN_80077e7c
     c->mem_w8(nd + 1, 1);
     uint8_t sub = c->mem_r8(nd + 5);
     if (sub == 1) {
@@ -229,7 +221,7 @@ void beh_typed_variant_router(Core *c) {
       c->mem_w16(nd + 0x5a, 0);
       call_77b38(c, nd, 0xc); // FUN_80077b38(node,...,0xc)
     } else if (sub == 0 || sub == 2) {
-      leaf1(c, nd, 0x8011C090u); // FUN_8011c090
+      psx::cpu::callGuestNow(*c, "beh_typed_variant_router", 0x8011C090u, nd); // FUN_8011c090
     }
     return;
   }
@@ -238,3 +230,5 @@ void beh_typed_variant_router(Core *c) {
     eng(c).spawn.despawn(nd); // FUN_8007a624
   }
 }
+
+} // namespace tomba

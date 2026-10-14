@@ -15,7 +15,7 @@ ovhit 0x80023D48 native=7397 oracle=7397 and 0x8002423C native=1949 oracle=1949.
 
 Why it matters: **29,869 substrate dispatches per 6000 frames** of `replays/bugs/seesaw-weight.pad`
 — the busiest remaining unowned function in the game once the PlatformHle-owned entries are
-discounted (`docs/codemap.md`).
+discounted (`docs/guest-addresses.md`).
 
 ## Signature
 
@@ -103,7 +103,7 @@ Trig::ratan2, `0x80077768` Trig::angleCmp.
 That looks like the port is nearly free. It is not. **`Trig::registerOverrides` is deliberately an
 empty body** (see the banner in `game/math/trig.cpp`): those substrate bodies descend guest stack
 frames the native methods do not mirror, so registering them diverges SBS. Calling the Trig METHODS
-directly from a native — which is the sanctioned use elsewhere, e.g. `game/render/fx_trail.cpp` —
+directly from a native —
 would leave the callees' frame bytes BELOW this function's sp unwritten, while substrate core B
 writes them. SBS compares that memory. That is the dead-stack-scratch divergence class, and
 CLAUDE.md's rule is to mirror the frame, never to exclude the region.

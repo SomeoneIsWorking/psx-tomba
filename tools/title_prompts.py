@@ -68,7 +68,7 @@ TASK0_PROBE_BYTES = 0x6C
 # `game/core/frame/frame_diagnostics.cpp` prints it: outer 48/4a/4c, leaf 4e/50/52.
 STATE_MACHINE = TASK0 + STATE_MACHINE_OFFSET
 STATE_MACHINE_BYTES = 12
-# The GAME stage's task entry. game/core/entry/game_config.cpp: `.stageGame = 0x8010637cu`.
+# The GAME stage's task entry. game/core/sched/task_slot_layout.h: `kStageGameEntry`.
 STAGE_GAME = 0x8010637C
 # Tomba's master G block, owned by `game/player/actor_tomba.h` as `ActorTomba::G_ADDR`, with the
 # 16.16 X/Y/Z position at +0x2C per its `velocityIntegrate` contract.

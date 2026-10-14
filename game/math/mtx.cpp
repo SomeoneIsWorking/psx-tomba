@@ -1,7 +1,9 @@
 #include "mtx.h"
 #include "core.h"
-#include "core/entry/game_ctx.h"                    // mtxOf(c) — the per-Core Mtx instance
-#include "core/overrides/native_override_catalog.h" // tomba::native::declareOverride — the one native-override registry
+#include "core/overrides/native_override_catalog.h"
+#include "entry/tomba_session.h" // mtxOf(c) — the per-Core Mtx instance
+
+namespace tomba {
 
 void Mtx::identity(uint32_t addr) {
   Core *c = this->core;
@@ -44,6 +46,8 @@ static void eov_identity(Core *c) {
   c->r[2] = 4096;
 }
 
-void Mtx::registerOverrides(Game *) {
-  tomba::native::declareOverride(0x80051794u, "&eov_identity", &eov_identity);
+void Mtx::registerOverrides(native::NativeOverrideCatalog &natives) {
+  natives.declare(0x80051794u, "&eov_identity", &eov_identity);
 }
+
+} // namespace tomba

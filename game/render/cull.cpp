@@ -1,15 +1,16 @@
 // game/render/cull.cpp — PC-native visibility CULL / LOD subsystem. See cull.h.
 #include "cull.h"
-#include "cfg.h"
 #include "core.h"
-#include "core/entry/game_ctx.h"
-#include "core/overrides/native_override_catalog.h" // tomba::native::declareOverride — the one native-override registry
+#include "core/overrides/native_override_catalog.h"
+#include "entry/tomba_session.h"
 #include "game.h"
 #include "render.h"     // rend(c)->margin (widescreen margin collect)
 #include <lucent/log.h> // `cullpush` push-time submission census (kanban #77)
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+namespace tomba {
+
 uint32_t eng_isqrt16(uint32_t);
 // g_render_object retired (was defined + written but never read anywhere; dead).
 
@@ -220,7 +221,6 @@ void Cull::submitLogRoll() {
 // still prints how many objects the cull looked at and how many it kept, so "no pushes" can never be
 // confused with "the cull never ran".
 void Cull::submitLogFlush(const SubmitLog &log) const {
-  Core *c = core;
   if (log.culled == 0 && log.routed == 0) {
     lucent::debug("cullpush",
                   "f{} neither the cull nor any manual enqueue ran this frame — NOTHING "
@@ -376,31 +376,18 @@ void Cull::objectCull() {
   Core *c = core;
   uint32_t o = c->r[4]; // a0 = object* (MIPS arg register $a0)
 
-  if (mObjLog < 0) {
-    mObjLog = cfg_dbg("obj") ? 1 : 0;
-  }
-  if (mObjLog) {
-    cfg_logi("objlog",
-             "obj=%08x type=%02x pos=(%d,%d,%d)",
-             o,
-             c->mem_r8(o + 0x0c),
-             (int16_t)obj_r16(c, o + 0x2e),
-             (int16_t)obj_r16(c, o + 0x32),
-             (int16_t)obj_r16(c, o + 0x36));
-  }
+  lucent::debug("obj",
+                "obj={:08x} type={:02x} pos=({},{},{})",
+                o,
+                c->mem_r8(o + 0x0c),
+                (int16_t)obj_r16(c, o + 0x2e),
+                (int16_t)obj_r16(c, o + 0x32),
+                (int16_t)obj_r16(c, o + 0x36));
   int p2 = (int16_t)c->r[5], p3 = (int16_t)c->r[6], p4 = (int16_t)c->r[7]; // pos - camera (s16 each)
   performBaseCull(); // PC-native cull (byte-exact FUN_8007712C body)
   // The engine OWNS this margin, so it is ALWAYS active — not gated on widescreen. Even at 4:3 the
   // stock ±34° cone over-culls (edge pop-in), so we keep the wide region in every aspect; widescreen
-  // then needs no extra special-casing. Env overrides remain for diagnostics only (PSXPORT_CULL_FAR/_FOV).
-  if (mCullEnvRead < 0) {
-    const char *f = cfg_str("PSXPORT_CULL_FAR");
-    mCullFar = f ? atoi(f) : -1;
-    const char *v = cfg_str("PSXPORT_CULL_FOV");
-    mCullFov = v ? atoi(v) : -1;
-    mCullEnvRead = 1;
-  }
-  int do_cull = 1;
+  // then needs no extra special-casing.
 // FAR limit (engine units, same scale as `dist`) for the engine-owned wide RE-INCLUDE of margin
 // geometry the stock body culled. The widest stock far is 7169 (0x1C01).
 //   CULL_MARGIN_FAR = 0x10000 ≈ 9.1x the stock far. The re-include only collects type-0x03 nodes into
@@ -408,7 +395,7 @@ void Cull::objectCull() {
 #ifndef CULL_MARGIN_FAR
 #define CULL_MARGIN_FAR 0x10000 // ~9.1x the widest stock far (7169) — generous render-margin reach
 #endif
-  int cull_far = mCullFar >= 0 ? mCullFar : CULL_MARGIN_FAR;
+  constexpr int cull_far = CULL_MARGIN_FAR;
 // FOV-cone threshold for depth/(dist*4) [≈ cos·1024]. The engine keeps objects to the EDGE of the view
 // and a bit beyond: 0 = the full forward hemisphere (±90°, well past the widescreen frustum's ~±40°);
 // a small NEGATIVE value extends past 90° so an object whose ORIGIN is just behind the camera plane but
@@ -417,29 +404,12 @@ void Cull::objectCull() {
 // re-including things squarely behind the camera. (vs the stock 848..880 ≈ only ±34°.)
 // Named/tunable (issue #22): CULL_MARGIN_FOV = -0x60 already keeps the full forward hemisphere and
 // ~3.4° past the side; that is generous enough for off-screen edge geometry, so we keep it but name
-// it. PSXPORT_CULL_FOV overrides at runtime.
+// it.
 #ifndef CULL_MARGIN_FOV
 #define CULL_MARGIN_FOV (-0x60) // ≈ cos(93.4°): full hemisphere + ~3.4° past the side
 #endif
-  int cull_fov = mCullFov >= 0 ? mCullFov : CULL_MARGIN_FOV;
-  // MEASUREMENT (entity-type taxonomy RE, journal later-127 step 1; off by default): restrict the wide
-  // re-include to a single entity type (+0xc), or exclude one, so a 4:3-vs-16:9 gameplay RAM self-diff
-  // isolates whether re-including THAT type perturbs gameplay logic (static-world) or not (dynamic).
-  // PSXPORT_CULL_ONLY_TYPE=<n> re-includes only type n; PSXPORT_CULL_SKIP_TYPE=<n> re-includes all but n.
-  if (mOnlyType == -2) {
-    const char *x = cfg_str("PSXPORT_CULL_ONLY_TYPE");
-    mOnlyType = x ? (int)strtol(x, 0, 0) : -1;
-    const char *y = cfg_str("PSXPORT_CULL_SKIP_TYPE");
-    mSkipType = y ? (int)strtol(y, 0, 0) : -1;
-  }
-  int otype = c->mem_r8(o + 0x0c);
-  if (mOnlyType >= 0 && otype != mOnlyType) {
-    do_cull = 0;
-  }
-  if (mSkipType >= 0 && otype == mSkipType) {
-    do_cull = 0;
-  }
-  if (do_cull && c->mem_r8(o + 1) == 0) { // the game CULLED it — reconsider with engine bounds
+  constexpr int cull_fov = CULL_MARGIN_FOV;
+  if (c->mem_r8(o + 1) == 0) { // the game CULLED it — reconsider with engine bounds
     unsigned dist = isqrt32((unsigned)(p2 * p2 + p3 * p3 + p4 * p4)) & 0xFFFF;
     // NEAR floor 0x80 (was 0x200): the stock body culls anything closer than ~512, so on-camera objects
     // right by Tomba (e.g. the ground/water tile he stands on) pop at the inner edge too. 0x80 keeps them
@@ -453,92 +423,8 @@ void Cull::objectCull() {
         den = 1;
       }
       if (depth / den >= cull_fov) {
-        // NATIVE MARGIN (default, later-133): render this culled object via a post-walk per-node flush
-        // instead of poking +1. Poking +1 runs the handler's VISIBLE branch -> gameplay perturbation
-        // (5638 B). Collecting + flushing the node's persistent command list touches only render scratch
-        // -> margin renders, gameplay 0-diff. A/B: PSXPORT_MARGIN_POKE=1 keeps the old +1 re-include.
-        // NOTE (scope of the wider cone above): MarginRenderer::collect() only re-renders type-0x03 world-geometry
-        // (terrain/water/static scenery) — the dominant edge/corner pop-in. Dynamic entities are NOT
-        // poked visible here (that would perturb their gameplay state), so widening the cone safely
-        // un-pops the static world without disturbing enemy/item/NPC logic.
-        // WIDESCREEN is render-only (USER 2026-07-10, revised): widening the visual reach must be
-        // guest-READ-ONLY. The earlier wide +1 poke (to populate dynamic side-margin entities) perturbed
-        // guest state and had to be SBS-suppressed — both removed. Dynamic entities in the extreme wide
-        // margins are therefore dropped until each type's read-only render is added (wide de-prioritized).
-        // Re-include margin geometry READ-ONLY in every aspect (MarginRenderer host overlay, zero guest
-        // writes): no +1 poke, so the object's guest state is untouched — core A stays byte-identical to
-        // the verification reference AND to a standalone run, with no harness special-casing. Widescreen is a
-        // render-only concern (wider visual reach), served by this same read-only path; it must NEVER
-        // poke guest state (the old wide +1 poke perturbed 5638 B of object state and forced an SBS
-        // special-case — both removed). PSXPORT_MARGIN_POKE=1 keeps the old +1 re-include for A/B diffing.
-        if (rend(c)->margin.nativeEnabled()) {
-          rend(c)->margin.collect(c, o);
-        } // read-only margin, all aspects
-        else {
-          c->mem_w8(o + 1, 1);
-          c->r[2] = 1;
-        } // POKE fallback (A/B diffing only)
-        // MEASUREMENT (PSXPORT_DEBUG=cullobj): identify WHAT the margin re-include renders — obj addr,
-        // type, model id (+0xe & 0x3fff), model-data ptr (+0x38), pos. Decides static-world vs per-object
-        // architecture for approach B. One line per re-include; grep a single frame.
-        if (cfg_dbg("cullobj")) {
-          int gpu_frame_no(Core *);
-          uint32_t cmd = c->mem_r32(o + 0xc0);            // persistent render-command ptr (later-132)
-          uint32_t gb = cmd ? c->mem_r32(cmd + 0x40) : 0; // its geomblk
-          CfgLine ln;
-          cfg_line_reset(&ln);
-          cfg_line_addf(&ln,
-                        "f%d obj=%08x type=%02x model=%04x mdata=%08x cmd=%08x geomblk=%08x x18=",
-                        gpu_frame_no(c),
-                        o,
-                        otype,
-                        obj_r16(c, o + 0x0e) & 0x3fff,
-                        c->mem_r8(o + 0x38) | (c->mem_r8(o + 0x39) << 8) | (c->mem_r8(o + 0x3a) << 16) |
-                            (c->mem_r8(o + 0x3b) << 24),
-                        cmd,
-                        gb);
-          for (int j = 0; j < 8; j++) {
-            cfg_line_addf(&ln, "%s%08x", j ? "," : "", cmd ? c->mem_r32(cmd + 0x18 + j * 4) : 0);
-          }
-          cfg_line_addf(&ln,
-                        " pos=(%d,%d,%d)",
-                        (int16_t)obj_r16(c, o + 0x2e),
-                        (int16_t)obj_r16(c, o + 0x32),
-                        (int16_t)obj_r16(c, o + 0x36));
-          cfg_line_flush(&ln, "cullobj");
-        }
-        // MEASUREMENT (PSXPORT_DEBUG=cullinc): per-type tally of objects the wide re-include actually
-        // marks visible, per frame. Distinguishes a genuinely static-safe type from a vacuous 0-diff
-        // (a type with no culled margin members to re-include). s_frame from gpu_native.
-        int gpu_frame_no(Core *);
-        static long s_inc[256];
-        static int s_lf = -1;
-        if (cfg_dbg("cullinc")) {
-          if (gpu_frame_no(c) != s_lf && s_lf >= 0) {
-            int any = 0;
-            for (int t = 0; t < 256; t++) {
-              if (s_inc[t]) {
-                any = 1;
-              }
-            }
-            if (any) {
-              CfgLine ln;
-              cfg_line_reset(&ln);
-              cfg_line_addf(&ln, "f%d reincluded:", s_lf);
-              for (int t = 0; t < 256; t++) {
-                if (s_inc[t]) {
-                  cfg_line_addf(&ln, " 0x%02x=%ld", t, s_inc[t]);
-                }
-              }
-              cfg_line_flush(&ln, "cullinc");
-            }
-            for (int t = 0; t < 256; t++) {
-              s_inc[t] = 0;
-            }
-          }
-          s_lf = gpu_frame_no(c);
-          s_inc[otype & 0xff]++;
-        }
+        // Read-only: margin geometry is collected for the host, the object stays culled in guest state.
+        rend(c)->margin.collect(c, o);
       }
     }
   }
@@ -826,12 +712,14 @@ static void eov_cullWrapperOffsetY(Core *c) {
   eng(c).cull.cullWrapperOffsetY();
 }
 
-void Cull::registerOverrides() {
-  tomba::native::declareOverride(0x80077870u, "Cull::cullWrapperFlag1", eov_cullWrapperFlag1);
-  tomba::native::declareOverride(0x8007778Cu, "Cull::cullWrapper", eov_cullWrapper);
-  tomba::native::declareOverride(0x800777FCu, "Cull::cullWrapperFlag2", eov_cullWrapperFlag2);
-  tomba::native::declareOverride(0x80077ACCu, "Cull::cullWrap77acc", eov_cullWrap77acc);
-  tomba::native::declareOverride(0x800779D0u, "Cull::cullWrapperOffset", eov_cullWrapperOffset);
-  tomba::native::declareOverride(0x80077A4Cu, "Cull::cullWrapperOffsetFlag1", eov_cullWrapperOffsetFlag1);
-  tomba::native::declareOverride(0x800778E4u, "Cull::cullWrapperOffsetY", eov_cullWrapperOffsetY);
+void Cull::registerOverrides(native::NativeOverrideCatalog &natives) {
+  natives.declare(0x80077870u, "Cull::cullWrapperFlag1", eov_cullWrapperFlag1);
+  natives.declare(0x8007778Cu, "Cull::cullWrapper", eov_cullWrapper);
+  natives.declare(0x800777FCu, "Cull::cullWrapperFlag2", eov_cullWrapperFlag2);
+  natives.declare(0x80077ACCu, "Cull::cullWrap77acc", eov_cullWrap77acc);
+  natives.declare(0x800779D0u, "Cull::cullWrapperOffset", eov_cullWrapperOffset);
+  natives.declare(0x80077A4Cu, "Cull::cullWrapperOffsetFlag1", eov_cullWrapperOffsetFlag1);
+  natives.declare(0x800778E4u, "Cull::cullWrapperOffsetY", eov_cullWrapperOffsetY);
 }
+
+} // namespace tomba

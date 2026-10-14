@@ -12,7 +12,7 @@
 
 class Core;
 
-namespace tomba2::world {
+namespace tomba::world {
 
 // The generation sits above the main-RAM offset, so it wraps after 2048 allocations of one record.
 inline constexpr std::uint32_t kRecordOffsetBits = 21u;
@@ -39,4 +39,4 @@ private:
   std::unordered_map<std::uint32_t, std::uint32_t> generations_; // main-RAM offset -> generation
 };
 
-} // namespace tomba2::world
+} // namespace tomba::world

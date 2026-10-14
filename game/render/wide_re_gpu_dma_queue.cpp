@@ -112,11 +112,13 @@
 // against a live VRAM-transfer dump). Left for a dedicated follow-up pass — do not fold it into this
 // cluster's wiring without RE'ing it on its own terms first.
 #include "core.h"
-#include "core/entry/game_ctx.h"
 #include "core/overrides/native_override_catalog.h"
+#include "entry/tomba_session.h"
 #include "guest_call.h"
 #include "render.h"
 #include <stdint.h>
+
+namespace tomba {
 
 namespace {
 constexpr uint32_t GPU_SYS_BASE = (32778u << 16);               // 0x800A0000
@@ -677,7 +679,7 @@ void ov_gpuDmaSend(Core *c) {
 }
 } // namespace
 
-void gpu_dma_queue_install() {
+void gpu_dma_queue_install(native::NativeOverrideCatalog &natives) {
   // 0x80082D04 (GpuDmaQueueEnqueue) — WIRED 2026-07-10. History: isolation testing (SBS-full,
   // PSXPORT_THUNK_FORCE_GEN bisection) first found and fixed a real bug (GPU_QSTAT_ACTIVE must be
   // written UNCONDITIONALLY every call — a MIPS branch-delay-slot store the draft had wrongly gated
@@ -698,8 +700,10 @@ void gpu_dma_queue_install() {
   // diverge on), but NOT exercised, so its correctness rests on the line-by-line RE re-verify
   // above, not the SBS gate, per fleet-workflow.md §9. Enqueue/Sync/Send/the streamer all fire and
   // match — see docs/findings/render.md for the current ovhit counts.
-  tomba::native::declareOverride(0x80082D04u, "ov_gpuDmaQueueEnqueue", ov_gpuDmaQueueEnqueue);
-  tomba::native::declareOverride(0x80082FB4u, "ov_gpuDmaQueueDrain", ov_gpuDmaQueueDrain);
-  tomba::native::declareOverride(0x80083364u, "ov_gpuDmaQueueSync", ov_gpuDmaQueueSync);
-  tomba::native::declareOverride(0x80082424u, "ov_gpuDmaSend", ov_gpuDmaSend);
+  natives.declare(0x80082D04u, "ov_gpuDmaQueueEnqueue", ov_gpuDmaQueueEnqueue);
+  natives.declare(0x80082FB4u, "ov_gpuDmaQueueDrain", ov_gpuDmaQueueDrain);
+  natives.declare(0x80083364u, "ov_gpuDmaQueueSync", ov_gpuDmaQueueSync);
+  natives.declare(0x80082424u, "ov_gpuDmaSend", ov_gpuDmaSend);
 }
+
+} // namespace tomba

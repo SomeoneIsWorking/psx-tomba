@@ -58,6 +58,12 @@
 class Core;
 class Game;
 
+namespace tomba::native {
+class NativeOverrideCatalog;
+} // namespace tomba::native
+
+namespace tomba {
+
 class MeleeProximity {
 public:
   Core *core = nullptr;
@@ -76,6 +82,8 @@ public:
   // tomba::native::declareOverride (the recorded binary evidence's global call table — the only real callers found are
   // direct `guest 0x8001F9DC(c)` sites) as the setter so both that call shape and typed runtime address dispatch
   // (native-caller tracing) reach the native. See .cpp.
-  static void registerOverrides(Game *game);
+  static void registerOverrides(native::NativeOverrideCatalog &natives);
 };
+
+} // namespace tomba
 #endif

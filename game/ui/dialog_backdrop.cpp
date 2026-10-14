@@ -35,6 +35,8 @@
 #include "render/guest_ordering_table.h"
 #include "ui/panel.h"
 
+namespace tomba {
+
 namespace {
 
 constexpr uint32_t PACKET_BYTES = 16u; // tag + 3 command words
@@ -51,11 +53,12 @@ constexpr uint32_t OT_BUCKET_NEAR = 1u;
 } // namespace
 
 // ORACLE: guest 0x8007FCC8
-void Panel::pushDialogBackdrop(Core *c, int16_t x, int16_t y, int16_t w, int16_t h, uint32_t mode) {
+void Panel::pushDialogBackdrop(Core *c, const PushDialogBackdropArgs &args) {
+  auto [x, y, w, h, mode] = args;
   const uint32_t bucket = (mode & MODE_FAR_BUCKET) ? OT_BUCKET_FAR : OT_BUCKET_NEAR;
 
   // Take a packet off the pool and bump it, exactly as the guest allocator does.
-  const uint32_t packet = tomba2::render::PacketPool(*c).allocate(PACKET_BYTES);
+  const uint32_t packet = tomba::render::PacketPool(*c).allocate(PACKET_BYTES);
 
   // Written as two branches rather than one ternary because that is the shape of the guest code —
   // it stores the colour word on one path and zero on the other, and the store sequence is part of
@@ -73,7 +76,7 @@ void Panel::pushDialogBackdrop(Core *c, int16_t x, int16_t y, int16_t w, int16_t
   c->mem_w16(packet + 14, (uint16_t)h);
 
   // Link it at the head of its bucket: the packet inherits whatever was there, and becomes the head.
-  tomba2::render::OrderingTable::active(*c).link(packet, TAG_WORD_COUNT, bucket);
+  tomba::render::OrderingTable::active(*c).link({.packet = packet, .words = TAG_WORD_COUNT, .bucket = bucket});
 }
 
 // Guest-ABI entry: x/y/w/h in r4-r7, mode off the caller's stack (see the ARGUMENT NOTE above).
@@ -81,9 +84,11 @@ static void ov_push_dialog_backdrop(Core *c) {
   const int16_t x = (int16_t)c->r[4], y = (int16_t)c->r[5];
   const int16_t w = (int16_t)c->r[6], h = (int16_t)c->r[7];
   const uint32_t mode = c->mem_r32(c->r[29] + 16u);
-  Panel::pushDialogBackdrop(c, x, y, w, h, mode);
+  Panel::pushDialogBackdrop(c, {.x = x, .y = y, .w = w, .h = h, .mode = mode});
 }
 
-void dialog_backdrop_install() {
-  tomba::native::declareOverride(0x8007FCC8u, "Panel::pushDialogBackdrop", ov_push_dialog_backdrop);
+void dialog_backdrop_install(native::NativeOverrideCatalog &natives) {
+  natives.declare(0x8007FCC8u, "Panel::pushDialogBackdrop", ov_push_dialog_backdrop);
 }
+
+} // namespace tomba

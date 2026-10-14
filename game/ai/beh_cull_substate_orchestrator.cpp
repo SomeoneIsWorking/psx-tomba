@@ -26,9 +26,8 @@
 //   0x800E7EAA (lbu, state-1 cull gate; ==1)
 //   0x1F800160 (lh  scratchpad, state-1 cull gate; signed < 0x4651 => cull)
 
-#include "cfg.h"
 #include "core.h"
-#include "core/entry/game_ctx.h"
+#include "entry/tomba_session.h"
 #include "guest_abi.h" // GuestFrame — mirror the guest stack frame (CLAUDE.md)
 #include "guest_call.h"
 #include "object/actor.h"  // Actor::boundsCull (FUN_8007778C native)
@@ -37,6 +36,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+namespace tomba {
 
 namespace {
 
@@ -109,7 +110,7 @@ void beh_cull_substate_orchestrator(Core *c) {
     }
     if (!skip_cull && to_timer) {
       // 0x80132640: lh v0, 0x1F800160 (scratchpad, signed) ; slti v0,v0,0x4651 ; beqz -> 0x8013265C
-      int16_t timer = c->mem_r16s(0x1F800160u);
+      int16_t timer = (int16_t)c->mem_r16(0x1F800160u);
       if (timer < 0x4651) {
         Actor(c, obj).boundsCull(); // 0x80132654 jal FUN_8007778C (result IGNORED) — Actor::boundsCull (native)
       }
@@ -159,3 +160,5 @@ void beh_cull_substate_orchestrator(Core *c) {
   }
   // 0x801326FC  j 0x8013271C (epilogue)
 }
+
+} // namespace tomba

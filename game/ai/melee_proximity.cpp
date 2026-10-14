@@ -8,11 +8,13 @@
 // convention as game/ai/actor_melee_engage.cpp, to avoid a hex/decimal transcription mismatch.
 #include "melee_proximity.h"
 #include "core.h"
-#include "core/entry/game_ctx.h"
 #include "core/overrides/native_override_catalog.h"
+#include "entry/tomba_session.h"
 #include "game.h"
 #include "guest_call.h"
 #include "math/trig.h"
+
+namespace tomba {
 
 int32_t MeleeProximity::isAtApproachAnchor(uint32_t self, uint32_t other) { // FUN_8001F9DC — UNWIRED draft
   Core *c = core;
@@ -92,7 +94,7 @@ void MeleeProximity::isAtApproachAnchorFramed() { // guest-ABI twin, mirrors gue
 // shard_1.c/shard_5.c — calls through the recorded binary evidence's OWN global image-qualified runtime dispatcher
 // table, never through typed runtime address dispatch. Installing without a setter would be invisible to that call
 // shape, so `tomba::native::declareOverride` is passed tomba::native::declareOverride as the setter, same pattern as
-// game/core/pc_scheduler.cpp / game/object/actor_sm_reward.cpp.
+// game/core/sched/tomba_scheduler.cpp / game/object/actor_sm_reward.cpp.
 // ---------------------------------------------------------------------------------------------
 namespace {
 void ov_meleeProximity(Core *c) {
@@ -100,6 +102,8 @@ void ov_meleeProximity(Core *c) {
 }
 } // namespace
 
-void MeleeProximity::registerOverrides(Game * /*game*/) {
-  tomba::native::declareOverride(0x8001F9DCu, "MeleeProximity::isAtApproachAnchor", ov_meleeProximity);
+void MeleeProximity::registerOverrides(native::NativeOverrideCatalog &natives) {
+  natives.declare(0x8001F9DCu, "MeleeProximity::isAtApproachAnchor", ov_meleeProximity);
 }
+
+} // namespace tomba

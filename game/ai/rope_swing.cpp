@@ -59,6 +59,8 @@
 #include "core/overrides/native_override_catalog.h"
 #include "guest_abi.h"
 
+namespace tomba {
+
 namespace {
 
 // tools/binary ABI evidence 0x801281B8 --scaffold --guestabi, program order
@@ -92,7 +94,7 @@ void RopeSwing::swingTickAndBendSegments(Core *c) {
 
   GuestReg<16> nodeReg(c); // s0 — live across the call below
   nodeReg = c->r[4];
-  tomba::guest::dispatchJalToReturn(*c, 0x801284ACu, kRaAfterPreTick);
+  tomba::guest::dispatchJalToReturn(*c, {.target = 0x801284ACu, .returnAddress = kRaAfterPreTick});
 
   const RopeNode node{c, c->r[16]};
   const RopeSwingState sw{c, c->r[16] + ropeswing::kStateBlock};
@@ -167,10 +169,12 @@ void RopeSwing::swingTickAndBendSegments(Core *c) {
   }
 }
 
-void RopeSwing::registerOverrides() {
+void RopeSwing::registerOverrides(native::NativeOverrideCatalog &natives) {
   // A00, from the image: of 23 authenticated MODE images only A00 holds a function at 0x801281B8
   // (84 words), and the address is inside A00's loaded text range. This is the MODULE note above,
   // applied.
-  tomba::native::declareOverlayOverride(
+  natives.declareOverlay(
       "A00", 0x801281B8u, "RopeSwing::swingTickAndBendSegments", &RopeSwing::swingTickAndBendSegments);
 }
+
+} // namespace tomba

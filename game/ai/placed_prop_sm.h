@@ -71,6 +71,12 @@ class Game;
 // ---------------------------------------------------------------------------------------------
 // Typed lens over the guest ObjectNode block this state machine owns. Read/write accessors only —
 // no state of its own, so it costs nothing and every guest store in the port reads as a field write.
+namespace tomba::native {
+class NativeOverrideCatalog;
+} // namespace tomba::native
+
+namespace tomba {
+
 struct PlacedProp {
   Core *c;
   uint32_t n; // guest address of the node
@@ -161,5 +167,7 @@ struct PlacedProp {
 class PlacedPropSm {
 public:
   static void step(Core *c);
-  static void registerOverrides(Game *game);
+  static void registerOverrides(native::NativeOverrideCatalog &natives);
 };
+
+} // namespace tomba

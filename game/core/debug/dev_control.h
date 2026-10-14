@@ -15,12 +15,12 @@ namespace tomba {
 // between frames, and written by the frame driver at its next frame boundary.
 class DevControl {
 public:
-  // True when `command` is one of ours; `reply` then holds the answer for the client.
-  bool handle(Core &core, const char *command, const char *line, std::string &reply);
+  // True when the line's command word is one of ours; `reply` then holds the answer for the client.
+  bool handle(Core &core, const char *line, std::string &reply);
   void applyArmed(Core &core, uint32_t frame);
 
 private:
-  static void giveAndFlag(Core &core, uint32_t item, uint32_t amount);
+  static void giveAndFlag(Core &core, const Inventory::ItemGrantArgs &grant);
 
   DevWarp warp_;
   DevItems items_;

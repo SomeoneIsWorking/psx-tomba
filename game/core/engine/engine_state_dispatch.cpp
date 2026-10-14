@@ -8,7 +8,6 @@
 //
 // The class's own header (game/core/engine.h) remains the single declaration of every method below;
 // nothing is redeclared here.
-#include "c_subsys.h"               // disc_findFile — the native ISO9660 resolver
 #include "camera/cutscene_camera.h" // class CutsceneCamera — the field/follow camera
 #include "core.h"
 #include "core/assets/asset.h" // class Asset
@@ -16,9 +15,8 @@
 #include "core/engine/task_sm.h"         // TaskSm — the typed lens over the task record, owned in one header
 #include "core/overrides/guest_jal.h"    // tomba::guest::dispatchJalToReturn — the guest call convention
 #include "core/overrides/guest_resume.h" // requestGuestContinuation
-#include "entry/game_ctx.h"
+#include "entry/tomba_session.h"
 #include "game.h" // Game — the per-Core product the Engine drives
-#include "guest_abi.h"
 #include "guest_call.h"
 #include "level_load.h"
 #include "math/rng.h" // class Rng
@@ -41,6 +39,8 @@
 // scratch/gameplay_start_flow_re.md) to extend native ownership and shrink the
 // cooperative fallback. Returning 0 keeps the field REACHABLE (no derail) until
 // those are owned.
+namespace tomba {
+
 int Engine::frame() {
   Core *c = core;
   uint32_t sm = c->mem_r32(0x1f800138u);
@@ -53,11 +53,11 @@ int Engine::frame() {
     // area-change transition (FieldTransition::step). Sub-modes 2..4 aren't owned yet.
     if (s4a == 0) {
       if (c->mem_r32(0x80109450u) != 0x3C021F80u) {
-        cfg_logf("gframe", "ret0 s48=2 s4a=0 SOP-not-loaded ov=%08X sm@%08X", c->mem_r32(0x80109450u), sm);
+        lucent::debug("gframe", "ret0 s48=2 s4a=0 SOP-not-loaded ov={:08X} sm@{:08X}", c->mem_r32(0x80109450u), sm);
         return 0;
       } // SOP not loaded -> cooperative
     } else if (s4a != 1 && s4a != 5) {
-      cfg_logf("gframe", "ret0 s48=2 s4a=%u unowned-submode sm@%08X", s4a, sm);
+      lucent::debug("gframe", "ret0 s48=2 s4a={} unowned-submode sm@{:08X}", s4a, sm);
       return 0; // unowned running sub-mode
     }
     c->r[31] = 0x8010645Cu; // guest loop jal site (L_80106454)
@@ -69,7 +69,7 @@ int Engine::frame() {
     c->r[31] = 0x8010644Cu; // guest loop jal site (L_80106444)
     eng(c).stageResumeInit();
   } else {
-    cfg_logf("gframe", "ret0 unknown s48=%u sm@%08X", s48, sm);
+    lucent::debug("gframe", "ret0 unknown s48={} sm@{:08X}", s48, sm);
     return 0; // unknown top state -> cooperative
   }
   c->mem_w16(0x1f800198u,
@@ -123,48 +123,12 @@ void Engine::stagePrologue() {
   c->mem_w16(task + 0x4c, 0);
   c->mem_w16(task + 0x4e, 0);
   c->mem_w16(task + 0x50, 0);
-  cfg_logf("stage", "ov_game_stage_prologue run, sm[0x48]=%u", init48);
-}
-
-// pc_faithful GAME stage body (fiber task; see engine.h). Byte shape:
-// overlay guest 0x8010637C + overlay guest 0x801063F4. stagePrologue leaves the guest
-// frame descended and s0/s1/s2 holding the loop constants, exactly like the
-// substrate (the frame stays live for the whole stage). frame() bumps the
-// 0x1F800198 counter itself when it handles the state; the unowned-state
-// fallback dispatches the guest sm[0x48] handler (deep yields park the fiber)
-// and bumps the counter here.
-void Engine::stageBodyFaithful() {
-  Core *c = core;
-  stagePrologue();
-  for (;;) {
-    int handled = frame();
-    if (!handled) {
-      uint32_t sm = c->mem_r32(0x1f800138u);
-      uint16_t s48 = c->mem_r16(sm + 0x48);
-      if (s48 == 1) {
-        c->r[31] = 0x8010644Cu;
-        psx::cpu::dispatchGuestToReturn0(*c, 0x80108720u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
-      } else if (s48 == 0) {
-        c->r[31] = 0x8010643Cu;
-        psx::cpu::dispatchGuestToReturn0(*c, 0x801086E0u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
-      } else if (s48 == 2) {
-        c->r[31] = 0x8010645Cu;
-        psx::cpu::dispatchGuestToReturn0(*c, 0x80108784u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
-      }
-      c->mem_w16(0x1f800198u, (uint16_t)(c->mem_r16(0x1f800198u) + 1));
-    }
-    c->r[4] = 1;
-    c->r[31] = 0x80106470u;
-    psx::cpu::dispatchGuestToReturn0(*c,
-                                     0x80051F80u,
-                                     psx::cpu::ExecutionBudget::currentTurn(*c),
-                                     __func__); // loop-tail yield (override registry -> yieldPrim)
-  }
+  lucent::debug("stage", "ov_game_stage_prologue run, sm[0x48]={}", init48);
 }
 
 // OLD guest-loop entry (prologue + guest-continuation into the guest loop
 // 0x801063F4). SUPERSEDED by the native per-frame path (game_native in
-// PcScheduler::step calls eng(c).stagePrologue + eng(c).frame). Retained as a
+// TombaScheduler::step calls eng(c).stagePrologue + eng(c).frame). Retained as a
 // reference / fallback; not on the live path.
 void Engine::stageMain() {
   Core *c = core;
@@ -178,7 +142,7 @@ void Engine::areaModeDispatch() {
   if (idx >= 22) {
     return;
   }
-  static const uint32_t handlers[22] = {
+  constexpr uint32_t handlers[22] = {
       /* 0*/ 0x8011534Cu, /* 1*/ 0,
       /* 2*/ 0,           /* 3*/ 0,
       /* 4*/ 0x8013EE84u, /* 5*/ 0x80136CDCu,
@@ -203,8 +167,8 @@ void Engine::areaModeDispatch() {
 // 0x80050DE4. See engine.h.
 void Engine::sceneStateStep() {
   Core *c = core;
-  static constexpr uint32_t SCENE_STATE = 0x800F2418u;
-  int8_t phase = c->mem_r8s(SCENE_STATE);
+  constexpr uint32_t SCENE_STATE = 0x800F2418u;
+  int8_t phase = (int8_t)c->mem_r8(SCENE_STATE);
 
   if (phase == 1) {
     // RUN table (@0x80015A98). Idx 9 = default 0x80051118 = no-op return.
@@ -212,7 +176,7 @@ void Engine::sceneStateStep() {
     if (idx >= 22) {
       return;
     }
-    static const uint32_t run[22] = {
+    constexpr uint32_t run[22] = {
         /* 0*/ 0x8013EFA8u, /* 1*/ 0x8012EE14u,
         /* 2*/ 0x80123E1Cu, /* 3*/ 0x8010E964u,
         /* 4*/ 0x80116CCCu, /* 5*/ 0x80136488u,
@@ -243,7 +207,7 @@ void Engine::sceneStateStep() {
   if (idx >= 22) {
     return;
   }
-  static const uint32_t init[22] = {
+  constexpr uint32_t init[22] = {
       /* 0*/ 0x8013FB4Cu, /* 1*/ 0x8012F89Cu,
       /* 2*/ 0x80124678u, /* 3*/ 0x8010F174u,
       /* 4*/ 0x801175D0u, /* 5*/ 0x80136CB0u,
@@ -265,6 +229,8 @@ void Engine::sceneStateStep() {
             1); // advance to RUN (all L_80050F94 paths, incl. the default at idx 9)
 }
 
+} // namespace tomba
+
 // Engine::modePerFrameDispatch — the mode-keyed per-frame overlay handler at
 // guest 0x80022A80. Faithful to the disasm: skip mode 3 (A00 village)
 // explicitly, then read the fn-pointer table at 0x8009D1D4 (MAIN.EXE .rodata,
@@ -274,6 +240,9 @@ void Engine::sceneStateStep() {
 // ov_field_frame doesn't touch a0 before the call, so handlers that read a0 are
 // dead code in this path — none observed).
 #include "ai/behaviors.h" // Behaviors::areaSeasidePerframe (FUN_80113C5C)
+#include <lucent/log.h>
+
+namespace tomba {
 
 void Engine::modePerFrameDispatch() {
   Core *c = core;
@@ -293,6 +262,8 @@ void Engine::modePerFrameDispatch() {
   }
   psx::cpu::dispatchGuestToReturn0(*c, target, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
 }
+
+} // namespace tomba
 
 // Engine::postRenderTick — 3-state fx-trigger + countdown on byte 0x800BF842 at
 // guest 0x80077D8C. Faithful to the disasm: low 7 bits select (== 1: fire FX

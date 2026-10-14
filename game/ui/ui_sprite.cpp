@@ -25,7 +25,11 @@
 #include "ui/ui_sprite.h"
 #include "core.h"
 #include "core/overrides/native_override_catalog.h"
+#include "entry/tomba_session.h"
 #include "guest_call.h"
+#include "render/anchored_packets.h"
+
+namespace tomba {
 
 namespace {
 
@@ -62,7 +66,7 @@ void UiSprite::drawFromTable(Core *c) {
   c->r[6] = c->mem_r32(MODEL_TABLE_PTR);
   c->r[7] = attributes;
   c->r[31] = 0x8007E928u; // jal-site ra
-  psx::cpu::dispatchGuestToReturn0(*c, 0x8007E1B8u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::dispatchGuestToReturn0(*c, kQuads, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
 
   c->r[31] = c->mem_r32(frame + 32);
   c->r[29] += 40;
@@ -89,18 +93,26 @@ void UiSprite::drawFixedDef152(Core *c) {
   c->r[29] += 24;
 }
 
-static void ov_compose(Core *c) {
-  UiSprite::compose(c);
-}
-static void ov_draw_from_table(Core *c) {
-  UiSprite::drawFromTable(c);
-}
-static void ov_draw_fixed_def152(Core *c) {
-  UiSprite::drawFixedDef152(c);
+namespace {
+
+// Each call is an object of its own: what one call site draws, n-th in its frame.
+template <std::uint32_t Entry, void (*Body)(Core *)> void producerEntry(Core *c) {
+  const psx::present::EmissionScope::Guard object(c->emission, Entry, tombaSession(c).callSites.object(c->r[31]), 0);
+  Body(c);
 }
 
-void ui_sprite_install() {
-  tomba::native::declareOverride(0x8007E6DCu, "UiSprite::compose", ov_compose);
-  tomba::native::declareOverride(0x8007E8DCu, "UiSprite::drawFromTable", ov_draw_from_table);
-  tomba::native::declareOverride(0x8007E998u, "UiSprite::drawFixedDef152", ov_draw_fixed_def152);
+} // namespace
+
+void UiSprite::registerOverrides(native::NativeOverrideCatalog &natives) {
+  natives.declare(kQuads, "UiSprite::quads", producerEntry<kQuads, &UiSprite::quads>);
+  natives.declare(kCompose, "UiSprite::compose", producerEntry<kCompose, &UiSprite::compose>);
+  natives.declare(0x8007E8DCu, "UiSprite::drawFromTable", &UiSprite::drawFromTable);
+  natives.declare(0x8007E998u, "UiSprite::drawFixedDef152", &UiSprite::drawFixedDef152);
 }
+
+void UiSprite::registerStateRenders(psx::present::StateProducerTable &renders) {
+  renders.install(kQuads, render::AnchoredPackets::render());
+  renders.install(kCompose, render::AnchoredPackets::render());
+}
+
+} // namespace tomba

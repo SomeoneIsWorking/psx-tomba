@@ -42,17 +42,19 @@
 // far above all pool/game data; a real divergence alters persistent state). v0 (the node ptr) is compared.
 
 #include "spawn.h"
-#include "cfg.h"
 #include "core.h"
-#include "core/entry/game_ctx.h"
-#include "core/overrides/native_override_catalog.h" // tomba::native::declareOverride — the one native-override registry       // c->game->verify — the shared A/B verify scaffold
+#include "core/overrides/native_override_catalog.h"
+#include "entry/tomba_session.h"
 #include "game.h"
 #include "guest_call.h"
+#include <lucent/log.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 // Pool addresses.
+namespace tomba {
+
 static const uint32_t FREE_HEAD = 0x800E8098u;
 static const uint32_t FREE_CNT = 0x800E7E7Cu;
 
@@ -66,7 +68,8 @@ static const uint32_t LIST_TAIL[3] = {0x800F23A8u, 0x800F239Cu, 0x800F23A0u};
 // disasms); only the free-list they pop from differs. When the target active list is EMPTY, the guest instruction path
 // initializes BOTH end pointers (a head-insert also writes *tail, a tail-insert also writes *head); we match
 // that (caught by spawnvarverify: empty-list inserts that the seaside-only spawnverify never exercised).
-void Spawn::spawnLinkStamp(Core *c, uint32_t node, uint32_t ref, uint32_t type, uint32_t mode, uint32_t list) {
+void Spawn::spawnLinkStamp(Core *c, const SpawnLinkStampArgs &args) {
+  auto [node, ref, type, mode, list] = args;
   // Resolve the selected active list's head/tail vars (MIPS: a3==1 -> list1, a3==2 -> list2, else list0).
   uint32_t head, tail;
   if (list == 1) {
@@ -153,7 +156,7 @@ uint32_t Spawn::entitySpawnBody(Core *c) {
   c->mem_w8(FREE_CNT, (uint8_t)(cnt - 1));
   c->mem_w32(FREE_HEAD, c->mem_r32(node + 36)); // free head = node->next
 
-  spawnLinkStamp(c, node, ref, type, mode, list);
+  spawnLinkStamp(c, {.node = node, .ref = ref, .type = type, .mode = mode, .list = list});
   return node;
 }
 
@@ -167,14 +170,14 @@ uint32_t Spawn::spawnPool2Body(Core *c) {
   uint32_t node = c->mem_r32(POOL2_HEAD);
   if (node == 0) { // pool empty -> delegate to POOL_VAR2 (FUN_80079F90) natively
     c->r[4] = ref;
-    c->r[5] = type;                                       // a2/a3 already hold mode/list, untouched
-    static const PoolDesc P = {0x800F2398u, 0x800ED8CCu}; // POOL_VAR2 (FUN_80079F90) — see defn below
+    c->r[5] = type;                                    // a2/a3 already hold mode/list, untouched
+    constexpr PoolDesc P = {0x800F2398u, 0x800ED8CCu}; // POOL_VAR2 (FUN_80079F90) — see defn below
     return poolSpawn(c, P);
   }
   uint32_t cnt = c->mem_r8(POOL2_CNT);
   c->mem_w8(POOL2_CNT, (uint8_t)(cnt - 1));
   c->mem_w32(POOL2_HEAD, c->mem_r32(node + 36)); // free head = node->next
-  spawnLinkStamp(c, node, ref, type, mode, list);
+  spawnLinkStamp(c, {.node = node, .ref = ref, .type = type, .mode = mode, .list = list});
   return node;
 }
 
@@ -194,7 +197,8 @@ static const uint32_t SPAWN_VAR[5] = {0x80079C3Cu, 0x80079DDCu, 0x80079F90u, 0x8
 // Run the per-class spawn VARIANT NATIVELY (the 5 bodies are all owned in this TU) reading ref/type/mode/
 // list from r4..r7 and returning the node ptr. Replaces the former typed runtime address dispatch(SPAWN_VAR[cls]) into
 // the PSX body — keeps the placement→spawn path fully native (PC calls PC). Defined after poolSpawn/POOL_VAR.
-uint32_t Spawn::dispatch(uint32_t cls_in, uint32_t type_in, uint32_t list) {
+uint32_t Spawn::dispatch(const DispatchArgs &args) {
+  auto [cls_in, type_in, list] = args;
   Core *c = this->core;
   uint32_t cls = cls_in & 0xffu;
   if (cls >= 5) {
@@ -230,7 +234,7 @@ uint32_t Spawn::poolSpawn(Core *c, const PoolDesc &p) {
   uint32_t cnt = c->mem_r8(p.cnt);
   c->mem_w8(p.cnt, (uint8_t)(cnt - 1));
   c->mem_w32(p.free_head, c->mem_r32(node + 36)); // free head = node->next
-  spawnLinkStamp(c, node, ref, type, mode, list);
+  spawnLinkStamp(c, {.node = node, .ref = ref, .type = type, .mode = mode, .list = list});
   return node;
 }
 
@@ -265,7 +269,8 @@ uint32_t Spawn::spawnAndInitBody(Core *c) {
   if (c->mem_r8(0x800E7E7Cu) < 7) {
     return 0;
   }
-  uint32_t node = eng(c).spawn.dispatch(/*cls=*/0, /*type=*/6, /*list=*/1); // FUN_8007A980 — native
+  uint32_t node =
+      eng(c).spawn.dispatch({.cls_in = /*cls=*/0, .type_in = /*type=*/6, .list = /*list=*/1}); // FUN_8007A980 — native
   if (node == 0) {
     return 0;
   }
@@ -302,14 +307,14 @@ static const PoolDesc DESPAWN_POOL[5] = {
 };
 void Spawn::despawn(uint32_t node) {
   Core *c = this->core;
-  int s_v = gctx(c)->verification.on("despawnverify");
+  int s_v = tombaSession(c).verification.on("despawnverify");
   uint8_t *ram0 = nullptr;
   uint8_t *ramN = nullptr;
   uint8_t spad0[0x400], spadN[0x400];
   uint32_t regs0[32];
   if (s_v) {
-    ram0 = gctx(c)->verification.ram0();
-    ramN = gctx(c)->verification.ramN();
+    ram0 = tombaSession(c).verification.ram0();
+    ramN = tombaSession(c).verification.ramN();
     memcpy(regs0, c->r, sizeof regs0);
     memcpy(ram0, c->ram, 0x200000);
     memcpy(spad0, c->scratch, 0x400);
@@ -402,30 +407,31 @@ void Spawn::despawn(uint32_t node) {
       break;
     }
   }
-  tomba::VerificationCounter &chk = gctx(c)->verification.despawn;
+  tomba::VerificationCounter &chk = tombaSession(c).verification.despawn;
   long &ng = chk.nMatch, &nb = chk.nMismatch;
   if (ro >= 0 || so >= 0) {
     if (nb++ < 40) {
-      cfg_logi("despawnverify",
-               "MISMATCH node=%08x list=%u ram@%x spad@%x sp=%x",
-               node,
-               c->mem_r8(node + 0x0au),
-               ro,
-               so,
-               sp);
+      lucent::info("despawnverify",
+                   "MISMATCH node={:08x} list={} ram@{:x} spad@{:x} sp={:x}",
+                   node,
+                   c->mem_r8(node + 0x0au),
+                   ro,
+                   so,
+                   sp);
     }
   } else if (++ng % 20 == 0) {
-    cfg_logi("despawnverify", "%ld matches", ng);
+    lucent::info("despawnverify", "{} matches", ng);
   }
 }
 
-uint32_t Spawn::spawnAndInit(uint32_t a0, uint32_t posSrc, uint32_t a2) { // FUN_8003116C
+uint32_t Spawn::spawnAndInit(const SpawnAndInitArgs &args) { // FUN_8003116C
+  auto [a0, posSrc, a2] = args;
   Core *c = this->core;
   c->r[4] = a0;
   c->r[5] = posSrc;
   c->r[6] = a2;
-  gctx(c)->verification.run(
-      &Spawn::spawnAndInitBody, 0x8003116Cu, "spawninitverify", gctx(c)->verification.on("spawninitverify"));
+  tombaSession(c).verification.run(
+      &Spawn::spawnAndInitBody, 0x8003116Cu, "spawninitverify", tombaSession(c).verification.on("spawninitverify"));
   return c->r[2];
 }
 
@@ -450,10 +456,10 @@ uint32_t Spawn::spawnAndInit(uint32_t a0, uint32_t posSrc, uint32_t a2) { // FUN
 //                           child[2]=17; child[3]=sub.
 //   FUN_8013A730(node):     dispatch(cls=3,4,0); child[0x1C]=0x8013A330 (beh_lift_platform);
 //                           child[2]=16.  (single-arg variant — no [+3] write.)
-uint32_t Spawn::spawnTypedChild(
-    uint32_t owner, uint32_t cls, uint32_t handlerAddr, uint8_t typeByte, bool hasSub, uint32_t sub) {
+uint32_t Spawn::spawnTypedChild(const SpawnTypedChildArgs &args) {
+  auto [owner, cls, handlerAddr, typeByte, hasSub, sub] = args;
   Core *c = this->core;
-  uint32_t child = dispatch(cls, /*type=*/4, /*list=*/0);
+  uint32_t child = dispatch({.cls_in = cls, .type_in = /*type=*/4, .list = /*list=*/0});
   if (child == 0) {
     return 0;
   }
@@ -466,16 +472,36 @@ uint32_t Spawn::spawnTypedChild(
   return child;
 }
 uint32_t Spawn::spawnQuadRecordChild(uint32_t owner, uint32_t sub) { // FUN_801360F4
-  return spawnTypedChild(owner, /*cls=*/2, 0x80135D64u, /*type=*/7, /*hasSub=*/true, sub);
+  return spawnTypedChild({.owner = owner,
+                          .cls = /*cls=*/2,
+                          .handlerAddr = 0x80135D64u,
+                          .typeByte = /*typeByte=*/7,
+                          .hasSub = /*hasSub=*/true,
+                          .sub = sub});
 }
 uint32_t Spawn::spawnSiblingAngleChild(uint32_t owner, uint32_t sub) { // FUN_80139838
-  return spawnTypedChild(owner, /*cls=*/1, 0x801395C0u, /*type=*/13, /*hasSub=*/true, sub);
+  return spawnTypedChild({.owner = owner,
+                          .cls = /*cls=*/1,
+                          .handlerAddr = 0x801395C0u,
+                          .typeByte = /*typeByte=*/13,
+                          .hasSub = /*hasSub=*/true,
+                          .sub = sub});
 }
 uint32_t Spawn::spawnChildTrigChild(uint32_t owner, uint32_t sub) { // FUN_8013AC34
-  return spawnTypedChild(owner, /*cls=*/2, 0x8013A900u, /*type=*/17, /*hasSub=*/true, sub);
+  return spawnTypedChild({.owner = owner,
+                          .cls = /*cls=*/2,
+                          .handlerAddr = 0x8013A900u,
+                          .typeByte = /*typeByte=*/17,
+                          .hasSub = /*hasSub=*/true,
+                          .sub = sub});
 }
 uint32_t Spawn::spawnLiftPlatformChild(uint32_t owner) { // FUN_8013A730
-  return spawnTypedChild(owner, /*cls=*/3, 0x8013A330u, /*type=*/16, /*hasSub=*/false, 0);
+  return spawnTypedChild({.owner = owner,
+                          .cls = /*cls=*/3,
+                          .handlerAddr = 0x8013A330u,
+                          .typeByte = /*typeByte=*/16,
+                          .hasSub = /*hasSub=*/false,
+                          .sub = 0});
 }
 
 // FUN_80031558 — Spawn::spawnEffectChild. One of the near-identical MAIN.EXE "spawn a child effect
@@ -491,13 +517,13 @@ uint32_t Spawn::spawnLiftPlatformChild(uint32_t owner) { // FUN_8013A730
 // ORACLE: guest 0x80031558
 uint32_t Spawn::spawnEffectChild(uint32_t owner, uint32_t sub) {
   Core *c = this->core;
-  cfg_logf("fxspawn",
-           "spawnEffectChild owner=%08x type=%u state=%u sub=%u ra=%08x",
-           owner,
-           c->mem_r8(owner + 2),
-           c->mem_r8(owner + 4),
-           sub,
-           c->r[31]);
+  lucent::debug("fxspawn",
+                "spawnEffectChild owner={:08x} type={} state={} sub={} ra={:08x}",
+                owner,
+                c->mem_r8(owner + 2),
+                c->mem_r8(owner + 4),
+                sub,
+                c->r[31]);
   c->r[4] = owner;
   c->r[5] = sub;
   c->r[29] = c->r[29] + (uint32_t)-32;             // addiu sp,-0x20 — descend the guest frame
@@ -678,17 +704,15 @@ static void eov_spawnEffectChild(Core *c) {
   c->r[2] = eng(c).spawn.spawnEffectChild(c->r[4], c->r[5]);
 }
 
-void Spawn::registerTypedChildOverrides() {
+void Spawn::registerTypedChildOverrides(native::NativeOverrideCatalog &natives) {
   // The four typed-child wrappers are A00, from the image: of 23 authenticated MODE images only A00
   // holds a function at each address, and each is inside A00's loaded text range. 0x80031558 is
   // MAIN.EXE-resident and stays in the resident form.
-  tomba::native::declareOverlayOverride("A00", 0x801360F4u, "Spawn::spawnQuadRecordChild", eov_spawnQuadRecordChild);
-  tomba::native::declareOverlayOverride(
-      "A00", 0x80139838u, "Spawn::spawnSiblingAngleChild", eov_spawnSiblingAngleChild);
-  tomba::native::declareOverlayOverride("A00", 0x8013AC34u, "Spawn::spawnChildTrigChild", eov_spawnChildTrigChild);
-  tomba::native::declareOverlayOverride(
-      "A00", 0x8013A730u, "Spawn::spawnLiftPlatformChild", eov_spawnLiftPlatformChild);
-  tomba::native::declareOverride(0x80031558u, "Spawn::spawnEffectChild", eov_spawnEffectChild);
+  natives.declareOverlay("A00", 0x801360F4u, "Spawn::spawnQuadRecordChild", eov_spawnQuadRecordChild);
+  natives.declareOverlay("A00", 0x80139838u, "Spawn::spawnSiblingAngleChild", eov_spawnSiblingAngleChild);
+  natives.declareOverlay("A00", 0x8013AC34u, "Spawn::spawnChildTrigChild", eov_spawnChildTrigChild);
+  natives.declareOverlay("A00", 0x8013A730u, "Spawn::spawnLiftPlatformChild", eov_spawnLiftPlatformChild);
+  natives.declare(0x80031558u, "Spawn::spawnEffectChild", eov_spawnEffectChild);
 }
 
 // FUN_8007E110 — SCENE-ENTITY SPAWN primitive. RE'd from disas 0x8007E110..0x8007E1B4.
@@ -764,12 +788,13 @@ uint32_t Spawn::sceneEntityBody(Core *c) {
   c->mem_w32(node + 0x50, base + 0x10 + (uint32_t)hCount * 4);
   return node;
 }
-uint32_t Spawn::sceneEntity(uint16_t sceneId, uint8_t subtype) {
+uint32_t Spawn::sceneEntity(const SceneEntityArgs &args) {
+  auto [sceneId, subtype] = args;
   Core *c = this->core;
   c->r[4] = sceneId;
   c->r[5] = subtype;
-  gctx(c)->verification.run(
-      &Spawn::sceneEntityBody, 0x8007E110u, "sceneentityverify", gctx(c)->verification.on("sceneentityverify"));
+  tombaSession(c).verification.run(
+      &Spawn::sceneEntityBody, 0x8007E110u, "sceneentityverify", tombaSession(c).verification.on("sceneentityverify"));
   return c->r[2];
 }
 
@@ -786,7 +811,8 @@ uint32_t Spawn::sceneEntity(uint16_t sceneId, uint8_t subtype) {
 // sequential timing), a straight `total += value; call substrate;` matches semantically.
 // FUN_80071B44's own conditional double-bump is gated on its param_3, which is always 0 here —
 // so the wrapper's single unconditional bump is the entire delta observed.
-void Spawn::dropScoreGem(uint32_t sourceNode, int32_t value) {
+void Spawn::dropScoreGem(const DropScoreGemArgs &args) {
+  auto [sourceNode, value] = args;
   Core *c = this->core;
   c->mem_w32(0x800BF874u, c->mem_r32(0x800BF874u) + (uint32_t)value);
   c->r[4] = sourceNode;
@@ -852,14 +878,15 @@ uint32_t Spawn::spawnOverlayVariantBody(Core *c) {
   c->mem_w32(node + 0x50, base + 0x10 + (uint32_t)hCount * 4);
   return node;
 }
-uint32_t Spawn::spawnOverlayVariant(uint16_t recordIndex, int16_t variant) {
+uint32_t Spawn::spawnOverlayVariant(const SpawnOverlayVariantArgs &args) {
+  auto [recordIndex, variant] = args;
   Core *c = this->core;
   c->r[4] = recordIndex;
   c->r[5] = (uint32_t)(int32_t)variant;
-  gctx(c)->verification.run(&Spawn::spawnOverlayVariantBody,
-                            0x8007E038u,
-                            "spawnoverlayverify",
-                            gctx(c)->verification.on("spawnoverlayverify"));
+  tombaSession(c).verification.run(&Spawn::spawnOverlayVariantBody,
+                                   0x8007E038u,
+                                   "spawnoverlayverify",
+                                   tombaSession(c).verification.on("spawnoverlayverify"));
   return c->r[2];
 }
 
@@ -877,7 +904,8 @@ uint32_t Spawn::spawnOverlayVariant(uint16_t recordIndex, int16_t variant) {
 // lifecycle then advances itself 2->3->despawn next ticks — see beh_variant_overlay_lifecycle.cpp),
 // deliberately dereferenced unconditionally exactly as the guest instruction path does (no defensive null-check:
 // the state invariant guarantees obj[0x14] is non-null whenever state==1 is reached).
-void Spawn::tickLinkedOverlay(uint32_t obj, int16_t recordId) {
+void Spawn::tickLinkedOverlay(const TickLinkedOverlayArgs &args) {
+  auto [obj, recordId] = args;
   Core *c = this->core;
   uint8_t st = c->mem_r8(obj + 7);
   if (st == 1) {
@@ -920,7 +948,7 @@ void Spawn::tickLinkedOverlay(uint32_t obj, int16_t recordId) {
   if (c->mem_r8(obj + 0x29) == 0) {
     return;
   }
-  uint32_t node = spawnOverlayVariant((uint16_t)(uint32_t)(int32_t)recordId, 2);
+  uint32_t node = spawnOverlayVariant({.recordIndex = (uint16_t)(uint32_t)(int32_t)recordId, .variant = 2});
   c->mem_w32(obj + 0x14, node);
   if (node == 0) {
     return;
@@ -928,3 +956,5 @@ void Spawn::tickLinkedOverlay(uint32_t obj, int16_t recordId) {
   c->mem_w16(obj + 0x40, 0x46);
   c->mem_w8(obj + 7, (uint8_t)(c->mem_r8(obj + 7) + 1));
 }
+
+} // namespace tomba

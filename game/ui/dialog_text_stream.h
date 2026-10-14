@@ -31,9 +31,13 @@
 #pragma once
 struct Core;
 
+namespace tomba {
+
 class DialogTextStream {
 public:
   // FUN_8007D0D0(obj a0) — sets modeTimer (obj+0x40) from subtype (obj+3) crossed with the global
   // text-speed/language byte DAT_800bf8a3. LEAF: guest 0x8007D0D0 has no `sp` descent at all.
   static void applyRenderMode(Core *c);
 };
+
+} // namespace tomba

@@ -12,17 +12,23 @@
 // (horizontal_visibility_cull.h), so at 4:3 the packets and the scratchpad are the guest's.
 #pragma once
 
+#include "state_producer.h"
+
 #include "model_packet.h"
 
 #include <cstdint>
 
 class Core;
 
-namespace tomba2::horizontal_cull {
+namespace tomba::native {
+class NativeOverrideCatalog;
+} // namespace tomba::native
+
+namespace tomba::horizontal_cull {
 class Visibility;
 }
 
-namespace tomba2::render {
+namespace tomba::render {
 
 class LitModelEmitter {
 public:
@@ -46,9 +52,9 @@ public:
                             const horizontal_cull::Visibility &visible,
                             FlagBits flags,
                             bool quad);
-  static void registerOverrides();
+  static void registerOverrides(native::NativeOverrideCatalog &natives);
   // The renders of the saved calls, at every copy's entries.
-  static void registerStateRenders(Core &core);
+  static void registerStateRenders(psx::present::StateProducerTable &renders, Core &core);
 };
 
-} // namespace tomba2::render
+} // namespace tomba::render

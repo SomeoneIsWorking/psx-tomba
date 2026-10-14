@@ -58,21 +58,33 @@
 #include <cstdint>
 class Core;
 
+namespace tomba::native {
+class NativeOverrideCatalog;
+} // namespace tomba::native
+
+namespace tomba {
+
 class ReleaseTriggerMotion {
 public:
   Core *core = nullptr;
 
-  void hoverBobCycle(uint32_t obj);                     // FUN_80123E9C
-  void leaderFollowSync(uint32_t obj);                  // FUN_801241BC
-  void driftReposition(uint32_t obj, uint32_t variant); // FUN_801244E8
-  void arcSwoopMotion(uint32_t obj);                    // FUN_801246B4
-  void doubleArcMotion(uint32_t obj);                   // FUN_801249D4
-  void circleOrbitMotion(uint32_t obj);                 // FUN_80124C6C
+  void hoverBobCycle(uint32_t obj);    // FUN_80123E9C
+  void leaderFollowSync(uint32_t obj); // FUN_801241BC
+  struct DriftRepositionArgs {
+    uint32_t obj;
+    uint32_t variant;
+  };
+  void driftReposition(const DriftRepositionArgs &args); // FUN_801244E8
+  void arcSwoopMotion(uint32_t obj);                     // FUN_801246B4
+  void doubleArcMotion(uint32_t obj);                    // FUN_801249D4
+  void circleOrbitMotion(uint32_t obj);                  // FUN_80124C6C
 
   // Install the six addresses above in the shared override registry (called once at boot).
   // FUN_80124328 — per-frame X-sweep cycle. No pre-existing draft.
   void xSweepCycle(Core *c);
 
-  void registerOverrides();
+  void registerOverrides(native::NativeOverrideCatalog &natives);
 };
+
+} // namespace tomba
 #endif

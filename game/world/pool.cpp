@@ -8,21 +8,23 @@
 
 #include "pool.h"
 #include "core.h"
-#include "core/entry/game_ctx.h"
 #include "core/overrides/guest_jal.h"
+#include "entry/tomba_session.h"
 #include "mtx.h"       // class Mtx — libgte helpers (identity)
 #include "placement.h" // Placement::spawnWithParent (FUN_80072DDC)
 #include <stdint.h>
 
 // 0x800796DC — zero the 104-byte control block at 0x800BF808, seed two bytes, clear ~30 scratchpad
 // fields, call 0x800782F0(b[168],b[169]) and 0x800508A8(), then select a uniform arg for 0x8005082C.
+namespace tomba {
+
 void Pool::resetControlBlock() {
   Core *c = core;
   uint32_t b = 0x800BF808u;
   c->r[4] = b;
   c->r[5] = 0;
   c->r[6] = 104;
-  tomba::guest::dispatchLeafToReturn(*c, 0x8009A420u); // memset(b, 0, 104)
+  psx::cpu::callGuestNowResult(*c, "pool", 0x8009A420u); // memset(b, 0, 104)
   uint32_t a4 = c->mem_r8(0x800BF8B0u);
   uint32_t a5 = c->mem_r8(0x800BF8B1u);
   c->mem_w8(b + 41, 255);
@@ -91,7 +93,7 @@ void Pool::initTypedPools() {
     uint32_t headVar;  // free-list head ptr addr
     uint32_t countVar; // free-count byte addr
   };
-  static const PoolSpec pools[5] = {
+  constexpr PoolSpec pools[5] = {
       {0x800ED8D8u, 0x88u, 0x34u, 0, 0, 0x800E8098u, 0x800E7E7Cu},
       {0x800EF478u, 0xC4u, 0x3Au, 1, 0, 0x800E80A0u, 0x800E7E7Du},
       {0x800FE198u, 0xD0u, 0x2Au, 2, 0, 0x800F2398u, 0x800ED8CCu},
@@ -140,7 +142,7 @@ void Pool::init() {
     c->r[4] = 0x800F2740u + (uint32_t)i * 68u;
     c->r[5] = 0;
     c->r[6] = 68;
-    tomba::guest::dispatchLeafToReturn(*c, 0x8009A420u); // memset(slot, 0, 68)
+    psx::cpu::callGuestNowResult(*c, "pool", 0x8009A420u); // memset(slot, 0, 68)
   }
 
   c->mem_w32(0x800E7E74u, 0x800ED8C0u); // free-list head
@@ -153,14 +155,14 @@ void Pool::init() {
   }
   c->mem_w16(0x800ED098u, 520); // free count
 
-  tomba::guest::dispatchLeafToReturn(*c, 0x8007ACC4u);
-  tomba::guest::dispatchLeafToReturn(*c, 0x8007A810u);
-  tomba::guest::dispatchLeafToReturn(*c, 0x8007AC14u);
-  tomba::guest::dispatchLeafToReturn(*c, 0x8007AC40u);
-  tomba::guest::dispatchLeafToReturn(*c, 0x8007AC6Cu);
-  tomba::guest::dispatchLeafToReturn(*c, 0x8007AC98u);
-  tomba::guest::dispatchLeafToReturn(*c, 0x8007AD14u);
-  tomba::guest::dispatchLeafToReturn(*c, 0x8007AD40u);
+  psx::cpu::callGuestNowResult(*c, "pool", 0x8007ACC4u);
+  psx::cpu::callGuestNowResult(*c, "pool", 0x8007A810u);
+  psx::cpu::callGuestNowResult(*c, "pool", 0x8007AC14u);
+  psx::cpu::callGuestNowResult(*c, "pool", 0x8007AC40u);
+  psx::cpu::callGuestNowResult(*c, "pool", 0x8007AC6Cu);
+  psx::cpu::callGuestNowResult(*c, "pool", 0x8007AC98u);
+  psx::cpu::callGuestNowResult(*c, "pool", 0x8007AD14u);
+  psx::cpu::callGuestNowResult(*c, "pool", 0x8007AD40u);
 }
 
 // 0x800263E8 — area object-record seeding. Selects a per-area byte sequence (table 0x8009D414);
@@ -172,7 +174,7 @@ void Pool::seedAreaObjects() {
   uint32_t s0 = c->mem_r32(0x8009D414u + area * 4u);
   if (c->mem_r8(s0) != 0xFFu) {
     do {
-      tomba::guest::dispatchLeafToReturn(*c, 0x8007AD98u); // v0 = newly-allocated record ptr
+      psx::cpu::callGuestNowResult(*c, "pool", 0x8007AD98u); // v0 = newly-allocated record ptr
       uint32_t rec = c->r[2];
       c->mem_w8(rec + 0, 1);
       uint8_t b = c->mem_r8(s0);
@@ -188,7 +190,7 @@ void Pool::seedAreaObjects() {
 void Pool::reset75240() {
   Core *c = core;
   const uint32_t b = 0x800BE1F8u;
-  tomba::guest::dispatchLeafToReturn(*c, 0x80075D58u);
+  psx::cpu::callGuestNowResult(*c, "pool", 0x80075D58u);
   c->mem_w16(b + 42, 0x7FFF);
   c->mem_w16(b + 44, 0x7FFF);
   c->mem_w16(b + 46, 0x1FFF);
@@ -197,9 +199,9 @@ void Pool::reset75240() {
   c->mem_w32(b + 24, 0);
   c->mem_w32(b + 20, 0);
   c->r[4] = b;
-  tomba::guest::dispatchLeafToReturn(*c, 0x80075824u);
+  psx::cpu::callGuestNowResult(*c, "pool", 0x80075824u);
   c->r[4] = b;
-  tomba::guest::dispatchLeafToReturn(*c, 0x80099490u);
+  psx::cpu::callGuestNowResult(*c, "pool", 0x80099490u);
   c->mem_w32(b + 0, 0);
   c->mem_w8(b + 50, 0);
   c->mem_w8(b + 51, 0);
@@ -213,7 +215,7 @@ void Pool::setupViewScroll() {
   const uint32_t S0 = 0x800E7E80u;
   const uint32_t A = 0x800BF870u;
 
-  tomba::guest::dispatchLeafToReturn(*c, 0x80048D3Cu);
+  psx::cpu::callGuestNowResult(*c, "pool", 0x80048D3Cu);
 
   c->mem_w8(S0, 3);
   c->mem_w16(S0 + 370, 60);
@@ -255,8 +257,8 @@ void Pool::setupViewScroll() {
     } else {
       uint32_t tbl = c->mem_r32(0x800A54A8u + mode * 4u);
       uint32_t a0 = tbl + (uint32_t)c->mem_r8(A + 1) * 8u;
-      int16_t h0 = c->mem_r16s(a0 + 0);
-      int16_t s17e = c->mem_r16s(S0 + 382);
+      int16_t h0 = (int16_t)c->mem_r16(a0 + 0);
+      int16_t s17e = (int16_t)c->mem_r16(S0 + 382);
       c->mem_w32(S0 + 44, (uint32_t)((int32_t)h0 << 16));
       c->mem_w32(S0 + 48, (uint32_t)(c->mem_r16s(a0 + 2) << 16));
       if (s17e < 0) {
@@ -332,13 +334,13 @@ void Pool::finalViewInit() {
   c->r[5] = a1;
   c->r[6] = a2;
   c->r[7] = a3;
-  tomba::guest::dispatchLeafToReturn(*c, 0x8006D02Cu);
+  psx::cpu::callGuestNowResult(*c, "pool", 0x8006D02Cu);
 
   uint32_t v0 = (c->mem_r8(0x800BF870u) == 3) ? 233u : 350u;
   c->mem_w16(0x801003F8u, (uint16_t)v0);
   c->r[2] = 0x80100000u; // incidental v0
   c->r[4] = (uint32_t)c->mem_r16s(0x801003F8u);
-  tomba::guest::dispatchLeafToReturn(*c, 0x800846F0u);
+  psx::cpu::callGuestNowResult(*c, "pool", 0x800846F0u);
 }
 
 // 0x80074F24 — per-area STATE-INDEX select + apply. Early-out if scratchpad 0x1F800137==1 or area
@@ -381,3 +383,5 @@ void Pool::selectStateIndex(uint8_t area) {
   c->mem_w8(0x800BE22Bu, 0);
   c->r[2] = 0x800C0000u; // incidental v0
 }
+
+} // namespace tomba

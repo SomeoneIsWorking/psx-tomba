@@ -12,7 +12,13 @@
 class Core;
 class Game;
 
-void RegisterSopIntroEventOverrides(Game *game);
+namespace tomba::native {
+class NativeOverrideCatalog;
+} // namespace tomba::native
+
+namespace tomba {
+
+void RegisterSopIntroEventOverrides(native::NativeOverrideCatalog &natives);
 
 // FUN_8010AF60 — per-object scene-beat delay sequencer (beat 2->3 hold, then beat 3->6 hold).
 // a0 = node (r4). No return value used by any known caller (draft signature keeps it faithful: u32).
@@ -47,3 +53,5 @@ void sopLiftedSubtick(Core *c);
 // NOT SOP-scene-specific despite living in the SOP.BIN overlay's address range; the actual spawner was
 // not traced this pass (see CONFIDENCE note in the .cpp). a0 = node (r4).
 void beh_orbit_spark_effect(Core *c);
+
+} // namespace tomba

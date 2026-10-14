@@ -68,10 +68,11 @@
 #include "hle/libapi_intr.h"
 #include "core.h"
 #include "game.h"
-#include "guest_abi.h"
 #include "overrides/guest_jal.h" // GuestFrame / GuestReg / guest_dispatch — the ABI vocabulary
 #include "overrides/native_override_catalog.h"
 // guest call boundaries so each keeps its own guest frame
+
+namespace tomba {
 
 namespace {
 // libapi's hardware-register pointer table. Entry 0 is I_MASK (0x1F801074); entry 1 is DPCR
@@ -132,11 +133,13 @@ void tomba::LibapiIntr::initVblankCallbacks(Core *c) {
   c->mem_w32(kVblankTickCount, 0);
 
   c->r[5] = kVsyncCallbackSlots;
-  tomba::guest::dispatchJalToReturn(*c, 0x80086320u, kRaClearWords); // clearWords(table, 8)
+  tomba::guest::dispatchJalToReturn(*c,
+                                    {.target = 0x80086320u, .returnAddress = kRaClearWords}); // clearWords(table, 8)
 
   c->r[5] = kVblankHandler;
   c->r[4] = kIrqVblank;
-  tomba::guest::dispatchJalToReturn(*c, 0x80085B50u, kRaInterruptCallback); // InterruptCallback(IRQ_VBLANK, handler)
+  tomba::guest::dispatchJalToReturn(
+      *c, {.target = 0x80085B50u, .returnAddress = kRaInterruptCallback}); // InterruptCallback(IRQ_VBLANK, handler)
 
   c->r[2] = kInitVblankRetValue;
 }
@@ -164,7 +167,7 @@ void tomba::LibapiIntr::runVblankCallbacks(Core *c) {
   do {
     v0 = c->mem_r32(slotAddr);
     if (v0 != 0u) {
-      tomba::guest::dispatchJalToReturn(*c, v0, kRaCallbackSlot);
+      tomba::guest::dispatchJalToReturn(*c, {.target = v0, .returnAddress = kRaCallbackSlot});
     }
     slotIndex += 1u;
     v0 = (uint32_t)((int32_t)(uint32_t)slotIndex < (int32_t)kVsyncCallbackSlots);
@@ -197,13 +200,13 @@ L_8008633C:;
   return;
 }
 
-void tomba::LibapiIntr::registerOverrides(Game *) {
-  tomba::native::declareOverride(0x80085C9Cu, "tomba::LibapiIntr::setIntrMask", &tomba::LibapiIntr::setIntrMask);
-  tomba::native::declareOverride(0x80086320u, "tomba::LibapiIntr::clearWords", &tomba::LibapiIntr::clearWords);
-  tomba::native::declareOverride(
-      0x80086230u, "tomba::LibapiIntr::initVblankCallbacks", &tomba::LibapiIntr::initVblankCallbacks);
+void tomba::LibapiIntr::registerOverrides(native::NativeOverrideCatalog &natives) {
+  natives.declare(0x80085C9Cu, "tomba::LibapiIntr::setIntrMask", &tomba::LibapiIntr::setIntrMask);
+  natives.declare(0x80086320u, "tomba::LibapiIntr::clearWords", &tomba::LibapiIntr::clearWords);
+  natives.declare(0x80086230u, "tomba::LibapiIntr::initVblankCallbacks", &tomba::LibapiIntr::initVblankCallbacks);
   // Named install so PSXPORT_DEBUG=ovhit reports this one in game terms rather than as a bare
   // address — it is the hottest thing in this file (~2 hits per frame, forever).
-  tomba::native::declareOverride(
-      kVblankHandler, "tomba::LibapiIntr::runVblankCallbacks", &tomba::LibapiIntr::runVblankCallbacks);
+  natives.declare(kVblankHandler, "tomba::LibapiIntr::runVblankCallbacks", &tomba::LibapiIntr::runVblankCallbacks);
 }
+
+} // namespace tomba

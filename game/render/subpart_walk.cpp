@@ -20,14 +20,16 @@
 // The guest tests both, and it tests [+8] first, so a node with [+8] == 0 draws nothing even if [+9]
 // is large. Collapsing them into one loop bound would change behaviour for any node where they differ.
 #include "core.h"
-#include "core/entry/game_ctx.h" // eng()
 #include "core/overrides/native_override_catalog.h"
+#include "entry/tomba_session.h" // eng()
 #include "game.h"
 #include "guest_call.h"
 #include "guest_ordering_table.h"
 #include "render.h"
 
 // gte_write_ctrl is declared in core.h (uint32_t, uint32_t) — included above
+
+namespace tomba {
 
 namespace {
 
@@ -71,7 +73,7 @@ void Render::subPartWalk(Core *c) {
   if (c->mem_r8(node + NODE_LIMIT) != 0 && c->mem_r8(node + NODE_COUNT) != 0) {
     index = 0;
     cursor = node;
-    c->r[19] = tomba2::render::OrderingTable::kBasePointerPage; // gen addresses the OT base as s3-10040
+    c->r[19] = tomba::render::OrderingTable::kBasePointerPage; // gen addresses the OT base as s3-10040
 
     do {
       if ((int32_t)index >= (int32_t)(uint32_t)c->mem_r8(node + NODE_LIMIT)) {
@@ -82,18 +84,18 @@ void Render::subPartWalk(Core *c) {
       const uint32_t xf = sub + SUB_TRANSFORM;
 
       // this sub-part's transform: rotation (0..4) then translation (5..7)
-      gte_write_ctrl(0, c->mem_r32(xf + 0));
-      gte_write_ctrl(1, c->mem_r32(xf + 4));
-      gte_write_ctrl(2, c->mem_r32(xf + 8));
-      gte_write_ctrl(3, c->mem_r32(xf + 12));
-      gte_write_ctrl(4, c->mem_r32(xf + 16));
-      gte_write_ctrl(5, c->mem_r32(xf + 20));
-      gte_write_ctrl(6, c->mem_r32(xf + 24));
-      gte_write_ctrl(7, c->mem_r32(xf + 28));
+      c->gte().writeControl(0, c->mem_r32(xf + 0));
+      c->gte().writeControl(1, c->mem_r32(xf + 4));
+      c->gte().writeControl(2, c->mem_r32(xf + 8));
+      c->gte().writeControl(3, c->mem_r32(xf + 12));
+      c->gte().writeControl(4, c->mem_r32(xf + 16));
+      c->gte().writeControl(5, c->mem_r32(xf + 20));
+      c->gte().writeControl(6, c->mem_r32(xf + 24));
+      c->gte().writeControl(7, c->mem_r32(xf + 28));
 
       cursor += 4;
       c->r[4] = c->mem_r32(sub + SUB_GEOMBLK);
-      c->r[5] = tomba2::render::OrderingTable::active(*c).base();
+      c->r[5] = tomba::render::OrderingTable::active(*c).base();
       c->r[31] = 0x8003F230u; // jal-site ra
       c->r[6] = passThrough;
       const auto part = c->emission.instance(eng(c).graphicsBind.records.object(sub));
@@ -116,7 +118,8 @@ static void ov_subpart_walk(Core *c) {
   Render::subPartWalk(c);
 }
 
-void subpart_walk_install() {
-  tomba::native::declareOverride(
-      0x8003F174u, "Render::subPartWalk", ov_subpart_walk, psx::present::Producer{psx::present::Arg::A0});
+void subpart_walk_install(native::NativeOverrideCatalog &natives) {
+  natives.declare(0x8003F174u, "Render::subPartWalk", ov_subpart_walk, psx::present::Producer{psx::present::Arg::A0});
 }
+
+} // namespace tomba

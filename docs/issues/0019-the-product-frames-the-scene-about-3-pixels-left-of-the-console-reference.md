@@ -6,6 +6,7 @@ symptom: at a settled free-roam frame where every declared guest range agrees by
 state_items: S004
 tags: render,camera,oracle,picture
 created: 2026-09-19
+features: [F-RENDER]
 ---
 
 ## Cause location: downstream of the camera OBJECT

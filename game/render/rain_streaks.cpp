@@ -13,8 +13,12 @@
 
 #include <array>
 #include <cmath>
+#include <cstdlib>
 #include <cstring>
+#include <lucent/log.h>
 #include <memory>
+
+namespace tomba {
 
 namespace {
 
@@ -64,7 +68,7 @@ constexpr std::uint32_t kApplyMatrixSv = 0x80084220u;
 constexpr std::uint32_t kSetTransMatrix = 0x80084690u;
 constexpr std::uint32_t kDrawMode = 0x80083DE0u;
 
-using tomba2::render::OrderingTable;
+using tomba::render::OrderingTable;
 
 // A drawn streak as the render needs it: where it links, and the screen points of its two ends.
 struct StreakState {
@@ -99,6 +103,10 @@ public:
         kLineColour1,
         packXy(lerpCoordinate(earlier.x[1], later.x[1], t), lerpCoordinate(earlier.y[1], later.y[1], t))};
     auto streak = psx::gpu::decodePacketPrimitive(words);
+    if (!streak) {
+      lucent::error("rain", "streak line packet did not decode");
+      std::abort();
+    }
     psx::gpu::applyTexPageAttribute(streak->state, kTpageMode);
     sink.emit(psx::present::OtSlot{static_cast<std::uint16_t>(later.table), later.slot + later.bucket}, *streak);
   }
@@ -144,18 +152,18 @@ void RainStreaks::draw(Core *c) {
   c->mem_w32(sp + 0x34u, static_cast<std::uint32_t>(lastZ));
 
   c->r[4] = kCameraMatrix;
-  tomba::guest::dispatchJalToReturn(*c, kSetRotMatrix, 0x80116A34u);
+  tomba::guest::dispatchJalToReturn(*c, {.target = kSetRotMatrix, .returnAddress = 0x80116A34u});
   c->r[4] = sp + 0x18u;
   c->r[5] = kScratchMatrix + 0x14u;
-  tomba::guest::dispatchJalToReturn(*c, kApplyMatrixSv, 0x80116A48u);
+  tomba::guest::dispatchJalToReturn(*c, {.target = kApplyMatrixSv, .returnAddress = 0x80116A48u});
   for (std::uint32_t axis = 0; axis < 3u; axis++) {
     const std::uint32_t word = kScratchMatrix + 0x14u + axis * 4u;
     c->mem_w32(word, c->mem_r32(word) + c->mem_r32(kCameraTranslation + axis * 4u));
   }
   c->r[4] = kScratchMatrix;
-  tomba::guest::dispatchJalToReturn(*c, kSetTransMatrix, 0x80116A84u);
+  tomba::guest::dispatchJalToReturn(*c, {.target = kSetTransMatrix, .returnAddress = 0x80116A84u});
 
-  const tomba2::render::PacketPool packets(*c);
+  const tomba::render::PacketPool packets(*c);
   std::uint32_t pool = packets.cursor();
   for (std::uint32_t drop = 0; drop < kDropCount; drop++) {
     const std::uint32_t trail = kDropTrails + drop * 4u;
@@ -172,17 +180,17 @@ void RainStreaks::draw(Core *c) {
     c->mem_w16(kDropVector + 0u, static_cast<std::uint16_t>(x & kLattice));
     c->mem_w16(kDropVector + 2u, static_cast<std::uint16_t>(y & kLattice));
     c->mem_w16(kDropVector + 4u, static_cast<std::uint16_t>(z & kLattice));
-    gte_write_data(psx::gte::kVxy0, c->mem_r32(kDropVector + 0u));
-    gte_write_data(psx::gte::kVz0, c->mem_r32(kDropVector + 4u));
+    c->gte().writeData(psx::gte::kVxy0, c->mem_r32(kDropVector + 0u));
+    c->gte().writeData(psx::gte::kVz0, c->mem_r32(kDropVector + 4u));
     seed = static_cast<std::uint32_t>(guest_mult(c, static_cast<std::int32_t>(seed), multiplier)) + 1u;
-    gte_op(c, psx::gte::kRtps);
-    c->mem_w32(kScratchDepth, gte_read_ctrl(psx::gte::kFlag));
+    c->gte().execute(psx::gte::kRtps);
+    c->mem_w32(kScratchDepth, c->gte().readControl(psx::gte::kFlag));
     if (static_cast<std::int32_t>(c->mem_r32(kScratchDepth)) < 0) {
       c->mem_w32(trail, kNoTrail);
       continue;
     }
-    gte_store_xy(c, pool + 8u, psx::gte::kSxy2);
-    const std::int32_t otz = orderingIndex(static_cast<std::int32_t>(gte_read_data(psx::gte::kSz3)));
+    c->mem_w32(pool + 8u, c->gte().readData(psx::gte::kSxy2));
+    const std::int32_t otz = orderingIndex(static_cast<std::int32_t>(c->gte().readData(psx::gte::kSz3)));
     c->mem_w32(kScratchDepth, static_cast<std::uint32_t>(otz));
     const bool wrapped = (((x ^ (latticeX + lastX)) | (y ^ (latticeY + lastY)) | (z ^ (latticeZ + lastZ))) &
                           static_cast<std::int32_t>(kLatticeCell)) != 0;
@@ -204,7 +212,7 @@ void RainStreaks::draw(Core *c) {
     c->mem_w16(pool + 16u, static_cast<std::uint16_t>(screenX + backX));
     c->mem_w16(pool + 18u, static_cast<std::uint16_t>(screenY + backY));
     const OrderingTable ot = OrderingTable::active(*c);
-    ot.link(pool, kLineWords, static_cast<std::uint32_t>(otz));
+    ot.link({.packet = pool, .words = kLineWords, .bucket = static_cast<std::uint32_t>(otz)});
     if (const auto slot = c->otTables.slotOf(ot.base())) {
       StreakState streak;
       streak.table = slot->table;
@@ -224,8 +232,8 @@ void RainStreaks::draw(Core *c) {
     c->r[6] = 1u;
     c->r[7] = kTpageMode;
     c->mem_w32(sp + 0x10u, 0u);
-    tomba::guest::dispatchJalToReturn(*c, kDrawMode, 0x80116C8Cu);
-    OrderingTable::active(*c).link(pool, kTpageWords, c->mem_r32(kScratchDepth));
+    tomba::guest::dispatchJalToReturn(*c, {.target = kDrawMode, .returnAddress = 0x80116C8Cu});
+    OrderingTable::active(*c).link({.packet = pool, .words = kTpageWords, .bucket = c->mem_r32(kScratchDepth)});
     pool += kTpageBytes;
   }
   c->mem_w32(sp + 0x24u, 0u);
@@ -235,11 +243,13 @@ void RainStreaks::draw(Core *c) {
   c->mem_w16(node + kNodeLastOffset + 4u, static_cast<std::uint16_t>(offsetZ));
 }
 
-void RainStreaks::registerStateRenders(Core &core) {
-  core.stateProducers.install(kEntry, std::make_unique<StreakStateProducer>());
+void RainStreaks::registerStateRenders(psx::present::StateProducerTable &renders) {
+  renders.install(kEntry, std::make_unique<StreakStateProducer>());
 }
 
-void RainStreaks::registerOverrides() {
-  tomba::native::declareOverlayOverride(
+void RainStreaks::registerOverrides(native::NativeOverrideCatalog &natives) {
+  natives.declareOverlay(
       "A08", kEntry, "RainStreaks::draw", &RainStreaks::draw, psx::present::Producer{psx::present::Arg::A0});
 }
+
+} // namespace tomba

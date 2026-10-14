@@ -49,13 +49,14 @@
 // Ghidra decomp: scratch/decomp/beh_seaside_cluster.c, scratch/decomp/beh_seaside_helpers.c.
 
 #include "audio/sfx.h" // eng(c).sfx.trigger (FUN_80074590, native)
-#include "cfg.h"
 #include "core.h"
 #include "core/engine/engine.h" // eng(c).spawn
-#include "core/entry/game_ctx.h"
+#include "entry/tomba_session.h"
 #include "guest_call.h"
 #include "math/trig.h" // Trig::ratan2 / Trig::angleCmp (FUN_80085690 / FUN_80077768, native)
 #include "spawn.h"     // eng(c).spawn.despawn (FUN_8007A624, native)
+
+namespace tomba {
 
 namespace {
 
@@ -106,11 +107,6 @@ constexpr uint32_t MODEARM_COUNTDOWN = 0x8014C77Cu; // per-slot countdown byte
 constexpr uint32_t MODEARM_TABLE_PTR = 0x8014ABDCu; // PTR_DAT_8014abdc — cursor into the duration/index list
 constexpr uint32_t MODEARM_REC_BASE = 0x8014ABE6u;  // (x,y) pos + VRAM-base-4 short-record for the sprite
 
-// -- Substrate leaves (A00-overlay code kept dispatched — their own future sub-frontier) ------
-inline void post_cull_upd(Core *c, uint32_t o) {
-  c->r[4] = o;
-  psx::cpu::dispatchGuestToReturn0(*c, 0x80051844u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
-}
 inline int bounds_cull(Core *c, uint32_t o) {
   c->r[4] = o;
   psx::cpu::dispatchGuestToReturn0(*c, 0x8007778Cu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
@@ -174,11 +170,16 @@ void modeArm(Core *c, int32_t mode) {
   c->mem_w32(MODEARM_TABLE_PTR, ptr + 2); // advance the duration/index cursor
 }
 
+struct ObjectDataArgs {
+  uint32_t obj;
+  uint32_t data;
+};
 // ===============================================================================================
 // FUN_8013B70C — event-slot proximity/commit check driving the INIT draw. RE'd 1:1 from disas
 // 0x8013b70c..0x8013b868. `data` mirrors the guest instruction path's unclobbered $a1 (== the caller's 2nd arg,
 // INIT_DRAW_DATA) carried through unchanged to the FUN_8013B534 leaf call.
-void drawInit(Core *c, uint32_t obj, uint32_t data) {
+void drawInit(Core *c, const ObjectDataArgs &args) {
+  auto [obj, data] = args;
   bool found = false;
   uint8_t count = c->mem_r8(EVENT_SLOT_COUNT);
   if (count != 0) {
@@ -258,9 +259,9 @@ void subA(Core *c, uint32_t obj) {
     int32_t dy = -(int32_t)(int16_t)(c->mem_r16(obj + 0x36) - c->mem_r16(G_eb4 + 2));
     int32_t dx = (int32_t)(int16_t)(c->mem_r16(obj + 0x2E) - c->mem_r16(G_eac + 2));
     int32_t ang = trigOf(c).ratan2(dy, dx);
-    int32_t face = Trig::angleCmp((int16_t)ang, c->mem_r16s(obj + 0x60), 0);
+    int32_t face = Trig::angleCmp({.a = (int16_t)ang, .b = c->mem_r16s(obj + 0x60), .mode = 0});
     c->mem_w8(obj + 0x46, (uint8_t)face);
-    eng(c).sfx.trigger(0x17, -0x12, 0x1e);
+    eng(c).sfx.trigger({.id = 0x17, .pan = -0x12, .pitchBend = 0x1e});
     return; // matches the disas: this case returns, not break-to-common-tail
   }
   case 2: {
@@ -356,7 +357,7 @@ void subB(Core *c, uint32_t obj) {
       int32_t dy = -(int32_t)(int16_t)(c->mem_r16(obj + 0x36) - (int16_t)(c->mem_r32(G_eb4) >> 16));
       int32_t dx = (int32_t)(int16_t)(c->mem_r16(obj + 0x2E) - (int16_t)(c->mem_r32(G_eac) >> 16));
       int32_t ang = trigOf(c).ratan2(dy, dx);
-      int32_t face = Trig::angleCmp((int16_t)ang, c->mem_r16s(obj + 0x60), 0);
+      int32_t face = Trig::angleCmp({.a = (int16_t)ang, .b = c->mem_r16s(obj + 0x60), .mode = 0});
       c->mem_w8(obj + 0x46, (uint8_t)face);
       c->mem_w16(obj + 0x44, (face != 0) ? 0xf800 : 0x0800);
     }
@@ -374,7 +375,8 @@ void subB(Core *c, uint32_t obj) {
 // + camera-G area-transition seed, then (case 3, on a 0x3C-frame timer) two collectible-style
 // FUN_80027144 packet emits per linked node with FUN_80074590 SFX between, tagging both linked
 // nodes' render-order byte. RE'd 1:1 from disas 0x8013bcc8..0x8013c0bc.
-void subC(Core *c, uint32_t obj, uint32_t data) {
+void subC(Core *c, const ObjectDataArgs &args) {
+  auto [obj, data] = args;
   switch (c->mem_r8(obj + 5)) {
   case 0: {
     c->mem_w16(obj + 0x40, 0x3c);
@@ -453,13 +455,13 @@ void subC(Core *c, uint32_t obj, uint32_t data) {
       c->r[6] = 0x800;
       c->r[7] = 8;
       psx::cpu::dispatchGuestToReturn0(*c, 0x80027144u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
-      eng(c).sfx.trigger(0xc, 0, 0);
+      eng(c).sfx.trigger({.id = 0xc, .pan = 0, .pitchBend = 0});
       c->r[4] = c->mem_r32(link1 + 0x40);
       c->r[5] = obj + 0x2C;
       c->r[6] = 0x600;
       c->r[7] = 0x18;
       psx::cpu::dispatchGuestToReturn0(*c, 0x80027144u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
-      eng(c).sfx.trigger(0xc, 0, 0);
+      eng(c).sfx.trigger({.id = 0xc, .pan = 0, .pitchBend = 0});
 
       uint32_t link2 = c->mem_r32(obj + 0xC4);
       c->r[4] = c->mem_r32(link2 + 0x40);
@@ -467,13 +469,13 @@ void subC(Core *c, uint32_t obj, uint32_t data) {
       c->r[6] = 0x800;
       c->r[7] = 8;
       psx::cpu::dispatchGuestToReturn0(*c, 0x80027144u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
-      eng(c).sfx.trigger(0xc, 0, 0);
+      eng(c).sfx.trigger({.id = 0xc, .pan = 0, .pitchBend = 0});
       c->r[4] = c->mem_r32(link2 + 0x40);
       c->r[5] = obj + 0x2C;
       c->r[6] = 0x600;
       c->r[7] = 0x18;
       psx::cpu::dispatchGuestToReturn0(*c, 0x80027144u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
-      eng(c).sfx.trigger(0xc, 0, 0);
+      eng(c).sfx.trigger({.id = 0xc, .pan = 0, .pitchBend = 0});
 
       uint32_t link3 = c->mem_r32(obj + 0xC8);
       c->r[4] = c->mem_r32(link3 + 0x40);
@@ -481,13 +483,13 @@ void subC(Core *c, uint32_t obj, uint32_t data) {
       c->r[6] = 0x800;
       c->r[7] = 8;
       psx::cpu::dispatchGuestToReturn0(*c, 0x80027144u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
-      eng(c).sfx.trigger(0xc, 0, 0);
+      eng(c).sfx.trigger({.id = 0xc, .pan = 0, .pitchBend = 0});
       c->r[4] = c->mem_r32(link3 + 0x40);
       c->r[5] = obj + 0x2C;
       c->r[6] = 0x600;
       c->r[7] = 0x18;
       psx::cpu::dispatchGuestToReturn0(*c, 0x80027144u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
-      eng(c).sfx.trigger(0xc, 0, 0);
+      eng(c).sfx.trigger({.id = 0xc, .pan = 0, .pitchBend = 0});
     } else {
       uint32_t link1 = c->mem_r32(obj + 0xC0);
       c->mem_w16(link1 + 2, (uint16_t)((c->mem_r8(0x1F80017Cu) & 1) * 6));
@@ -552,7 +554,7 @@ void state_init(Core *c, uint32_t obj) {
   } else if (sub != 1) {
     return; // out-of-range sub-state — no-op
   }
-  drawInit(c, obj, INIT_DRAW_DATA); // shared sub-0 (after advance) + sub-1 tail
+  drawInit(c, {.obj = obj, .data = INIT_DRAW_DATA}); // shared sub-0 (after advance) + sub-1 tail
 }
 
 // RUNNING (outer 1) — cull → optional mode toggle + post-cull update → node[+0x5E] sub-dispatch,
@@ -560,7 +562,7 @@ void state_init(Core *c, uint32_t obj) {
 void state_running(Core *c, uint32_t obj) {
   if (bounds_cull(c, obj) != 0) {
     modeArm(c, 1);
-    post_cull_upd(c, obj);
+    psx::cpu::callGuestNow(*c, "beh_seaside_prox_substate", 0x80051844u, obj);
   }
   const uint8_t sub = c->mem_r8(obj + 0x5E);
   if (sub == 0) {
@@ -568,7 +570,7 @@ void state_running(Core *c, uint32_t obj) {
   } else if (sub == 1) {
     subB(c, obj);
   } else if (sub == 2) {
-    subC(c, obj, SUB_C_DATA);
+    subC(c, {.obj = obj, .data = SUB_C_DATA});
   }
   // else: no sub-behavior; still clears node+0x29 below
   c->mem_w8(obj + 0x29, 0);
@@ -600,3 +602,5 @@ void beh_seaside_prox_substate(Core *c) {
   beh_seaside_prox_substate_body(c);
   c->r[29] += 0x20;
 }
+
+} // namespace tomba

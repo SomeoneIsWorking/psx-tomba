@@ -78,11 +78,13 @@
 // stay in the register file, because a callee may spill its caller's callee-saved registers.
 #include "obj_model_view.h"
 #include "core.h"
-#include "core/overrides/guest_jal.h"               // GuestFrame / GuestReg / guest_call
-#include "core/overrides/native_override_catalog.h" // tomba::native::declareOverride
+#include "core/overrides/guest_jal.h" // GuestFrame / GuestReg / guest_call
+#include "core/overrides/native_override_catalog.h"
 #include "game.h"
 #include "guest_abi.h"
 #include <cstdint>
+
+namespace tomba {
 
 namespace {
 
@@ -164,7 +166,7 @@ void ObjModelView::composeIntoGte(Core *c) {
   //    PSX angle units into a CR-packed 3x3.
   c->r[4] = c->r[6]; // a0 = the angle vector the caller passed as a2
   c->r[5] = mtx;     // a1 = destination
-  tomba::guest::dispatchJalToReturn(*c, 0x80085480u, kRaRotMatrix);
+  tomba::guest::dispatchJalToReturn(*c, {.target = 0x80085480u, .returnAddress = kRaRotMatrix});
 
   // 2. LOCAL SCALE, per column, in place. Each authored byte becomes a 1.12 factor.
   c->mem_w32(c->r[29] + kLocalScaleCol0, c->mem_r8(scaleBytes + 0) << kScaleByteShift);
@@ -172,52 +174,52 @@ void ObjModelView::composeIntoGte(Core *c) {
   c->mem_w32(c->r[29] + kLocalScaleCol2, c->mem_r8(scaleBytes + 2) << kScaleByteShift);
   c->r[4] = mtx;                        // a0 = the matrix to scale
   c->r[5] = c->r[29] + kLocalScaleCol0; // a1 = the three factors, on our own guest stack
-  tomba::guest::dispatchJalToReturn(*c, 0x80084520u, kRaColScale);
+  tomba::guest::dispatchJalToReturn(*c, {.target = 0x80084520u, .returnAddress = kRaColScale});
 
   // 3. COMPOSE WITH THE CAMERA. Load the scene camera's view rotation into the GTE's rotation
   //    control matrix, then push each COLUMN of the local matrix through MVMVA and store the result
   //    back over that same column: the compose area goes from LOCAL to CAMERA-RELATIVE in place.
   for (uint32_t i = 0; i < kRotWords; i++) {
-    gte_write_ctrl(kGteCrRot + i, c->mem_r32(kCamRot + 4u * i));
+    c->gte().writeControl(kGteCrRot + i, c->mem_r32(kCamRot + 4u * i));
   }
 
   // Unrolled deliberately, one block per column: the guest emits three straight-line copies and the
   // port_check equivalence gate compares the STATIC store sequence, so a loop here would collapse
   // nine guest halfword stores into three. (Column bias 0, then kColStride, then 2*kColStride.)
-  gte_write_data(kGteIr1, compose.elem(kRow0 + 0 * kColStride));
-  gte_write_data(kGteIr2, compose.elem(kRow1 + 0 * kColStride));
-  gte_write_data(kGteIr3, compose.elem(kRow2 + 0 * kColStride));
-  gte_op(c, kMvmvaRotCol);
-  compose.setElem(kRow0 + 0 * kColStride, gte_read_data(kGteIr1));
-  compose.setElem(kRow1 + 0 * kColStride, gte_read_data(kGteIr2));
-  compose.setElem(kRow2 + 0 * kColStride, gte_read_data(kGteIr3));
+  c->gte().writeData(kGteIr1, compose.elem(kRow0 + 0 * kColStride));
+  c->gte().writeData(kGteIr2, compose.elem(kRow1 + 0 * kColStride));
+  c->gte().writeData(kGteIr3, compose.elem(kRow2 + 0 * kColStride));
+  c->gte().execute(kMvmvaRotCol);
+  compose.setElem(kRow0 + 0 * kColStride, c->gte().readData(kGteIr1));
+  compose.setElem(kRow1 + 0 * kColStride, c->gte().readData(kGteIr2));
+  compose.setElem(kRow2 + 0 * kColStride, c->gte().readData(kGteIr3));
 
-  gte_write_data(kGteIr1, compose.elem(kRow0 + 1 * kColStride));
-  gte_write_data(kGteIr2, compose.elem(kRow1 + 1 * kColStride));
-  gte_write_data(kGteIr3, compose.elem(kRow2 + 1 * kColStride));
-  gte_op(c, kMvmvaRotCol);
-  compose.setElem(kRow0 + 1 * kColStride, gte_read_data(kGteIr1));
-  compose.setElem(kRow1 + 1 * kColStride, gte_read_data(kGteIr2));
-  compose.setElem(kRow2 + 1 * kColStride, gte_read_data(kGteIr3));
+  c->gte().writeData(kGteIr1, compose.elem(kRow0 + 1 * kColStride));
+  c->gte().writeData(kGteIr2, compose.elem(kRow1 + 1 * kColStride));
+  c->gte().writeData(kGteIr3, compose.elem(kRow2 + 1 * kColStride));
+  c->gte().execute(kMvmvaRotCol);
+  compose.setElem(kRow0 + 1 * kColStride, c->gte().readData(kGteIr1));
+  compose.setElem(kRow1 + 1 * kColStride, c->gte().readData(kGteIr2));
+  compose.setElem(kRow2 + 1 * kColStride, c->gte().readData(kGteIr3));
 
-  gte_write_data(kGteIr1, compose.elem(kRow0 + 2 * kColStride));
-  gte_write_data(kGteIr2, compose.elem(kRow1 + 2 * kColStride));
-  gte_write_data(kGteIr3, compose.elem(kRow2 + 2 * kColStride));
-  gte_op(c, kMvmvaRotCol);
-  compose.setElem(kRow0 + 2 * kColStride, gte_read_data(kGteIr1));
-  compose.setElem(kRow1 + 2 * kColStride, gte_read_data(kGteIr2));
-  compose.setElem(kRow2 + 2 * kColStride, gte_read_data(kGteIr3));
+  c->gte().writeData(kGteIr1, compose.elem(kRow0 + 2 * kColStride));
+  c->gte().writeData(kGteIr2, compose.elem(kRow1 + 2 * kColStride));
+  c->gte().writeData(kGteIr3, compose.elem(kRow2 + 2 * kColStride));
+  c->gte().execute(kMvmvaRotCol);
+  compose.setElem(kRow0 + 2 * kColStride, c->gte().readData(kGteIr1));
+  compose.setElem(kRow1 + 2 * kColStride, c->gte().readData(kGteIr2));
+  compose.setElem(kRow2 + 2 * kColStride, c->gte().readData(kGteIr3));
 
   // 4. CAMERA-RELATIVE POSITION. Rotate the object's world anchor by the camera (the rotation
   //    control matrix is still the camera's — step 3 never wrote it back), park the raw MAC result
   //    in the compose area's translation slots, then add the camera's own translation on top. The
   //    guest really does store twice per axis; both stores are guest-visible state.
-  gte_write_data(kGteVxy0, c->mem_r32(worldPos + 0));
-  gte_write_data(kGteVz0, c->mem_r32(worldPos + 4));
-  gte_op(c, kMvmvaWorldPos);
-  compose.setTrans(0, gte_read_data(kGteMac1));
-  compose.setTrans(1, gte_read_data(kGteMac2));
-  compose.setTrans(2, gte_read_data(kGteMac3));
+  c->gte().writeData(kGteVxy0, c->mem_r32(worldPos + 0));
+  c->gte().writeData(kGteVz0, c->mem_r32(worldPos + 4));
+  c->gte().execute(kMvmvaWorldPos);
+  compose.setTrans(0, c->gte().readData(kGteMac1));
+  compose.setTrans(1, c->gte().readData(kGteMac2));
+  compose.setTrans(2, c->gte().readData(kGteMac3));
   compose.setTrans(0, compose.trans(0) + c->mem_r32(kCamTrans + 0));
   compose.setTrans(1, compose.trans(1) + c->mem_r32(kCamTrans + 4));
   compose.setTrans(2, compose.trans(2) + c->mem_r32(kCamTrans + 8));
@@ -225,13 +227,15 @@ void ObjModelView::composeIntoGte(Core *c) {
   // 5. PUBLISH. The finished model-view goes into the GTE control registers — R into CR0-4, T into
   //    CR5-7 — which is the state every RTPT/RTPS in the draw that follows projects through.
   for (uint32_t i = 0; i < kRotWords; i++) {
-    gte_write_ctrl(kGteCrRot + i, compose.rotWord(i));
+    c->gte().writeControl(kGteCrRot + i, compose.rotWord(i));
   }
-  gte_write_ctrl(kGteCrTrans + 0, compose.trans(0));
-  gte_write_ctrl(kGteCrTrans + 1, compose.trans(1));
-  gte_write_ctrl(kGteCrTrans + 2, compose.trans(2));
+  c->gte().writeControl(kGteCrTrans + 0, compose.trans(0));
+  c->gte().writeControl(kGteCrTrans + 1, compose.trans(1));
+  c->gte().writeControl(kGteCrTrans + 2, compose.trans(2));
 }
 
-void ObjModelView::registerOverrides(Game *) {
-  tomba::native::declareOverride(0x800318A0u, "ObjModelView::composeIntoGte", &ObjModelView::composeIntoGte);
+void ObjModelView::registerOverrides(native::NativeOverrideCatalog &natives) {
+  natives.declare(0x800318A0u, "ObjModelView::composeIntoGte", &ObjModelView::composeIntoGte);
 }
+
+} // namespace tomba

@@ -22,11 +22,11 @@
 // (faithful below, addresses annotated).
 
 #include "core.h"
-#include "core/entry/game_ctx.h"
 #include "core/overrides/native_override_catalog.h"
+#include "entry/tomba_session.h"
 #include "guest_call.h"
+#include "sched/tomba_scheduler.h"
 
-#include "cfg.h"
 #include "game.h"
 #include "sop.h"
 #include <algorithm> // std::swap / std::min / std::max used by sceneGridGather
@@ -42,6 +42,7 @@
 #include "world/graphics_bind.h"    // ov_obj_set_xformblk (FUN_8006CBD0)
 #include "world/pool.h"             // ov_pool_init_run (FUN_8007B18C)
 #include "world/spawn.h"            // class Spawn (eng(c).spawn.dispatch)
+#include <lucent/log.h>
 
 // Named guest-RAM addresses used by the SOP field-mode subsystem. Kept
 // file-local — these are SOP-specific handles, not engine-wide primitives.
@@ -72,6 +73,8 @@ constexpr uint32_t PARALLAX_BG_SM = 0x800ed018u;
 // Owned synchronous area-DATA load (replaces the body of LAB_80109164
 // 0x80109164). Runs in the slot-1 task register context; uses c->r[] for the
 // dispatched leaves' args; writes guest RAM.
+namespace tomba {
+
 void Sop::areaLoad() {
   Core *c = core;
   uint32_t sm = c->mem_r32(0x1f800138u);
@@ -89,13 +92,13 @@ void Sop::areaLoad() {
   // *0x800ef47c - *0x800ef478)
   uint32_t l2 = c->mem_r32(0x800ef478u); // (0x801091bc)
   c->r[4] = 0x8018a000u;
-  tomba::native::retireOverlay(*c, eng(c).activeAreaOverlay);
+  tombaSession(c).nativeOverrides.retireOverlay(*c, eng(c).activeAreaOverlay);
   c->r[5] = c->mem_r32(0x800be0f8u) + (l2 >> 11);
   c->r[6] = c->mem_r32(0x800ef47cu) - l2;
   psx::cpu::dispatchGuestToReturn0(*c, 0x8001dc40u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
 
   // UNPACK — FUN_80044e84(0x8018a000, 0x1f8000)  (0x801091e4)
-  eng(c).asset.unpackGroup(0x8018a000u, 0x001f8000u);
+  eng(c).asset.unpackGroup({.tablePtr = 0x8018a000u, .anchorEnd = 0x001f8000u});
 
   // LOAD 4 — FUN_8001dc40(0x8018a000, *0x800be100 + (*0x800ef480>>11),
   // *0x800ef484 - *0x800ef480);
@@ -109,7 +112,7 @@ void Sop::areaLoad() {
 
   // COLLISION GRID — FUN_80045258((area&0xf)<<1, 0x2f)  (0x80109228)
   uint16_t area = c->mem_r16(0x800bf89eu);
-  eng(c).asset.loadDescriptorChunk((uint32_t)((area & 0xf) << 1), 0x2f);
+  eng(c).asset.loadDescriptorChunk({.descIdx = (uint32_t)((area & 0xf) << 1), .slot = 0x2f});
 
   // RELOC PATCH — for i in 0..*0x800ef488: ecf58[w>>24] = 0x8018a000 + (w &
   // 0xffffff), w=*0x800ef48c[i]
@@ -125,11 +128,10 @@ void Sop::areaLoad() {
   // task-complete/yield is intentionally DROPPED — the native scheduler marks
   // the slot done after this returns.
   c->mem_w8(0x1f80019bu, 1);
-  cfg_logf("stage",
-           "[sop] native area-load done: 1f80019b=1, ecf58 patched %d entries "
-           "(area&0xf=%u)",
-           count,
-           (unsigned)(area & 0xf));
+  lucent::debug("stage",
+                "[sop] native area-load done: 1f80019b=1, ecf58 patched {} entries (area&0xf={})",
+                count,
+                (unsigned)(area & 0xf));
 }
 
 // Synchronous TRANSITION area-DATA load — replaces the cooperative
@@ -149,20 +151,19 @@ void Sop::areaLoad() {
 void Sop::transitionAreaLoad() {
   Core *c = core;
   uint32_t sm = c->mem_r32(0x1f800138u);
-  cfg_logf("stage",
-           "[sop] XLOAD enter: sm6d=%u sm6e=%u bf870=%u bf872=%u bf838=%u "
-           "bf839=%u bf83a=0x%04X "
-           "1f8001ff=%u bfe56=0x%04X 1f800278=0x%04X",
-           c->mem_r8(sm + 0x6d),
-           c->mem_r8(sm + 0x6e),
-           c->mem_r8(0x800bf870u),
-           c->mem_r8(0x800bf872u),
-           c->mem_r8(0x800bf838u),
-           c->mem_r8(0x800bf839u),
-           c->mem_r16(0x800bf83au),
-           c->mem_r8(0x1f8001ffu),
-           c->mem_r16(0x800bfe56u),
-           c->mem_r16(0x1f800278u));
+  lucent::debug("stage",
+                "[sop] XLOAD enter: sm6d={} sm6e={} bf870={} bf872={} bf838={} bf839={} bf83a=0x{:04X} 1f8001ff={} "
+                "bfe56=0x{:04X} 1f800278=0x{:04X}",
+                c->mem_r8(sm + 0x6d),
+                c->mem_r8(sm + 0x6e),
+                c->mem_r8(0x800bf870u),
+                c->mem_r8(0x800bf872u),
+                c->mem_r8(0x800bf838u),
+                c->mem_r8(0x800bf839u),
+                c->mem_r16(0x800bf83au),
+                c->mem_r8(0x1f8001ffu),
+                c->mem_r16(0x800bfe56u),
+                c->mem_r16(0x1f800278u));
   // --- early/quick path test (0x800452d8-0x8004531c): sm[0x6d]==0 AND
   // *1f8001ff==sm[0x6e] AND
   //     (*0x800bfe56 & (1<<sm[0x6e])) == (*0x1f800278 & (1<<sm[0x6e])) ---
@@ -175,10 +176,10 @@ void Sop::transitionAreaLoad() {
     uint32_t v0 = (uint32_t)c->mem_r16(0x1f800278u) & mask;
     if (s1ff == s6e && a2 == v0) {
       // QUICK PATH (0x80045320-0x80045344): collision grid + done, no DMA load.
-      eng(c).asset.loadDescriptorChunk((uint32_t)((c->mem_r16(0x800bf89eu) & 0xf) << 1), 47);
+      eng(c).asset.loadDescriptorChunk({.descIdx = (uint32_t)((c->mem_r16(0x800bf89eu) & 0xf) << 1), .slot = 47});
       c->mem_w8(0x1f800206u, 0);
       c->mem_w8(0x1f80019bu, 1);
-      cfg_logf("stage", "[sop] native transition area-load (quick path) done");
+      lucent::debug("stage", "[sop] native transition area-load (quick path) done");
       return;
     }
   }
@@ -197,7 +198,7 @@ void Sop::transitionAreaLoad() {
   psx::cpu::callGuestNow(*c, __func__, 0x80045080u, 0x80108f9cu, (uint32_t)((s6e + 3) & 0xff));
   // FUN_80045080 has now populated the fixed MODE slot with the selected A00..A0L code image.
   // Publish that exact byte range before any overlay function pointer can be dispatched.
-  tomba::native::activateModeOverlay(*c, eng(c).activeModeOverlay, static_cast<uint32_t>(s6e) + 3u);
+  tombaSession(c).nativeOverrides.activateModeOverlay(*c, eng(c).activeModeOverlay, static_cast<uint32_t>(s6e) + 3u);
   // FUN_8007566c(*0x800bf870, *0x1f80022c)   — area BGM/asset trigger
   psx::cpu::callGuestNow(*c, __func__, 0x8007566cu, c->mem_r8(0x800bf870u), c->mem_r32(0x1f80022cu));
   eng(c).asset.loadTexgroup(); // 0x80044F58 — native (sync texgroup load)
@@ -206,15 +207,15 @@ void Sop::transitionAreaLoad() {
   //   *0x800a3ec8 = *0x800ef480>>11    (the area-asset overlay DMA load)
   uint32_t l = c->mem_r32(0x800ef480u);
   c->mem_w32(0x800a3ec8u, l >> 11);
-  tomba::native::retireOverlay(*c, eng(c).activeAreaOverlay);
+  tombaSession(c).nativeOverrides.retireOverlay(*c, eng(c).activeAreaOverlay);
   psx::cpu::callGuestNow(
       *c, __func__, 0x8001dc40u, 0x8018a000u, c->mem_r32(0x800be100u) + (l >> 11), c->mem_r32(0x800ef484u) - l);
   // if (*0x800bf89c == 2) FUN_80045558(0)
   if (c->mem_r8(0x800bf89cu) == 2) {
-    tomba::native::loadAreaSlotFile(*c, eng(c).activeAreaOverlay, 0u); // = FUN_80045558(0): OPN
+    tombaSession(c).nativeOverrides.loadAreaSlotFile(*c, eng(c).activeAreaOverlay, 0u); // = FUN_80045558(0): OPN
   }
   // FUN_80045258((*0x800bf89e & 0xf)<<1, 47)   — collision grid
-  eng(c).asset.loadDescriptorChunk((uint32_t)((c->mem_r16(0x800bf89eu) & 0xf) << 1), 47);
+  eng(c).asset.loadDescriptorChunk({.descIdx = (uint32_t)((c->mem_r16(0x800bf89eu) & 0xf) << 1), .slot = 47});
   // RELOC PATCH (0x80045468-0x800454b0): for i in 0..*0x800ef488:
   //   w=*(0x800ef48c + i*4); ecf58[w>>24] = 0x8018a000 + (w & 0xffffff)
   int32_t count = (int32_t)c->mem_r32(0x800ef488u);
@@ -230,17 +231,15 @@ void Sop::transitionAreaLoad() {
     c->mem_w32(0x800ecf94u, c->mem_r32(0x800ecf94u) + 0x1000);
     uint8_t b = c->mem_r8(0x800bf871u);
     uint32_t idx = (b < 9) ? 34 : (b < 16) ? 38 : (b < 21) ? 40 : 36;
-    eng(c).asset.loadDescriptorChunk(idx, 8);
+    eng(c).asset.loadDescriptorChunk({.descIdx = idx, .slot = 8});
     c->mem_w8(0x800bfe60u, (uint8_t)idx);
   }
   c->mem_w8(0x1f800206u, 1);
   c->mem_w8(0x1f80019bu, 1);
-  cfg_logf("stage",
-           "[sop] native transition area-load (main path) done: 1f80019b=1, "
-           "ecf58 patched %d, "
-           "bf870=%u",
-           count,
-           (unsigned)c->mem_r8(0x800bf870u));
+  lucent::debug("stage",
+                "[sop] native transition area-load (main path) done: 1f80019b=1, ecf58 patched {}, bf870={}",
+                count,
+                (unsigned)c->mem_r8(0x800bf870u));
 }
 
 // sceneGridGather — native port of guest FUN_8010A3AC (Ghidra decomp
@@ -262,13 +261,9 @@ void Sop::transitionAreaLoad() {
 // division matches the MIPS `div` semantics for the ranges the guest instruction path actually
 // feeds it (the trap paths at div-by-zero / -0x80000000/-1 are unreachable with
 // the values scenePrepass produces).
-void Sop::sceneGridGather(uint32_t table, int32_t x0, int32_t y0, int32_t x1, int32_t y1, int32_t x2, int32_t y2) {
+void Sop::sceneGridGather(const SceneGridGatherArgs &args) {
+  auto [table, x0, y0, x1, y1, x2, y2] = args;
   Core *c = core;
-  // Skip degenerate (all-3-Ys-equal) triangle — matches the guest instruction path's early-exit
-  // guard.
-  if (y1 == y0 && y1 == y2) {
-    return;
-  }
 
   // Y-sort three vertices (v0, v1, v2) by Y ascending, tracking their X
   // companions.
@@ -290,6 +285,9 @@ void Sop::sceneGridGather(uint32_t table, int32_t x0, int32_t y0, int32_t x1, in
 
   const int32_t dy01 = v1y - v0y; // short edge Y-span (top half height)
   const int32_t dy02 = v2y - v0y; // long  edge Y-span (full triangle height)
+  if (dy02 == 0) {
+    return; // all three Ys equal: the guest's early exit
+  }
 
   // Edge accumulators (16.16 fixed): edgeA = "long" v0→v2 edge; edgeB = "short"
   // v0→v1 then v1→v2.
@@ -315,7 +313,7 @@ void Sop::sceneGridGather(uint32_t table, int32_t x0, int32_t y0, int32_t x1, in
     stepC = ((v2x - v1x) << 16) / dy12;
   }
 
-  const int32_t stepB = ((v2x - v0x) << 16) / dy02; // slope of v0→v2 (always defined; dy02>0 since not degenerate)
+  const int32_t stepB = ((v2x - v0x) << 16) / dy02; // slope of v0→v2
 
   // Cross product picks which edge is LEFT vs RIGHT: `−dy02*(v1x−v0x) +
   // (v2x−v0x)*dy01`.
@@ -326,12 +324,17 @@ void Sop::sceneGridGather(uint32_t table, int32_t x0, int32_t y0, int32_t x1, in
   const int32_t yLimit = (int32_t)(int16_t)c->mem_r16(table + 10u); // grid Y-limit (row guard)
   const uint32_t grid = c->mem_r32(table + 0xCu) + 4u;              // cell array (skip 2-u16 header)
 
-  auto gatherRow = [&](int32_t row, int32_t edgeR16, int32_t edgeL16) {
+  // Both edges are 16.16 x positions.
+  struct RowEdges {
+    int32_t right;
+    int32_t left;
+  };
+  auto gatherRow = [&](int32_t row, RowEdges edges) {
     if (row < 0 || row >= yLimit) {
       return;
     }
-    int32_t rightX = edgeR16 >> 16;
-    int32_t leftX = edgeL16 >> 16;
+    int32_t rightX = edges.right >> 16;
+    int32_t leftX = edges.left >> 16;
     if (xLimit <= rightX) {
       rightX = xLimit - 1;
     }
@@ -358,24 +361,24 @@ void Sop::sceneGridGather(uint32_t table, int32_t x0, int32_t y0, int32_t x1, in
   if (crossNegOrZero) {
     // stepA on the LEFT edge (edgeB), stepB on the RIGHT edge (edgeA).
     for (; y < v1y; y++) {
-      gatherRow(y, edgeA, edgeB);
+      gatherRow(y, {.right = edgeA, .left = edgeB});
       edgeA += stepA;
       edgeB += stepB;
     }
     for (; y <= v2y; y++) {
-      gatherRow(y, edgeA, edgeB);
+      gatherRow(y, {.right = edgeA, .left = edgeB});
       edgeB += stepB;
       edgeA += stepC;
     }
   } else {
     // Mirrored assignment (stepA/stepC on the right, stepB on the left).
     for (; y < v1y; y++) {
-      gatherRow(y, edgeA, edgeB);
+      gatherRow(y, {.right = edgeA, .left = edgeB});
       edgeB += stepA;
       edgeA += stepB;
     }
     for (; y <= v2y; y++) {
-      gatherRow(y, edgeA, edgeB);
+      gatherRow(y, {.right = edgeA, .left = edgeB});
       edgeB += stepC;
       edgeA += stepB;
     }
@@ -414,7 +417,7 @@ void Sop::scenePrepass(uint32_t table) {
 
   auto trig = [&](uint32_t fn, uint32_t arg) -> int32_t {
     c->r[4] = arg;
-    psx::cpu::dispatchGuestToReturn0(*c, fn, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::dispatchGuestToReturn0(*c, fn, psx::cpu::ExecutionBudget::currentTurn(*c), "sop");
     return (int32_t)c->r[2];
   };
 
@@ -458,7 +461,7 @@ void Sop::scenePrepass(uint32_t table) {
 
   // Rasterize the frustum triangle into the scene grid — appends cell ids to
   // table+0x10 / +6.
-  sceneGridGather(table, X0d, Z0d, X1d, Z1d, X2d, Z2d);
+  sceneGridGather({.table = table, .x0 = X0d, .y0 = Z0d, .x1 = X1d, .y1 = Z1d, .x2 = X2d, .y2 = Z2d});
 }
 
 // SOP per-frame FIELD UPDATE — native ownership of FUN_801092b4 (decomp
@@ -473,7 +476,7 @@ void Sop::fieldUpdate() {
   Core *c = core;
   using namespace SopAddr;
   uint32_t sm = c->mem_r32(TASK_SM_PTR);
-  int16_t delay = c->mem_r16s(sm + 0x60);
+  int16_t delay = (int16_t)c->mem_r16(sm + 0x60);
   if (delay != 0) {
     c->mem_w16(sm + 0x60,
                (uint16_t)(delay - 1)); // startup delay: just count down
@@ -561,7 +564,7 @@ void Sop::fieldMode() {
   switch (st) {
   case 0: { // LOAD — complete host-owned synchronous work in this invocation.
     fade(c).applyLeafCall(0xffffffu, ScreenFade::kSubtractive, 0);
-    c->game->pcSched.completeSyncWait(sm, /*flag=*/3);
+    tomba::sched::taskScheduler(*c).completeSyncWait(sm, /*flag=*/3);
     eng(c).sop.areaLoad();                                          // INLINE sync load (replaces FUN_80044bd4) ->
                                                                     // 1f80019b=1
     eng(c).pool.init();                                             // 0x8007B18C — native (via LIVE gated entry)
@@ -571,9 +574,7 @@ void Sop::fieldMode() {
     // 3 scene objects: spawn + stamp fields from the SOP overlay tables
     // @0x8010c98c (stride 12).
     for (int i = 0; i < 3; i++) {
-      eng(c).spawn.dispatch(/*cls=*/3,
-                            /*type=*/3,
-                            /*list=*/1); // FUN_8007A980 — native
+      eng(c).spawn.dispatch({.cls_in = /*cls=*/3, .type_in = /*type=*/3, .list = /*list=*/1}); // FUN_8007A980 — native
 
       uint32_t node = c->r[2];
       uint32_t t = 0x8010c98cu + (uint32_t)i * 12;
@@ -630,7 +631,7 @@ void Sop::fieldMode() {
   case 4: {                                            // RESET -> next area
     psx::cpu::callGuestNow(*c, __func__, 0x8001cf2cu); // kill load task slot 2 (settle CD)
     c->mem_w8(0x1f800137u, 0);
-    int16_t s4c = c->mem_r16s(sm + 0x4c);
+    int16_t s4c = (int16_t)c->mem_r16(sm + 0x4c);
     c->mem_w16(sm + 0x4e, 0);
     c->mem_w16(sm + 0x50, 0);
     c->mem_w16(sm + 0x52, 0);
@@ -644,60 +645,4 @@ void Sop::fieldMode() {
   }
 }
 
-// pc_faithful SOP area-load task body — mirror of overlay guest 0x80109164 (see
-// sop.h).
-void Sop::areaLoadFaithful() {
-  Core *c = core;
-  c->r[29] -= 32;
-  const uint32_t sp = c->r[29];
-  c->mem_w32(sp + 24, c->r[18]);
-  c->r[18] = 0x800F0000u;
-  c->mem_w32(sp + 20, c->r[17]);
-  c->r[17] = 0x800EF478u;
-  c->mem_w32(sp + 16, c->r[16]);
-  c->r[16] = 0x800BE0F0u;
-  c->mem_w32(sp + 28, c->r[31]);
-  uint32_t sm = c->mem_r32(0x1f800138u);
-  c->mem_w8(sm + 110, 3); // sm[0x6E] = file index 3
-  c->r[4] = 0x800EF478u;  // 1. SOP descriptor sector
-  c->r[5] = c->mem_r32(0x800BE0F0u) + c->mem_r8(c->mem_r32(0x1f800138u) + 110);
-  c->r[6] = 2048;
-  c->r[31] = 0x801091B4u;
-  psx::cpu::dispatchGuestToReturn0(*c, 0x8001DC40u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
-  uint32_t lo = c->mem_r32(0x800EF478u);
-  c->r[4] = 0x8018A000u; // 2. compressed archive
-  c->r[5] = c->mem_r32(0x800BE0F8u) + (lo >> 11);
-  c->r[6] = c->mem_r32(0x800EF47Cu) - lo;
-  c->r[31] = 0x801091D8u;
-  psx::cpu::dispatchGuestToReturn0(*c, 0x8001DC40u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
-  c->r[4] = 0x8018A000u;
-  c->r[5] = 0x001F8000u;
-  c->r[31] = 0x801091ECu;
-  psx::cpu::dispatchGuestToReturn0(
-      *c, 0x80044E84u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // 3. unpack -> VRAM
-  uint32_t lo2 = c->mem_r32(0x800EF480u);
-  c->r[4] = 0x8018A000u; // 4. DAT payload
-  c->r[5] = c->mem_r32(0x800BE100u) + (lo2 >> 11);
-  c->r[6] = c->mem_r32(0x800EF484u) - lo2;
-  c->mem_w32(0x800A3EC8u, lo2 >> 11);
-  c->r[31] = 0x80109218u;
-  psx::cpu::dispatchGuestToReturn0(*c, 0x8001DC40u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
-  c->r[31] = 0x80109230u;
-  eng(c).asset.loadDescriptorChunk(((uint32_t)c->mem_r16(0x800BF89Eu) & 15u) << 1,
-                                   47);               // 5. per-area table stamp
-  const int32_t n = (int32_t)c->mem_r32(0x800EF488u); // 6. relocation table
-  c->r[4] = 0;
-  for (int32_t i = 0; i < n; i++) {
-    uint32_t word = c->mem_r32(0x800EF48Cu + i * 4);
-    c->r[4] += 1;
-    c->mem_w32(0x800ECF58u + (word >> 24) * 4, (word & 0x00FFFFFFu) + 0x8018A000u);
-  }
-  c->mem_w8(0x1F80019Bu, 1); // done_flag -> spawn-and-wait exits
-  c->r[31] = 0x8010929Cu;
-  c->game->pcSched.selfClose(); // FUN_80051FB4 — does not return on a task
-  c->r[31] = c->mem_r32(sp + 28);
-  c->r[18] = c->mem_r32(sp + 24);
-  c->r[17] = c->mem_r32(sp + 20);
-  c->r[16] = c->mem_r32(sp + 16);
-  c->r[29] += 32;
-}
+} // namespace tomba

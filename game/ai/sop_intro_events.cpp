@@ -25,16 +25,17 @@
 // three actors (mostly the "lifted" one) call into, which stayed substrate when those files landed.
 
 #include "sop_intro_events.h"
-#include "cfg.h"
 #include "core.h"
 #include "core/engine/engine.h" // eng(c).spawn / eng(c).placement / eng(c).script
-#include "core/entry/game_ctx.h"
-#include "core/overrides/native_override_catalog.h" // tomba::native::declareOverride — the one native-override registry
+#include "core/overrides/native_override_catalog.h"
+#include "entry/tomba_session.h"
 #include "game.h"
 #include "guest_call.h"
 #include "render/render.h"   // rend(c)->mNodeXform.buildWithOffset (FUN_800518FC)
 #include "spawn.h"           // Spawn::dispatch/despawn (native)
 #include "world/placement.h" // Placement::spawnWithParent (native, FUN_80072DDC)
+
+namespace tomba {
 
 namespace {
 constexpr uint32_t SCENE_BEAT = 0x800BF9B4u; // shared SOP scene-beat byte (docs/engine_re.md)
@@ -85,7 +86,7 @@ uint32_t sopBeatAdvanceWalk(Core *c) { // FUN_8010AF60
     c->mem_w16(node + 0x42, (uint16_t)(timer - 1));
     if (timer == 1) {
       c->mem_w8(SCENE_BEAT, 3);
-      eng(c).walkStart(node, 0xB4u, 4); // FUN_80054D14
+      eng(c).walkStart({.obj = node, .mode = 0xB4u, .subMode = 4}); // FUN_80054D14
       c->mem_w16(node + 0x42, 0x28);
       c->mem_w8(node + 0x78, (uint8_t)(c->mem_r8(node + 0x78) + 1));
     }
@@ -96,7 +97,7 @@ uint32_t sopBeatAdvanceWalk(Core *c) { // FUN_8010AF60
     int16_t timer = (int16_t)c->mem_r16(node + 0x42);
     c->mem_w16(node + 0x42, (uint16_t)(timer - 1));
     if (timer == 1) {
-      eng(c).walkStart(node, 2u, 6); // FUN_80054D14
+      eng(c).walkStart({.obj = node, .mode = 2u, .subMode = 6}); // FUN_80054D14
       c->mem_w16(node + 0x42, 0x1E);
       c->mem_w8(node + 0x78, (uint8_t)(c->mem_r8(node + 0x78) + 1));
     }
@@ -356,7 +357,8 @@ void sopIntroEffectTick(Core *c) { // FUN_8010B2D4
       c->r[4] = node;
       if (sopOrbitPathStep(c) != 0) {
         c->mem_w8(node + 5, (uint8_t)(sub + 1));
-        eng(c).script.init(node, 0x8001B860u, 0x8010CAB8u); // FUN_80040CDC = ScriptInterp::init
+        eng(c).script.init(
+            {.obj = node, .tableA = 0x8001B860u, .scriptPtr = 0x8010CAB8u}); // FUN_80040CDC = ScriptInterp::init
         c->mem_w8(node + 0x70, 1);
       }
     }
@@ -478,11 +480,12 @@ void sopLiftedSubtickBody(Core *c) {
                                      psx::cpu::ExecutionBudget::currentTurn(*c),
                                      __func__); // Animation::attach (still substrate here)
     c->r[31] = 0x8010B654u;
-    eng(c).graphicsBind.installSceneRecord(c->mem_r32(node + 0xC4u), 0x12u, 0x0Fu); // FUN_80051B04
+    eng(c).graphicsBind.installSceneRecord(
+        {.rec = c->mem_r32(node + 0xC4u), .classArg = 0x12u, .itemArg = 0x0Fu}); // FUN_80051B04
     c->r[31] = 0x8010B664u;
-    eng(c).graphicsBind.installSceneRecord(c->mem_r32(node + 0xD0u), 0x12u, 0x10u);
+    eng(c).graphicsBind.installSceneRecord({.rec = c->mem_r32(node + 0xD0u), .classArg = 0x12u, .itemArg = 0x10u});
     c->r[31] = 0x8010B674u;
-    eng(c).graphicsBind.installSceneRecord(c->mem_r32(node + 0xDCu), 0x12u, 0x11u);
+    eng(c).graphicsBind.installSceneRecord({.rec = c->mem_r32(node + 0xDCu), .classArg = 0x12u, .itemArg = 0x11u});
     c->mem_w8(node + 6, (uint8_t)(c->mem_r8(node + 6) + 1)); // advance only, no anim-install
     return;
   }
@@ -491,8 +494,8 @@ void sopLiftedSubtickBody(Core *c) {
       return;
     }
     c->mem_w8(node + 6, (uint8_t)(c->mem_r8(node + 6) + 1));
-    c->r[31] = 0x8010B6A4u;      // gen call-site ra (see state 3)
-    eng(c).sfx.trigger(3, 0, 0); // FUN_80074590
+    c->r[31] = 0x8010B6A4u;                                  // gen call-site ra (see state 3)
+    eng(c).sfx.trigger({.id = 3, .pan = 0, .pitchBend = 0}); // FUN_80074590
     c->mem_w32(node + 0x3Cu, c->mem_r32(0x800ECF68u));
     c->r[4] = node;
     c->r[5] = 0x80017FE8u;
@@ -502,11 +505,11 @@ void sopLiftedSubtickBody(Core *c) {
     psx::cpu::dispatchGuestToReturn0(
         *c, 0x80077CFCu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // still substrate (no native owner)
     c->r[31] = 0x8010B6D8u;
-    eng(c).graphicsBind.installSceneRecord(c->mem_r32(node + 0xC4u), 0x12u, 1u);
+    eng(c).graphicsBind.installSceneRecord({.rec = c->mem_r32(node + 0xC4u), .classArg = 0x12u, .itemArg = 1u});
     c->r[31] = 0x8010B6E8u;
-    eng(c).graphicsBind.installSceneRecord(c->mem_r32(node + 0xD0u), 0x12u, 4u);
+    eng(c).graphicsBind.installSceneRecord({.rec = c->mem_r32(node + 0xD0u), .classArg = 0x12u, .itemArg = 4u});
     c->r[31] = 0x8010B6F8u;
-    eng(c).graphicsBind.installSceneRecord(c->mem_r32(node + 0xDCu), 0x12u, 7u);
+    eng(c).graphicsBind.installSceneRecord({.rec = c->mem_r32(node + 0xDCu), .classArg = 0x12u, .itemArg = 7u});
     return;
   }
   case 5:
@@ -526,8 +529,9 @@ void sopLiftedSubtickBody(Core *c) {
 
   if (runTail) {
     c->mem_w8(node + 6, (uint8_t)(c->mem_r8(node + 6) + 1));
-    c->r[31] = 0x8010B754u;                          // gen call-site ra (see state 3)
-    eng(c).script.init(node, 0x80017FE8u, animData); // FUN_80040CDC = ScriptInterp::init
+    c->r[31] = 0x8010B754u; // gen call-site ra (see state 3)
+    eng(c).script.init(
+        {.obj = node, .tableA = 0x80017FE8u, .scriptPtr = animData}); // FUN_80040CDC = ScriptInterp::init
     c->mem_w8(node + 0x70u, 1);
   }
 }
@@ -662,7 +666,7 @@ void ov_behOrbitSparkEffect(Core *c) {
 }
 } // namespace
 
-void RegisterSopIntroEventOverrides(Game * /*game*/) {
+void RegisterSopIntroEventOverrides(native::NativeOverrideCatalog &natives) {
   // THE FOUR CONTESTED ADDRESSES, RESOLVED BY CALLER REACHABILITY (issue 0015, 2026-09-27).
   //
   // An authenticated-image scan found MORE THAN ONE authenticated MODE image holding a DIFFERENT
@@ -698,10 +702,10 @@ void RegisterSopIntroEventOverrides(Game * /*game*/) {
   //
   // So all four are SOP-scoped, which is also what the file's own provenance (transcribed from
   // ram_sop.bin) said -- but here that agreement is a confirmation, not the evidence.
-  tomba::native::declareOverlayOverride("SOP", 0x8010AF60u, "sopBeatAdvanceWalk", ov_sopBeatAdvanceWalk);
-  tomba::native::declareOverlayOverride("SOP", 0x8010B078u, "sopBeatAdvanceNarration", ov_sopBeatAdvanceNarration);
-  tomba::native::declareOverlayOverride("SOP", 0x8010BEACu, "beh_orbit_spark_effect", ov_behOrbitSparkEffect);
-  tomba::native::declareOverlayOverride("SOP", 0x8010B44Cu, "sopIntroEffectSpawn", ov_sopIntroEffectSpawn);
+  natives.declareOverlay("SOP", 0x8010AF60u, "sopBeatAdvanceWalk", ov_sopBeatAdvanceWalk);
+  natives.declareOverlay("SOP", 0x8010B078u, "sopBeatAdvanceNarration", ov_sopBeatAdvanceNarration);
+  natives.declareOverlay("SOP", 0x8010BEACu, "beh_orbit_spark_effect", ov_behOrbitSparkEffect);
+  natives.declareOverlay("SOP", 0x8010B44Cu, "sopIntroEffectSpawn", ov_sopIntroEffectSpawn);
   // Direct intra-shard call sites (SOP overlay the cited guest address(c), bypass typed runtime address dispatch) ->
   // the SOP-scoped declaration installs the thunk so those callers reach native too.
   //
@@ -710,7 +714,9 @@ void RegisterSopIntroEventOverrides(Game * /*game*/) {
   // (23 authenticated MODE images examined per address). They are the same 0x8010A000-0x8010CFFF
   // SOP band the file banner names, and every one of them is a STACK-ALLOCATING entry, so the verdict
   // does not rest on the prologue-shape exception for leaf entries.
-  tomba::native::declareOverlayOverride("SOP", 0x8010B11Cu, "sopOrbitPathStep", ov_sopOrbitPathStep);
-  tomba::native::declareOverlayOverride("SOP", 0x8010B2D4u, "sopIntroEffectTick", ov_sopIntroEffectTick);
-  tomba::native::declareOverlayOverride("SOP", 0x8010B588u, "sopLiftedSubtick", ov_sopLiftedSubtick);
+  natives.declareOverlay("SOP", 0x8010B11Cu, "sopOrbitPathStep", ov_sopOrbitPathStep);
+  natives.declareOverlay("SOP", 0x8010B2D4u, "sopIntroEffectTick", ov_sopIntroEffectTick);
+  natives.declareOverlay("SOP", 0x8010B588u, "sopLiftedSubtick", ov_sopLiftedSubtick);
 }
+
+} // namespace tomba

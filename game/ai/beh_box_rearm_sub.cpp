@@ -15,10 +15,9 @@
 // (undefined2 = 16-bit sh, byte = sb). The byte-exact A/B gate (full RAM+scratchpad vs original guest-body call)
 // is the safety net.
 
-#include "cfg.h"
 #include "core.h"
-#include "core/entry/game_ctx.h"
 #include "core/overrides/guest_jal.h"
+#include "entry/tomba_session.h"
 #include "guest_abi.h"
 #include "guest_call.h"
 #include "object/actor.h" // Actor::boundsCull (FUN_8007778C — thin wrapper native)
@@ -27,15 +26,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+namespace tomba {
+
 namespace {
 
 constexpr uint32_t BEH_FN = 0x8013ADBCu;
-
-static inline uint32_t leafr1(Core *c, uint32_t a0, uint32_t fn) {
-  c->r[4] = a0;
-  psx::cpu::dispatchGuestToReturn0(*c, fn, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
-  return c->r[2];
-}
 
 } // namespace
 static constexpr GuestFrameSpill kSpills_8013ADBC[2] = {
@@ -50,7 +45,7 @@ void beh_box_rearm_sub(Core *c) {
 
   if (st == 1) {
     if (Actor(c, nd).boundsCull() != 0) {
-      tomba::guest::dispatchLeafToReturn(*c, 0x8013ac98u, nd); // FUN_8007778C native / FUN_8013AC98
+      psx::cpu::callGuestNowResult(*c, "beh_box_rearm_sub", 0x8013ac98u, nd); // FUN_8007778C native / FUN_8013AC98
     }
     c->mem_w8(nd + 0x29, 0);
     c->mem_w8(nd + 0x2b, 0);
@@ -75,8 +70,10 @@ void beh_box_rearm_sub(Core *c) {
       c->mem_w8(nd + 0x29, 1);
       c->mem_w8(nd + 5, c->mem_r8(nd + 0x5e));
     }
-    tomba::guest::dispatchLeafToReturn(*c, 0x8013ac98u, nd); // FUN_8013AC98
+    psx::cpu::callGuestNowResult(*c, "beh_box_rearm_sub", 0x8013ac98u, nd); // FUN_8013AC98
   } else if (st == 3) {
     eng(c).spawn.despawn(nd); // FUN_8007A624
   }
 }
+
+} // namespace tomba

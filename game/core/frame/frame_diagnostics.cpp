@@ -1,37 +1,52 @@
 #include "frame/frame_diagnostics.h"
 
 #include "audio/libsnd_globals.h" // kSeqTickFn / the tick descriptor's slots
-#include "cfg.h"
 #include "core.h"
 #include "engine/engine.h"
-#include "entry/game_ctx.h"
+#include "entry/tomba_session.h"
+#include "sched/task_slot_layout.h"
 
 #include <lucent/log.h>
 
 namespace tomba {
 namespace {
 
-constexpr uint32_t kTaskBase = 0x801fe000u;
-constexpr uint32_t kTaskStride = 0x70u;
-constexpr uint32_t kTaskEntry = 0x0cu;
-
-const char *stageName(const GameConfig &cfg, uint32_t entry) {
-  if (entry == cfg.stageStart) {
-    return "START";
-  }
-  if (entry == cfg.stageDemo) {
-    return "DEMO";
-  }
-  if (entry == cfg.stageGame) {
-    return "GAME";
-  }
-  return "?";
-}
+using sched::kStageGameEntry;
+using sched::kTaskEntry;
+using sched::kTaskSlotStride;
+using sched::stageName;
+constexpr uint32_t kTaskBase = sched::kTaskTableBase;
+constexpr uint32_t kFadeDriverStruct = 0x80100400u;
 
 } // namespace
 
+void FrameDiagnostics::traceFadeDrivers(Core &core) {
+  if (!fadewatch_) {
+    return;
+  }
+  const uint32_t fieldMode = core.mem_r32(sched::kCurrentTaskPointer);
+  const std::array<uint32_t, 6> drivers{core.mem_r8(kFadeDriverStruct + 4),
+                                        core.mem_r16(kFadeDriverStruct + 8),
+                                        core.mem_r16(kFadeDriverStruct + 0xA),
+                                        core.mem_r8(kFadeDriverStruct + 3),
+                                        core.mem_r16(fieldMode + 0x50),
+                                        core.mem_r8(fieldMode + 0x6C)};
+  if (drivers == fadeDriversLast_) {
+    return;
+  }
+  fadeDriversLast_ = drivers;
+  lucent::debug(fadewatch_,
+                "[fadewatch-state] P.st={} P8={} P0xA={} P3={} | sm50={} sm6c={}",
+                drivers[0],
+                drivers[1],
+                drivers[2],
+                drivers[3],
+                drivers[4],
+                drivers[5]);
+}
+
 void FrameDiagnostics::afterFrame(Core &core, uint32_t frame) {
-  const GameConfig &cfg = *core.cfg;
+  traceFadeDrivers(core);
   const uint32_t seqState = (core.mem_r16(0x801054b0u) << 16) | (core.mem_r32(0x80104c28u) & 0xffffu);
   if (seqState != seqLast_) {
     lucent::debug("seq",
@@ -52,13 +67,12 @@ void FrameDiagnostics::afterFrame(Core &core, uint32_t frame) {
                 core.mem_r16s(0x1f8000d6u),
                 core.mem_r16s(0x1f8000dau));
 
-  static const lucent::Channel stateChannel{"state"};
-  if (stateChannel) {
+  if (stateChannel_) {
     uint64_t signature = 0;
     int menuSlot = -1;
     uint8_t menuPage = 0;
     for (int slot = 0; slot < 3; ++slot) {
-      const uint32_t base = kTaskBase + static_cast<uint32_t>(slot) * kTaskStride;
+      const uint32_t base = kTaskBase + static_cast<uint32_t>(slot) * kTaskSlotStride;
       const uint16_t state = core.mem_r16(base);
       const uint32_t entry = core.mem_r32(base + kTaskEntry);
       signature = signature * 1099511628211ull + (static_cast<uint64_t>(state) << 32 | entry);
@@ -73,7 +87,7 @@ void FrameDiagnostics::afterFrame(Core &core, uint32_t frame) {
       lucent::Line line;
       line.add("f{}", frame);
       for (int slot = 0; slot < 3; ++slot) {
-        const uint32_t base = kTaskBase + static_cast<uint32_t>(slot) * kTaskStride;
+        const uint32_t base = kTaskBase + static_cast<uint32_t>(slot) * kTaskSlotStride;
         line.add(" | s{} st={} ent=0x{:08X}", slot, core.mem_r16(base), core.mem_r32(base + kTaskEntry));
       }
       line.add("  MENU={}", menuSlot >= 0 ? "OPEN" : "no");
@@ -85,23 +99,23 @@ void FrameDiagnostics::afterFrame(Core &core, uint32_t frame) {
                core.mem_r16s(0x1f8000d6u),
                core.mem_r16s(0x1f8000dau),
                core.mem_r16(kTaskBase + 0x4au));
-      line.flush_debug(stateChannel);
+      line.flush_debug(stateChannel_);
     }
   }
 
-  if (cfg_str("PSXPORT_BGMDBG")) {
+  if (bgmChannel_) {
     for (int slot = 0; slot < 14; ++slot) {
       const uint32_t sequence = 0x800be3d8u + static_cast<uint32_t>(slot) * 0xb0u;
       const uint32_t flags = core.mem_r32(sequence + 0x98u);
       const uint32_t readPointer = core.mem_r32(sequence);
       if ((flags & 1u) && readPointer != bgmReadPointers_[slot]) {
-        lucent::info("bgmtick",
-                     "f{} slot{} active rdptr={:08X} base={:08X} ({:+})",
-                     frame,
-                     slot,
-                     readPointer,
-                     core.mem_r32(sequence + 4u),
-                     static_cast<int>(readPointer - core.mem_r32(sequence + 4u)));
+        lucent::debug(bgmChannel_,
+                      "f{} slot{} active rdptr={:08X} base={:08X} ({:+})",
+                      frame,
+                      slot,
+                      readPointer,
+                      core.mem_r32(sequence + 4u),
+                      static_cast<int>(readPointer - core.mem_r32(sequence + 4u)));
         bgmReadPointers_[slot] = readPointer;
       }
       if (!(flags & 1u)) {
@@ -122,7 +136,7 @@ void FrameDiagnostics::afterFrame(Core &core, uint32_t frame) {
                  "  frame {}: stage={}(0x{:08X}) sm[48={} 4a={} 4c={} 4e={} 50={} 52={}] "
                  "@0x80109450={:08X}",
                  frame,
-                 stageName(cfg, stageEntry),
+                 stageName(stageEntry),
                  stageEntry,
                  state48,
                  core.mem_r16(kTaskBase + 0x4au),
@@ -135,7 +149,7 @@ void FrameDiagnostics::afterFrame(Core &core, uint32_t frame) {
     lastStateMachine_ = stateMachine;
   }
 
-  if (stageEntry == cfg.stageGame && frame == 75) {
+  if (stageEntry == kStageGameEntry && frame == 75) {
     lucent::debug("stream",
                   "[streamdbg] task2 obj @0x801fe0e0 state={} entry=0x{:08X}",
                   core.mem_r16(0x801fe0e0u),
@@ -165,8 +179,8 @@ void FrameDiagnostics::afterFrame(Core &core, uint32_t frame) {
                 core.mem_r16(kTaskBase + 0x4au),
                 core.mem_r16(kTaskBase + 0x4cu),
                 core.mem_r16(kTaskBase + 0x5cu),
-                core.mem_r16(kTaskBase + kTaskStride),
-                core.mem_r16(kTaskBase + 2u * kTaskStride));
+                core.mem_r16(kTaskBase + kTaskSlotStride),
+                core.mem_r16(kTaskBase + 2u * kTaskSlotStride));
   if (frame < 10 || (frame % 30u) == 0) {
     lucent::info("tomba-frame",
                  "  frame {}: t0[st={} e=0x{:08X} s48={}] t1[st={}] t2[st={}] f135={}",
@@ -174,8 +188,8 @@ void FrameDiagnostics::afterFrame(Core &core, uint32_t frame) {
                  core.mem_r16(kTaskBase),
                  stageEntry,
                  state48,
-                 core.mem_r16(kTaskBase + kTaskStride),
-                 core.mem_r16(kTaskBase + 2u * kTaskStride),
+                 core.mem_r16(kTaskBase + kTaskSlotStride),
+                 core.mem_r16(kTaskBase + 2u * kTaskSlotStride),
                  core.mem_r8(0x1f800135u));
   }
 

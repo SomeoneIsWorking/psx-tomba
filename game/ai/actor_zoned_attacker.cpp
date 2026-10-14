@@ -2,10 +2,9 @@
 
 #include "ai/zoned_attacker_abi.h"
 #include "core.h"
-#include "core/entry/game_ctx.h"
 #include "core/overrides/native_override_catalog.h"
+#include "entry/tomba_session.h"
 #include "game.h"
-#include "guest_abi.h"
 #include "guest_call.h"
 #include "object/actor.h"
 #include "spawn.h"
@@ -69,12 +68,12 @@ void ActorZonedAttacker::typeInit(Core *c) {
   c->r[R_A3] = kNodeFieldBase;
   psx::cpu::dispatchGuestToReturn0(*c, kInstallTypeTable, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
   c->mem_w32(node + 0x3c, c->mem_r32(kCopyScratch));
-  call1(c, node, kGridResolve);
+  psx::cpu::callGuestNow(*c, "actor_zoned_attacker", kGridResolve, node);
   if (c->r[R_V0] == 0) {
     c->mem_w8(node + 4, 3);
     return;
   }
-  call1(c, node, kLeaf_80049674);
+  psx::cpu::callGuestNow(*c, "actor_zoned_attacker", kLeaf_80049674, node);
   const uint16_t v1a2 = c->mem_r16(kS_1F8001A2);
   const uint16_t v1a0 = c->mem_r16(kS_1F8001A0);
   a.setRotX(0);
@@ -101,7 +100,7 @@ void ActorZonedAttacker::typeInit(Core *c) {
   c->mem_w16(node + 4, 1);
   c->mem_w8(node + 0x66, c->mem_r8(node + 3));
   c->mem_w8(node + 0, 1);
-  call2(c, node, kSetAnimStateCue, 1u, 0u);
+  psx::cpu::callGuestNow(*c, "actor_zoned_attacker", kSetAnimStateCue, node, 1u, 0u);
   c->mem_w16(node + 0xbc, 0x1000);
   c->mem_w16(node + 0xba, 0x1000);
   c->mem_w16(node + 0xb8, 0x1000);
@@ -197,7 +196,7 @@ label_caseD_2: {
 
 label_caseD_7:
   a.setPosY((uint16_t)(a.posY() + 0x10));
-  call1(c, node, kMotionAnimStep);
+  psx::cpu::callGuestNow(*c, "actor_zoned_attacker", kMotionAnimStep, node);
   c->r[R_V0] = uVar4;
   return;
 
@@ -221,9 +220,9 @@ label_dispatch:
       uVar3 = 6;
       break;
     }
-    call2(c, node, kSetAnimStateCue, uVar3, 0u);
+    psx::cpu::callGuestNow(*c, "actor_zoned_attacker", kSetAnimStateCue, node, uVar3, 0u);
     a.setStateEcho((uint16_t)(a.stateEcho_u() & 0xfffb));
-    call1(c, node, kMotionAnimStep);
+    psx::cpu::callGuestNow(*c, "actor_zoned_attacker", kMotionAnimStep, node);
     c->mem_w8(node + 7, 2);
     goto label_caseD_2;
   }
@@ -247,7 +246,7 @@ label_dispatch:
       uVar3 = 0x34;
       break;
     }
-    call2(c, node, kSetAnimStateCue, uVar3, 8u);
+    psx::cpu::callGuestNow(*c, "actor_zoned_attacker", kSetAnimStateCue, node, uVar3, 8u);
     c->mem_w16(node + 0x40, 0x28);
     c->mem_w8(node + 7, (uint8_t)(c->mem_r8(node + 7) + 1));
     [[fallthrough]];
@@ -261,7 +260,7 @@ label_dispatch:
     goto label_ac8;
   }
   case 5:
-    call2(c, node, kSetAnimStateCue, 7u, 8u);
+    psx::cpu::callGuestNow(*c, "actor_zoned_attacker", kSetAnimStateCue, node, 7u, 8u);
     c->mem_w16(node + 0x40, 0x1e);
     c->mem_w8(node + 7, (uint8_t)(c->mem_r8(node + 7) + 1));
     [[fallthrough]];
@@ -278,23 +277,19 @@ label_dispatch:
   }
 }
 
-void ActorZonedAttacker::registerOverrides(Game * /*game*/) {
+void ActorZonedAttacker::registerOverrides(native::NativeOverrideCatalog &natives) {
   // All seven are A00 functions; 0x80145C78 and 0x80140544 were matched by the
   // split-prologue entry shape. docs/issues/0015.
-  tomba::native::declareOverlayOverride(
-      "A00", kZoneClassify, "ActorZonedAttacker::zoneClassify", &ActorZonedAttacker::zoneClassify);
-  tomba::native::declareOverlayOverride(
-      "A00", 0x80140544u, "ActorZonedAttacker::typeInit", ActorZonedAttacker::typeInit);
-  tomba::native::declareOverlayOverride(
-      "A00", kGateCheck, "ActorZonedAttacker::gateCheck", ActorZonedAttacker::gateCheck);
-  tomba::native::declareOverlayOverride(
+  natives.declareOverlay("A00", kZoneClassify, "ActorZonedAttacker::zoneClassify", &ActorZonedAttacker::zoneClassify);
+  natives.declareOverlay("A00", 0x80140544u, "ActorZonedAttacker::typeInit", ActorZonedAttacker::typeInit);
+  natives.declareOverlay("A00", kGateCheck, "ActorZonedAttacker::gateCheck", ActorZonedAttacker::gateCheck);
+  natives.declareOverlay(
       "A00", kPickAttackByRange, "ActorZonedAttacker::pickAttackByRange", ActorZonedAttacker::pickAttackByRange);
-  tomba::native::declareOverlayOverride(
+  natives.declareOverlay(
       "A00", 0x80143A00u, "ActorZonedAttacker::defaultSubStateMachine", ActorZonedAttacker::defaultSubStateMachine);
-  tomba::native::declareOverlayOverride(
+  natives.declareOverlay(
       "A00", 0x80144928u, "ActorZonedAttacker::approachAndFace", ActorZonedAttacker::approachAndFace);
-  tomba::native::declareOverlayOverride(
-      "A00", 0x80144B50u, "ActorZonedAttacker::idleTick", ActorZonedAttacker::idleTick);
+  natives.declareOverlay("A00", 0x80144B50u, "ActorZonedAttacker::idleTick", ActorZonedAttacker::idleTick);
 }
 
 } // namespace tomba::ai

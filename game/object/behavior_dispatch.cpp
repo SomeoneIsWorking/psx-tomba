@@ -5,25 +5,19 @@
 // C) vs. still run as the guest instruction path substrate. Introspectable via `nativeName()` so the `ents` REPL
 // diagnostic can flag, per live object, whether its logic is owned. Add a row when you own a new
 // behavior; `dispatchNative` + the ents flag both read this table.
-//
-// Was three free functions in engine_tomba2.cpp — dispatch_obj_method / dispatch_native_behavior /
-// behavior_native_name. Promoted here as `class BehaviorDispatch` on Engine so callers reach the
-// dispatcher through the object graph (`eng(c).behaviors.dispatchObj(obj, h)`), matching the
-// Collision / Bit / Spawn class-instance pattern.
 #include "behavior_dispatch.h"
-#include "cfg.h"
 #include "core.h"
 #include "core/engine/engine.h" // class Engine (for Core::engine)
-#include "core/entry/game_ctx.h"
 #include "game.h"
 #include "guest_call.h"
 #include <cstdint>
-#include <cstdio>
-#include <cstring>
+#include <lucent/log.h>
 
 // Behavior entry-point declarations. Each `beh_*` lives in its own game/ai/beh_*.cpp file as an
 // external-linkage function (the verify wrapper — no `_run` forwarder layer anymore). Kept as free-
 // function pointers in the table below; class-ifying each individual behavior is a separate axis.
+namespace tomba {
+
 void beh_scene_ui_trigger(Core *c);           // 0x800739AC
 void beh_typed_init_scene_trigger(Core *c);   // 0x80073CD8
 void beh_pickup_collect_trigger(Core *c);     // 0x800741DC
@@ -178,86 +172,29 @@ constexpr NativeBeh kTable[] = {
 };
 } // namespace
 
-void BehaviorDispatch::dispatchObj(uint32_t obj, uint32_t handler) {
+void BehaviorDispatch::dispatchObj(const ObjectTick &tick) {
+  const auto [obj, handler] = tick;
   Core *c = this->core;
   c->r[4] = obj; // $a0 — the behaviors read the object here
-  // Gameplay prefers the native behavior table. An unowned handler crosses the single PSXPort
-  // guest boundary below; there is no player-selectable substrate mode.
-  // PSXPORT_DEBUG=uitrig traces the scene-UI trigger at the dispatch site, so verification observes
-  // the same event shape on both legs.
+  // The scene-UI trigger handler.
   if (handler == 0x800739ACu) {
     const uint32_t o = c->r[4];
-    cfg_logf("uitrig",
-             "obj=%08X st=%u sub=%u f2b=%u pad=%04X lock=%02X",
-             o,
-             c->mem_r8(o + 4),
-             c->mem_r8(o + 5),
-             c->mem_r8(o + 0x2b),
-             c->mem_r16(0x800E7E68u),
-             c->mem_r8(0x800E7E80u));
-  }
-  if (traceDispatch(obj, handler)) {
-    return;
+    lucent::debug("uitrig",
+                  "obj={:08X} st={} sub={} f2b={} pad={:04X} lock={:02X}",
+                  o,
+                  c->mem_r8(o + 4),
+                  c->mem_r8(o + 5),
+                  c->mem_r8(o + 0x2b),
+                  c->mem_r16(0x800E7E68u),
+                  c->mem_r8(0x800E7E80u));
   }
   if (!dispatchNative(handler)) {
     psx::cpu::dispatchGuestToReturn0(*c, handler, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
   }
-}
-
-// traceDispatch — the per-invocation node-delta log (see header). Same shape on both legs.
-bool BehaviorDispatch::traceDispatch(uint32_t obj, uint32_t handler) {
-  Core *c = this->core;
-  if (mTraceAddr == 0) {
-    const char *e = cfg_str("PSXPORT_BEH_TRACE");
-    mTraceAddr = (e && *e) ? ((uint32_t)strtoul(e, nullptr, 16) & 0x1FFFFFFFu) | 0x80000000u : 0xFFFFFFFFu;
-  }
-  if (handler != mTraceAddr) {
-    return false;
-  }
-
-  uint8_t before[kTraceNodeBytes];
-  for (uint32_t i = 0; i < kTraceNodeBytes; i++) {
-    before[i] = c->mem_r8(obj + i);
-  }
-  if (!dispatchNative(handler)) {
-    psx::cpu::dispatchGuestToReturn0(*c, handler, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
-  }
-
-  // One line per invocation, listing every node byte the handler changed. An invocation that changes
-  // nothing still prints, so the two legs' logs stay line-aligned and `diff` reports the FIRST
-  // invocation that differs rather than a shifted stream.
-  char delta[512];
-  int n = 0;
-  for (uint32_t i = 0; i < kTraceNodeBytes && n < (int)sizeof delta - 24; i++) {
-    const uint8_t now = c->mem_r8(obj + i);
-    if (now != before[i]) {
-      n += snprintf(delta + n, sizeof delta - n, " %02X:%02X->%02X", i, before[i], now);
-    }
-  }
-  delta[n] = '\0';
-  cfg_logf("behtrace", "f%u %08X obj=%08X v0=%08X%s", c->game->timing.logicFrame, handler, obj, c->r[2], delta);
-  return true;
 }
 
 bool BehaviorDispatch::dispatchNative(uint32_t handler) {
   Core *c = this->core;
-  // PSXPORT_BEH_SUBSTRATE=<hex,hex> — force named handlers back to the substrate without a rebuild.
-  // This exists because a single bad native handler is otherwise very hard to isolate: it does not
-  // crash, it corrupts game state (the 2026-07-21 save-sign softlock was one handler out of 65, found
-  // by bisecting this list). Diagnostic only; the default is empty and changes nothing.
-  static const char *s_forced = nullptr;
-  static bool s_init = false;
-  if (!s_init) {
-    s_init = true;
-    s_forced = cfg_str("PSXPORT_BEH_SUBSTRATE");
-  }
-  if (s_forced && *s_forced) {
-    char hex[16];
-    snprintf(hex, sizeof hex, "%08X", handler);
-    if (strcasestr(s_forced, hex)) {
-      return false;
-    }
-  }
   for (const NativeBeh &b : kTable) {
     if (b.addr == handler) {
       noteNativeHit(handler, b.name);
@@ -272,12 +209,8 @@ bool BehaviorDispatch::dispatchNative(uint32_t handler) {
 // and every decade after it, so one replay run yields "which handlers did this scenario reach, and
 // roughly how hard" in a greppable form.
 void BehaviorDispatch::noteNativeHit(uint32_t handler, const char *name) {
-  // Latch the channel flag once: this runs on EVERY native behaviour dispatch (thousands per frame),
-  // and cfg_dbg does a channel-table lookup per call. Same latching convention as VerifyHarness::on.
-  if (mCovOn < 0) {
-    mCovOn = cfg_dbg("behcov") ? 1 : 0;
-  }
-  if (!mCovOn) {
+  // Runs on every native behaviour dispatch, so the gate is a cached Channel.
+  if (!coverageChannel_) {
     return;
   }
   Cov *slot = nullptr;
@@ -301,7 +234,7 @@ void BehaviorDispatch::noteNativeHit(uint32_t handler, const char *name) {
     milestone = (n == decade);
   }
   if (milestone) {
-    cfg_logf("behcov", "%08X %-28s hits=%llu", handler, name, (unsigned long long)n);
+    lucent::debug("behcov", "{:08X} {:<28} hits={}", handler, name, (unsigned long long)n);
   }
 }
 
@@ -313,3 +246,5 @@ const char *BehaviorDispatch::nativeName(uint32_t handler) const {
   }
   return nullptr;
 }
+
+} // namespace tomba

@@ -6,12 +6,20 @@
 #pragma once
 class Core;
 
+namespace tomba::native {
+class NativeOverrideCatalog;
+} // namespace tomba::native
+
+namespace tomba {
+
 class OptionsPage {
 public:
   // Registers FUN_8007FC24. Idempotent.
-  static void install();
+  static void install(native::NativeOverrideCatalog &natives);
 
   // FUN_8007FC24: one 36-byte POLY_G4 packet (the 320x240 gradient) from the guest packet pool,
   // linked at ordering-table bucket 1.
   static void pushBackdrop(Core *c);
 };
+
+} // namespace tomba

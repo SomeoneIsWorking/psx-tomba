@@ -13,8 +13,8 @@
 // refusal from bindResident quietly returning.
 #include "core/overrides/native_override_catalog.h"
 #include "game.h"
-#include "game_runtime.h"
 #include "lightrec_executor.h"
+#include "stub_game_runtime.h"
 
 #include <lucent/log.h>
 #include <sys/wait.h>
@@ -23,22 +23,6 @@
 #include <memory>
 
 namespace {
-
-class Runtime final : public GameRuntime {
-public:
-  void *createContext(Core &) override {
-    return nullptr;
-  }
-  void destroyContext(void *) override {}
-  void registerOverrides(Game &) override {}
-  void bootInit(Core &) override {}
-  RenderCapabilities renderCapabilities() const override {
-    return RenderCapabilities::direct();
-  }
-  bool guestVramIsPicture(const Game &) const override {
-    return false;
-  }
-};
 
 // Inside the resident text range, so it must install and must NOT trip the refusal.
 constexpr std::uint32_t kInsideEntry = 0x80010000u;
@@ -68,9 +52,9 @@ void check(bool condition, const char *name) {
 } // namespace
 
 int main() {
-  Runtime runtime;
-  psxport_install_game(runtime);
-  auto game = std::make_unique<Game>();
+  tomba::native::NativeOverrideCatalog natives;
+  psx::test::StubGameRuntime runtime;
+  auto game = std::make_unique<Game>(runtime, psx::config::Config{});
   Core &core = game->core;
   core.mem_w32(kInsideEntry, 0x24020005u);      // addiu v0, zero, 5
   core.mem_w32(kInsideEntry + 4u, 0x03e00008u); // jr ra
@@ -81,9 +65,9 @@ int main() {
   // can still reason about, and a second `bindResident` here would abort it for the wrong reason.
   const pid_t child = fork();
   if (child == 0) {
-    tomba::native::declareOverride(kInsideEntry, "inside-owner", insideOwner);
-    tomba::native::declareOverride(kUnreachableEntry, "unreachable-owner", unreachableOwner);
-    tomba::native::bindResident(core, resident, kResidentText);
+    natives.declare(kInsideEntry, "inside-owner", insideOwner);
+    natives.declare(kUnreachableEntry, "unreachable-owner", unreachableOwner);
+    natives.bindResident(core, resident, kResidentText);
     _exit(0); // only reached if the refusal did NOT fire
   }
   check(child > 0, "fork produced a child");

@@ -1,18 +1,21 @@
 #include "debug/dev_control.h"
 
 #include "core.h"
-#include "entry/game_ctx.h"
+#include "debug/dev_args.h"
+#include "entry/tomba_session.h"
 
-#include <cstring>
+#include <string_view>
 
 namespace tomba {
 
-bool DevControl::handle(Core &core, const char *command, const char *line, std::string &reply) {
-  if (std::strcmp(command, "warp") == 0) {
+bool DevControl::handle(Core &core, const char *line, std::string &reply) {
+  const auto words = DevArgs::words(line);
+  const std::string_view command = words.empty() ? std::string_view{} : words[0];
+  if (command == "warp") {
     reply = warp_.arm(core, line);
-  } else if (std::strcmp(command, "items") == 0) {
+  } else if (command == "items") {
     reply = items_.arm(core, line);
-  } else if (std::strcmp(command, "flag") == 0) {
+  } else if (command == "flag") {
     reply = flags_.arm(core, line);
   } else {
     return false;
@@ -20,8 +23,8 @@ bool DevControl::handle(Core &core, const char *command, const char *line, std::
   return true;
 }
 
-void DevControl::giveAndFlag(Core &core, uint32_t item, uint32_t amount) {
-  inv(&core).giveAndFlag(item, amount);
+void DevControl::giveAndFlag(Core &core, const Inventory::ItemGrantArgs &grant) {
+  inv(&core).giveAndFlag(grant);
 }
 
 void DevControl::applyArmed(Core &core, uint32_t frame) {

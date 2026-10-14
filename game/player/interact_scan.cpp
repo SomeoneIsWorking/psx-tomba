@@ -24,11 +24,13 @@
 // It also publishes the VERB at 0x800BF840 — which activation just happened — chosen by object type:
 // 0x84 for the sign/plaque family (types 0x0E/0x0F/0x39), 0x85 for everything else it accepts.
 #include "core.h"
-#include "core/entry/game_ctx.h"
 #include "core/overrides/native_override_catalog.h"
+#include "entry/tomba_session.h"
 #include "game.h"
 #include "object/actor.h"
 #include <cstdint>
+
+namespace tomba {
 
 namespace {
 
@@ -130,10 +132,12 @@ static void ov_interact_scan(Core *c) {
   c->r[2] = interact_scan(c);
 }
 
-void interact_scan_install() {
+void interact_scan_install(native::NativeOverrideCatalog &natives) {
   // The SETTER is required, not optional. This function's only caller reaches it through the direct
   // `guest 0x80024794(c)` thunk (authenticated executable/overlay evidence), not through typed runtime address dispatch
   // — so registering without a setter leaves the native body registered and NEVER RUN (ovhit: "registered but
   // unreached"), with the substrate quietly still doing the work.
-  tomba::native::declareOverride(0x80024794u, "InteractScan::scan", ov_interact_scan);
+  natives.declare(0x80024794u, "InteractScan::scan", ov_interact_scan);
 }
+
+} // namespace tomba

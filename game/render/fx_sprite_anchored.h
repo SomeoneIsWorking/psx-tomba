@@ -19,6 +19,12 @@ constexpr uint32_t kClut = 0x44;          // u16 CLUT id, low half of the writer
 constexpr uint32_t kTexturePage = 0x46;   // u16 texture page, high half of the writer's a1
 } // namespace fxanchored
 
+namespace tomba::native {
+class NativeOverrideCatalog;
+} // namespace tomba::native
+
+namespace tomba {
+
 struct FxAnchoredNode {
   Core *mCore;
   uint32_t mBase;
@@ -58,7 +64,7 @@ public:
   // FUN_80027E5C: as above, with the depth scale multiplied by the node's size byte. a0 = node.
   static void emitByteScale(Core *c);
 
-  static void registerOverrides(Game *game);
+  static void registerOverrides(native::NativeOverrideCatalog &natives);
 
 private:
   // Project the node in s0; a node with no records or a culled anchor returns false, culled via the resolver.
@@ -66,3 +72,5 @@ private:
   // Call the writer on the node in s0 and keep the tail it returns.
   static void stamp(Core *c, uint32_t raSpriteWriter);
 };
+
+} // namespace tomba

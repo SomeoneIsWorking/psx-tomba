@@ -1,8 +1,8 @@
 #include "card_load_machine.h"
 
 #include "core.h"
-#include "core/entry/game_ctx.h"
 #include "core/overrides/native_override_catalog.h"
+#include "entry/tomba_session.h"
 #include "game.h"
 #include "guest_call.h"
 
@@ -32,14 +32,16 @@ void reselectStateIndex(Core &c, std::uint32_t inGame) {
 
 } // namespace
 
-void stepCardLoadMachine(Core &core, std::uint32_t mode, std::uint32_t inGame) {
+void stepCardLoadMachine(Core &core, const StepCardLoadMachineArgs &args) {
+  auto [mode, inGame] = args;
   Core *c = &core;
   const std::uint8_t state = c->mem_r8(kMachineState);
   switch (state) {
   case 0: {
-    psx::cpu::callGuestNow(*c, __func__, 0x8001cf2cu);                // engine update
-    native::loadAreaSlotFile(*c, eng(c).activeAreaOverlay, kCrdFile); // = FUN_80045558(1): CRD, SYNC
-    c->mem_w8(kLoadDone, 1);                                          // mark the load complete (case 3 reads this)
+    psx::cpu::callGuestNow(*c, __func__, 0x8001cf2cu); // engine update
+    tombaSession(c).nativeOverrides.loadAreaSlotFile(
+        *c, eng(c).activeAreaOverlay, kCrdFile); // = FUN_80045558(1): CRD, SYNC
+    c->mem_w8(kLoadDone, 1);                     // mark the load complete (case 3 reads this)
     c->mem_w8(kMachineState, 1);
     reselectStateIndex(*c, inGame);
     break;
@@ -60,7 +62,7 @@ void stepCardLoadMachine(Core &core, std::uint32_t mode, std::uint32_t inGame) {
     // In-game only: FUN_80045580(1) (assetReady) starts the spawned reload of the area's DAT
     // payload over the AREA slot, which overwrites the CRD overlay's code, so its image retires
     // first. The guest never restores an OPN image here either (asset.cpp's 0x800BF89C==2 path).
-    native::retireOverlay(*c, eng(c).activeAreaOverlay);
+    tombaSession(c).nativeOverrides.retireOverlay(*c, eng(c).activeAreaOverlay);
     psx::cpu::callGuestNow(*c, __func__, 0x80045580u, kCrdFile);
     if (c->r[2] != 0u) {
       c->mem_w8(kMachineState, 3);

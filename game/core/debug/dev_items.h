@@ -1,5 +1,7 @@
 #pragma once
 
+#include "items/inventory.h"
+
 #include <cstdint>
 #include <string>
 
@@ -17,7 +19,7 @@ public:
 
   std::string arm(Core &core, const char *line);
   // Gives the game's own give-and-flag one item; the frame driver supplies the shipping inventory.
-  using GiveFn = void (*)(Core &core, uint32_t item, uint32_t amount);
+  using GiveFn = void (*)(Core &core, const Inventory::ItemGrantArgs &grant);
   void applyArmed(Core &core, GiveFn give, uint32_t frame);
 
 private:

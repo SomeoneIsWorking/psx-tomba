@@ -47,13 +47,14 @@
 // channel "typed_init_scene_triggerverify".
 
 #include "bg_scene_transition_sm.h" // BgSceneTransitionSm::readyForProgress (FUN_80042728 native)
-#include "cfg.h"
 #include "core.h"
-#include "core/entry/game_ctx.h"
+#include "entry/tomba_session.h"
 #include "graphics_bind.h" // GraphicsBind::recordInit / renderUpdate
 #include "guest_abi.h"     // GuestFrame — mirror the guest stack frame (CLAUDE.md)
 #include "object/actor.h"  // class Actor + named fields
 #include "spawn.h"         // class Spawn (eng(c).spawn.despawn)
+
+namespace tomba {
 
 namespace {
 constexpr uint32_t BEH_FN = 0x80073CD8u;
@@ -80,10 +81,15 @@ constexpr uint32_t PAD_EDGE_HW = 0x800E7E68u;      // new-frame pad-edge bitmask
 constexpr uint32_t PAD_CUR_HW = 0x1F800174u;       // current pad state
 constexpr uint32_t SPECIAL_AREA_TAG = 0x800E7E85u; // guard on the special-area sceneHandle release (0x1F skips)
 
+struct ConfirmOrAdvanceArgs {
+  uint32_t arg;
+  uint32_t raConst;
+};
 // The confirm helper flow (state-1 triggerSub==0 branch): arm the event; if the arm succeeded
 // (fresh arm = 1, or events gate off = -1 → both nonzero), skip to triggerSub=5. Already-armed = 0
 // means retry next tick.
-inline void confirm_or_advance(Actor &a, uint32_t arg, uint32_t raConst) {
+inline void confirm_or_advance(Actor &a, const ConfirmOrAdvanceArgs &args) {
+  auto [arg, raConst] = args;
   a.core()->r[31] = raConst; // ra mirror: gen jal-site (armBody spills ra in its guest frame)
   if (eng(a.core()).sceneEvents.arm((uint8_t)arg) != 0) {
     a.setTriggerSub(5);
@@ -223,13 +229,13 @@ void beh_typed_init_scene_trigger(Core *c) {
         uint8_t n3 = a.type();
         a.setTriggerSub((uint8_t)(a.triggerSub() + 1));
         if (n3 == 0xd) {
-          confirm_or_advance(a, 0x50, 0x80073F84u);
+          confirm_or_advance(a, {.arg = 0x50, .raConst = 0x80073F84u});
         } else if (n3 < 0xe) {
           if (n3 == 0xc) {
-            confirm_or_advance(a, 0x4e, 0x80073F6Cu);
+            confirm_or_advance(a, {.arg = 0x4e, .raConst = 0x80073F6Cu});
           }
         } else if (n3 == 0xe) {
-          confirm_or_advance(a, 0x4f, 0x80073F9Cu);
+          confirm_or_advance(a, {.arg = 0x4f, .raConst = 0x80073F9Cu});
         }
       }
       break;
@@ -253,7 +259,7 @@ void beh_typed_init_scene_trigger(Core *c) {
         sv4 = (int16_t)c->mem_r16(TBL_SCENE_ID + (uint32_t)n3 * 2);
       }
       // Spawn::sceneEntity — was typed runtime address dispatch(0x8007E110); now native (spawn.cpp).
-      uint32_t node = eng(c).spawn.sceneEntity((uint16_t)(int16_t)sv4, /*subtype=*/0);
+      uint32_t node = eng(c).spawn.sceneEntity({.sceneId = (uint16_t)(int16_t)sv4, .subtype = /*subtype=*/0});
       a.setSceneHandle(node);
       if (node != 0) {
         a.setTriggerSub((uint8_t)(a.triggerSub() + 1));
@@ -283,6 +289,8 @@ void beh_typed_init_scene_trigger(Core *c) {
       }
       break;
     }
+    default:
+      break;
     }
   }
 
@@ -303,3 +311,5 @@ void beh_typed_init_scene_trigger(Core *c) {
   c->r[4] = a.addr();
   eng(c).graphicsBind.renderUpdate();
 }
+
+} // namespace tomba

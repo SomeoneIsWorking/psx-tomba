@@ -22,9 +22,13 @@ public:
   void type4GuardedCheck(uint32_t item);
   // FUN_80022190 — type 6's sub-hitbox check.
   void subHitboxCheck(uint32_t item);
+  struct StepModeInteractArgs {
+    uint32_t item;
+    uint32_t mode;
+  };
   // FUN_80020364 — the mode-driven step for items 0xF/0x14/0x56 (mode 0) and 0x2F (mode 2). The
   // result is the walk-state the caller stamps onto the item.
-  std::uint8_t stepModeInteract(uint32_t item, uint32_t mode);
+  std::uint8_t stepModeInteract(const StepModeInteractArgs &args);
   // FUN_800205CC — the item-8 interaction, which pushes or rotates Tomba against the item.
   void type8Interact(uint32_t item);
   // FUN_800235A0 — the item-7 interaction. Returns 1 whenever the proximity/step leaf reports a hit.

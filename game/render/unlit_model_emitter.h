@@ -21,29 +21,35 @@
 // The screen cull goes through horizontal_visibility_cull.h, so at 4:3 the packets are the guest's.
 #pragma once
 
+#include "state_producer.h"
+
 #include "emit_memory.h"
 #include "list_job.h"
 #include "model_packet.h"
 
 #include <cstdint>
 
-namespace tomba2::horizontal_cull {
+namespace tomba::native {
+class NativeOverrideCatalog;
+} // namespace tomba::native
+
+namespace tomba::horizontal_cull {
 class Visibility;
 }
 
-namespace tomba2::render {
+namespace tomba::render {
 
 class UnlitModelEmitter {
 public:
   // How the flag byte picks the depth mode.
-  enum class ModeCode {
+  enum class ModeCode : std::uint8_t {
     OneFarTwoNear, // 1 farthest, 2 nearest, anything else average
     ZeroAverage,   // 0 average, 1 farthest, anything else nearest
     LowBits,       // the low 2 bits: 0 average, 2 nearest, 1 and 3 farthest
   };
   // Where the farthest/nearest modes stage the SZ words: per mode at the frame base (farthest) or right
   // after it (nearest), at the frame base for every record, or at the frame base for those two modes only.
-  enum class Staging { PerMode, Always, Unaveraged };
+  enum class Staging : std::uint8_t { PerMode, Always, Unaveraged };
   struct DepthRule {
     ModeCode code;
     std::uint32_t modeMask;
@@ -168,9 +174,9 @@ public:
                             const horizontal_cull::Visibility &visible,
                             const Variant &variant,
                             bool quad);
-  static void registerOverrides();
+  static void registerOverrides(native::NativeOverrideCatalog &natives);
   // The renders of the saved calls, at every entry the emitter is declared at.
-  static void registerStateRenders(Core &core);
+  static void registerStateRenders(psx::present::StateProducerTable &renders, Core &core);
 };
 
-} // namespace tomba2::render
+} // namespace tomba::render

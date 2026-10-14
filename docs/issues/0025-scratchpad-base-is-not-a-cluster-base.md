@@ -1,5 +1,7 @@
 # 0025 — the sound driver's cluster base is `32784 << 16`, and the scratchpad's is NOT the same arithmetic
 
+Features: F-AUDIO.
+
 Found 2026-09-28 during the readability pass over `game/audio/sequencer.cpp`. **Not fixed**: it is a
 naming collision, and fixing a naming collision by picking a winner is exactly the judgement a
 behaviour-preserving pass must not make on its own.
@@ -39,7 +41,7 @@ session.
 
 ## What would close it
 
-- A project-level note in `docs/engine_re.md` stating which guest bases are written as shifted
+- A project-level note in `docs/re-frontier.md` stating which guest bases are written as shifted
   immediates and which are plain addresses, listing every one of them once. That is the same
   "one fact, one home" the readability pass applied within each file, applied across them.
 - A check that refuses a `<< 16` base whose value is not one of the recorded guest `lui` immediates.

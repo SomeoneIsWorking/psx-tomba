@@ -33,8 +33,8 @@
 // produces the sample. FUN_800524B4 and FUN_8005229C themselves stay un-owned (typed runtime address dispatch).
 #include "core.h"
 #include "core/engine/engine.h"
-#include "core/entry/game_ctx.h"
 #include "core/overrides/native_override_catalog.h"
+#include "entry/tomba_session.h"
 #include "guest_call.h"
 
 #define CUR_PREV_BASE 0x800ECF54u   // +0 = cur (u16), +2 = prev (u16)
@@ -48,6 +48,8 @@
 
 // FUN_800788AC — per-frame input-edge fence. See the file header above for the full RE + confidence
 // notes.
+namespace tomba {
+
 void Engine::padEdgeFence() {
   Core *c = this->core;
   uint32_t saved_sp = c->r[29];
@@ -352,7 +354,9 @@ void ov_padFenceTail(Core *c) {
   eng(c).padFenceTail();
 }
 } // namespace
-void pad_edge_fence_install() {
-  tomba::native::declareOverride(0x8005229Cu, "ov_padFenceTail", ov_padFenceTail);
-  tomba::native::declareOverride(0x800788ACu, "ov_padEdgeFence", ov_padEdgeFence);
+void pad_edge_fence_install(native::NativeOverrideCatalog &natives) {
+  natives.declare(0x8005229Cu, "ov_padFenceTail", ov_padFenceTail);
+  natives.declare(0x800788ACu, "ov_padEdgeFence", ov_padEdgeFence);
 }
+
+} // namespace tomba

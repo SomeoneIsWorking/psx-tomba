@@ -31,6 +31,8 @@
 // game/render/node_xform.cpp's `Node` lens documents (sentinel 0x06, childEuler 0x08, frameMatrix
 // 0x18, framePos 0x2C, childScale 0x38). Only the fields the ported leaves touch are named; this
 // record is larger and the rest is not yet established.
+namespace tomba {
+
 class AssemblyChild {
 public:
   AssemblyChild(Core *c, uint32_t at) : mCore(c), mAt(at) {}
@@ -196,3 +198,5 @@ protected:
   Core *mCore;
   uint32_t mAt;
 };
+
+} // namespace tomba

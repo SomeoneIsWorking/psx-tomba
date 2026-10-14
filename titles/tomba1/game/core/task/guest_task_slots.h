@@ -1,7 +1,7 @@
 #pragma once
 
+#include "core.h"
 #include "execution_exit.h"
-#include "r3000.h"
 
 #include <array>
 #include <cstddef>
@@ -106,7 +106,12 @@ private:
     bool contextReady = false;
   };
 
-  void runTaskSlot(Core &core, std::size_t slot, std::uint16_t state, const R3000 &loopContext);
+  struct RunTaskSlotArgs {
+    std::size_t slot;
+    std::uint16_t state;
+    const R3000 &loopContext;
+  };
+  void runTaskSlot(Core &core, const RunTaskSlotArgs &args);
 
   // Takes the EXITED task's saved context explicitly, so the report cannot be called with the frame
   // loop's own registers by mistake. `runTaskSlot` already copied them out of the Core before

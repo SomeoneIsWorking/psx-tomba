@@ -26,9 +26,8 @@
 // node state the still-guest content reads -> content-INTERFACE: gated byte-exact (full
 // RAM+scratchpad A/B vs original guest-body call).
 
-#include "cfg.h"
 #include "core.h"
-#include "core/entry/game_ctx.h"
+#include "entry/tomba_session.h"
 #include "guest_abi.h" // GuestFrame — mirror the guest stack frame (CLAUDE.md)
 #include "guest_call.h"
 #include "object/actor.h" // Actor::boundsCull (FUN_8007778C native)
@@ -37,6 +36,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+namespace tomba {
 
 namespace {
 
@@ -55,11 +56,9 @@ void state1_gate(Core *c, uint32_t obj) {
   uint8_t f = c->mem_r8(obj + 0x28);
   bool submit;
   if (f & 0x80) {
-    if (c->mem_r8(0x800BF816u) == 0) {
-      submit = false; // 0x8004c344: -> skip
-    } else if ((uint32_t)(uint8_t)c->mem_r8(0x800BF817u) != (uint32_t)c->mem_r16s(obj + 0x6a)) {
-      // 0x8004c358: bne compares full 32-bit regs: v1 = zero-ext byte, v0 = sign-ext halfword.
-      submit = false; // 0x8004c358: bne -> skip
+    // 0x8004c344 skips on a clear byte; 0x8004c358's bne compares a zero-extended byte with a sign-extended half.
+    if (c->mem_r8(0x800BF816u) == 0 || (uint32_t)c->mem_r8(0x800BF817u) != (uint32_t)c->mem_r16s(obj + 0x6a)) {
+      submit = false;
     } else {
       c->mem_w8(obj + 1, 1); // 0x8004c364 (delay slot): node[1] = 1
       submit = true;         // falls into 0x80077efc
@@ -263,6 +262,8 @@ state1: {
     c->r[4] = obj;
     psx::cpu::dispatchGuestToReturn0(*c, 0x80119170u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
     goto tail_c74c;
+  default:
+    break;
   }
 }
 
@@ -324,35 +325,35 @@ state2: {
       check_ret = true;
       break; // c7bc
     case 4:
-      eng(c).spawn.dropScoreGem(obj, 100);
+      eng(c).spawn.dropScoreGem({.sourceNode = obj, .value = 100});
       check_ret = false;
       break; // c7d0 FUN_8004B3F4 (native)
     case 5:
-      eng(c).spawn.dropScoreGem(obj, 200);
+      eng(c).spawn.dropScoreGem({.sourceNode = obj, .value = 200});
       check_ret = false;
       break; // c7e4
     case 6:
-      eng(c).spawn.dropScoreGem(obj, 500);
+      eng(c).spawn.dropScoreGem({.sourceNode = obj, .value = 500});
       check_ret = false;
       break; // c7f8
     case 7:
-      eng(c).spawn.dropScoreGem(obj, 1000);
+      eng(c).spawn.dropScoreGem({.sourceNode = obj, .value = 1000});
       check_ret = false;
       break; // c80c
     case 8:
-      eng(c).spawn.dropScoreGem(obj, 5000);
+      eng(c).spawn.dropScoreGem({.sourceNode = obj, .value = 5000});
       check_ret = false;
       break; // c820
     case 9:
-      eng(c).spawn.dropScoreGem(obj, 10000);
+      eng(c).spawn.dropScoreGem({.sourceNode = obj, .value = 10000});
       check_ret = false;
       break; // c834
     case 10:
-      eng(c).spawn.dropScoreGem(obj, 20000);
+      eng(c).spawn.dropScoreGem({.sourceNode = obj, .value = 20000});
       check_ret = false;
       break; // c848
     case 11:
-      eng(c).spawn.dropScoreGem(obj, 100000);
+      eng(c).spawn.dropScoreGem({.sourceNode = obj, .value = 100000});
       check_ret = false;
       break; // c85c FUN_8004B3F4 (native)
     case 15:
@@ -388,11 +389,11 @@ state2: {
 
 state2_n5_1: // @0x8004c8c8 (node[5] == 1)
 {
-  uint8_t nv = 3;                            // GOTCHA: v0=3 set in branch delay slots -> node[4]=3
-  if (c->mem_r16s(obj + 0x60) != 0) {        // 0x8004c8c8: lh node[0x60]; beq->c910 (delay v0=3)
-    uint16_t flags = c->mem_r16(obj + 0x64); // 0x8004c8d8: lhu node[0x64]
-    int16_t arg = c->mem_r16s(obj + 0x62);   // node[0x62] (s16)
-    if (flags & 0x4) {                       // 0x8004c8e4: bne -> c900
+  uint8_t nv = 3;                                  // GOTCHA: v0=3 set in branch delay slots -> node[4]=3
+  if (c->mem_r16s(obj + 0x60) != 0) {              // 0x8004c8c8: lh node[0x60]; beq->c910 (delay v0=3)
+    uint16_t flags = c->mem_r16(obj + 0x64);       // 0x8004c8d8: lhu node[0x64]
+    int16_t arg = (int16_t)c->mem_r16(obj + 0x62); // node[0x62] (s16)
+    if (flags & 0x4) {                             // 0x8004c8e4: bne -> c900
       c->r[4] = (uint32_t)(int32_t)arg;
       c->r[5] = 1;
       psx::cpu::dispatchGuestToReturn0(
@@ -408,3 +409,5 @@ state2_n5_1: // @0x8004c8c8 (node[5] == 1)
   return;                 // -> EPI
 }
 }
+
+} // namespace tomba

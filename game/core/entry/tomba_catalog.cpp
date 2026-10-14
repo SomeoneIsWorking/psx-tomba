@@ -1,8 +1,5 @@
 #include "entry/tomba_catalog.h"
 
-#include "entry/tomba_identity.h"
-#include "tomba1_identity.h"
-
 #include <array>
 #include <cstdlib>
 #include <lucent/log.h>
@@ -12,8 +9,6 @@ namespace {
 
 constexpr std::size_t kTomba1 = 0;
 constexpr std::size_t kTomba2 = 1;
-
-const std::array<psx::host::TitleIdentity, 2> kIdentities{tomba1::identity(), title::bootStubIdentity()};
 
 } // namespace
 
@@ -26,10 +21,10 @@ std::filesystem::path TombaCatalog::provisioningRoot() const {
 }
 
 std::span<const psx::host::TitleIdentity> TombaCatalog::titles() const {
-  return kIdentities;
+  return identities_;
 }
 
-GameRuntime &TombaCatalog::runtime(std::size_t index) const {
+psx::game::GameRuntime &TombaCatalog::runtime(std::size_t index) const {
   switch (index) {
   case kTomba1:
     return tomba1_;

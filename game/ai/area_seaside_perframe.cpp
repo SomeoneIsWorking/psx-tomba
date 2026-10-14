@@ -36,12 +36,14 @@
 // Ghidra decomp scratch/decomp/seaside_perframe_113c5c.c.
 
 #include "behaviors.h"
-#include "cfg.h"
 #include "core.h"
 #include "core/engine/engine.h"
-#include "core/entry/game_ctx.h"
+#include "entry/tomba_session.h"
 #include "guest_call.h"
 #include "player/actor_tomba.h" // eng(c).actorTomba.interactWalk (FUN_80022760)
+#include <lucent/log.h>
+
+namespace tomba {
 
 namespace {
 
@@ -61,12 +63,6 @@ constexpr uint32_t LEAF_AUX_ITEM_112A60 = 0x80112A60u;    // per-aux-item leaf (
 constexpr uint32_t LEAF_POST_112C0C = 0x80112C0Cu;        // fixed post 1/2
 constexpr uint32_t LEAF_POST_112F14 = 0x80112F14u;        // fixed post 2/2
 constexpr uint32_t LEAF_G_POSTFRAME_10E904 = 0x8010E904u; // Tomba post-frame tick on G
-
-// Dispatch a G-arg sub-leaf.
-inline void gLeaf(Core *c, uint32_t leaf) {
-  c->r[4] = G;
-  psx::cpu::dispatchGuestToReturn0(*c, leaf, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
-}
 
 // Walk the aux render list, dispatching FUN_80112A60(item) per item type-gate.
 // Returns after the counter reaches 0 or an item's dispatch decides not to continue.
@@ -124,42 +120,7 @@ void Behaviors::areaSeasidePerframe(Core *c) {
   // sinking under Tomba's weight); verified against the instruction stream, not the decompiler, which
   // rendered the operand as a pointer comparison.
   if (runMode2Tick && c->mem_r32(0x800E7FD8u) < 2u) {
-    gLeaf(c, LEAF_G_MODE2_1334C); // mode-2 sub-tick (gated)
-  }
-
-  // `cullq` — sample the CONTACT-STAMP GATE at the only phase where it means anything. FUN_80113700
-  // (LEAF_TRIO_113700) is the contact stamper, and its whole body is `if (*(u8)0x1F800144 != 0)` —
-  // queue A's count. A frame-boundary RAM dump cannot answer whether that gate is open: the scratchpad
-  // is reused outside the render window, so an empty queue there is indistinguishable from "filled and
-  // consumed inside it". Sampling HERE, immediately before the dispatch, is what distinguishes them.
-  // Also grabs Cull::decide's own queue-assignment gate (0x1F800080) and the other two queue counts.
-  if (cfg_dbg("cullq")) {
-    // Also walk the stamper's OUTER list (head at *(0x800F2738), chained by +0x24) and report whether
-    // a given object is on it — FUN_80113700 only stamps objects it actually visits, and it skips any
-    // whose +0x2b is already non-zero. PSXPORT_CULLQ_OBJ=<hex> names the object to look for.
-    uint32_t want = (uint32_t)cfg_int("PSXPORT_CULLQ_OBJ", 0);
-    uint32_t head = c->mem_r32(0x800F2738u), node = head;
-    int len = 0, hit = -1;
-    while (node >= 0x80000000u && node < 0x80200000u && len < 256) {
-      if (want && node == want) {
-        hit = len;
-      }
-      node = c->mem_r32(node + 0x24u);
-      len++;
-      if (node == head) {
-        break; // defensive: cyclic chain
-      }
-    }
-    cfg_logf("cullq",
-             "pre-trio: qA=%u qB=%u qC=%u gate=%08X mode=%u outer{head=%08X len=%d idx=%d}",
-             c->mem_r8(0x1F800144u),
-             c->mem_r8(0x1F800150u),
-             c->mem_r8(0x1F80015Cu),
-             c->mem_r32(0x1F800080u),
-             mode,
-             head,
-             len,
-             hit);
+    psx::cpu::callGuestNow(*c, "area_seaside_perframe", LEAF_G_MODE2_1334C, G); // mode-2 sub-tick (gated)
   }
 
   // Fixed mid-update trio (fires in every mode 0/2/6 + default's fall-through).
@@ -177,3 +138,5 @@ void Behaviors::areaSeasidePerframe(Core *c) {
   psx::cpu::dispatchGuestToReturn0(*c, LEAF_POST_112F14, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
   eng(c).actorTomba.postFrameWaterCheck(); // native FUN_8010E904 (Tomba post-frame water/sea)
 }
+
+} // namespace tomba

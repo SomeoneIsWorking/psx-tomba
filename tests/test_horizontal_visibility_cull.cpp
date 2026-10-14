@@ -31,13 +31,13 @@
 #include <cstdint>
 #include <cstdio>
 
-using tomba2::horizontal_cull::Domain;
-using tomba2::horizontal_cull::insideAxis;
-using tomba2::horizontal_cull::kGuestFrameHeight;
-using tomba2::horizontal_cull::kGuestFrameWidth;
-using tomba2::horizontal_cull::kQuadCorners;
-using tomba2::horizontal_cull::kTriangleCorners;
-using tomba2::horizontal_cull::Visibility;
+using tomba::horizontal_cull::Domain;
+using tomba::horizontal_cull::insideAxis;
+using tomba::horizontal_cull::kGuestFrameHeight;
+using tomba::horizontal_cull::kGuestFrameWidth;
+using tomba::horizontal_cull::kQuadCorners;
+using tomba::horizontal_cull::kTriangleCorners;
+using tomba::horizontal_cull::Visibility;
 
 namespace {
 
@@ -83,9 +83,15 @@ struct Sweep {
   }
 };
 
+struct RetailKeepsArgs {
+  const std::uint32_t *xs;
+  const std::uint32_t *sy;
+  int count;
+};
 // THE RETAIL PREDICATE, transcribed independently of the owner: `lhu` the packed SXY word, `sltiu` it
 // against the literal, one compare per corner, stop at the first corner that passes.
-bool retailKeeps(const std::uint32_t *xs, const std::uint32_t *sy, int count) {
+bool retailKeeps(const RetailKeepsArgs &args) {
+  auto [xs, sy, count] = args;
   bool anyX = false;
   for (int i = 0; i < count && !anyX; i++) {
     anyX = xs[i] < 320u;
@@ -114,7 +120,14 @@ FlatCorners allCorners(std::uint32_t v) {
   return FlatCorners{{v, v, v, v}};
 }
 
-Quad quadAt(int x0, int y0, int x1, int y1) {
+struct QuadAtArgs {
+  int x0;
+  int y0;
+  int x1;
+  int y1;
+};
+Quad quadAt(const QuadAtArgs &args) {
+  auto [x0, y0, x1, y1] = args;
   Quad q;
   q.x[0] = (std::uint32_t)x0;
   q.y[0] = (std::uint32_t)y0;
@@ -132,7 +145,7 @@ Quad quadAt(int x0, int y0, int x1, int y1) {
 // compare is there to catch. Every combination of two X values and two Y values, so all four
 // OR-gate/AND-gate interactions are exercised, on both axes at once.
 void fourByThreeIsTheRetailPredicateOverTheDomain() {
-  const Visibility guest{0, kGuestFrameWidth};
+  const Visibility guest{{.left = 0, .right = kGuestFrameWidth}};
   check(guest.isGuestFrame(), "320 is the guest frame");
   const int xs[] = {0, 1, 2, 318, 319, 320, 321, 400, 0x8000, 0xFFFF};
   const int ys[] = {0, 1, 2, 238, 239, 240, 241, 400, 0x8000, 0xFFFF};
@@ -142,9 +155,9 @@ void fourByThreeIsTheRetailPredicateOverTheDomain() {
     for (int b : xs) {
       for (int c : ys) {
         for (int d : ys) {
-          const Quad q = quadAt(a, c, b, d);
+          const Quad q = quadAt({.x0 = a, .y0 = c, .x1 = b, .y1 = d});
           const bool got = guest.keeps(q.x, q.y, kQuadCorners, Domain::Packed16);
-          const bool want = retailKeeps(q.x, q.y, kQuadCorners);
+          const bool want = retailKeeps({.xs = q.x, .sy = q.y, .count = kQuadCorners});
           sweep.compare(got, want);
           if (got != want && shown < kMaxReported) {
             std::printf("  divergence x=(%d,%d) y=(%d,%d): owner %d, retail %d\n", a, b, c, d, (int)got, (int)want);
@@ -159,7 +172,7 @@ void fourByThreeIsTheRetailPredicateOverTheDomain() {
 
 // The same sweep for the triangle form, which the census also found (3 corners, not 4).
 void triangleFormIsTheRetailPredicate() {
-  const Visibility guest{0, kGuestFrameWidth};
+  const Visibility guest{{.left = 0, .right = kGuestFrameWidth}};
   const int xs[] = {0, 1, 319, 320, 321, 0x8000, 0xFFFF};
   const int ys[] = {0, 239, 240, 241, 0x8000, 0xFFFF};
   Sweep sweep;
@@ -168,7 +181,8 @@ void triangleFormIsTheRetailPredicate() {
       for (int c : ys) {
         const std::uint32_t x[3] = {(std::uint32_t)a, (std::uint32_t)b, (std::uint32_t)a};
         const std::uint32_t y[3] = {(std::uint32_t)c, (std::uint32_t)c, (std::uint32_t)c};
-        sweep.compare(guest.keeps(x, y, kTriangleCorners, Domain::Packed16), retailKeeps(x, y, kTriangleCorners));
+        sweep.compare(guest.keeps(x, y, kTriangleCorners, Domain::Packed16),
+                      retailKeeps({.xs = x, .sy = y, .count = kTriangleCorners}));
       }
     }
   }
@@ -178,7 +192,7 @@ void triangleFormIsTheRetailPredicate() {
 // BOUNDARY CASES, both sides, named. Each is a real edge in the recovered predicate, and each is where
 // a signed compare, an off-by-one, or an AND/OR swap shows up as a wrong row of pixels.
 void everyBoundaryOnBothSides() {
-  const Visibility guest{0, kGuestFrameWidth};
+  const Visibility guest{{.left = 0, .right = kGuestFrameWidth}};
 
   const std::uint32_t insideY[kQuadCorners] = {10, 10, 10, 10};
   const std::uint32_t insideX[kQuadCorners] = {10, 10, 10, 10};
@@ -204,10 +218,10 @@ void everyBoundaryOnBothSides() {
   const FlatCorners wrapped = allCorners(0x8000);
   check(!guest.keepsX(wrapped.v, kQuadCorners, Domain::Packed16), "a negative SX fails the unsigned test");
   check(!guest.keepsY(wrapped.v, kQuadCorners, Domain::Packed16), "a negative SY fails the unsigned test");
-  check(!insideAxis(0x8000u, 320, Domain::Packed16), "insideAxis rejects a wrapped coordinate");
-  check(!insideAxis(0xFFFFu, 320, Domain::Packed16), "insideAxis rejects the largest wrapped value");
-  check(insideAxis(319u, 320, Domain::Packed16), "insideAxis accepts the last inside pixel");
-  check(!insideAxis(320u, 320, Domain::Packed16), "insideAxis rejects the first outside pixel");
+  check(!insideAxis(0x8000u, Domain::Packed16, 320), "insideAxis rejects a wrapped coordinate");
+  check(!insideAxis(0xFFFFu, Domain::Packed16, 320), "insideAxis rejects the largest wrapped value");
+  check(insideAxis(319u, Domain::Packed16, 320), "insideAxis accepts the last inside pixel");
+  check(!insideAxis(320u, Domain::Packed16, 320), "insideAxis rejects the first outside pixel");
 
   // THE OR OVER CORNERS. A quad straddling the right edge survives on its left corners; a quad wholly
   // past it does not. Collapsing the gate to a bounding box would drop the straddler.
@@ -231,7 +245,7 @@ void everyBoundaryOnBothSides() {
 // THE WIDENED BEHAVIOUR. The bound moves; nothing else does. Every case below is a primitive retail
 // DROPS that a widened run must KEEP, and the widened bound alone is the reason.
 void wideningAdmitsExactlyTheMargin() {
-  const Visibility wide{0, 428};
+  const Visibility wide{{.left = 0, .right = 428}};
   check(!wide.isGuestFrame(), "428 is not the guest frame");
   const std::uint32_t insideY[kQuadCorners] = {10, 10, 10, 10};
   const std::uint32_t insideX[kQuadCorners] = {10, 10, 10, 10};
@@ -245,7 +259,7 @@ void wideningAdmitsExactlyTheMargin() {
 
   // THE SAME primitive at 4:3 is dropped, so the widening is what admits it. This pair is what makes
   // the widened case falsifiable rather than merely different.
-  const Visibility guest{0, kGuestFrameWidth};
+  const Visibility guest{{.left = 0, .right = kGuestFrameWidth}};
   check(!guest.keeps(atWideEdge.v, insideY, kQuadCorners, Domain::Packed16), "the same geometry is DROPPED at 4:3");
 
   // WIDENING MUST NOT MOVE THE VERTICAL BOUND. 240 is still the bottom edge, because widening OFX at
@@ -263,7 +277,7 @@ void wideningAdmitsExactlyTheMargin() {
   check(guest.keepsX(at4x3Edge.v, kQuadCorners, Domain::Packed16), "column 319 is on screen at 4:3");
 
   // A 21:9 canvas, so the owner is shown to have no notion of a particular ratio.
-  const Visibility ultra{0, 569};
+  const Visibility ultra{{.left = 0, .right = 569}};
   check(ultra.keepsX(allCorners(568).v, kQuadCorners, Domain::Packed16), "a 21:9 canvas admits column 568");
   check(!ultra.keepsX(allCorners(569).v, kQuadCorners, Domain::Packed16), "and not column 569");
 }
@@ -277,25 +291,25 @@ void fixed16Point16DomainIsTheSamePredicate() {
   for (int p : packed) {
     const std::uint32_t value = (std::uint32_t)p;
     const std::uint32_t asFixed = value << shift;
-    check(insideAxis(asFixed, kGuestFrameWidth, Domain::Fixed16_16) ==
-              insideAxis(value, kGuestFrameWidth, Domain::Packed16),
+    check(insideAxis(asFixed, Domain::Fixed16_16, kGuestFrameWidth) ==
+              insideAxis(value, Domain::Packed16, kGuestFrameWidth),
           "the 16.16 domain agrees with the packed one for a whole 16-bit value");
   }
   // A value with a non-zero low half: 319.5 must still be INSIDE, which a truncation would get wrong.
   const std::uint32_t half = (319u << 16) | 0x8000u;
-  check(insideAxis(half, kGuestFrameWidth, Domain::Fixed16_16), "319.5 is still inside 320");
-  check(!insideAxis(320u << 16, kGuestFrameWidth, Domain::Fixed16_16), "320.0 is not");
-  check(!insideAxis(320u << 16 | 0x8000u, kGuestFrameWidth, Domain::Fixed16_16), "320.5 is not");
+  check(insideAxis(half, Domain::Fixed16_16, kGuestFrameWidth), "319.5 is still inside 320");
+  check(!insideAxis(320u << 16, Domain::Fixed16_16, kGuestFrameWidth), "320.0 is not");
+  check(!insideAxis(320u << 16 | 0x8000u, Domain::Fixed16_16, kGuestFrameWidth), "320.5 is not");
   // The shift must not become an off-by-16 in either direction.
   const int around[] = {318, 319, 320, 321};
   for (int p : around) {
     const std::uint32_t value = (std::uint32_t)p << shift;
-    check(insideAxis(value, kGuestFrameWidth, Domain::Fixed16_16) == (p < 320),
+    check(insideAxis(value, Domain::Fixed16_16, kGuestFrameWidth) == (p < 320),
           "the 16.16 boundary is the 16-bit boundary at the same value");
   }
   // A 16.16 coordinate past 16 bits must still be rejected, which is the A0L case's whole point: the
   // raw GTE register is 32-bit and a far-off-screen vertex can exceed 0xFFFF<<16.
-  check(!insideAxis(0xFFFF0000u, kGuestFrameWidth, Domain::Fixed16_16), "a 16.16 coordinate beyond 16 bits is outside");
+  check(!insideAxis(0xFFFF0000u, Domain::Fixed16_16, kGuestFrameWidth), "a 16.16 coordinate beyond 16 bits is outside");
 }
 
 // THE NAMED CONSTANTS. Editing either changes every 4:3 capture and oracle comparison, so the edit has
@@ -315,8 +329,8 @@ void theBoundIsAFunctionOfTheCanvasNotAConstant() {
   int disagreements = 0;
   int examined = 0;
   for (int width = kGuestFrameWidth; width <= 600; width += 1) {
-    const Visibility narrow{0, width};
-    const Visibility wider{0, width + 1};
+    const Visibility narrow{{.left = 0, .right = width}};
+    const Visibility wider{{.left = 0, .right = width + 1}};
     for (int x = 0; x <= 620; x += 1) {
       const std::uint32_t xs[kQuadCorners] = {(std::uint32_t)x, (std::uint32_t)x, (std::uint32_t)x, (std::uint32_t)x};
       const bool a = narrow.keepsX(xs, kQuadCorners, Domain::Packed16);
@@ -341,15 +355,15 @@ void theBoundIsAFunctionOfTheCanvasNotAConstant() {
 // part this owner owns. It is not a frame-time count of real objects in a real scene -- that would need
 // the product running, and a census of synthetic corners does not become one by being exhaustive.
 void cullCensusAtBothWidths() {
-  const Visibility guest{0, kGuestFrameWidth};
-  const Visibility wide{0, 428};
+  const Visibility guest{{.left = 0, .right = kGuestFrameWidth}};
+  const Visibility wide{{.left = 0, .right = 428}};
   int total = 0;
   int kept43 = 0;
   int keptWide = 0;
   int newlyAdmitted = 0;
   int newlyLost = 0;
   for (int x = 0; x <= 700; x++) {
-    const Quad q = quadAt(x, 100, x, 100);
+    const Quad q = quadAt({.x0 = x, .y0 = 100, .x1 = x, .y1 = 100});
     total++;
     const bool a = guest.keeps(q.x, q.y, kQuadCorners, Domain::Packed16);
     const bool b = wide.keeps(q.x, q.y, kQuadCorners, Domain::Packed16);
@@ -379,7 +393,7 @@ void cullCensusAtBothWidths() {
   int rows43 = 0;
   int rowsWide = 0;
   for (int y = 0; y <= 400; y++) {
-    const Quad q = quadAt(10, y, 10, y);
+    const Quad q = quadAt({.x0 = 10, .y0 = y, .x1 = 10, .y1 = y});
     rows43 += guest.keeps(q.x, q.y, kQuadCorners, Domain::Packed16) ? 1 : 0;
     rowsWide += wide.keeps(q.x, q.y, kQuadCorners, Domain::Packed16) ? 1 : 0;
   }
@@ -390,15 +404,15 @@ void cullCensusAtBothWidths() {
 // A 4:3 owner and a widened owner must be distinguishable by their own state, so a caller cannot pass
 // one where the other is required without the code saying so.
 void theFrameStateIsReadable() {
-  check(Visibility{0, kGuestFrameWidth}.isGuestFrame(), "a 320 owner reports the guest frame");
-  check(!Visibility{0, kGuestFrameWidth + 1}.isGuestFrame(), "a 321 owner does not");
-  check(Visibility{0, 569}.right() == 569, "the bound is readable");
+  check(Visibility{{.left = 0, .right = kGuestFrameWidth}}.isGuestFrame(), "a 320 owner reports the guest frame");
+  check(!Visibility{{.left = 0, .right = kGuestFrameWidth + 1}}.isGuestFrame(), "a 321 owner does not");
+  check(Visibility{{.left = 0, .right = 569}}.right() == 569, "the bound is readable");
 }
 
 // The record path's 16:9 canvas is [-54, 374): a corner in either margin keeps its primitive, one
 // past either margin or wrapped far negative does not, in both domains.
 void recordCanvasKeepsBothMargins() {
-  const Visibility canvas{-54, kGuestFrameWidth + 54};
+  const Visibility canvas{{.left = -54, .right = kGuestFrameWidth + 54}};
   check(!canvas.isGuestFrame(), "the canvas window is not the guest frame");
   const auto packed = [](int x) {
     return static_cast<std::uint32_t>(x) & 0xFFFFu;
@@ -413,7 +427,7 @@ void recordCanvasKeepsBothMargins() {
     check(canvas.keepsX(&p, 1, Domain::Packed16) == (entry[1] != 0), "packed corner against the canvas");
     check(canvas.keepsX(&f, 1, Domain::Fixed16_16) == (entry[1] != 0), "16.16 corner against the canvas");
   }
-  const Visibility guest{0, kGuestFrameWidth};
+  const Visibility guest{{.left = 0, .right = kGuestFrameWidth}};
   for (int x = -1024; x < 1024; x++) {
     const std::uint32_t p = packed(x);
     const bool inGuest = guest.keepsX(&p, 1, Domain::Packed16);

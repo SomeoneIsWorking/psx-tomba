@@ -14,7 +14,7 @@
 #include <array>
 #include <memory>
 
-namespace tomba2::render {
+namespace tomba::render {
 namespace {
 
 using horizontal_cull::Visibility;
@@ -101,7 +101,7 @@ swayOffset(const psx::present::EmitMemory &memory, bool cosine, std::uint32_t re
     value = cosine ? trig.rcos(angle) : trig.rsin(angle);
   } else {
     value = static_cast<std::int32_t>(tomba::guest::dispatchJalToReturn(
-        core, cosine ? kRcos : kRsin, returnAddress, static_cast<std::uint32_t>(angle)));
+        core, {.target = cosine ? kRcos : kRsin, .returnAddress = returnAddress}, static_cast<std::uint32_t>(angle)));
   }
   return value >> kSwayShift;
 }
@@ -146,7 +146,8 @@ void cueRandom(const psx::present::EmitMemory &memory, const ModelPacket &packet
       &core, static_cast<std::int32_t>(memory.mem_r32(kRandomSeed)), static_cast<std::int32_t>(kRandomMultiplier));
   const std::uint32_t seed = core.lo + kRandomIncrement;
   memory.mem_w32(kRandomSeed, seed);
-  packet.shade(corner, stagedDepth(memory, corner) / 4 + static_cast<std::int32_t>(seed >> 22));
+  packet.shade(
+      {.corner = corner, .intensity = stagedDepth(memory, corner) / 4 + static_cast<std::int32_t>(seed >> 22)});
 }
 
 // Every cue body cues its corners the same way; false when the record is hidden.
@@ -173,8 +174,10 @@ bool place(const psx::present::EmitMemory &memory,
            const ModelPacket &packet,
            const Visibility &visible,
            bool hides) {
-  const bool projected = shape.list == ModelList::Gt4 ? packet.projectGt4(kColourCodeMask, kColourMask, visible)
-                                                      : packet.projectGt3(kColourMask, visible);
+  const bool projected =
+      shape.list == ModelList::Gt4
+          ? packet.projectGt4({.firstColourMask = kColourCodeMask, .colourMask = kColourMask, .visible = visible})
+          : packet.projectGt3(kColourMask, visible);
   if (!projected) {
     return false;
   }
@@ -253,7 +256,7 @@ std::uint32_t cueGt3Body(const psx::present::EmitMemory &memory, const ListCall 
 }
 
 std::uint32_t cueGt4Body(const psx::present::EmitMemory &memory, const ListCall &call, const Visibility &visible) {
-  gte_write_data(psx::gte::kRgbc, kCueGt4Rgbc);
+  memory.core().gte().writeData(psx::gte::kRgbc, kCueGt4Rgbc);
   return emitModelList(memory, call, kModelGt4, kOverlayStage, [&](const ModelPacket &packet) {
     if (!place(memory, kModelGt4, packet, visible, false)) {
       return false;
@@ -353,21 +356,18 @@ template <std::uint32_t Entry, void (*Body)(Core &, const Visibility &)> void em
 
 } // namespace
 
-void SwayModelEmitter::registerOverrides() {
-  tomba::native::declareOverlayOverride(
-      "A01", kSwayGt3, "SwayModelEmitter::swayGt3", &emitAt<kSwayGt3, &SwayModelEmitter::swayGt3>);
-  tomba::native::declareOverlayOverride(
+void SwayModelEmitter::registerOverrides(native::NativeOverrideCatalog &natives) {
+  natives.declareOverlay("A01", kSwayGt3, "SwayModelEmitter::swayGt3", &emitAt<kSwayGt3, &SwayModelEmitter::swayGt3>);
+  natives.declareOverlay(
       "A01", kScrollGt4, "SwayModelEmitter::scrollGt4", &emitAt<kScrollGt4, &SwayModelEmitter::scrollGt4>);
-  tomba::native::declareOverlayOverride(
-      "A01", kCueGt3, "SwayModelEmitter::cueGt3", &emitAt<kCueGt3, &SwayModelEmitter::cueGt3>);
-  tomba::native::declareOverlayOverride(
-      "A01", kCueGt4, "SwayModelEmitter::cueGt4", &emitAt<kCueGt4, &SwayModelEmitter::cueGt4>);
+  natives.declareOverlay("A01", kCueGt3, "SwayModelEmitter::cueGt3", &emitAt<kCueGt3, &SwayModelEmitter::cueGt3>);
+  natives.declareOverlay("A01", kCueGt4, "SwayModelEmitter::cueGt4", &emitAt<kCueGt4, &SwayModelEmitter::cueGt4>);
 }
 
-void SwayModelEmitter::registerStateRenders(Core &core) {
+void SwayModelEmitter::registerStateRenders(psx::present::StateProducerTable &renders, Core &core) {
   for (const std::uint32_t entry : {kSwayGt3, kScrollGt4, kCueGt3, kCueGt4}) {
-    core.stateProducers.install(entry, std::make_unique<SwayStateProducer>(core));
+    renders.install(entry, std::make_unique<SwayStateProducer>(core));
   }
 }
 
-} // namespace tomba2::render
+} // namespace tomba::render

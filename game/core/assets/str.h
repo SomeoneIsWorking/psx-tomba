@@ -4,12 +4,16 @@
 #include <stdint.h>
 class Core;
 
+namespace tomba::native {
+class NativeOverrideCatalog;
+} // namespace tomba::native
+
 namespace tomba {
 
 class Str {
 public:
   // Register the resident string leaves with the title's image-aware catalog.
-  static void registerOverrides();
+  static void registerOverrides(native::NativeOverrideCatalog &natives);
 
   // length(c, addr): FUN_80079528 — plain NUL-terminated C-string length. One of the two hottest
   //   unowned leaves in the game (~4235 dispatches / 600 frames of free-roam) — a generic strlen()
@@ -22,13 +26,18 @@ public:
   //   point).
   static uint32_t length(Core *c, uint32_t addr);
 
+  struct CopyBytesArgs {
+    uint32_t dst;
+    uint32_t src;
+    int32_t n;
+  };
   // copyBytes(c, dst, src, n): FUN_8009A3E0 — libc memcpy with a NULL-DESTINATION GUARD and a
   //   SIGNED length. Long known as "the memcpy-like out-of-band primitive" and left on the
   //   substrate (docs/engine_re.md, wide_re_gpu_putdrawenv.cpp); reading the 15-instruction body
   //   settles it. Returns dst, except dst == 0 which returns 0 without touching anything. n <= 0
   //   copies nothing and still returns dst — the guard is `> 0` on a SIGNED compare, so a negative
   //   length is a no-op rather than a 4-billion-byte copy.
-  static uint32_t copyBytes(Core *c, uint32_t dst, uint32_t src, int32_t n);
+  static uint32_t copyBytes(Core *c, const CopyBytesArgs &args);
 
   // FUN_0x8009A640 — byte compare, the sibling of copyBytes above. Guest-ABI entry point.
   static void compareBytes(Core *c);

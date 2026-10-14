@@ -28,8 +28,7 @@ add_library(
   "${TOMBA1_ROOT}/game/core/frame/stream_field_turn.cpp"
   "${TOMBA1_ROOT}/game/core/boot/sync_native.cpp"
   "${TOMBA1_ROOT}/game/core/entry/tomba1_runtime.cpp"
-  "${TOMBA1_ROOT}/game/core/entry/tomba1_identity.cpp"
-  "${TOMBA1_ROOT}/game/render/widescreen_projection.cpp")
+  "${TOMBA1_ROOT}/game/core/entry/tomba1_identity.cpp")
 set_target_properties(tomba1_runtime PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON)
 # The catalog sees only entry/ (Tomba1Runtime, the identity); every other concept directory is
 # private to the library and to Tomba! 1's own tests.
@@ -37,8 +36,7 @@ set(TOMBA1_PRIVATE_INCLUDE_DIRS
     "${TOMBA1_ROOT}/game/core/state"
     "${TOMBA1_ROOT}/game/core/frame"
     "${TOMBA1_ROOT}/game/core/boot"
-    "${TOMBA1_ROOT}/game/core/task"
-    "${TOMBA1_ROOT}/game/render")
+    "${TOMBA1_ROOT}/game/core/task")
 target_include_directories(tomba1_runtime PUBLIC "${TOMBA1_ROOT}/game/core/entry"
                                           PRIVATE ${TOMBA1_PRIVATE_INCLUDE_DIRS})
 target_link_libraries(tomba1_runtime PUBLIC psxport)
@@ -69,18 +67,9 @@ if(BUILD_TESTING)
     "${TOMBA1_ROOT}/tests/test_stream_field_turn.cpp")
   set_target_properties(
     tomba1_stream_field_turn_test PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON)
-  target_link_libraries(tomba1_stream_field_turn_test PRIVATE tomba1_runtime)
+  target_link_libraries(tomba1_stream_field_turn_test PRIVATE tomba1_runtime psxport_test_support)
   target_include_directories(tomba1_stream_field_turn_test PRIVATE ${TOMBA1_PRIVATE_INCLUDE_DIRS})
   add_test(NAME tomba1_stream_field_turn COMMAND tomba1_stream_field_turn_test)
-
-  add_executable(
-    tomba1_widescreen_projection_test
-    "${TOMBA1_ROOT}/tests/test_widescreen_projection.cpp")
-  set_target_properties(
-    tomba1_widescreen_projection_test PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON)
-  target_link_libraries(tomba1_widescreen_projection_test PRIVATE tomba1_runtime)
-  target_include_directories(tomba1_widescreen_projection_test PRIVATE ${TOMBA1_PRIVATE_INCLUDE_DIRS})
-  add_test(NAME tomba1_widescreen_projection COMMAND tomba1_widescreen_projection_test)
 
   # The bounded multi-field resume, and the guest spin it exists to refuse (docs/issues/0007). Both
   # halves run real guest code on the real dynarec over real display-field budgets, so the test needs
@@ -92,7 +81,7 @@ if(BUILD_TESTING)
     "${TOMBA1_ROOT}/tests/test_guest_task_budget_resume.cpp")
   set_target_properties(
     tomba1_guest_task_budget_resume_test PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON)
-  target_link_libraries(tomba1_guest_task_budget_resume_test PRIVATE tomba1_runtime)
+  target_link_libraries(tomba1_guest_task_budget_resume_test PRIVATE tomba1_runtime psxport_test_support)
   target_include_directories(tomba1_guest_task_budget_resume_test PRIVATE ${TOMBA1_PRIVATE_INCLUDE_DIRS})
   add_test(NAME tomba1_guest_task_budget_resume COMMAND tomba1_guest_task_budget_resume_test)
 endif()

@@ -16,6 +16,8 @@
 #include <cstdint>
 class Core;
 
+namespace tomba {
+
 class Array8Dispatch {
 public:
   Core *core = nullptr;
@@ -29,3 +31,5 @@ public:
   // typed runtime address dispatch(0x80026368).
   void tick();
 };
+
+} // namespace tomba

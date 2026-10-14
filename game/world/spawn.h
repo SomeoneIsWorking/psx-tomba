@@ -19,6 +19,12 @@ struct Core;
 
 // A pool free-list descriptor: the guest address of the free-list HEAD pointer (u32) and of the free
 // COUNT byte (u8). Used by the spawn variants + the despawn free-push.
+namespace tomba::native {
+class NativeOverrideCatalog;
+} // namespace tomba::native
+
+namespace tomba {
+
 struct PoolDesc {
   uint32_t free_head, cnt;
 };
@@ -27,29 +33,47 @@ class Spawn {
 public:
   Core *core = nullptr;
 
+  struct DispatchArgs {
+    uint32_t cls_in;
+    uint32_t type_in;
+    uint32_t list;
+  };
   // dispatch(cls, type, list): FUN_8007A980 per-type spawn dispatcher. cls picks the per-type spawn
   //   VARIANT; type and list are the object's type byte + destination linked-list. Returns node ptr
   //   (0 on out-of-range cls, or if the pool is empty).
-  uint32_t dispatch(uint32_t cls, uint32_t type, uint32_t list);
+  uint32_t dispatch(const DispatchArgs &args);
 
   // despawn(node): FUN_8007A624 — unlink node from its live list and return it to the free pool. The
   //   live-wiring entry the per-object AI behavior handlers use in place of `typed runtime address dispatch(c,
   //   0x8007A624u)` where their control flow is already native (PC calls PC for what it owns).
   void despawn(uint32_t node);
 
+  struct SpawnAndInitArgs {
+    uint32_t a0;
+    uint32_t posSrc;
+    uint32_t a2;
+  };
   // spawnAndInit(a0, posSrc, a2): FUN_8003116C — pool-0 spawn (cls=0/type=6/list=1) + optional
   //   position seed from `posSrc` + heading `a2`, then a PSX per-object init (FUN_80028E10) run via
   //   typed runtime address dispatch. Returns node ptr (0 on pool-empty).
-  uint32_t spawnAndInit(uint32_t a0, uint32_t posSrc, uint32_t a2);
+  uint32_t spawnAndInit(const SpawnAndInitArgs &args);
 
+  struct SceneEntityArgs {
+    uint16_t sceneId;
+    uint8_t subtype;
+  };
   // sceneEntity(sceneId, subtype): FUN_8007E110 — allocate a SCENE-ENTITY node (class-3 tail-insert
   //   into active list 1 via the FUN_8007A5A8 allocator), install the per-frame scene-entity handler
   //   (0x8007DDE0), and initialise the node's data-table pointers from *(u32)0x800ECF60 (the field
   //   scene-entity data table). Returns node ptr on success or 0 on pool exhaustion (the caller
   //   stashes the return in Actor::sceneHandle (obj+0x14) and treats nonzero as "spawned"). The
   //   per-frame handler FUN_8007DDE0 stays reachable via its stored address (guest instruction path substrate).
-  uint32_t sceneEntity(uint16_t sceneId, uint8_t subtype);
+  uint32_t sceneEntity(const SceneEntityArgs &args);
 
+  struct DropScoreGemArgs {
+    uint32_t sourceNode;
+    int32_t value;
+  };
   // dropScoreGem(sourceNode, value): FUN_8004B3F4 — thin wrapper around the score-gem spawner
   //   FUN_80071B44. Advances the running score-total counter at 0x800BF874 by `value`, then
   //   invokes FUN_80071B44(sourceNode, value, 0) which allocates a gem entity from the spawner
@@ -61,8 +85,12 @@ public:
   //   NOTE: FUN_80071B44 has a param_3 branch that would double-bump 0x800BF874 when param_3==1,
   //   but every callsite here (and the guest instruction path wrapper itself) passes param_3=0, so the second
   //   bump is dormant — replicate the wrapper's single unconditional bump.
-  void dropScoreGem(uint32_t sourceNode, int32_t value);
+  void dropScoreGem(const DropScoreGemArgs &args);
 
+  struct SpawnOverlayVariantArgs {
+    uint16_t recordIndex;
+    int16_t variant;
+  };
   // spawnOverlayVariant(recordIndex, variant): FUN_8007E038 — allocate a class-3 tail-insert node
   //   (the SAME FUN_8007A5A8 specialised allocator sceneEntity uses) and install the per-frame
   //   "variant overlay" handler (0x8007DC38, game/ai/beh_variant_overlay_lifecycle.cpp), seeding
@@ -72,8 +100,12 @@ public:
   //   other combination is a silent miss (returns 0). Returns the node ptr, or 0 on guard-miss /
   //   freelist exhaustion. Used by tickLinkedOverlay (below) and directly by
   //   game/ai/beh_pad_child_linker.cpp for its two linked-overlay children.
-  uint32_t spawnOverlayVariant(uint16_t recordIndex, int16_t variant);
+  uint32_t spawnOverlayVariant(const SpawnOverlayVariantArgs &args);
 
+  struct TickLinkedOverlayArgs {
+    uint32_t obj;
+    int16_t recordId;
+  };
   // tickLinkedOverlay(obj, recordId): FUN_800735F4 — per-object controller that owns exactly ONE
   //   linked "variant overlay" child (spawned via spawnOverlayVariant) at obj[0x14], driven by a
   //   state byte obj[7] and a countdown obj[0x40]:
@@ -87,13 +119,20 @@ public:
   //     state >2: no-op.
   //   No other substrate calls in this body — every op is a direct memory read/write plus the one
   //   call into spawnOverlayVariant. Body from disas 0x800735F4..0x8007374C.
-  void tickLinkedOverlay(uint32_t obj, int16_t recordId);
+  void tickLinkedOverlay(const TickLinkedOverlayArgs &args);
+  struct SpawnTypedChildArgs {
+    uint32_t owner;
+    uint32_t cls;
+    uint32_t handlerAddr;
+    uint8_t typeByte;
+    bool hasSub;
+    uint32_t sub;
+  };
   // spawnTypedChild(owner, cls, handlerAddr, typeByte, hasSub, sub): shared body for the 4 overlay
   //   TYPED-CHILD SPAWN leaves below — allocate via the owned dispatch(cls, type=4, list=0), then on
   //   success stamp the fresh node's per-object handler [+0x1C], owner back-pointer [+0x10], content-
   //   type byte [+2], and (when hasSub) a caller sub-index byte [+3]. Returns 0 on pool-empty.
-  uint32_t
-  spawnTypedChild(uint32_t owner, uint32_t cls, uint32_t handlerAddr, uint8_t typeByte, bool hasSub, uint32_t sub);
+  uint32_t spawnTypedChild(const SpawnTypedChildArgs &args);
   uint32_t spawnQuadRecordChild(uint32_t owner, uint32_t sub);   // FUN_801360F4
   uint32_t spawnSiblingAngleChild(uint32_t owner, uint32_t sub); // FUN_80139838
   uint32_t spawnChildTrigChild(uint32_t owner, uint32_t sub);    // FUN_8013AC34
@@ -111,11 +150,18 @@ public:
   // guest addresses so substrate/native typed runtime address dispatch callers (beh_box_seed_phase_gate,
   // beh_single_child_cull) reach the native bodies instead of the guest ones. Called once at
   // boot (boot.cpp).
-  void registerTypedChildOverrides();
+  void registerTypedChildOverrides(native::NativeOverrideCatalog &natives);
 
 private:
+  struct SpawnLinkStampArgs {
+    uint32_t node;
+    uint32_t ref;
+    uint32_t type;
+    uint32_t mode;
+    uint32_t list;
+  };
   // Guest-ABI bodies + shared pool helpers (static: plain fn-pointer shape for the verify gate).
-  static void spawnLinkStamp(Core *c, uint32_t node, uint32_t ref, uint32_t type, uint32_t mode, uint32_t list);
+  static void spawnLinkStamp(Core *c, const SpawnLinkStampArgs &args);
   static uint32_t entitySpawnBody(Core *c);              // FUN_80079C3C
   static uint32_t spawnPool2Body(Core *c);               // FUN_80079DDC
   static uint32_t poolSpawn(Core *c, const PoolDesc &p); // FUN_80079F90 / 8007A12C / 8007A2C8 shared
@@ -124,5 +170,7 @@ private:
   static uint32_t sceneEntityBody(Core *c);         // FUN_8007E110
   static uint32_t spawnOverlayVariantBody(Core *c); // FUN_8007E038
 };
+
+} // namespace tomba
 
 #endif

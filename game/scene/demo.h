@@ -21,6 +21,12 @@
 class Core;
 class Game;
 
+namespace tomba::native {
+class NativeOverrideCatalog;
+} // namespace tomba::native
+
+namespace tomba {
+
 class Demo {
 public:
   Core *core = nullptr;
@@ -31,35 +37,20 @@ public:
   // fleet-workflow.md §9): re-checked instruction-by-instruction against
   // authenticated executable/overlay evidence; only defect found was the missing
   // guest-stack-frame mirror (now fixed in demo.cpp).
-  static void registerOverrides(Game *game);
+  static void registerOverrides(native::NativeOverrideCatalog &natives);
 
-  // Live-spine entry points (called by the scheduler each frame —
-  // runtime/psx/scheduler.cpp).
+  // Called by TombaScheduler's DEMO stanza.
   void stageMain(); // one-time prologue + s0 (formerly ov_demo_stage_main)
   void frame();     // one per-frame substate dispatch + tail (formerly ov_demo_frame)
-
-  // pc_faithful DEMO stage body — the whole overlay guest 0x801062E4 arc as a
-  // native task body on a PcScheduler fiber (faithful-execution model):
-  // prologue with guest frame -48 and live spills, then the substate loop
-  // ending each iteration in the substrate tail (frame counter + FUN_80051F80
-  // yield). s0's texgroup spawn goes through typed runtime address dispatch(0x80044BD4) -> the
-  // registered spawn-and-wait override; s5's stage swap through
-  // typed runtime address dispatch(0x80052078) (parks the fiber; the stanza tears it down on the
-  // entry rewrite). native_sync keeps stageMain()/frame().
-  void stageBodyFaithful();
 
   // Substate handlers (called by frame() based on the current sm[0x48]
   // substate).
   void s0(); // formerly ov_demo_s0
 
-  // Exact pre/post portions of DEMO s0's generated FUN_80044BD4 call site. The
-  // product path invokes both around the synchronous preload; the faithful
-  // diagnostic retains the generated task body.
+  // The pre/post halves of DEMO s0's FUN_80044BD4 call site, around the synchronous preload.
   void s0PreYield();
   void s0PostYield();
-  // Product case-0 completes the host-owned preload synchronously. The faithful
-  // diagnostic currently shares this body at the frame dispatcher; its full
-  // stage-body path above retains generated waits.
+  // Case 0 with the host-owned preload completed synchronously.
   void s0Native();
   void s1();      // formerly ov_demo_s1
   void s2();      // formerly ov_demo_s2
@@ -84,3 +75,5 @@ public:
 private:
   void s0Body(); // shared s0 case-0 body (see s0Native/s0Faithful above)
 };
+
+} // namespace tomba

@@ -21,11 +21,13 @@
 // including the guest frame descent + s0/s1/s2/ra stack spill and jal-site r31 — those 16 bytes
 // of guest stack are observable under SBS strict compare and the disp26c88verify dead-stack
 // exclusion does NOT apply to this path. dispatchFaithful() is yield-free (its sole native
-// handler, handler27254, and the LEAF_POOL_RETURN leaf it may call, never scheduler_yield), so
+// handler, handler27254, and the LEAF_POOL_RETURN leaf it may call, never TombaScheduler::yield), so
 // strict replay check is safe to arm here.
 #pragma once
 #include <cstdint>
 class Core;
+
+namespace tomba {
 
 class ObjectTable {
 public:
@@ -50,3 +52,5 @@ private:
   // FUN_80027254 — the leaf-particle slot handler (the only handler the table holds today).
   void handler27254(uint32_t obj);
 };
+
+} // namespace tomba

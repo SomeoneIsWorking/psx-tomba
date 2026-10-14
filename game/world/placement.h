@@ -13,10 +13,14 @@
 #ifndef GAME_WORLD_PLACEMENT_CLASS_H
 #define GAME_WORLD_PLACEMENT_CLASS_H
 class Core;
+namespace tomba {
+
 class Placement {
 public:
   Core *core = nullptr;
   void placeAreaObjects(); // FUN_80072A78
   void spawnWithParent();  // FUN_80072DDC (args in c->r[4..7])
 };
+
+} // namespace tomba
 #endif

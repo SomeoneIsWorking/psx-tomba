@@ -24,9 +24,8 @@
 // v0 is NOT reproduced: the per-object dispatcher (call_handler) ignores the return; the gate compares
 // only RAM+scratchpad — matching the sibling objbeh gates.
 
-#include "cfg.h"
 #include "core.h"
-#include "core/entry/game_ctx.h"
+#include "entry/tomba_session.h"
 #include "guest_abi.h" // GuestFrame — mirror the guest stack frame (CLAUDE.md)
 #include "guest_call.h"
 #include "mathlib.h"     // Bit::test7EC / test868 (FUN_8004D7EC / FUN_8004D868)
@@ -35,6 +34,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+namespace tomba {
 
 namespace {
 
@@ -162,3 +163,5 @@ void beh_record_list_scanner(Core *c) {
     s4 += 16;
   }
 }
+
+} // namespace tomba

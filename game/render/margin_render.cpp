@@ -1,8 +1,9 @@
 // Tomba2Engine — widescreen-margin re-include set. See margin_render.h.
 #include "margin_render.h"
-#include "cfg.h"
+#include "game.h"
+#include <lucent/log.h>
 
-int gpu_frame_no(Core *); // present-frame counter (gpu_native.cpp)
+namespace tomba {
 
 // Entity type (node+0xc) of the static world-geometry objects the wide frustum re-includes.
 // later-133: exactly these account for the +24 widescreen-margin commands at the field.
@@ -25,18 +26,9 @@ void MarginRenderer::collect(Core *c, uint32_t node) {
 
 // The collected set has no drawer until the widescreen margin producer exists; reset per frame.
 void MarginRenderer::flush(Core *c) {
-  if (dbg_ && !nodes_.empty()) {
-    cfg_logi("margin", "f%d collected %zu margin nodes", gpu_frame_no(c), nodes_.size());
-  }
+  lucent::debug("margin", "f{} collected {} margin nodes", c->game->timing.logicFrame, nodes_.size());
   nodes_.clear();
   seen_.clear();
 }
 
-int MarginRenderer::nativeEnabled() {
-  if (mNativeEnabled < 0) {
-    // PSXPORT_MARGIN_POKE=1 selects the old +1 re-include, which perturbs gameplay.
-    mNativeEnabled = cfg_on("PSXPORT_MARGIN_POKE") ? 0 : 1;
-    dbg_ = cfg_dbg("margin") != 0;
-  }
-  return mNativeEnabled;
-}
+} // namespace tomba

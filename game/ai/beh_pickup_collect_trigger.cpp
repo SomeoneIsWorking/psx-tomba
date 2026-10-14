@@ -20,9 +20,8 @@
 // pad/scene-driven sub-states (incl. case 4) are faithfully transcribed and verify when a scene drives them.
 
 #include "bg_scene_transition_sm.h" // BgSceneTransitionSm::readyForProgress (FUN_80042728 native)
-#include "cfg.h"
 #include "core.h"
-#include "core/entry/game_ctx.h"
+#include "entry/tomba_session.h"
 #include "graphics_bind.h" // ov_obj_record_init — native graphics-bind (game/world)
 #include "guest_call.h"
 #include "object/actor.h" // Actor::boundsCull (FUN_8007778C native)
@@ -30,6 +29,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+namespace tomba {
 
 namespace {
 
@@ -40,9 +41,9 @@ inline void do_case0(Core *c, uint32_t obj) {
   if (c->mem_r8(obj + 0x2b) != 3) {
     return;
   }
-  int16_t sid = c->mem_r16s(0x800A4CF8u + (uint32_t)c->mem_r8(obj + 3) * 2);
+  int16_t sid = (int16_t)c->mem_r16(0x800A4CF8u + (uint32_t)c->mem_r8(obj + 3) * 2);
   // Spawn::sceneEntity — was typed runtime address dispatch(0x8007E110); now native (spawn.cpp).
-  uint32_t sceneNode = eng(c).spawn.sceneEntity((uint16_t)sid, /*subtype=*/0);
+  uint32_t sceneNode = eng(c).spawn.sceneEntity({.sceneId = (uint16_t)sid, .subtype = /*subtype=*/0});
   c->mem_w32(obj + 0x14, sceneNode);
   if (sceneNode != 0) {
     if (c->mem_r8(0x800BF8EDu) == 0) {
@@ -133,7 +134,7 @@ bool beh_pickup_collect_trigger_body(Core *c) {
         c->mem_w16(buf + 2, c->mem_r16(obj + 0x2e));
         uint16_t n84 = c->mem_r16(obj + 0x84);
         int32_t x = (int16_t)n84;
-        int32_t sgn = ((uint32_t)((uint32_t)n84 << 16)) >> 31;
+        int32_t sgn = (int32_t)(((uint32_t)n84 << 16) >> 31);
         int32_t half = (x + sgn) >> 1;
         c->mem_w16(buf + 6, (uint16_t)((uint32_t)c->mem_r16(obj + 0x32) - (uint32_t)half));
         c->mem_w16(buf + 0xa, c->mem_r16(obj + 0x36));
@@ -145,14 +146,14 @@ bool beh_pickup_collect_trigger_body(Core *c) {
         c->r[6] = 0x800;
         c->r[7] = 0x18;
         psx::cpu::dispatchGuestToReturn0(*c, 0x80027144u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
-        eng(c).sfx.trigger(0xc, 0, 0); // FUN_80074590 (native)
+        eng(c).sfx.trigger({.id = 0xc, .pan = 0, .pitchBend = 0}); // FUN_80074590 (native)
         src = c->mem_r32(c->mem_r32(obj + 0xc0) + 0x40);
         c->r[4] = src;
         c->r[5] = buf;
         c->r[6] = 0x800;
         c->r[7] = 8;
         psx::cpu::dispatchGuestToReturn0(*c, 0x80027144u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
-        eng(c).sfx.trigger(0xc, 0, 0); // FUN_80074590 (native)
+        eng(c).sfx.trigger({.id = 0xc, .pan = 0, .pitchBend = 0}); // FUN_80074590 (native)
         c->r[4] = 0x39;
         psx::cpu::dispatchGuestToReturn0(*c, 0x80040C00u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
         uint8_t prev = c->mem_r8(0x800BFA23u);
@@ -215,3 +216,5 @@ void beh_pickup_collect_trigger(Core *c) {
   beh_pickup_collect_trigger_body(c);
   c->r[29] += 0x30;
 }
+
+} // namespace tomba

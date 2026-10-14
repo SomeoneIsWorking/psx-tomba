@@ -1,5 +1,7 @@
 #pragma once
 
+#include <lucent/log.h>
+
 #include <array>
 #include <cstdint>
 
@@ -14,6 +16,14 @@ public:
   void afterFrame(Core &core, uint32_t frame);
 
 private:
+  // The two overlapping fade drivers (`PSXPORT_DEBUG=fadewatch`): bg_scene_transition_sm's struct and
+  // ov_sop_field_mode's outer state machine.
+  void traceFadeDrivers(Core &core);
+
+  lucent::Channel fadewatch_{"fadewatch"};
+  lucent::Channel stateChannel_{"state"};
+  lucent::Channel bgmChannel_{"bgmtick"};
+  std::array<uint32_t, 6> fadeDriversLast_{~0u, ~0u, ~0u, ~0u, ~0u, ~0u};
   uint32_t seqLast_ = 0xffffffffu;
   uint64_t stateLastSignature_ = 0;
   std::array<uint32_t, 14> bgmReadPointers_{};

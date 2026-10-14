@@ -5,6 +5,7 @@
 #include "core.h"
 #include "game.h"
 #include "render/cull.h"
+#include "stub_game_runtime.h"
 
 #include <cstdint>
 #include <cstdio>
@@ -43,7 +44,7 @@ void lookDownZ(Core &core) {
   core.mem_w16(kForwardZ, 0x1000);
 }
 
-bool coneKeeps(Core &core, Cull &cull, int16_t z) {
+bool coneKeeps(Core &core, tomba::Cull &cull, int16_t z) {
   core.mem_w8(kNode + kVisible, 0);
   core.mem_w16(kNode + kPosition + 0, 0);
   core.mem_w16(kNode + kPosition + 2, 0);
@@ -53,7 +54,12 @@ bool coneKeeps(Core &core, Cull &cull, int16_t z) {
   return core.r[2] == 1u && core.mem_r8(kNode + kVisible) == 1u;
 }
 
-bool baseKeeps(Core &core, Cull &cull, std::uint32_t state, int16_t dz) {
+struct BaseKeepsArgs {
+  std::uint32_t state;
+  int16_t dz;
+};
+bool baseKeeps(Core &core, tomba::Cull &cull, const BaseKeepsArgs &args) {
+  auto [state, dz] = args;
   core.mem_w32(kCullState, state);
   core.mem_w8(kNode + kVisible, 0);
   core.r[4] = kNode;
@@ -67,10 +73,11 @@ bool baseKeeps(Core &core, Cull &cull, std::uint32_t state, int16_t dz) {
 } // namespace
 
 int main() {
-  auto game = std::make_unique<Game>();
-  auto core = std::make_unique<Core>();
+  psx::test::StubGameRuntime runtime;
+  auto game = std::make_unique<Game>(runtime, psx::config::Config{});
+  auto core = std::make_unique<Core>(runtime);
   core->game = game.get();
-  Cull cull;
+  tomba::Cull cull;
   cull.core = core.get();
   lookDownZ(*core);
   core->mem_w32(kQueueGate, 1);
@@ -83,11 +90,12 @@ int main() {
   check(!coneKeeps(*core, cull, 511), "cone cull kept an object inside the guest near limit");
 
   // FUN_8007712C state 1 {512, 7169, 856}, state 2 {768, 4097, 880}, state 3 {512, 4097, 848}.
-  check(baseKeeps(*core, cull, 1, 7168), "base cull state 1 dropped an object inside its far limit");
-  check(!baseKeeps(*core, cull, 1, 7169), "base cull state 1 kept an object at its far limit");
-  check(baseKeeps(*core, cull, 2, 4096), "base cull state 2 dropped an object inside its far limit");
-  check(!baseKeeps(*core, cull, 2, 4097), "base cull state 2 kept an object at its far limit");
-  check(!baseKeeps(*core, cull, 3, 16000), "base cull state 3 kept an object four times past its far limit");
+  check(baseKeeps(*core, cull, {.state = 1, .dz = 7168}), "base cull state 1 dropped an object inside its far limit");
+  check(!baseKeeps(*core, cull, {.state = 1, .dz = 7169}), "base cull state 1 kept an object at its far limit");
+  check(baseKeeps(*core, cull, {.state = 2, .dz = 4096}), "base cull state 2 dropped an object inside its far limit");
+  check(!baseKeeps(*core, cull, {.state = 2, .dz = 4097}), "base cull state 2 kept an object at its far limit");
+  check(!baseKeeps(*core, cull, {.state = 3, .dz = 16000}),
+        "base cull state 3 kept an object four times past its far limit");
 
   std::printf("Tomba cull far limits: %s\n", failures == 0 ? "PASS" : "FAIL");
   return failures == 0 ? 0 : 1;

@@ -29,6 +29,12 @@
 struct Core;
 class Game;
 
+namespace tomba::native {
+class NativeOverrideCatalog;
+} // namespace tomba::native
+
+namespace tomba {
+
 class ActorReward {
 public:
   static void smWindowScroll(Core *c);  // FUN_80049A60(obj a0, side a1)
@@ -52,5 +58,7 @@ public:
   // tomba::native::declareOverride setter so the substrate's direct a direct guest-address call calls from FUN_8004AAC4
   // redirect here too — a native caller reaching these via typed runtime address dispatch also lands here and gets
   // `dispatch`-channel traced.
-  static void registerOverrides(Game *game);
+  static void registerOverrides(native::NativeOverrideCatalog &natives);
 };
+
+} // namespace tomba

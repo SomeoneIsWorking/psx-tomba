@@ -1,6 +1,6 @@
 # 0031: the entry point never destroys its Game
 
-Status: open
+Status: closed. psxport's `TitleSession` owns the `Game` (`std::unique_ptr`) since Tomba runs through `TombaCatalog`; a 600-frame Tomba! 2 boot smoke on 2026-10-14 ends with `producer census at shutdown`, and `tomba2-exit` is gone.
 
 ## Observed
 `printf 'newgame\nrun 1026\ncensus\nquit\n' | PSXPORT_REPL=1 build/bin/tomba2_port` exits without the

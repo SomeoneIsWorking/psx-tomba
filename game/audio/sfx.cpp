@@ -9,11 +9,14 @@
 
 #include "audio/sfx.h"
 #include "core.h"
-#include "core/entry/game_ctx.h"
-#include "core/overrides/native_override_catalog.h" // tomba::native::declareOverride — the one native-override registry
+#include "core/overrides/native_override_catalog.h"
+#include "entry/tomba_session.h"
 #include "guest_call.h"
 
-void Sfx::trigger(int id, int pan, int pitchBend) {
+namespace tomba {
+
+void Sfx::trigger(const TriggerArgs &args) {
+  auto [id, pan, pitchBend] = args;
   Core *c = core;
 
   // Prologue: sp adjust + ra save (mirrors the guest instruction path so any downstream leaf reading its own
@@ -35,7 +38,7 @@ void Sfx::trigger(int id, int pan, int pitchBend) {
     //   jt[10..12]: ids 10, 11, 12  (dup — a0=122..124 alias to a0=118..120)
     //   jt[13/14] : error path (silent)                        (a0=125/126)
     //   jt[15]    : jal FUN_80074EEC — different leaf          (a0=127)
-    static constexpr int8_t remap[16] = {2, 3, 4, 5, 6, 7, 10, 11, 12, 13, 10, 11, 12, -1, -1, -1};
+    constexpr int8_t remap[16] = {2, 3, 4, 5, 6, 7, 10, 11, 12, 13, 10, 11, 12, -1, -1, -1};
     const uint32_t idx = idb - 112u;
     if (idx == 15u) {
       psx::cpu::dispatchGuestToReturn0(
@@ -83,8 +86,8 @@ void Sfx::trigger(int id, int pan, int pitchBend) {
   // ---- PITCH BEND MATH ----
   // (byte6 + pitchBend) × global_scale / 9, clamped [0, 127]. Faithful to the guest instruction path's int16
   // truncations and signed-div-by-9-via-0x38E38E39 magic.
-  const int32_t byte6_ext = (int32_t)(int8_t)c->mem_r8(t1 + 6u);
-  const int32_t pitchBend_ext = (int32_t)(int8_t)(pitchBend & 0xFF);
+  const int32_t byte6_ext = c->mem_r8s(t1 + 6u);
+  const int32_t pitchBend_ext = (int32_t)((uint32_t)pitchBend << 24) >> 24;
   const uint8_t global_scale = c->mem_r8(0x800FB165u);
   int32_t pitch_final;
   if (global_scale == 0) {
@@ -162,15 +165,16 @@ void Sfx::trigger(int id, int pan, int pitchBend) {
 // only predecessor is also dead) — out of scope for this file. SBS is the real gate here: the
 // native reproduces exactly what guest 0x80074810 does at runtime (first body only), so it is
 // 0-diff by construction.
-void Sfx::triggerPanned(int id, int pan) {
+void Sfx::triggerPanned(const TriggerPannedArgs &args) {
+  auto [id, pan] = args;
   Core *c = core;
 
   const uint32_t ra_save = c->r[31];
   c->r[29] -= 24u; // gen: addiu sp,-24
   const uint32_t sp = c->r[29];
 
-  const uint32_t idb = (uint32_t)(id & 0xFF);         // andi a0,0xFF
-  const int32_t panx = (int32_t)(int8_t)(pan & 0xFF); // sll 24 ; sra 24 — sign-extend low byte
+  const uint32_t idb = (uint32_t)(id & 0xFF);                // andi a0,0xFF
+  const int32_t panx = (int32_t)((uint32_t)pan << 24) >> 24; // sll 24 ; sra 24
 
   c->mem_w32(sp + 16u, ra_save); // sw ra,16(sp)
 
@@ -189,13 +193,15 @@ void Sfx::triggerPanned(int id, int pan) {
 }
 
 static void eov_triggerPanned(Core *c) {
-  eng(c).sfx.triggerPanned((int)c->r[4], (int)c->r[5]);
+  eng(c).sfx.triggerPanned({.id = (int)c->r[4], .pan = (int)c->r[5]});
   // guest 0x80074810's first body writes no return value (r2 dead); nothing to mirror.
 }
 
-void Sfx::registerOverrides() {
+void Sfx::registerOverrides(native::NativeOverrideCatalog &natives) {
   // Dual-wired: a direct guest 0x80074810(c) caller exists (authenticated executable/overlay evidence) plus typed
   // runtime address dispatch callers from overlays — tomba::native::declareOverride installs the shared oracle-gated
   // thunk for both.
-  tomba::native::declareOverride(0x80074810u, "Sfx::triggerPanned", eov_triggerPanned);
+  natives.declare(0x80074810u, "Sfx::triggerPanned", eov_triggerPanned);
 }
+
+} // namespace tomba

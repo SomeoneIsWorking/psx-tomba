@@ -5,8 +5,10 @@
 // substrate table used by the other native walkers (ObjectList / Array8Dispatch).
 #include "transition_state3.h"
 #include "core.h"
-#include "core/entry/game_ctx.h"
+#include "entry/tomba_session.h"
 #include "tomba2_types.h" // T2_OBJLIST_HEAD_1/2, T2OBJ_HANDLER/NEXT/RENDER_FLAG
+
+namespace tomba {
 
 void TransitionState3::walkOnce() {
   Core *c = core;
@@ -17,7 +19,7 @@ void TransitionState3::walkOnce() {
     c->mem_w8(n + T2OBJ_RENDER_FLAG, 0);
     if (c->mem_r8(n + 0x28) & 0x80) {
       uint32_t h = c->mem_r32(n + T2OBJ_HANDLER);
-      eng(c).behaviors.dispatchObj(n, h);
+      eng(c).behaviors.dispatchObj({.object = n, .handler = h});
     }
     l2 = c->mem_r32(T2_OBJLIST_HEAD_2); // re-read each iteration (handler may mutate)
     n = next;
@@ -28,8 +30,10 @@ void TransitionState3::walkOnce() {
     c->mem_w8(n + T2OBJ_RENDER_FLAG, 0);
     if (c->mem_r8(n + 0x28) & 0x80) {
       uint32_t h = c->mem_r32(n + T2OBJ_HANDLER);
-      eng(c).behaviors.dispatchObj(n, h);
+      eng(c).behaviors.dispatchObj({.object = n, .handler = h});
     }
     n = next;
   }
 }
+
+} // namespace tomba

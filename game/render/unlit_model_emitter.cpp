@@ -9,7 +9,7 @@
 #include <memory>
 #include <string_view>
 
-namespace tomba2::render {
+namespace tomba::render {
 namespace {
 
 using horizontal_cull::Visibility;
@@ -199,7 +199,8 @@ std::uint32_t UnlitModelEmitter::emit(const psx::present::EmitMemory &memory,
     } else if (variant.gt4CornerThreeFirst) {
       projected = packet.projectGt4CornerThreeFirst(variant.colourMask, visible);
     } else {
-      projected = packet.projectGt4(variant.firstGt4ColourMask, variant.colourMask, visible);
+      projected = packet.projectGt4(
+          {.firstColourMask = variant.firstGt4ColourMask, .colourMask = variant.colourMask, .visible = visible});
     }
     if (!projected) {
       return false;
@@ -246,23 +247,23 @@ void UnlitModelEmitter::gt4(Core &core, const Visibility &visible, const Variant
   core.r[2] = emit(core, ListCall::fromRegisters(core), visible, variant, true);
 }
 
-void UnlitModelEmitter::registerStateRenders(Core &core) {
+void UnlitModelEmitter::registerStateRenders(psx::present::StateProducerTable &renders, Core &core) {
   for (const Copy &copy : kCopies) {
-    core.stateProducers.install(copy.gt3, std::make_unique<UnlitStateProducer>(core, *copy.variant, false));
-    core.stateProducers.install(copy.gt4, std::make_unique<UnlitStateProducer>(core, *copy.variant, true));
+    renders.install(copy.gt3, std::make_unique<UnlitStateProducer>(core, *copy.variant, false));
+    renders.install(copy.gt4, std::make_unique<UnlitStateProducer>(core, *copy.variant, true));
   }
 }
 
-void UnlitModelEmitter::registerOverrides() {
+void UnlitModelEmitter::registerOverrides(native::NativeOverrideCatalog &natives) {
   for (const Copy &copy : kCopies) {
     if (copy.image.empty()) {
-      tomba::native::declareOverride(copy.gt3, "UnlitModelEmitter::gt3", copy.gt3Body);
-      tomba::native::declareOverride(copy.gt4, "UnlitModelEmitter::gt4", copy.gt4Body);
+      natives.declare(copy.gt3, "UnlitModelEmitter::gt3", copy.gt3Body);
+      natives.declare(copy.gt4, "UnlitModelEmitter::gt4", copy.gt4Body);
     } else {
-      tomba::native::declareOverlayOverride(copy.image, copy.gt3, "UnlitModelEmitter::gt3", copy.gt3Body);
-      tomba::native::declareOverlayOverride(copy.image, copy.gt4, "UnlitModelEmitter::gt4", copy.gt4Body);
+      natives.declareOverlay(copy.image, copy.gt3, "UnlitModelEmitter::gt3", copy.gt3Body);
+      natives.declareOverlay(copy.image, copy.gt4, "UnlitModelEmitter::gt4", copy.gt4Body);
     }
   }
 }
 
-} // namespace tomba2::render
+} // namespace tomba::render

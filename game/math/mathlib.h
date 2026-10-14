@@ -14,6 +14,8 @@ struct Core;
 // Was the free functions `ov_bittest_4d7ec` / `ov_bittest_4d868`, taking their MIPS args via
 // c->r[4]/r[5] taxi. Now real instance methods with explicit typed arguments; the surface
 // returns the masked byte directly instead of via c->r[2].
+namespace tomba {
+
 class Bit {
 public:
   Core *core = nullptr;
@@ -53,5 +55,7 @@ public:
   // the mailbox byte on exit. Body from disas 0x8006F04C..0x8006F0E0.
   void processLinkRequest();
 };
+
+} // namespace tomba
 
 #endif

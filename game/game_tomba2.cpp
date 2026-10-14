@@ -1,5 +1,4 @@
-// Tomba!2-specific native overrides (per-game tier). Generic mechanisms live in timing.c /
-// cd_override.c; this file holds glue tied to MAIN.EXE's own addresses.
+// Tomba!2-specific native overrides tied to MAIN.EXE's own addresses.
 //
 // VBlank pacing: the port owns the engine's own frame-rate lever (don't dwell)
 // ------------------------------------------------------------------------
@@ -16,7 +15,7 @@
 // `FrameCadence` (game/core/frame_cadence.h) holds that decision, publishes it into the guest's
 // own quota byte through the same single store FUN_80050a0c makes, and advances the guest's
 // dwell counter once per consumed display field. THIS PRODUCT NEVER EXECUTES THE GATE: psxport
-// calls GameRuntime::bootInit, which runs FUN_80050b08's init prefix and then hands iteration to
+// calls GameRuntime::startProgram, which runs FUN_80050b08's init prefix and then hands iteration to
 // TombaFrameDriver, and 0x80050CC8 is a label inside that body rather than a function entry, so
 // it is not a legal override key in the first place. What the port can own is the gate's state,
 // and that is what FrameCadence owns. Nothing here simulates an interrupt: the per-field work
@@ -30,19 +29,17 @@
 #include "game_tomba2.h"
 #include "animation.h"            // PC-native per-object animation-VM subsystem
 #include "audio/libsnd_globals.h" // kSeqTickFn — the tick slot the wrapper below dispatches
-#include "cfg.h"
-#include "collision.h" // PC-native collision-grid subsystem
+#include "collision.h"            // PC-native collision-grid subsystem
 #include "core.h"
 #include "core/assets/asset.h"  // PC-native asset-loading subsystem (extracted from this file)
 #include "core/assets/str.h"    // Resident string leaves
 #include "core/engine/engine.h" // class Engine — this file defines Engine::frameUpdate / Engine::drawOTag
-#include "core/entry/game_ctx.h"
 #include "core/overrides/native_override_catalog.h"
 #include "cull.h" // PC-native visibility cull / LOD subsystem
+#include "entry/tomba_session.h"
 #include "game.h"
 #include "guest_call.h"
 #include "mathlib.h"         // PC-native math/PRNG leaf primitives (rand, trig LUTs, bit-test)
-#include "mods.h"            // g_mods (fps60 persisted with the other user settings)
 #include "ui/font.h"         // Font::registerOverrides — drawText/glyphEmit
 #include "ui/options_page.h" // OptionsPage::install — the OPTIONS page backdrop (FUN_8007FC24)
 #include "ui/panel.h"        // Panel::install — FUN_8004FFB4 panel fill quad
@@ -77,12 +74,14 @@
 // tests the SAME word the dispatch reads.
 
 #include "audio/libsnd_globals.h" // kSeqTickFn — the tick slot the wrapper below dispatches
-#include "gpu_perf.h"             // per-frame CPU phase profiler (REPL `debug perf`), default off
+#include <lucent/log.h>
 
 // Per-frame engine tick. Called DIRECTLY (a plain C call) from TombaFrameDriver —
 // this is the PC-driven game loop's update/audio body. It runs the still-PSX per-frame update leaf and
 // per-vblank audio, then returns. TombaFrameDriver owns the one presentation fence and the rest of the
 // measured frame transaction. NOT an override anymore; not static so the driver can call it top-down.
+namespace tomba {
+
 void Engine::frameUpdate() {
   Core *c = this->core;
   devTeleportApply(); // dev `tp X Y Z`, before the frame's state update. HERE and not in a stage/
@@ -92,7 +91,7 @@ void Engine::frameUpdate() {
                       // engine.h's mCamTpPending banner for what that dependency measured.
   // Phase::PadFence brackets exactly the one call below. It was once named LOGIC and described as
   // "all guest interpreter work + render submit", which stopped being true when 0x800788AC became
-  // natively owned (Engine::padEdgeFence) and the per-frame game work moved to PcScheduler, which
+  // natively owned (Engine::padEdgeFence) and the per-frame game work moved to TombaScheduler, which
   // Phase::GameLogic brackets. A ~0.00 ms phase called LOGIC reads as "the game is free".
   c->game->perf.phaseBegin(GpuPerf::Phase::PadFence);
   psx::cpu::dispatchGuestToReturn0(*c,
@@ -156,7 +155,19 @@ void Engine::captureBugReportReference(uint32_t otHead) {
   }
 }
 
-void games_tomba2_init(void) {
+void perobj_dispatch_install(native::NativeOverrideCatalog &natives);
+void perobj_billboard_install(native::NativeOverrideCatalog &natives);
+void text_label_install(native::NativeOverrideCatalog &natives);
+void render_walk_dispatch_install(native::NativeOverrideCatalog &natives);
+void overlay_type_dispatch_install(native::NativeOverrideCatalog &natives);
+void objlist_walk_install(native::NativeOverrideCatalog &natives);
+void gpu_dma_queue_install(native::NativeOverrideCatalog &natives);
+void gpu_libgpu_leaves_install(native::NativeOverrideCatalog &natives);
+void gpu_loadimage_streamer_install(native::NativeOverrideCatalog &natives);
+void gpu_putdrawenv_install(native::NativeOverrideCatalog &natives);
+void pad_edge_fence_install(native::NativeOverrideCatalog &natives);
+
+void games_tomba2_init(native::NativeOverrideCatalog &natives) {
   // ONE behavior = the PC game. The native engine path is registered UNCONDITIONALLY — no FAITHFUL master
   // switch, no per-override *_RECOMP / NO_* opt-outs (those were faithful-first A/B scaffolding; the user
   // directive is no gating + drive toward removing the interpreter entirely, so they are retired). Every
@@ -168,32 +179,23 @@ void games_tomba2_init(void) {
   // (engine_math_register, save_register, sound_register, hud_register, actor_sm_24448_register, and
   // the beh_*_register siblings) were left as empty stubs "in case." Every stub had a zero- or single-
   // dead-line body — dead scaffolding — and got deleted. Direct-call wiring is the shape now.
-  void perobj_dispatch_install();
-  perobj_dispatch_install(); // FUN_8003CDD8/FUN_8003F698 substrate-mirror ownership (band 0x8003xxxx)
-  void perobj_billboard_install();
-  perobj_billboard_install(); // FUN_8003CCA4/C2D4/C464/C8F4 substrate-mirror ownership (band 0x8003xxxx)
-  void text_label_install();
-  text_label_install(); // FUN_80039F4C text-label renderer (Render::textLabelEmit)
-  void render_walk_dispatch_install();
-  render_walk_dispatch_install(); // FUN_8003C048 render-walk loop ownership (band 0x8003xxxx)
-  void overlay_type_dispatch_install();
-  overlay_type_dispatch_install(); // FUN_8003D0BC per-area-type overlay dispatch (band 0x8003xxxx)
-  void objlist_walk_install();
-  objlist_walk_install(); // FUN_8003BB50/BCF4/BED8/BF00/EEC0 object-list walkers (band 0x8003xxxx)
-  void gpu_dma_queue_install();
-  gpu_dma_queue_install(); // FUN_80082D04/FB4/83364/82424 GPU-DMA completion-queue cluster
-  void gpu_libgpu_leaves_install();
-  gpu_libgpu_leaves_install(); // FUN_80080F6C/81458 DrawSync/ClearOTagR (libgpu GPU-sys jump table)
-  void gpu_loadimage_streamer_install();
-  gpu_loadimage_streamer_install(); // FUN_80082734 libgpu LoadImage() chunked GP0-FIFO pixel streamer
-  void gpu_putdrawenv_install();
-  gpu_putdrawenv_install();        // FUN_800815D0 PutDrawEnv + 4 DRAWENV field-word builders
-  Font::registerOverrides();       // FUN_80079374/80078CA8 Font::drawText/glyphEmit (hottest unowned leaves)
-  tomba::Str::registerOverrides(); // FUN_80079528 Str::length (generic strlen, hottest unowned leaf)
-  Asset::registerOverrides();      // FUN_80045558 indexed load into the AREA slot + code-image publish
-  Panel::install();                // FUN_8004FFB4 panel fill quad
-  OptionsPage::install();          // FUN_8007FC24 OPTIONS page backdrop packet
-  void pad_edge_fence_install();
-  pad_edge_fence_install(); // FUN_800788AC per-frame input-edge fence (banked draft, §9-verified)
-  cfg_logf("engine", "native object-list walk active (FUN_8007a904)");
+  perobj_dispatch_install(natives);        // FUN_8003CDD8/FUN_8003F698 substrate-mirror ownership (band 0x8003xxxx)
+  perobj_billboard_install(natives);       // FUN_8003CCA4/C2D4/C464/C8F4 substrate-mirror ownership (band 0x8003xxxx)
+  text_label_install(natives);             // FUN_80039F4C text-label renderer (Render::textLabelEmit)
+  render_walk_dispatch_install(natives);   // FUN_8003C048 render-walk loop ownership (band 0x8003xxxx)
+  overlay_type_dispatch_install(natives);  // FUN_8003D0BC per-area-type overlay dispatch (band 0x8003xxxx)
+  objlist_walk_install(natives);           // FUN_8003BB50/BCF4/BED8/BF00/EEC0 object-list walkers (band 0x8003xxxx)
+  gpu_dma_queue_install(natives);          // FUN_80082D04/FB4/83364/82424 GPU-DMA completion-queue cluster
+  gpu_libgpu_leaves_install(natives);      // FUN_80080F6C/81458 DrawSync/ClearOTagR (libgpu GPU-sys jump table)
+  gpu_loadimage_streamer_install(natives); // FUN_80082734 libgpu LoadImage() chunked GP0-FIFO pixel streamer
+  gpu_putdrawenv_install(natives);         // FUN_800815D0 PutDrawEnv + 4 DRAWENV field-word builders
+  Font::registerOverrides(natives);        // FUN_80079374/80078CA8 Font::drawText/glyphEmit (hottest unowned leaves)
+  tomba::Str::registerOverrides(natives);  // FUN_80079528 Str::length (generic strlen, hottest unowned leaf)
+  Asset::registerOverrides(natives);       // FUN_80045558 indexed load into the AREA slot + code-image publish
+  Panel::install(natives);                 // FUN_8004FFB4 panel fill quad
+  OptionsPage::install(natives);           // FUN_8007FC24 OPTIONS page backdrop packet
+  pad_edge_fence_install(natives);         // FUN_800788AC per-frame input-edge fence (banked draft, §9-verified)
+  lucent::debug("engine", "native object-list walk active (FUN_8007a904)");
 }
+
+} // namespace tomba

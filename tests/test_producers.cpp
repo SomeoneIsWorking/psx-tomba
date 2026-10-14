@@ -3,18 +3,18 @@
 #include "game.h"
 #include "gte_registers.h"
 #include "guest_ordering_table.h"
-#include "hw_bind.h"
 #include "libgpu_draw_mode.h"
 #include "lightrec_executor.h"
 #include "rain_streaks.h"
 #include "sop_ground.h"
+#include "state_producer.h"
 #include "state_render_check.h"
-#include "stub_runtime.h"
+#include "stub_game_runtime.h"
 #include "tile_grid_layer.h"
 #include "ui/font.h"
-#include "ui/glyph_state.h"
 
 #include <array>
+#include <exception>
 #include <lucent/log.h>
 #include <memory>
 #include <optional>
@@ -24,15 +24,20 @@
 
 namespace {
 
+// What the product keeps in TombaSession::stateProducers.
+psx::present::StateProducerTable stateProducers;
+
 using psx::present::RecordKey;
 
 constexpr GuestAddressRange kResidentText{0x10000u, 0xBE800u};
 constexpr GuestAddressRange kModeSlotSop{0x108F9Cu, 0x10D498u};
 constexpr GuestAddressRange kModeSlotA08{0x108F9Cu, 0x149F28u};
 constexpr std::uint32_t kReturn = 0x80010100u;
-constexpr std::uint32_t kPacketPool = tomba2::render::PacketPool::kCursor;
-constexpr std::uint32_t kOtBaseGlobal = tomba2::render::OrderingTable::kBasePointer;
+constexpr std::uint32_t kPacketPool = tomba::render::PacketPool::kCursor;
+constexpr std::uint32_t kOtBaseGlobal = tomba::render::OrderingTable::kBasePointer;
 constexpr std::uint32_t kPool = 0x801A0000u;
+// The frame's pool cursor is 24-bit (rotatePacketPool), so a linked tag keeps its length byte.
+constexpr std::uint32_t kPoolCursor = kPool & 0x00FFFFFFu;
 constexpr std::uint32_t kOt = 0x801B0000u;
 
 constexpr std::uint32_t kJrRa = 0x03E00008u;
@@ -138,7 +143,7 @@ void testTileGridMargin(Game &game) {
     core.r[4] = kNode;
     check(call(core, kEntry), "the SOP tile grid returns");
     const std::uint32_t columns = margin == 0 ? kGuestColumns : kCanvasColumns;
-    check(tomba2::render::PacketPool(core).cursor() == kPool + columns * kRows * kTileBytes + kHeaderBytes,
+    check(tomba::render::PacketPool(core).cursor() == kPool + columns * kRows * kTileBytes + kHeaderBytes,
           margin == 0 ? "4:3 walks the guest's 22 columns" : "16:9 walks 29 columns across the canvas");
     if (margin == 0) {
       check(core.mem_r16s(kPool + 8u) == -8 && core.mem_r16(kPool + 12u) == 0x0000u,
@@ -168,21 +173,16 @@ void testTileGridMargin(Game &game) {
 }
 
 // The grid's state render: drawn through the shipping override, saved under its node, rendered over host memory.
-constexpr std::uint32_t kStatePool = 0x001A0000u; // the pool cursor is a 24-bit address
 constexpr std::uint32_t kGridEntry = 0x8010C26Cu;
 constexpr std::uint32_t kGridNode = 0x80190000u;
 constexpr std::uint32_t kGridTexturePage = 0x15u;
 constexpr std::uint32_t kGridWidth = 32u;
 constexpr std::uint32_t kGridHeight = 16u;
-constexpr std::uint32_t kOtBuckets = 0x800u;
-constexpr std::uint32_t kOtChainEnd = 0x00FFFFFFu;
 
 psx::present::FrameRecord drawGridFrame(Core &core, std::uint32_t scrollX, std::uint32_t scrollY) {
-  core.mem_w32(kPacketPool, kStatePool);
+  core.mem_w32(kPacketPool, kPoolCursor);
   core.mem_w32(kOtBaseGlobal, kOt);
-  for (std::uint32_t bucket = 0; bucket < kOtBuckets; ++bucket) {
-    core.mem_w32(kOt + bucket * 4u, kOtChainEnd);
-  }
+  tomba::test::clearOrderingTable(core, kOt);
   core.mem_w16(kGridNode + 0x04u, kGridTexturePage);
   core.mem_w16(kGridNode + 0x28u, scrollX);
   core.mem_w16(kGridNode + 0x2Au, scrollY);
@@ -190,33 +190,26 @@ psx::present::FrameRecord drawGridFrame(Core &core, std::uint32_t scrollX, std::
   core.mem_w16(kGridNode + 0x32u, kGridHeight * 16u);
   core.r[4] = kGridNode;
   check(call(core, kGridEntry), "the SOP tile grid returns");
-  return tomba::test::walkOrderingTable(core, kOt);
+  return tomba::test::submittedFrame(core, kOt);
 }
 
-void renderGrid(Core &core,
-                const psx::present::FrameState &from,
-                const psx::present::FrameState &to,
-                float t,
-                tomba::test::CollectedSink &sink) {
-  const psx::present::StateProducer *render = core.stateProducers.find(kGridEntry);
-  const auto toState = to.find({kGridEntry, kGridNode});
-  const auto fromState = from.find({kGridEntry, kGridNode});
-  check(render != nullptr && toState && fromState, "the tile grid has a render and a state in both frames");
-  if (render != nullptr && toState && fromState) {
-    render->render(*fromState, *toState, t, sink);
-  }
+std::vector<psx::present::DrawPrimitive> composedGrid(const tomba::test::ComposeArgs &args) {
+  check(stateProducers.find(kGridEntry) != nullptr && args.to.find({kGridEntry, kGridNode}) &&
+            args.from.find({kGridEntry, kGridNode}),
+        "the tile grid has a render and a state in both frames");
+  return tomba::test::composedPrimitives(stateProducers, args, {kGridEntry, kGridNode});
 }
 
 void testTileGridStateRender(Core &core) {
   const psx::present::FrameRecord frame = drawGridFrame(core, 160u, 120u);
   const psx::present::FrameState state = core.frameStates.collect(frame);
   const auto guest = tomba::test::primitivesOf(frame, kGridEntry);
-  check(guest.size() == 22u * 16u && guest.front().state.texPageX == 5u * 64u && guest.front().state.texPageY == 256u,
+  check(guest.size() == std::size_t{22} * 16u && guest.front().state.texPageX == 5u * 64u &&
+            guest.front().state.texPageY == 256u,
         "the SOP grid draws its sprites on the node's texture page");
 
-  tomba::test::CollectedSink exact;
-  renderGrid(core, state, state, 1.0f, exact);
-  check(tomba::test::sameFrame(exact.drawn, guest), "t = 1 reproduces the sprites the guest wrote, bucket and all");
+  check(tomba::test::sameFrame(composedGrid({.shown = frame, .from = state, .to = state}), guest),
+        "t = 1 reproduces the sprites the guest wrote, bucket and all");
 
   // The render reads the saved node only: scramble the node and move the OT the frame was drawn into.
   std::array<std::uint32_t, 15> node{};
@@ -225,30 +218,29 @@ void testTileGridStateRender(Core &core) {
     core.mem_w32(kGridNode + word * 4u, 0xA5A5A5A5u);
   }
   core.mem_w32(kOtBaseGlobal, kOt + 0x1000u);
-  tomba::test::CollectedSink scrambled;
-  renderGrid(core, state, state, 1.0f, scrambled);
-  check(tomba::test::sameFrame(scrambled.drawn, guest), "the render does not depend on the node it was drawn from");
+  check(tomba::test::sameFrame(composedGrid({.shown = frame, .from = state, .to = state}), guest),
+        "the render does not depend on the node it was drawn from");
   for (std::uint32_t word = 0; word < node.size(); ++word) {
     core.mem_w32(kGridNode + word * 4u, node[word]);
   }
 
   const psx::present::FrameState earlier = core.frameStates.collect(drawGridFrame(core, 160u, 120u));
-  const psx::present::FrameState later = core.frameStates.collect(drawGridFrame(core, 176u, 140u));
+  const psx::present::FrameRecord laterFrame = drawGridFrame(core, 176u, 140u);
+  const psx::present::FrameState later = core.frameStates.collect(laterFrame);
   const psx::present::FrameRecord midway = drawGridFrame(core, 168u, 130u);
-  tomba::test::CollectedSink between;
-  renderGrid(core, earlier, later, 0.5f, between);
-  check(tomba::test::sameFrame(between.drawn, tomba::test::primitivesOf(midway, kGridEntry)),
+  const auto between = composedGrid({.shown = laterFrame, .from = earlier, .to = later, .t = 0.5f});
+  check(tomba::test::sameFrame(between, tomba::test::primitivesOf(midway, kGridEntry)),
         "t = 0.5 draws the grid with the scroll halfway between the two frames");
-  check(!tomba::test::sameFrame(between.drawn, tomba::test::primitivesOf(drawGridFrame(core, 160u, 120u), kGridEntry)),
+  check(!tomba::test::sameFrame(between, tomba::test::primitivesOf(drawGridFrame(core, 160u, 120u), kGridEntry)),
         "the in-between differs from the earlier frame");
 
   // A scroll that wrapped from the end of the map to its start moves the short way round.
   const psx::present::FrameState beforeWrap = core.frameStates.collect(drawGridFrame(core, 508u, 120u));
-  const psx::present::FrameState afterWrap = core.frameStates.collect(drawGridFrame(core, 4u, 120u));
+  const psx::present::FrameRecord afterWrapFrame = drawGridFrame(core, 4u, 120u);
+  const psx::present::FrameState afterWrap = core.frameStates.collect(afterWrapFrame);
   const psx::present::FrameRecord atEdge = drawGridFrame(core, 0u, 120u);
-  tomba::test::CollectedSink across;
-  renderGrid(core, beforeWrap, afterWrap, 0.5f, across);
-  check(tomba::test::sameFrame(across.drawn, tomba::test::primitivesOf(atEdge, kGridEntry)),
+  check(tomba::test::sameFrame(composedGrid({.shown = afterWrapFrame, .from = beforeWrap, .to = afterWrap, .t = 0.5f}),
+                               tomba::test::primitivesOf(atEdge, kGridEntry)),
         "a scroll across the map's wrap moves the short way round");
 }
 
@@ -295,11 +287,9 @@ psx::present::FrameRecord drawGlyphFrame(Core &core, std::uint32_t x) {
   core.mem_w8(kGlyphString + 1u, ' ');
   core.mem_w8(kGlyphString + 2u, 'B');
   core.mem_w8(kGlyphString + 3u, 0u);
-  core.mem_w32(kPacketPool, kPool);
+  core.mem_w32(kPacketPool, kPoolCursor);
   core.mem_w32(kOtBaseGlobal, kOt);
-  for (std::uint32_t bucket = 0; bucket < kOtBuckets; ++bucket) {
-    core.mem_w32(kOt + bucket * 4u, kOtChainEnd);
-  }
+  tomba::test::clearOrderingTable(core, kOt);
   core.r[4] = (40u << 16) | x;
   core.r[5] = 0x00100008u;
   core.r[6] = 8u;
@@ -310,36 +300,25 @@ psx::present::FrameRecord drawGlyphFrame(Core &core, std::uint32_t x) {
   check(psx::cpu::dispatchGuest(core, kGlyphEntry, psx::cpu::ExecutionBudget::fromCycles(1000000u)).returned(),
         "the glyph emitter returns");
   constexpr std::uint32_t kGlyphPacketBytes = 0x14u;
-  tomba2::render::setDrawMode(
-      psx::present::EmitMemory(core), kPool + 2u * kGlyphPacketBytes, 0u, 0u, tomba2::ui::GlyphState::kTexturePage, 0u);
-  return tomba::test::walkOrderingTable(core, kOt);
+  tomba::render::setDrawMode(psx::present::EmitMemory(core),
+                             {.packet = kPool + 2u * kGlyphPacketBytes,
+                              .drawOnDisplay = 0u,
+                              .dither = 0u,
+                              .texturePage = tomba::Font::kGlyphTexturePage,
+                              .window = 0u});
+  return tomba::test::submittedFrame(core, kOt);
 }
 
-std::vector<psx::present::DrawPrimitive> renderGlyph(Core &core,
-                                                     const psx::present::FrameState &from,
-                                                     const psx::present::FrameState &to,
-                                                     std::uint32_t offset,
-                                                     float t) {
-  const psx::present::StateProducer *render = core.stateProducers.find(kGlyphEntry);
-  const auto toState = to.find({kGlyphEntry, kGlyphString + offset});
-  const auto fromState = from.find({kGlyphEntry, kGlyphString + offset});
-  check(render != nullptr && toState && fromState, "the glyph has a render and a state in both frames");
-  tomba::test::CollectedSink sink;
-  if (render != nullptr && toState && fromState) {
-    render->render(*fromState, *toState, t, sink);
-  }
-  return sink.drawn;
+std::vector<psx::present::DrawPrimitive> composedGlyph(std::uint32_t offset, const tomba::test::ComposeArgs &args) {
+  const psx::present::ObjectId glyph{kGlyphEntry, kGlyphString + offset};
+  check(stateProducers.find(kGlyphEntry) != nullptr && args.to.find(glyph) && args.from.find(glyph),
+        "the glyph has a render and a state in both frames");
+  return tomba::test::composedPrimitives(stateProducers, args, glyph);
 }
 
 std::vector<psx::present::DrawPrimitive> glyphPrimitives(const psx::present::FrameRecord &record,
                                                          std::uint32_t offset) {
-  std::vector<psx::present::DrawPrimitive> found;
-  for (const auto &primitive : tomba::test::primitivesOf(record, kGlyphEntry)) {
-    if (primitive.key->object == kGlyphString + offset) {
-      found.push_back(primitive);
-    }
-  }
-  return found;
+  return tomba::test::objectPrimitives(record, {kGlyphEntry, kGlyphString + offset});
 }
 
 void testGlyphs(Core &core) {
@@ -349,15 +328,17 @@ void testGlyphs(Core &core) {
         "each glyph is an object named by its character's address");
 
   const psx::present::FrameState state = core.frameStates.collect(frame);
-  check(tomba::test::sameFrame(renderGlyph(core, state, state, 0u, 1.0f), glyphPrimitives(frame, 0u)) &&
-            tomba::test::sameFrame(renderGlyph(core, state, state, 2u, 1.0f), glyphPrimitives(frame, 2u)) &&
+  const tomba::test::ComposeArgs exact{.shown = frame, .from = state, .to = state};
+  check(tomba::test::sameFrame(composedGlyph(0u, exact), glyphPrimitives(frame, 0u)) &&
+            tomba::test::sameFrame(composedGlyph(2u, exact), glyphPrimitives(frame, 2u)) &&
             glyphPrimitives(frame, 2u).size() == 1u,
         "t = 1 reproduces the glyph sprites the guest wrote, bucket and texture page");
 
   const psx::present::FrameState earlier = core.frameStates.collect(drawGlyphFrame(core, 100u));
-  const psx::present::FrameState later = core.frameStates.collect(drawGlyphFrame(core, 140u));
+  const psx::present::FrameRecord laterFrame = drawGlyphFrame(core, 140u);
+  const psx::present::FrameState later = core.frameStates.collect(laterFrame);
   const psx::present::FrameRecord midway = drawGlyphFrame(core, 120u);
-  const auto between = renderGlyph(core, earlier, later, 2u, 0.5f);
+  const auto between = composedGlyph(2u, {.shown = laterFrame, .from = earlier, .to = later, .t = 0.5f});
   check(tomba::test::sameFrame(between, glyphPrimitives(midway, 2u)) &&
             !tomba::test::sameFrame(between, glyphPrimitives(frame, 2u)),
         "t = 0.5 draws the glyph halfway between its two positions");
@@ -368,81 +349,69 @@ constexpr std::uint32_t kRainEntry = 0x80116904u;
 constexpr std::uint32_t kRainTrails = 0x801485E8u;
 constexpr std::uint32_t kRainDrops = 32u;
 
-psx::present::FrameRecord drawRainFrame(Core &core, std::uint32_t node, std::uint32_t shift) {
-  beginFrame(core);
+struct DrawRainFrameArgs {
+  std::uint32_t node;
+  std::uint32_t shift;
+};
+psx::present::FrameRecord drawRainFrame(Core &core, const DrawRainFrameArgs &args) {
+  auto [node, shift] = args;
+  core.mem_w32(kPacketPool, kPoolCursor);
   core.mem_w32(kOtBaseGlobal, kOt);
-  for (std::uint32_t bucket = 0; bucket < kOtBuckets; ++bucket) {
-    core.mem_w32(kOt + bucket * 4u, kOtChainEnd);
-  }
+  tomba::test::clearOrderingTable(core, kOt);
   for (std::uint32_t drop = 0; drop < kRainDrops; ++drop) {
     core.mem_w32(kRainTrails + drop * 4u, (10u << 16) | (10u + shift));
   }
-  gte_write_ctrl(psx::gte::kOfx, (160u + shift) << 16);
+  core.gte().writeControl(psx::gte::kOfx, (160u + shift) << 16);
   core.r[4] = node;
   check(call(core, kRainEntry), "the rain returns");
   // The stubbed SetDrawMode wrote nothing; each streak's DR_TPAGE packet follows its line.
   for (std::uint32_t drop = 0; drop < kRainDrops; ++drop) {
-    tomba2::render::setDrawMode(psx::present::EmitMemory(core), kPool + drop * 0x20u + 0x14u, 0u, 1u, 0x15u, 0u);
+    tomba::render::setDrawMode(psx::present::EmitMemory(core),
+                               {.packet = kPool + drop * 0x20u + 0x14u,
+                                .drawOnDisplay = 0u,
+                                .dither = 1u,
+                                .texturePage = 0x15u,
+                                .window = 0u});
   }
-  return tomba::test::walkOrderingTable(core, kOt);
+  return tomba::test::submittedFrame(core, kOt);
 }
 
 std::vector<psx::present::DrawPrimitive> dropPrimitives(const psx::present::FrameRecord &record, std::uint32_t drop) {
-  std::vector<psx::present::DrawPrimitive> found;
-  for (const auto &primitive : tomba::test::primitivesOf(record, kRainEntry)) {
-    if (primitive.key->object == kRainTrails + drop * 4u) {
-      found.push_back(primitive);
-    }
-  }
-  return found;
+  return tomba::test::objectPrimitives(record, {kRainEntry, kRainTrails + drop * 4u});
 }
 
-bool renderDrop(Core &core,
-                const psx::present::FrameState &from,
-                const psx::present::FrameState &to,
-                std::uint32_t drop,
-                float t,
-                std::vector<psx::present::DrawPrimitive> &drawn) {
-  const psx::present::StateProducer *render = core.stateProducers.find(kRainEntry);
-  const auto toState = to.find({kRainEntry, kRainTrails + drop * 4u});
-  const auto fromState = from.find({kRainEntry, kRainTrails + drop * 4u});
-  if (render == nullptr || !toState || !fromState) {
-    return false;
-  }
-  tomba::test::CollectedSink sink;
-  render->render(*fromState, *toState, t, sink);
-  drawn = sink.drawn;
-  return true;
+std::vector<psx::present::DrawPrimitive> composedDrop(std::uint32_t drop, const tomba::test::ComposeArgs &args) {
+  return tomba::test::composedPrimitives(stateProducers, args, {kRainEntry, kRainTrails + drop * 4u});
 }
 
 void testRainStateRender(Core &core, std::uint32_t node) {
-  const psx::present::FrameRecord frame = drawRainFrame(core, node, 0u);
+  const psx::present::FrameRecord frame = drawRainFrame(core, {.node = node, .shift = 0u});
   const psx::present::FrameState state = core.frameStates.collect(frame);
+  const tomba::test::ComposeArgs atFrame{.shown = frame, .from = state, .to = state};
   bool exact = true;
   bool scrambledExact = true;
-  std::vector<psx::present::DrawPrimitive> drawn;
   for (std::uint32_t drop = 0; drop < kRainDrops; ++drop) {
-    exact = exact && renderDrop(core, state, state, drop, 1.0f, drawn) &&
-            tomba::test::sameFrame(drawn, dropPrimitives(frame, drop));
+    exact = exact && tomba::test::sameFrame(composedDrop(drop, atFrame), dropPrimitives(frame, drop));
   }
   core.mem_w32(kOtBaseGlobal, kOt + 0x1000u);
   for (std::uint32_t drop = 0; drop < kRainDrops; ++drop) {
     core.mem_w32(kRainTrails + drop * 4u, 0xA5A5A5A5u);
-    scrambledExact = scrambledExact && renderDrop(core, state, state, drop, 1.0f, drawn) &&
-                     tomba::test::sameFrame(drawn, dropPrimitives(frame, drop));
+    scrambledExact = scrambledExact && tomba::test::sameFrame(composedDrop(drop, atFrame), dropPrimitives(frame, drop));
   }
   check(exact && tomba::test::primitivesOf(frame, kRainEntry).size() == kRainDrops,
         "t = 1 reproduces every streak the guest wrote, bucket and all");
   check(scrambledExact, "the render does not depend on the trails it was drawn from");
 
-  const psx::present::FrameState earlier = core.frameStates.collect(drawRainFrame(core, node, 0u));
-  const psx::present::FrameState later = core.frameStates.collect(drawRainFrame(core, node, 40u));
-  const psx::present::FrameRecord midway = drawRainFrame(core, node, 20u);
+  const psx::present::FrameState earlier = core.frameStates.collect(drawRainFrame(core, {.node = node, .shift = 0u}));
+  const psx::present::FrameRecord laterFrame = drawRainFrame(core, {.node = node, .shift = 40u});
+  const psx::present::FrameState later = core.frameStates.collect(laterFrame);
+  const psx::present::FrameRecord midway = drawRainFrame(core, {.node = node, .shift = 20u});
+  const tomba::test::ComposeArgs halfway{.shown = laterFrame, .from = earlier, .to = later, .t = 0.5f};
   bool between = true;
   bool moved = true;
   for (std::uint32_t drop = 0; drop < kRainDrops; ++drop) {
-    between = between && renderDrop(core, earlier, later, drop, 0.5f, drawn) &&
-              tomba::test::sameFrame(drawn, dropPrimitives(midway, drop));
+    const auto drawn = composedDrop(drop, halfway);
+    between = between && !drawn.empty() && tomba::test::sameFrame(drawn, dropPrimitives(midway, drop));
     moved = moved && !tomba::test::sameFrame(drawn, dropPrimitives(frame, drop));
   }
   check(between, "t = 0.5 draws each streak halfway between its two frames");
@@ -464,14 +433,14 @@ void testRain(Core &core) {
   for (std::uint32_t drop = 0; drop < 32u; drop++) {
     core.mem_w32(kTrails + drop * 4u, 0x000A000Au);
   }
-  gte_bind(&core);
+  core.gte().bind();
   for (std::uint32_t reg = 0; reg < 5u; reg++) {
-    gte_write_ctrl(reg, reg % 2u == 0u ? 0x1000u : 0u); // identity rotation
+    core.gte().writeControl(reg, reg % 2u == 0u ? 0x1000u : 0u); // identity rotation
   }
-  gte_write_ctrl(5u, 0u);
-  gte_write_ctrl(6u, 0u);
-  gte_write_ctrl(7u, 1000u);
-  gte_write_ctrl(psx::gte::kH, 100u);
+  core.gte().writeControl(5u, 0u);
+  core.gte().writeControl(6u, 0u);
+  core.gte().writeControl(7u, 1000u);
+  core.gte().writeControl(psx::gte::kH, 100u);
 
   for (int frame = 0; frame < 2; frame++) {
     beginFrame(core);
@@ -488,37 +457,49 @@ void testRain(Core &core) {
 
 } // namespace
 
-int main() {
-  tomba::test::StubRuntime runtime;
-  psxport_install_game(runtime);
-  auto game = std::make_unique<Game>();
+namespace {
+
+int runTests() {
+  tomba::native::NativeOverrideCatalog natives;
+  psx::test::StubGameRuntime runtime;
+  auto game = std::make_unique<Game>(runtime, psx::config::Config{});
   Core &core = game->core;
   game->mods.aspect = ASPECT_4_3; // the record path, whatever the local settings say
   core.mem_w32(kOtBaseGlobal, kOt);
   returnStub(core, 0x80083DE0u);
   returnStub(core, 0x80081218u);
 
-  core.otTables.name(tomba::test::kOtTable, kOt, kOtBuckets, sizeof(std::uint32_t), psx::gpu::OtWalk::HighToLow);
-  TileGridLayer::registerOverrides(game.get());
-  TileGridLayer::registerStateRenders(core);
-  SopGround::registerOverrides();
-  RainStreaks::registerOverrides();
-  RainStreaks::registerStateRenders(core);
-  Font::registerOverrides();
-  Font::registerStateRenders(core);
+  tomba::TileGridLayer::registerOverrides(natives);
+  tomba::TileGridLayer::registerStateRenders(stateProducers, core);
+  tomba::SopGround::registerOverrides(natives);
+  tomba::RainStreaks::registerOverrides(natives);
+  tomba::RainStreaks::registerStateRenders(stateProducers);
+  tomba::Font::registerOverrides(natives);
+  tomba::Font::registerStateRenders(stateProducers);
   const auto resident = core.imageCatalog().activate("resident", kResidentText, 1u);
-  tomba::native::bindResident(core, resident, kResidentText);
+  natives.bindResident(core, resident, kResidentText);
 
   std::optional<psx::cpu::ImageIdentity> mode;
-  tomba::native::activateOverlay(core, mode, "SOP", kModeSlotSop);
+  natives.activateOverlay(core, mode, "SOP", kModeSlotSop);
   testSopTileGrid(core);
   testTileGridMargin(*game);
   testTileGridStateRender(core);
   testSopGround(core);
   testGlyphs(core);
-  tomba::native::activateOverlay(core, mode, "A08", kModeSlotA08);
+  natives.activateOverlay(core, mode, "A08", kModeSlotA08);
   testRain(core);
 
   lucent::info("producers-test", "checked={} failed={}", checked, failed);
   return failed == 0 ? 0 : 1;
+}
+
+} // namespace
+
+int main() {
+  try {
+    return runTests();
+  } catch (const std::exception &error) {
+    lucent::error("test", "FAIL: {}", error.what());
+    return 1;
+  }
 }

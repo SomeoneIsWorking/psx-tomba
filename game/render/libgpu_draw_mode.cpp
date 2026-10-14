@@ -1,7 +1,7 @@
 // game/render/libgpu_draw_mode.cpp — libgpu SetDrawMode (0x80083DE0). See libgpu_draw_mode.h.
 #include "libgpu_draw_mode.h"
 
-namespace tomba2::render {
+namespace tomba::render {
 namespace {
 
 constexpr std::uint32_t kPacketTag = 2u; // words after the tag
@@ -13,12 +13,8 @@ constexpr std::uint32_t kDrawOnDisplayBit = 0x400u;
 
 } // namespace
 
-std::uint32_t setDrawMode(const psx::present::EmitMemory &memory,
-                          std::uint32_t packet,
-                          std::uint32_t drawOnDisplay,
-                          std::uint32_t dither,
-                          std::uint32_t texturePage,
-                          std::uint32_t window) {
+std::uint32_t setDrawMode(const psx::present::EmitMemory &memory, const SetDrawModeArgs &args) {
+  auto [packet, drawOnDisplay, dither, texturePage, window] = args;
   memory.mem_w8(packet + 3u, kPacketTag);
 
   std::uint32_t mode = kDrawModeCommand;
@@ -49,4 +45,4 @@ std::uint32_t setDrawMode(const psx::present::EmitMemory &memory,
   return offsetX;
 }
 
-} // namespace tomba2::render
+} // namespace tomba::render

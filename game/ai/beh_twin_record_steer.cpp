@@ -21,28 +21,32 @@
 // to 16 bits (sh), not its sign-extension. The byte-exact A/B gate (full RAM+scratchpad vs original guest-body call) is
 // the safety net. NO GTE.
 
-#include "cfg.h"
 #include "core.h"
-#include "core/entry/game_ctx.h"
 #include "core/overrides/guest_jal.h"
+#include "entry/tomba_session.h"
 #include "graphics_bind.h" // ov_obj_render_update (FUN_800517F8)
 #include "guest_abi.h"
 #include "object/actor.h" // Actor::boundsCull (FUN_8007778C — thin wrapper native)
 #include "spawn.h"        // class Spawn (eng(c).spawn.despawn / dispatch / spawnAndInit)
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <optional>
+
+namespace tomba {
 
 namespace {
 
 constexpr uint32_t BEH_FN = 0x80133D6Cu;
 
-// Step `cur` (sext16 current value) toward target `snap` by `step`, snapping on overshoot. Returns
-// whether to store (false = cur already at target16, guest skips the sh) + the value to store.
-static inline bool clamp_step(int32_t cur, uint32_t snap, int step, uint16_t *out) {
+// A target the steer moves toward by at most `step`, snapping on overshoot.
+struct StepToward {
+  uint32_t snap;
+  int step;
+};
+// The value to store, or nothing when `cur` is already at sext16(snap) (the guest skips the sh).
+std::optional<uint16_t> clamp_step(int32_t cur, const StepToward &toward) {
+  const auto [snap, step] = toward;
   int32_t tgt = (int16_t)(uint16_t)snap; // a0 = sext16(snap)
   if (cur == tgt) {
-    return false; // beq -> no store
+    return std::nullopt; // beq -> no store
   }
   int32_t v1;
   if (cur < tgt) { // increase
@@ -54,8 +58,7 @@ static inline bool clamp_step(int32_t cur, uint32_t snap, int step, uint16_t *ou
     int32_t s = (int16_t)(uint16_t)nv;
     v1 = (s < tgt) ? (int32_t)snap : nv; // sext16(nv) < a0 -> snap
   }
-  *out = (uint16_t)v1;
-  return true;
+  return (uint16_t)v1;
 }
 
 } // namespace
@@ -117,7 +120,8 @@ S0: {
     c->mem_w32(rec + 8, 0);
     c->mem_w32(rec + 12, 0);
     // FUN_80051B04(rec, 12, iter); leaves a0=rec for the next FUN_8007AAE8
-    eng(c).graphicsBind.installSceneRecord(rec, 12, (uint32_t)iter); // FUN_80051B04 (native)
+    eng(c).graphicsBind.installSceneRecord(
+        {.rec = rec, .classArg = 12, .itemArg = (uint32_t)iter}); // FUN_80051B04 (native)
   }
   goto Lret;
 }
@@ -130,8 +134,8 @@ S1: {
     uint32_t rec0 = c->mem_r32(nd + 0xc0);
     int32_t aa = c->mem_r16s(0x1f800160u) - (int32_t)c->mem_r32(rec0 + 0x2c);
     int32_t bb = c->mem_r16s(0x1f800164u) - (int32_t)c->mem_r32(rec0 + 0x34);
-    int32_t v1 =
-        (int32_t)tomba::guest::dispatchLeafToReturn(*c, 0x800781e0u, (uint32_t)aa, (uint32_t)bb); // FUN_800781E0
+    int32_t v1 = (int32_t)psx::cpu::callGuestNowResult(
+        *c, "beh_twin_record_steer", 0x800781e0u, (uint32_t)aa, (uint32_t)bb); // FUN_800781E0
     if (v1 < 60) {
       a1v = 0;
       a3v = 0;
@@ -142,25 +146,21 @@ S1: {
       a1v = (uint32_t)(int32_t)-70;
       a3v = ((uint32_t)(140 - v1)) >> 1;
     }
-  } else if (n29 == 0) {
-    a1v = 0;
-    a3v = 0;
   } else if (n29 == 2) {
     a1v = (uint32_t)(int32_t)-70;
     a3v = (uint32_t)(int32_t)-70;
-  } else {
+  } else { // n29 == 0 or n29 >= 3
     a1v = 0;
     a3v = 0;
-  } // n29 >= 3
+  }
 
   uint32_t rec0 = c->mem_r32(nd + 0xc0);
-  uint16_t nv;
-  if (clamp_step(c->mem_r16s(rec0 + 0x0c), a1v, 5, &nv)) {
-    c->mem_w16(c->mem_r32(nd + 0xc0) + 0x0c, nv);
+  if (const auto nv = clamp_step(c->mem_r16s(rec0 + 0x0c), {.snap = a1v, .step = 5})) {
+    c->mem_w16(c->mem_r32(nd + 0xc0) + 0x0c, *nv);
   }
   uint32_t rec1 = c->mem_r32(nd + 0xc4);
-  if (clamp_step(c->mem_r16s(rec1 + 0x0c), a3v, 10, &nv)) {
-    c->mem_w16(c->mem_r32(nd + 0xc4) + 0x0c, nv);
+  if (const auto nv = clamp_step(c->mem_r16s(rec1 + 0x0c), {.snap = a3v, .step = 10})) {
+    c->mem_w16(c->mem_r32(nd + 0xc4) + 0x0c, *nv);
   }
 
   if (c->mem_r8(0x800e7eaau) < 22) {
@@ -175,3 +175,5 @@ S1: {
 Lret:
   return;
 }
+
+} // namespace tomba

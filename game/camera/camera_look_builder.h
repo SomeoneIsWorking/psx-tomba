@@ -23,9 +23,13 @@ public:
   // Fold a look-relative (dx, dz) into the heading and the S+0/S+8 accumulators; settle bit if the
   // distance is under 401. FUN_8006D02C's shared tail.
   void yawDistAccumulate(int32_t dx, int32_t dz);
+  struct LookatTailArgs {
+    int32_t theta;
+    int32_t radius;
+  };
   // Place a look point at (theta, radius) around the scene centre and fold it in. The shared tail of
   // rotBuild's modes.
-  void lookatTail(int32_t theta, int32_t radius);
+  void lookatTail(const LookatTailArgs &args);
   // FUN_8006DC38 — direct place of the X/Z look accumulators (scripted mode 2).
   void posBuildA();
   // FUN_8006DAD8 — place, then yaw/distance accumulate (scripted mode 4).
@@ -34,8 +38,12 @@ public:
   void headBuildA(uint32_t nonzero);
   // FUN_8006DEF0 — heading step with the +/-10 snap.
   void headBuildB();
+  struct JoinE640Args {
+    int32_t delta;
+    int32_t radius;
+  };
   // rotBuild's shared entry into the yaw/distance fold.
-  void joinE640(int32_t delta, int32_t radius);
+  void joinE640(const JoinE640Args &args);
   // rotBuild's two table-driven delta/radius sources.
   int32_t table1Delta();
   void table2(int32_t radius);

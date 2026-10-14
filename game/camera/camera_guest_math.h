@@ -9,6 +9,7 @@
 #include "core.h"
 #include "guest_call.h"
 
+#include <array>
 #include <cstdint>
 
 namespace tomba::camera::guestmath {
@@ -24,14 +25,12 @@ inline constexpr uint32_t kCopyMatrix = 0x800847B0u;    // CopyMatrix(a0,a1)
 inline constexpr uint32_t kShakeRand = 0x8009A450u;
 inline constexpr uint32_t kShakeFx = 0x800521F4u;
 
-// The cluster's one guest-call convention: load a0..a3, dispatch, return v0.
-inline int32_t call(Core &c, uint32_t fn, int32_t a0 = 0, int32_t a1 = 0, int32_t a2 = 0, int32_t a3 = 0) {
-  c.r[4] = (uint32_t)a0;
-  c.r[5] = (uint32_t)a1;
-  c.r[6] = (uint32_t)a2;
-  c.r[7] = (uint32_t)a3;
-  psx::cpu::dispatchGuestToReturn0(c, fn, psx::cpu::ExecutionBudget::currentTurn(c), __func__);
-  return (int32_t)c.r[2];
+// The cluster's one guest-call convention: a0..a3 from `args`, the rest zero; returns v0.
+template <typename... Args>
+  requires(sizeof...(Args) <= 4)
+inline int32_t call(Core &c, uint32_t fn, Args... args) {
+  const std::array<uint32_t, 4> regs{static_cast<uint32_t>(args)...};
+  return (int32_t)psx::cpu::callGuestNowResult(c, "camera", fn, regs[0], regs[1], regs[2], regs[3]);
 }
 
 // Clamp a sign-extended s16 delta to +/-maxStep (engine FUN_8006CE74).

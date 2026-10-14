@@ -11,14 +11,16 @@
 // Writes the guest's own GTE, OT and packet-pool state; every write is part of the byte-exact state.
 #include "widescreen_margin_quad.h"
 #include "core.h"
-#include "core/entry/game_ctx.h"
 #include "core/overrides/guest_jal.h"
 #include "core/overrides/native_override_catalog.h"
+#include "entry/tomba_session.h"
 #include "game.h"
 #include "guest_abi.h"
 #include "guest_ordering_table.h"
 #include <cstdint>
 #include <lucent/log.h>
+
+namespace tomba {
 
 namespace {
 
@@ -49,20 +51,18 @@ uint16_t packDelta(int8_t b) {
 // reads 32-bit words spanning those gaps into the GTE (the stale upper halves are GTE-ignored VZ
 // bits). These are GUEST-VISIBLE stack bytes SBS byte-compares, so the port must write them too —
 // it does NOT feed the GTE from host registers (that skipped the guest stack and diverged).
-enum : uint32_t {
-  kVtxScratch_X0 = 32,
-  kVtxScratch_Y0 = 34,
-  kVtxScratch_Z0 = 36, // -> GTE VXY0 (sp+32), VZ0 (sp+36)
-  kVtxScratch_X1 = 40,
-  kVtxScratch_Y1 = 42,
-  kVtxScratch_Z1 = 44, // -> GTE VXY1 (sp+40), VZ1 (sp+44)
-  kVtxScratch_X2 = 48,
-  kVtxScratch_Y2 = 50,
-  kVtxScratch_Z2 = 52, // -> GTE VXY2 (sp+48), VZ2 (sp+52)
-  kVtxScratch_X3 = 56,
-  kVtxScratch_Y3 = 58,
-  kVtxScratch_Z3 = 60, // -> GTE VXY3 (sp+56), VZ3 (sp+60)
-};
+constexpr uint32_t kVtxScratch_X0 = 32;
+constexpr uint32_t kVtxScratch_Y0 = 34;
+constexpr uint32_t kVtxScratch_Z0 = 36; // -> GTE VXY0 (sp+32), VZ0 (sp+36)
+constexpr uint32_t kVtxScratch_X1 = 40;
+constexpr uint32_t kVtxScratch_Y1 = 42;
+constexpr uint32_t kVtxScratch_Z1 = 44; // -> GTE VXY1 (sp+40), VZ1 (sp+44)
+constexpr uint32_t kVtxScratch_X2 = 48;
+constexpr uint32_t kVtxScratch_Y2 = 50;
+constexpr uint32_t kVtxScratch_Z2 = 52; // -> GTE VXY2 (sp+48), VZ2 (sp+52)
+constexpr uint32_t kVtxScratch_X3 = 56;
+constexpr uint32_t kVtxScratch_Y3 = 58;
+constexpr uint32_t kVtxScratch_Z3 = 60; // -> GTE VXY3 (sp+56), VZ3 (sp+60)
 
 // -------------------------------------------------------------------------------------------
 // Record lens: 36-byte-stride quad record. Field roles below are exactly what authenticated executable/overlay evidence
@@ -161,7 +161,7 @@ uint8_t fogShade(uint8_t base, int32_t delta) {
 
 // This leaf's OT bucket for its z-combine, or kNoBucket outside [4, 2047].
 int32_t marginOtzIndex(int32_t zPlusBias) {
-  using tomba2::render::OrderingTable;
+  using tomba::render::OrderingTable;
   const int32_t idx = OrderingTable::compressDepth(zPlusBias);
   return OrderingTable::inDepthRange(idx) ? idx : OrderingTable::kNoBucket;
 }
@@ -172,7 +172,7 @@ void WidescreenMarginQuad::emit(Core *c) {
   // Frame: sp -= 104, spill s0..s6/ra at their RE'd offsets (tools/binary ABI evidence --contract).
   // Mirrored per CLAUDE.md "MIRROR THE GUEST STACK" — the compose-transform call below is a real
   // guest call into still-substrate code that may spill/restore these same registers.
-  static constexpr GuestFrameSpill kSpills[] = {
+  constexpr GuestFrameSpill kSpills[] = {
       {18, 80},
       {17, 76},
       {20, 88},
@@ -189,7 +189,7 @@ void WidescreenMarginQuad::emit(Core *c) {
   GuestReg<18> obj(c);
   obj = c->r[4];
   GuestReg<17> pool(c);
-  pool = tomba2::render::PacketPool(*c).cursor();
+  pool = tomba::render::PacketPool(*c).cursor();
   GuestReg<20> zScratch(c);
   zScratch = kGteFlagScratch;
   GuestReg<22> flagScratch(c);
@@ -218,8 +218,11 @@ void WidescreenMarginQuad::emit(Core *c) {
   c->mem_w8(c->r[29] + 64, (uint8_t)(c->mem_r8((uint32_t)node + 0) * 10));
   c->mem_w8(c->r[29] + 65, (uint8_t)(c->mem_r8((uint32_t)node + 1) * 10));
   c->mem_w8(c->r[29] + 66, (uint8_t)(c->mem_r8((uint32_t)node + 2) * 10));
-  tomba::guest::dispatchJalToReturn(
-      *c, kComposeObjectTransform, kComposeObjectTransformRa, (uint32_t)obj + 44, c->r[29] + 64, (uint32_t)obj + 72);
+  tomba::guest::dispatchJalToReturn(*c,
+                                    {.target = kComposeObjectTransform, .returnAddress = kComposeObjectTransformRa},
+                                    (uint32_t)obj + 44,
+                                    c->r[29] + 64,
+                                    (uint32_t)obj + 72);
 
   const uint8_t nodeFlags = c->mem_r8((uint32_t)node + 3);
   const uint32_t clutBiasHigh = (uint32_t)(nodeFlags & 0x0Fu) << 22;
@@ -264,27 +267,27 @@ void WidescreenMarginQuad::emit(Core *c) {
     c->mem_w16(sp + kVtxScratch_Y3, packDelta(rec.y3()));
     c->mem_w16(sp + kVtxScratch_Z3, packDelta(rec.z3()));
 
-    gte_write_data(0, c->mem_r32(sp + kVtxScratch_X0)); // VXY0 = {x0, y0}
-    gte_write_data(1, c->mem_r32(sp + kVtxScratch_Z0)); // VZ0  (low half z0; upper = stale gap, GTE-ignored)
-    gte_write_data(2, c->mem_r32(sp + kVtxScratch_X1)); // VXY1 = {x1, y1}
-    gte_write_data(3, c->mem_r32(sp + kVtxScratch_Z1)); // VZ1
-    gte_write_data(4, c->mem_r32(sp + kVtxScratch_X2)); // VXY2 = {x2, y2}
-    gte_write_data(5, c->mem_r32(sp + kVtxScratch_Z2)); // VZ2
-    gte_op(c, 0x4A280030u);                             // RTPT
+    c->gte().writeData(0, c->mem_r32(sp + kVtxScratch_X0)); // VXY0 = {x0, y0}
+    c->gte().writeData(1, c->mem_r32(sp + kVtxScratch_Z0)); // VZ0  (low half z0; upper = stale gap, GTE-ignored)
+    c->gte().writeData(2, c->mem_r32(sp + kVtxScratch_X1)); // VXY1 = {x1, y1}
+    c->gte().writeData(3, c->mem_r32(sp + kVtxScratch_Z1)); // VZ1
+    c->gte().writeData(4, c->mem_r32(sp + kVtxScratch_X2)); // VXY2 = {x2, y2}
+    c->gte().writeData(5, c->mem_r32(sp + kVtxScratch_Z2)); // VZ2
+    c->gte().execute(0x4A280030u);                          // RTPT
 
     // rgb0|code: colorCode0Src masked to 24 bits, re-tagged with the fixed code byte.
     c->mem_w32(poolBase - 44, (rec.colorCode0Src() & 0x00FFFFFFu) | kColorCodeTag);
     // uv0|clut: record's base word plus the node's clut bias.
     c->mem_w32(poolBase - 36, rec.uv0ClutBase() + clutBiasHigh);
 
-    c->mem_w32(zScratch, gte_read_ctrl(31));
+    c->mem_w32(zScratch, c->gte().readControl(31));
     if ((int32_t)c->mem_r32(zScratch) < 0) {
       goto skipRecord;
     }
 
-    c->mem_w32(pool + 8, gte_read_data(12));  // SXY0
-    c->mem_w32(pool + 20, gte_read_data(13)); // SXY1
-    c->mem_w32(pool + 32, gte_read_data(14)); // SXY2
+    c->mem_w32(pool + 8, c->gte().readData(12));  // SXY0
+    c->mem_w32(pool + 20, c->gte().readData(13)); // SXY1
+    c->mem_w32(pool + 32, c->gte().readData(14)); // SXY2
 
     // uv1|tpage: low 23 bits of the same plane word that also gates the loop's continuation.
     c->mem_w32(poolBase - 24, rec.planeWord() & kPlanePayloadMask);
@@ -293,23 +296,23 @@ void WidescreenMarginQuad::emit(Core *c) {
     c->mem_w32(poolBase + 0, (uint32_t)((int32_t)rec.uv2Word() >> 16));
 
     // V3 via RTPS (the GTE's RTPT only transforms 3 points) — loaded from the same stack scratch.
-    gte_write_data(0, c->mem_r32(sp + kVtxScratch_X3)); // VXY3 = {x3, y3}
-    gte_write_data(1, c->mem_r32(sp + kVtxScratch_Z3)); // VZ3
-    c->mem_w32(poolBase - 32, rec.rgb1Raw());           // rgb1 raw copy
-    gte_op(c, 0x4A180001u);                             // RTPS
+    c->gte().writeData(0, c->mem_r32(sp + kVtxScratch_X3)); // VXY3 = {x3, y3}
+    c->gte().writeData(1, c->mem_r32(sp + kVtxScratch_Z3)); // VZ3
+    c->mem_w32(poolBase - 32, rec.rgb1Raw());               // rgb1 raw copy
+    c->gte().execute(0x4A180001u);                          // RTPS
 
-    c->mem_w32(flagScratch, gte_read_ctrl(31));
+    c->mem_w32(flagScratch, c->gte().readControl(31));
     if ((int32_t)c->mem_r32(flagScratch) < 0) {
       goto skipRecord;
     }
-    c->mem_w32(pool + 44, gte_read_data(14)); // SXY3
-    c->mem_w32(poolBase - 20, rec.rgb2Raw()); // rgb2 raw copy
+    c->mem_w32(pool + 44, c->gte().readData(14)); // SXY3
+    c->mem_w32(poolBase - 20, rec.rgb2Raw());     // rgb2 raw copy
 
-    gte_op(c, 0x4B68002Eu);                  // AVSZ4
+    c->gte().execute(0x4B68002Eu);           // AVSZ4
     c->mem_w32(poolBase - 8, rec.rgb3Raw()); // rgb3 raw copy
 
     {
-      int32_t idx = marginOtzIndex((int32_t)gte_read_data(7) + objZBias);
+      int32_t idx = marginOtzIndex((int32_t)c->gte().readData(7) + objZBias);
       c->mem_w32(zScratch, (uint32_t)idx);
       if (idx < 0) {
         goto skipRecord;
@@ -331,7 +334,7 @@ void WidescreenMarginQuad::emit(Core *c) {
       if (delta < 0) {
         delta = 0;
       }
-      static constexpr uint32_t kRgbWordOff[4] = {4, 16, 28, 40}; // pool-relative rgb0..rgb3
+      constexpr uint32_t kRgbWordOff[4] = {4, 16, 28, 40}; // pool-relative rgb0..rgb3
       for (uint32_t off : kRgbWordOff) {
         uint32_t addr = (uint32_t)pool + off;
         uint8_t r = c->mem_r8(addr + 0), g = c->mem_r8(addr + 1), b = c->mem_r8(addr + 2);
@@ -343,7 +346,7 @@ void WidescreenMarginQuad::emit(Core *c) {
 
     // Per-node clut bias added to the low byte of every uv word (u0, u1, u2, u3).
     {
-      static constexpr uint32_t kUvWordOff[4] = {12, 24, 36, 48};
+      constexpr uint32_t kUvWordOff[4] = {12, 24, 36, 48};
       for (uint32_t off : kUvWordOff) {
         uint32_t addr = (uint32_t)pool + off;
         c->mem_w8(addr, (uint8_t)(c->mem_r8(addr) + (uint32_t)clutBiasLow));
@@ -353,10 +356,10 @@ void WidescreenMarginQuad::emit(Core *c) {
     // Commit: link the packet into its OT bucket, advance the pool cursor. gen leaves the tag's
     // length word live in r3/v1, the leaf's v1 return residue.
     {
-      const auto ot = tomba2::render::OrderingTable::active(*c);
+      const auto ot = tomba::render::OrderingTable::active(*c);
       const uint32_t idx = c->mem_r32(zScratch);
       c->r[3] = kPktWords << 24;
-      ot.link((uint32_t)pool, kPktWords, idx);
+      ot.link({.packet = (uint32_t)pool, .words = kPktWords, .bucket = idx});
       pool = (uint32_t)pool + 52;
       poolBase += 52;
     }
@@ -369,10 +372,12 @@ void WidescreenMarginQuad::emit(Core *c) {
   }
 
   // gen addresses the cursor as page - 2748 and leaves the page in r2/v0, the leaf's v0 residue.
-  c->r[2] = tomba2::render::PacketPool::kCursorPage;
-  tomba2::render::PacketPool(*c).setCursor((uint32_t)pool);
+  c->r[2] = tomba::render::PacketPool::kCursorPage;
+  tomba::render::PacketPool(*c).setCursor((uint32_t)pool);
 }
 
-void WidescreenMarginQuad::registerOverrides(Game *) {
-  tomba::native::declareOverlayOverride("A00", 0x8013CDD4u, "&WidescreenMarginQuad::emit", &WidescreenMarginQuad::emit);
+void WidescreenMarginQuad::registerOverrides(native::NativeOverrideCatalog &natives) {
+  natives.declareOverlay("A00", 0x8013CDD4u, "&WidescreenMarginQuad::emit", &WidescreenMarginQuad::emit);
 }
+
+} // namespace tomba

@@ -37,11 +37,13 @@
 
 #include "core.h"
 #include "core/engine/engine.h"
-#include "core/entry/game_ctx.h"
+#include "entry/tomba_session.h"
 #include "guest_abi.h" // GuestFrame — mirror the guest stack frame (CLAUDE.md)
 #include "guest_call.h"
 #include "render/screen_fade.h"
 #include <cstdint>
+
+namespace tomba {
 
 namespace {
 
@@ -115,34 +117,16 @@ constexpr uint32_t O_D_D0 = 0xD0u;
 constexpr uint32_t O_D_DC = 0xDCu;
 constexpr uint32_t O_ANIM_2C = 0x2Cu; // used as base ptr for FUN_8013DD48
 
-inline void call1(Core *c, uint32_t a, uint32_t addr) {
-  c->r[4] = a;
-  psx::cpu::dispatchGuestToReturn0(*c, addr, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
-}
-inline uint32_t call1Ret(Core *c, uint32_t a, uint32_t addr) {
-  c->r[4] = a;
-  psx::cpu::dispatchGuestToReturn0(*c, addr, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
-  return c->r[2];
-}
-inline void call2(Core *c, uint32_t a, uint32_t b, uint32_t addr) {
-  c->r[4] = a;
-  c->r[5] = b;
-  psx::cpu::dispatchGuestToReturn0(*c, addr, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
-}
-inline void call3(Core *c, uint32_t a, uint32_t b, uint32_t d, uint32_t addr) {
-  c->r[4] = a;
-  c->r[5] = b;
-  c->r[6] = d;
-  psx::cpu::dispatchGuestToReturn0(*c, addr, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
-}
-inline uint32_t call3Ret(Core *c, uint32_t a, uint32_t b, uint32_t d, uint32_t addr) {
-  c->r[4] = a;
-  c->r[5] = b;
-  c->r[6] = d;
-  psx::cpu::dispatchGuestToReturn0(*c, addr, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
-  return c->r[2];
-}
-inline void call5(Core *c, uint32_t a, uint32_t b, uint32_t d, uint32_t e, uint32_t f, uint32_t addr) {
+// r4..r7 and the fifth argument the guest reads from sp+16.
+struct FiveArguments {
+  uint32_t a0;
+  uint32_t a1;
+  uint32_t a2;
+  uint32_t a3;
+  uint32_t stack16;
+};
+inline void call5(Core *c, const FiveArguments &args, uint32_t addr) {
+  auto [a, b, d, e, f] = args;
   c->r[4] = a;
   c->r[5] = b;
   c->r[6] = d;
@@ -178,7 +162,9 @@ void cutsceneDirector(Core *c, uint32_t obj) {
     return;
   }
   case 2: {
-    call5(c, obj, 0u, c->mem_r32(G_800E7F5C), c->mem_r32(G_800E7F50), 0u, 0x8004BD64u);
+    call5(c,
+          {.a0 = obj, .a1 = 0u, .a2 = c->mem_r32(G_800E7F5C), .a3 = c->mem_r32(G_800E7F50), .stack16 = 0u},
+          0x8004BD64u);
     const int16_t v = (int16_t)(c->mem_r16(obj + O_H_40) - 1);
     c->mem_w16(obj + O_H_40, (uint16_t)v);
     c->mem_w16(obj + O_H_36, (uint16_t)(c->mem_r16(obj + O_H_36) + 0x14u));
@@ -189,7 +175,9 @@ void cutsceneDirector(Core *c, uint32_t obj) {
     break;
   }
   case 3: {
-    call5(c, obj, 0u, c->mem_r32(G_800E7F5C), c->mem_r32(G_800E7F50), 0u, 0x8004BD64u);
+    call5(c,
+          {.a0 = obj, .a1 = 0u, .a2 = c->mem_r32(G_800E7F5C), .a3 = c->mem_r32(G_800E7F50), .stack16 = 0u},
+          0x8004BD64u);
     c->mem_w16(obj + O_H_36, (uint16_t)(c->mem_r16(obj + O_H_36) + 0x14u));
     const uint32_t c4 = c->mem_r32(obj + O_D_C4);
     const int16_t nv = (int16_t)(c->mem_r16(c4 + 8u) - 0x40);
@@ -310,7 +298,7 @@ void cutsceneDirector(Core *c, uint32_t obj) {
   // conditional per-frame sprite draw gated on (*(u32)0x1F80017C & 3) == 0. The sprite is a
   // small icon whose id comes from *(u8)(DAT_80145A64 + obj[+0x42]) → table_base + id * 0x20.
   c->mem_w8(obj + O_FLAG_01, 1u);
-  call1(c, obj, 0x800517F8u);
+  psx::cpu::callGuestNow(*c, "beh_a08_scene_actor", 0x800517F8u, obj);
   if ((c->mem_r32(G_1F80017C) & 3u) == 0) {
     uint16_t h42 = c->mem_r16(obj + O_H_42);
     if (c->mem_r8(obj + O_SUB_5) > 6u || (int16_t)(h42 + 1) > 5) {
@@ -341,10 +329,10 @@ void cutsceneDirector(Core *c, uint32_t obj) {
 }
 
 // ── State 0 (INIT) — variant switch ─────────────────────────────────────────────────────────────
-enum { LAB_bc0, LAB_b88, LAB_none };
+enum : uint8_t { LAB_bc0, LAB_b88, LAB_none };
 inline int state0Case_5_or_16(Core *c, uint32_t obj, uint32_t modelArg) {
   c->mem_w32(obj + O_D_3C, c->mem_r32(G_800ECF80));
-  call3(c, obj, PTR_801486EC, modelArg, 0x80077b38u);
+  psx::cpu::callGuestNow(*c, "beh_a08_scene_actor", 0x80077b38u, obj, PTR_801486EC, modelArg);
   c->mem_w8(obj + O_B_0D, 0u);
   c->mem_w16(obj + O_H_5C, 0u);
   c->mem_w8(obj + O_B_0B, 0x10u);
@@ -360,18 +348,18 @@ int state0Init(Core *c, uint32_t obj) {
   case 2:
   case 3: {
     const int16_t argH = (int16_t)c->mem_r16(DAT_801459AC + (uint32_t)v * 2u);
-    call3(c, obj, 0x0Cu, (uint32_t)(int32_t)argH, 0x80051B70u);
+    psx::cpu::callGuestNow(*c, "beh_a08_scene_actor", 0x80051B70u, obj, 0x0Cu, (uint32_t)(int32_t)argH);
     return LAB_b88;
   }
   case 4: {
     const uint8_t g = c->mem_r8(G_800BFA31);
     const uint32_t arg = (g < 4u) ? 0x13u : (g < 7u ? 0x14u : 0x15u);
-    call3(c, obj, 0x0Cu, arg, 0x80051B70u);
+    psx::cpu::callGuestNow(*c, "beh_a08_scene_actor", 0x80051B70u, obj, 0x0Cu, arg);
     return LAB_b88;
   }
   case 5: {
     c->mem_w32(obj + O_D_3C, c->mem_r32(G_800ECF80));
-    call3(c, obj, PTR_801486EC, 9u, 0x80077b38u);
+    psx::cpu::callGuestNow(*c, "beh_a08_scene_actor", 0x80077b38u, obj, PTR_801486EC, 9u);
     c->mem_w8(obj + O_B_0B, 0x10u);
     c->mem_w16(obj + O_H_5C, 0u);
     c->mem_w16(obj + O_H_5A, 0u);
@@ -380,7 +368,7 @@ int state0Init(Core *c, uint32_t obj) {
     return LAB_none;
   }
   case 6:
-    call3(c, obj, 0x0Cu, 0x20u, 0x80051B70u);
+    psx::cpu::callGuestNow(*c, "beh_a08_scene_actor", 0x80051B70u, obj, 0x0Cu, 0x20u);
     if ((int8_t)c->mem_r8(G_800BF8E2) != -1) {
       c->mem_w16(obj + O_H_2E, 0x03FCu);
       c->mem_w16(obj + O_H_36, 0x07F0u);
@@ -390,27 +378,27 @@ int state0Init(Core *c, uint32_t obj) {
     return LAB_none;
   case 7:
     if ((int8_t)c->mem_r8(G_800BF8E2) != -1) {
-      call3(c, obj, 0x0Cu, 0x21u, 0x80051B70u);
+      psx::cpu::callGuestNow(*c, "beh_a08_scene_actor", 0x80051B70u, obj, 0x0Cu, 0x21u);
       return LAB_none;
     }
     break;
   case 8:
     if ((int8_t)c->mem_r8(G_800BF8E2) != -1) {
-      call3(c, obj, 0x0Cu, 0x22u, 0x80051B70u);
+      psx::cpu::callGuestNow(*c, "beh_a08_scene_actor", 0x80051B70u, obj, 0x0Cu, 0x22u);
       return LAB_none;
     }
     break;
   case 9:
-    call3(c, obj, 0x0Cu, 0x1Fu, 0x80051B70u);
-    call1(c, obj, 0x800517F8u);
+    psx::cpu::callGuestNow(*c, "beh_a08_scene_actor", 0x80051B70u, obj, 0x0Cu, 0x1Fu);
+    psx::cpu::callGuestNow(*c, "beh_a08_scene_actor", 0x800517F8u, obj);
     if ((int8_t)c->mem_r8(G_800BF8DF) == -1) {
       c->mem_w8(obj + O_SUB_5, 1u);
     }
     return LAB_none;
   case 10:
     if (c->mem_r8(G_800BFB22) == 0 && c->mem_r32(G_800ED098) > 1u) {
-      call3(c, obj, 0x0Cu, 0x4Du, 0x80051B70u);
-      call5(c, obj, DAT_801459BC, 4u, 0x0Cu, 0x4Eu, 0x801268D8u);
+      psx::cpu::callGuestNow(*c, "beh_a08_scene_actor", 0x80051B70u, obj, 0x0Cu, 0x4Du);
+      call5(c, {.a0 = obj, .a1 = DAT_801459BC, .a2 = 4u, .a3 = 0x0Cu, .stack16 = 0x4Eu}, 0x801268D8u);
       c->mem_w8(obj + O_KIND, 1u);
       c->mem_w16(obj + O_H_80, 0xF8u);
       c->mem_w16(obj + O_H_82, 0x1F0u);
@@ -418,17 +406,18 @@ int state0Init(Core *c, uint32_t obj) {
       c->mem_w16(obj + O_H_86, 0x220u);
       c->mem_w8(obj + O_B_29, 0u);
       c->mem_w8(obj + O_B_5F, 0u);
-      call1(c, obj, 0x8004766Cu);
-      call1(c, obj, 0x80048750u);
+      psx::cpu::callGuestNow(*c, "beh_a08_scene_actor", 0x8004766Cu, obj);
+      psx::cpu::callGuestNow(*c, "beh_a08_scene_actor", 0x80048750u, obj);
       c->mem_w16(obj + O_H_60, c->mem_r16(G_1F8001A0));
-      call1(c, obj, 0x800517F8u);
-      const uint32_t ret = call3Ret(c, 0x90Bu, obj + O_ANIM_2C, (uint32_t)(int32_t)-0x20, 0x8003116Cu);
+      psx::cpu::callGuestNow(*c, "beh_a08_scene_actor", 0x800517F8u, obj);
+      const uint32_t ret = psx::cpu::callGuestNowResult(
+          *c, "beh_a08_scene_actor", 0x8003116Cu, 0x90Bu, obj + O_ANIM_2C, (uint32_t)(int32_t)-0x20);
       c->mem_w32(obj + O_D_10, ret);
       return LAB_none;
     }
     break;
   case 0xB:
-    if (call3Ret(c, obj, 0x0Cu, 0x6Cu, 0x80051B70u) == 0) {
+    if (psx::cpu::callGuestNowResult(*c, "beh_a08_scene_actor", 0x80051B70u, obj, 0x0Cu, 0x6Cu) == 0) {
       c->mem_w16(obj + O_H_56, 0x0ACDu);
       c->mem_w16(obj + O_H_58, 0x0C5Cu);
       c->mem_w16(obj + O_H_2E, 0x224Du);
@@ -438,12 +427,12 @@ int state0Init(Core *c, uint32_t obj) {
     }
     return LAB_none;
   case 0xE:
-    if (call3Ret(c, obj, 0x0Cu, 0x2Bu, 0x80051B70u) == 0) {
+    if (psx::cpu::callGuestNowResult(*c, "beh_a08_scene_actor", 0x80051B70u, obj, 0x0Cu, 0x2Bu) == 0) {
       return LAB_b88;
     }
     return LAB_none;
   case 0x10:
-    if (call3Ret(c, obj, 0x0Cu, 0x58u, 0x80051B70u) == 0) {
+    if (psx::cpu::callGuestNowResult(*c, "beh_a08_scene_actor", 0x80051B70u, obj, 0x0Cu, 0x58u) == 0) {
       c->mem_w8(obj + O_B_0D, (uint8_t)(c->mem_r8(obj + O_B_0D) | 4u));
       c->mem_w8(c->mem_r32(obj + O_D_C0) + 0x3Fu, 0x1Eu);
       c->mem_w8(obj + O_KIND, 1u);
@@ -456,7 +445,7 @@ int state0Init(Core *c, uint32_t obj) {
     }
     return LAB_none;
   case 0x11:
-    if (call3Ret(c, obj, 0x0Cu, 0x57u, 0x80051B70u) == 0) {
+    if (psx::cpu::callGuestNowResult(*c, "beh_a08_scene_actor", 0x80051B70u, obj, 0x0Cu, 0x57u) == 0) {
       if ((int8_t)c->mem_r8(G_800BF928) == -1) {
         c->mem_w8(obj + O_SUB_5, 1u);
         c->mem_w16(obj + O_H_2E, 0x40C9u);
@@ -473,7 +462,7 @@ int state0Init(Core *c, uint32_t obj) {
   case 0x12:
     return state0Case_5_or_16(c, obj, 0x0Cu); // uVar4=0xC, joined path
   case 0x13:
-    if (call3Ret(c, obj, 0x0Cu, 0x6Bu, 0x80051B70u) != 0) {
+    if (psx::cpu::callGuestNowResult(*c, "beh_a08_scene_actor", 0x80051B70u, obj, 0x0Cu, 0x6Bu) != 0) {
       return LAB_none;
     }
     c->mem_w16(obj + O_H_56, 0x04FCu);
@@ -488,14 +477,14 @@ int state0Init(Core *c, uint32_t obj) {
     }
     return LAB_none;
   case 0x14:
-    if (call3Ret(c, obj, 0x0Cu, 0x6Eu, 0x80051B70u) == 0) {
+    if (psx::cpu::callGuestNowResult(*c, "beh_a08_scene_actor", 0x80051B70u, obj, 0x0Cu, 0x6Eu) == 0) {
       c->mem_w16(obj + O_H_58, 0u);
       c->mem_w16(obj + O_H_56, 0u);
       c->mem_w16(obj + O_H_54, 0u);
     }
     return LAB_none;
   case 0x15:
-    if (call3Ret(c, obj, 0x0Cu, 0x6Du, 0x80051B70u) == 0) {
+    if (psx::cpu::callGuestNowResult(*c, "beh_a08_scene_actor", 0x80051B70u, obj, 0x0Cu, 0x6Du) == 0) {
       c->mem_w16(obj + O_H_58, 0u);
       c->mem_w16(obj + O_H_56, 0u);
       c->mem_w16(obj + O_H_54, 0u);
@@ -505,7 +494,7 @@ int state0Init(Core *c, uint32_t obj) {
     return state0Case_5_or_16(c, obj, 5u);
   case 0x17:
     if (c->mem_r8(G_800BFA42) == 0) {
-      call3(c, obj, 0x0Cu, 0x6Cu, 0x80051B70u);
+      psx::cpu::callGuestNow(*c, "beh_a08_scene_actor", 0x80051B70u, obj, 0x0Cu, 0x6Cu);
       return LAB_none;
     }
     break;
@@ -521,10 +510,10 @@ int state0Init(Core *c, uint32_t obj) {
     c->mem_w16(obj + O_H_86, 400u);
     return LAB_none;
   case 0x19:
-    call1(c, obj, 0x801279DCu);
+    psx::cpu::callGuestNow(*c, "beh_a08_scene_actor", 0x801279DCu, obj);
     return LAB_none;
   case 0x1A:
-    call1(c, obj, 0x80127B34u);
+    psx::cpu::callGuestNow(*c, "beh_a08_scene_actor", 0x80127B34u, obj);
     return LAB_none;
   case 0x1B:
     c->mem_w8(obj + O_KIND, 1u);
@@ -540,7 +529,7 @@ int state0Init(Core *c, uint32_t obj) {
 }
 
 // ── State 1 (RUN) — variant switch ──────────────────────────────────────────────────────────────
-enum { RET_none, RET_b88, RET_b84, RET_bc0, RET_caseD_10 };
+enum : uint8_t { RET_none, RET_b88, RET_b84, RET_bc0, RET_caseD_10 };
 int state1Run(Core *c, uint32_t obj) {
   const uint8_t v = c->mem_r8(obj + O_VARIANT);
   switch (v) {
@@ -559,18 +548,20 @@ int state1Run(Core *c, uint32_t obj) {
   case 5:
     if (c->mem_r8(G_800BFA4E) != 1u) {
       const uint32_t d10 = c->mem_r32(obj + O_D_10);
-      call5(c, obj, 0u, c->mem_r32(d10 + 0xD8u), c->mem_r32(d10 + 0xCCu), 0u, 0x8004BD64u);
+      call5(c,
+            {.a0 = obj, .a1 = 0u, .a2 = c->mem_r32(d10 + 0xD8u), .a3 = c->mem_r32(d10 + 0xCCu), .stack16 = 0u},
+            0x8004BD64u);
       c->mem_w8(obj + O_FLAG_01, 1u);
       return RET_none;
     }
-    call2(c, 0x54u, 1u, 0x8004D4C4u);
-    call1(c, obj, 0x8004B0D8u);
+    psx::cpu::callGuestNow(*c, "beh_a08_scene_actor", 0x8004D4C4u, 0x54u, 1u);
+    psx::cpu::callGuestNow(*c, "beh_a08_scene_actor", 0x8004B0D8u, obj);
     return RET_bc0;
   case 6:
-    call1(c, obj, 0x80126AD8u);
+    psx::cpu::callGuestNow(*c, "beh_a08_scene_actor", 0x80126AD8u, obj);
     return RET_none;
   case 7:
-    call1(c, obj, 0x80126C68u);
+    psx::cpu::callGuestNow(*c, "beh_a08_scene_actor", 0x80126C68u, obj);
     return RET_none;
   case 8: {
     const uint8_t s5 = c->mem_r8(obj + O_SUB_5);
@@ -609,11 +600,11 @@ int state1Run(Core *c, uint32_t obj) {
     return RET_b88;
   }
   case 10:
-    call1(c, obj, 0x80126E24u);
+    psx::cpu::callGuestNow(*c, "beh_a08_scene_actor", 0x80126E24u, obj);
     return RET_none;
   case 0xB:
     if (c->mem_r8(G_800BF816) != 0) {
-      if (call1Ret(c, obj, 0x8007778Cu) == 0) {
+      if (psx::cpu::callGuestNowResult(*c, "beh_a08_scene_actor", 0x8007778Cu, obj) == 0) {
         return RET_none;
       }
       return RET_b88;
@@ -626,7 +617,9 @@ int state1Run(Core *c, uint32_t obj) {
     return RET_caseD_10;
   case 0x11:
     if (c->mem_r8(obj + O_SUB_5) == 0) {
-      call5(c, obj, 0u, c->mem_r32(G_800E7F5C), c->mem_r32(G_800E7F50), 0u, 0x8004BD64u);
+      call5(c,
+            {.a0 = obj, .a1 = 0u, .a2 = c->mem_r32(G_800E7F5C), .a3 = c->mem_r32(G_800E7F50), .stack16 = 0u},
+            0x8004BD64u);
       if ((c->mem_r8(G_800BFA30) & 1u) != 0) {
         c->mem_w16(obj + O_H_2E, 0x40C9u);
         c->mem_w16(obj + O_H_32, 0xF148u);
@@ -634,21 +627,21 @@ int state1Run(Core *c, uint32_t obj) {
         c->mem_w8(obj + O_SUB_5, (uint8_t)(c->mem_r8(obj + O_SUB_5) + 1u));
       }
     }
-    call1(c, obj, 0x800517F8u);
+    psx::cpu::callGuestNow(*c, "beh_a08_scene_actor", 0x800517F8u, obj);
     return RET_caseD_10;
   case 0x12: {
     const uint32_t mask = c->mem_r8(G_800BFA32);
     const uint32_t shift = (uint32_t)(int32_t)(int16_t)c->mem_r16(obj + O_H_60) & 0x1Fu;
     if (((mask >> shift) & 1u) == 0) {
       c->mem_w8(obj + O_FLAG_01, 1u);
-      call1(c, obj, 0x8004DAECu);
+      psx::cpu::callGuestNow(*c, "beh_a08_scene_actor", 0x8004DAECu, obj);
       c->mem_w16(obj + O_H_2E, (uint16_t)(c->mem_r16(obj + O_H_2E) + 0x20u));
       return RET_none;
     }
     return RET_bc0;
   }
   case 0x13:
-    call1(c, obj, 0x801273B4u);
+    psx::cpu::callGuestNow(*c, "beh_a08_scene_actor", 0x801273B4u, obj);
     return RET_none;
   case 0x14:
     if (c->mem_r8(G_800BFA3A) != 0x0Bu) {
@@ -673,12 +666,14 @@ int state1Run(Core *c, uint32_t obj) {
           (int32_t)c->mem_r32(c->mem_r32(d10 + O_D_D0) + 0x34u) + (int32_t)c->mem_r32(c->mem_r32(d10 + O_D_DC) + 0x34u);
       c->mem_w16(obj + O_H_36, (uint16_t)(sum36 / 2));
     } else if (s5 == 0) {
-      call5(c, obj, 0u, c->mem_r32(G_800E7F5C), c->mem_r32(G_800E7F50), 0u, 0x8004BD64u);
+      call5(c,
+            {.a0 = obj, .a1 = 0u, .a2 = c->mem_r32(G_800E7F5C), .a3 = c->mem_r32(G_800E7F50), .stack16 = 0u},
+            0x8004BD64u);
     }
     return RET_none;
   }
   case 0x17:
-    call1(c, obj, 0x801277E0u);
+    psx::cpu::callGuestNow(*c, "beh_a08_scene_actor", 0x801277E0u, obj);
     return RET_none;
   case 0x18: {
     c->mem_w8(obj + O_FLAG_01, 1u);
@@ -718,7 +713,7 @@ int state1Run(Core *c, uint32_t obj) {
       }
     } else if (s5 == 0 && c->mem_r8(G_800BFA50) > 0x1Du) {
       c->mem_w8(obj + O_SUB_5, 1u);
-      call3(c, 0x1Au, 0x1Bu, 0u, 0x80074590u);
+      psx::cpu::callGuestNow(*c, "beh_a08_scene_actor", 0x80074590u, 0x1Au, 0x1Bu, 0u);
     }
     return RET_b84;
   }
@@ -729,7 +724,7 @@ int state1Run(Core *c, uint32_t obj) {
   case 0x1B:
     if ((int8_t)c->mem_r8(G_800BF8E3) != -1) {
       c->mem_w8(obj + O_FLAG_01, 1u);
-      call1(c, obj, 0x80077EBCu);
+      psx::cpu::callGuestNow(*c, "beh_a08_scene_actor", 0x80077EBCu, obj);
       return RET_none;
     }
     return RET_bc0;
@@ -756,13 +751,13 @@ void beh_a08_scene_actor(Core *c) {
       c->mem_w8(obj + O_FLAG_01, 1u);
       [[fallthrough]];
     case RET_b88:
-      call1(c, obj, 0x800517F8u);
+      psx::cpu::callGuestNow(*c, "beh_a08_scene_actor", 0x800517F8u, obj);
       return;
     case RET_bc0:
       c->mem_w8(obj + O_STATE_4, 3u);
       return;
     case RET_caseD_10:
-      call1(c, obj, 0x8007778Cu);
+      psx::cpu::callGuestNow(*c, "beh_a08_scene_actor", 0x8007778Cu, obj);
       return;
     default:
       return;
@@ -773,7 +768,7 @@ void beh_a08_scene_actor(Core *c) {
       return;
     }
     if (state == 3) {
-      call1(c, obj, 0x8007A624u);
+      psx::cpu::callGuestNow(*c, "beh_a08_scene_actor", 0x8007A624u, obj);
       return;
     }
     return;
@@ -784,8 +779,10 @@ void beh_a08_scene_actor(Core *c) {
   c->mem_w8(obj + O_STATE_4, 1u);
   const int r = state0Init(c, obj);
   if (r == LAB_b88) {
-    call1(c, obj, 0x800517F8u);
+    psx::cpu::callGuestNow(*c, "beh_a08_scene_actor", 0x800517F8u, obj);
   } else if (r == LAB_bc0) {
     c->mem_w8(obj + O_STATE_4, 3u);
   }
 }
+
+} // namespace tomba

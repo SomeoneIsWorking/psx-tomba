@@ -3,6 +3,7 @@ id: kanban-111
 title: Guest render paths at the item menu: gte is missing 58% of the picture, psx draws NOTHING
 status: open
 labels: [render, oracle, bug]
+features: [F-RENDER]
 ---
 
 

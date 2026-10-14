@@ -7,10 +7,9 @@
 #include "audio/libsnd_globals.h"
 #include "audio/sequencer_record.h"
 #include "core.h"
-#include "core/entry/game_ctx.h"
 #include "core/overrides/guest_jal.h"
 #include "core/overrides/native_override_catalog.h"
-#include "execution_services.h"
+#include "entry/tomba_session.h"
 #include "game.h"
 #include "guest_abi.h"
 #include "guest_call.h"
@@ -22,12 +21,13 @@ using namespace tomba::audio::record;
 // 0x80091120. Stack frame mirrored (sp-24, ra at +16).
 void Sequencer::channelPitchSelectDispatch() {
   Core *c = core;
-  static constexpr GuestFrameSpill kSpills[] = {{31, 16}}; // -24 (abi_extract-verified)
+  constexpr GuestFrameSpill kSpills[] = {{31, 16}}; // -24 (abi_extract-verified)
   GuestFrame<24, 1> frame(c, kSpills);
   c->r[4] = (uint32_t)sext16(c->r[4]);
   c->r[5] = (uint32_t)sext16(c->r[5]);
   tomba::guest::dispatchJalToReturn(
-      *c, 0x80091120u, 0x8009110Cu); // FIX: gen sets the real return-site const before the jal
+      *c,
+      {.target = 0x80091120u, .returnAddress = 0x8009110Cu}); // FIX: gen sets the real return-site const before the jal
 }
 
 // 0x80091050 — release housekeeping: zeroes the channel status byte at +20, clears flags bit1
@@ -35,7 +35,7 @@ void Sequencer::channelPitchSelectDispatch() {
 // ra/s16/s17/s18 at their reverse-engineered offsets).
 void Sequencer::channelReleaseClear() {
   Core *c = core;
-  static constexpr GuestFrameSpill kSpills[] = {{18, 24}, {16, 16}, {31, 28}, {17, 20}}; // -32
+  constexpr GuestFrameSpill kSpills[] = {{18, 24}, {16, 16}, {31, 28}, {17, 20}}; // -32
   GuestFrame<32, 4> frame(c, kSpills);
   uint32_t seqRaw = c->r[4];
   uint32_t chanRaw = c->r[5];
@@ -143,13 +143,13 @@ void Sequencer::channelKeyEventScan() {
   Core *c = core;
   int8_t count = (int8_t)c->mem_r8(libsnd::kSpuKeyScanCount);
   // FIX: gen spills s0(r16) here -- prior draft omitted it entirely.
-  static constexpr GuestFrameSpill kSpills[] = {{16, 16}, {31, 28}, {18, 24}, {17, 20}}; // -32
+  constexpr GuestFrameSpill kSpills[] = {{16, 16}, {31, 28}, {18, 24}, {17, 20}}; // -32
   GuestFrame<32, 4> frame(c, kSpills);
   GuestReg<16> r16(c);
   r16 = 0u;
   if (count > 0) {
     int32_t target = sext16(c->r[4]);
-    for (int32_t i = 0; i < (int32_t)(int8_t)c->mem_r8(libsnd::kSpuKeyScanCount); i++) {
+    for (int32_t i = 0; i < c->mem_r8s(libsnd::kSpuKeyScanCount); i++) {
       uint32_t voiceBit = 1u << (uint32_t)(i & 31);
       if ((c->mem_r32(libsnd::kHardwareVoiceActive) & voiceBit) != 0u) {
         continue; // voice busy, skip
@@ -179,7 +179,7 @@ void Sequencer::channelKeyEventScan() {
 // fills a 16-entry breakpoint-table pair (+39../+55..) plus a 16 x u16 array (+96..+126) with 127.
 void Sequencer::channelNoteInit() {
   Core *c = core;
-  static constexpr GuestFrameSpill kSpills[] = {{31, 20}, {16, 16}}; // -24 (abi_extract-verified)
+  constexpr GuestFrameSpill kSpills[] = {{31, 20}, {16, 16}}; // -24 (abi_extract-verified)
   GuestFrame<24, 2> frame(c, kSpills);
   int32_t chan = sext16(c->r[5]);
   ChannelRecord ch{c, c->mem_r32(seqPtrSlot(c->r[4])) + chStride(chan)};
@@ -284,11 +284,11 @@ void Sequencer::channelNoteInit() {
   eng(c).sequencer.channelVolumeSnapshot();
 }
 
-void declareChannelFlagOverrides() {
-  tomba::native::declareOverride(0x800910F0u, "nat_channelPitchSelectDispatch", nat_channelPitchSelectDispatch);
-  tomba::native::declareOverride(0x80091970u, "nat_channelNoteInit", nat_channelNoteInit);
-  tomba::native::declareOverride(0x80095B90u, "nat_channelKeyEventScan", nat_channelKeyEventScan);
-  tomba::native::declareOverride(0x80094B50u, "nat_channelKeyRegisterMerge", nat_channelKeyRegisterMerge);
+void declareChannelFlagOverrides(native::NativeOverrideCatalog &natives) {
+  natives.declare(0x800910F0u, "nat_channelPitchSelectDispatch", nat_channelPitchSelectDispatch);
+  natives.declare(0x80091970u, "nat_channelNoteInit", nat_channelNoteInit);
+  natives.declare(0x80095B90u, "nat_channelKeyEventScan", nat_channelKeyEventScan);
+  natives.declare(0x80094B50u, "nat_channelKeyRegisterMerge", nat_channelKeyRegisterMerge);
 }
 
 } // namespace tomba::audio

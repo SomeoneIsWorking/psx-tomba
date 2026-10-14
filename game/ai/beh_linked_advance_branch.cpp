@@ -16,15 +16,16 @@
 // as a register machine (the two near-identical branches share the L883c node[5]==1 test). The byte-exact A/B gate
 // (full RAM+scratchpad vs original guest-body call) is the safety net. NO GTE/render.
 
-#include "cfg.h"
 #include "core.h"
-#include "core/entry/game_ctx.h"
 #include "core/overrides/guest_jal.h"
+#include "entry/tomba_session.h"
 #include "guest_abi.h"
 #include "spawn.h" // class Spawn (eng(c).spawn.despawn / dispatch / spawnAndInit)
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+namespace tomba {
 
 namespace {
 
@@ -48,7 +49,7 @@ void beh_linked_advance_branch(Core *c) {
   }
   if ((int32_t)v1 < 2) {
     if (v1 == 0) {
-      tomba::guest::dispatchLeafToReturn(*c, 0x80128308u, s0);
+      psx::cpu::callGuestNowResult(*c, "beh_linked_advance_branch", 0x80128308u, s0);
     }
     goto Lret;
   } // STATE 0
@@ -112,13 +113,15 @@ BB: // node[3]==1
   c->mem_w8(s0 + 5, (uint8_t)(n5 + 1));
 L88884:
   if (c->mem_r8(0x1F800207u) < 6) { // scratchpad byte
-    tomba::guest::dispatchLeafToReturn(*c, 0x801281B8u, s0);
-    tomba::guest::dispatchLeafToReturn(*c, 0x801285ECu, s0);
+    psx::cpu::callGuestNowResult(*c, "beh_linked_advance_branch", 0x801281B8u, s0);
+    psx::cpu::callGuestNowResult(*c, "beh_linked_advance_branch", 0x801285ECu, s0);
   }
   goto Lret;
 
 Ltail88b0:
-  tomba::guest::dispatchLeafToReturn(*c, 0x801281B8u, s0); // FUN_801281B8(node)
+  psx::cpu::callGuestNowResult(*c, "beh_linked_advance_branch", 0x801281B8u, s0); // FUN_801281B8(node)
 Lret:
   return;
 }
+
+} // namespace tomba

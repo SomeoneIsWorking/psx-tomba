@@ -70,6 +70,12 @@
 struct Core;
 class Game;
 
+namespace tomba::native {
+class NativeOverrideCatalog;
+} // namespace tomba::native
+
+namespace tomba {
+
 class CubeTextLedger {
 public:
   // FUN_80040B48 (activate / scene-event ARM) is NOT owned here — it is SceneEvents::armBody
@@ -103,5 +109,7 @@ public:
   // each with a tomba::native::declareOverride setter so the substrate's direct a direct guest-address call calls
   // redirect here too, in addition to ActorReward's typed runtime address dispatch(c, FN_40B48/FN_40C00) calls landing
   // here. lookupCost is deliberately NOT registered — see the file header "WIRED 2026-07-08" note.
-  static void registerOverrides(Game *game);
+  static void registerOverrides(native::NativeOverrideCatalog &natives);
 };
+
+} // namespace tomba

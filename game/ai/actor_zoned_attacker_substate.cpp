@@ -6,10 +6,9 @@
 
 #include "ai/zoned_attacker_abi.h"
 #include "core.h"
-#include "core/entry/game_ctx.h"
 #include "core/overrides/native_override_catalog.h"
+#include "entry/tomba_session.h"
 #include "game.h"
-#include "guest_abi.h"
 #include "guest_call.h"
 #include "object/actor.h"
 #include "spawn.h"
@@ -54,7 +53,7 @@ void ActorZonedAttacker::defaultSubStateMachine(Core *c) {
       return;
     }
 
-    call1(c, node, kLeaf_80142788);
+    psx::cpu::callGuestNow(*c, "actor_zoned_attacker_substate", kLeaf_80142788, node);
     {
       const int32_t sVar4 = (int32_t)(int16_t)c->r[R_V0];
       if (sVar4 == 2) {
@@ -117,7 +116,7 @@ void ActorZonedAttacker::defaultSubStateMachine(Core *c) {
     } else if (n6 != 1) {
       return;
     }
-    call1(c, node, kLeaf_801425F0);
+    psx::cpu::callGuestNow(*c, "actor_zoned_attacker_substate", kLeaf_801425F0, node);
     uVar6 = (uint32_t)c->r[R_V0] << 16;
     break;
   }
@@ -131,7 +130,7 @@ void ActorZonedAttacker::defaultSubStateMachine(Core *c) {
         }
         if (c->mem_r8(node + 7) == 0) {
           a.setStateEcho((uint16_t)(a.stateEcho_u() & 0xfffb));
-          call2(c, node, kSetAnimStateCue, 0x1au, 8u);
+          psx::cpu::callGuestNow(*c, "actor_zoned_attacker_substate", kSetAnimStateCue, node, 0x1au, 8u);
           c->mem_w16(node + 0x4e, 0);
           c->mem_w8(node + 7, 1);
           goto LAB_80143ea0_a;
@@ -152,13 +151,13 @@ void ActorZonedAttacker::defaultSubStateMachine(Core *c) {
         if (c->mem_r16s(p38 + 4) != 0) {
           a.setStateEcho((uint16_t)(a.stateEcho_u() ^ 1));
           a.setRotY((uint16_t)(a.rotY_u() + 0x800));
-          call2(c, node, kSetAnimStateCue, 7u, 0u);
+          psx::cpu::callGuestNow(*c, "actor_zoned_attacker_substate", kSetAnimStateCue, node, 7u, 0u);
           c->mem_w8(node + 7, 2);
         }
       }
       LAB_80143ea0_tail_skip:
         a.setPosY((uint16_t)(a.posY() + 0x10));
-        call1(c, node, kMotionAnimStep);
+        psx::cpu::callGuestNow(*c, "actor_zoned_attacker_substate", kMotionAnimStep, node);
         break;
       }
       if (bVar2 != 0) {
@@ -168,7 +167,7 @@ void ActorZonedAttacker::defaultSubStateMachine(Core *c) {
     }
     if (c->mem_r8(node + 7) == 0) {
       a.setStateEcho((uint16_t)(a.stateEcho_u() & 0xfffb));
-      call2(c, node, kSetAnimStateCue, 5u, 8u);
+      psx::cpu::callGuestNow(*c, "actor_zoned_attacker_substate", kSetAnimStateCue, node, 5u, 8u);
       c->mem_w8(node + 7, 0x2d);
       c->mem_w16(node + 0x4e, 0);
     }
@@ -178,7 +177,7 @@ void ActorZonedAttacker::defaultSubStateMachine(Core *c) {
         c->mem_w8(node + 7, (uint8_t)(bv - 1));
       }
       a.setPosY((uint16_t)(a.posY() + 0x10));
-      call1(c, node, kMotionAnimStep);
+      psx::cpu::callGuestNow(*c, "actor_zoned_attacker_substate", kMotionAnimStep, node);
       if (1 < bv) {
         return;
       }
@@ -201,7 +200,7 @@ void ActorZonedAttacker::defaultSubStateMachine(Core *c) {
         }
         if (c->mem_r8(node + 7) == 0) {
           a.setStateEcho((uint16_t)(a.stateEcho_u() & 0xfffb));
-          call2(c, node, kSetAnimStateCue, 0x1au, 8u);
+          psx::cpu::callGuestNow(*c, "actor_zoned_attacker_substate", kSetAnimStateCue, node, 0x1au, 8u);
           c->mem_w16(node + 0x4e, 0);
           c->mem_w8(node + 7, 1);
           goto LAB_80143d00_a;
@@ -222,13 +221,13 @@ void ActorZonedAttacker::defaultSubStateMachine(Core *c) {
         if (c->mem_r16s(p38 + 4) != 0) {
           a.setStateEcho((uint16_t)(a.stateEcho_u() ^ 1));
           a.setRotY((uint16_t)(a.rotY_u() + 0x800));
-          call2(c, node, kSetAnimStateCue, 7u, 0u);
+          psx::cpu::callGuestNow(*c, "actor_zoned_attacker_substate", kSetAnimStateCue, node, 7u, 0u);
           c->mem_w8(node + 7, 2);
         }
       }
       LAB_80143d00_tail_skip:
         a.setPosY((uint16_t)(a.posY() + 0x10));
-        call1(c, node, kMotionAnimStep);
+        psx::cpu::callGuestNow(*c, "actor_zoned_attacker_substate", kMotionAnimStep, node);
         break;
       }
       if (bVar2 != 0) {
@@ -243,14 +242,14 @@ void ActorZonedAttacker::defaultSubStateMachine(Core *c) {
     if (bVar2 != 1) {
       if (1 < bVar2) {
         if (bVar2 == 2) {
-          call1(c, node, kLeaf_8014213C);
+          psx::cpu::callGuestNow(*c, "actor_zoned_attacker_substate", kLeaf_8014213C, node);
           iVar5 = (int32_t)((uint32_t)c->r[R_V0] << 16);
           goto LAB_80144550;
         }
         if (bVar2 != 3) {
           return;
         }
-        call1(c, node, kLeaf_801422B4);
+        psx::cpu::callGuestNow(*c, "actor_zoned_attacker_substate", kLeaf_801422B4, node);
         uVar6 = (uint32_t)c->r[R_V0] << 16;
         break;
       }
@@ -264,7 +263,7 @@ void ActorZonedAttacker::defaultSubStateMachine(Core *c) {
     { // 0x80143C48 — the shared tail entries [4] and [5] both jump to; NOT a jump-table entry
       // (reached only by `goto LAB_80143c48` from the two arms above.)
     LAB_80143c48:
-      call1(c, node, kLeaf_801425F0);
+      psx::cpu::callGuestNow(*c, "actor_zoned_attacker_substate", kLeaf_801425F0, node);
       iVar5 = (int32_t)((uint32_t)c->r[R_V0] << 16);
       goto LAB_801448e0;
     }
@@ -273,10 +272,10 @@ void ActorZonedAttacker::defaultSubStateMachine(Core *c) {
     switch (sub6) {
     case 0:
     case 1:
-      call1(c, node, kLeaf_801408AC);
+      psx::cpu::callGuestNow(*c, "actor_zoned_attacker_substate", kLeaf_801408AC, node);
       return;
     case 2:
-      call2(c, node, kLeaf_80141AC4, 0x20u, 0x500u);
+      psx::cpu::callGuestNow(*c, "actor_zoned_attacker_substate", kLeaf_80141AC4, node, 0x20u, 0x500u);
       iVar5 = (int32_t)((uint32_t)c->r[R_V0] << 16);
       goto LAB_80144550;
     case 3: {
@@ -304,7 +303,7 @@ void ActorZonedAttacker::defaultSubStateMachine(Core *c) {
       return;
     }
     case 4: {
-      call1(c, node, kLeaf_80141C20);
+      psx::cpu::callGuestNow(*c, "actor_zoned_attacker_substate", kLeaf_80141C20, node);
       const int32_t sVar4 = (int32_t)(int16_t)c->r[R_V0];
       if (sVar4 != 0) {
         c->mem_w16(node + 6, 4);
@@ -327,7 +326,7 @@ void ActorZonedAttacker::defaultSubStateMachine(Core *c) {
     case 5: {
       if (c->mem_r8(node + 7) == 0) {
         a.setStateEcho((uint16_t)(a.stateEcho_u() & 0xfffb));
-        call2(c, node, kSetAnimStateCue, 10u, 8u);
+        psx::cpu::callGuestNow(*c, "actor_zoned_attacker_substate", kSetAnimStateCue, node, 10u, 8u);
         c->mem_w8(node + 7, 0x5a);
         c->mem_w16(node + 0x4e, 0);
       }
@@ -337,7 +336,7 @@ void ActorZonedAttacker::defaultSubStateMachine(Core *c) {
       }
       uVar6 = (uint32_t)(1 >= bv);
       a.setPosY((uint16_t)(a.posY() + 0x10));
-      call1(c, node, kMotionAnimStep);
+      psx::cpu::callGuestNow(*c, "actor_zoned_attacker_substate", kMotionAnimStep, node);
       break;
     }
     default:
@@ -348,12 +347,12 @@ void ActorZonedAttacker::defaultSubStateMachine(Core *c) {
   case 7: {
     const uint8_t bVar2 = c->mem_r8(node + 6);
     if (bVar2 == 2) {
-      call1(c, node, kLeaf_8014181C);
+      psx::cpu::callGuestNow(*c, "actor_zoned_attacker_substate", kLeaf_8014181C, node);
       iVar5 = (int32_t)((uint32_t)c->r[R_V0] << 16);
       goto LAB_80144550;
     }
     if (bVar2 < 3) {
-      call1(c, node, kLeaf_801408AC);
+      psx::cpu::callGuestNow(*c, "actor_zoned_attacker_substate", kLeaf_801408AC, node);
       return;
     }
     if (bVar2 != 3) {
@@ -361,7 +360,7 @@ void ActorZonedAttacker::defaultSubStateMachine(Core *c) {
     }
     if (c->mem_r8(node + 7) == 0) {
       a.setStateEcho((uint16_t)(a.stateEcho_u() & 0xfffb));
-      call2(c, node, kSetAnimStateCue, 5u, 8u);
+      psx::cpu::callGuestNow(*c, "actor_zoned_attacker_substate", kSetAnimStateCue, node, 5u, 8u);
       c->mem_w8(node + 7, 0x2d);
       c->mem_w16(node + 0x4e, 0);
     }
@@ -371,7 +370,7 @@ void ActorZonedAttacker::defaultSubStateMachine(Core *c) {
     }
     uVar6 = (uint32_t)(1 >= bv);
     a.setPosY((uint16_t)(a.posY() + 0x10));
-    call1(c, node, kMotionAnimStep);
+    psx::cpu::callGuestNow(*c, "actor_zoned_attacker_substate", kMotionAnimStep, node);
     break;
   }
   case 8: {
@@ -379,14 +378,14 @@ void ActorZonedAttacker::defaultSubStateMachine(Core *c) {
     switch (sub8) {
     case 0:
     case 1:
-      call1(c, node, kLeaf_801408AC);
+      psx::cpu::callGuestNow(*c, "actor_zoned_attacker_substate", kLeaf_801408AC, node);
       return;
     case 2:
-      call1(c, node, kLeaf_8014103C);
+      psx::cpu::callGuestNow(*c, "actor_zoned_attacker_substate", kLeaf_8014103C, node);
       iVar5 = (int32_t)((uint32_t)c->r[R_V0] << 16);
       goto LAB_80144550;
     case 3: {
-      call2(c, node, kLeaf_80141AC4, 0x20u, 0x500u);
+      psx::cpu::callGuestNow(*c, "actor_zoned_attacker_substate", kLeaf_80141AC4, node, 0x20u, 0x500u);
       const int32_t sVar4 = (int32_t)(int16_t)c->r[R_V0];
       if (sVar4 == 0) {
         return;
@@ -395,7 +394,7 @@ void ActorZonedAttacker::defaultSubStateMachine(Core *c) {
       return;
     }
     case 4: {
-      call1(c, node, kLeaf_80141438);
+      psx::cpu::callGuestNow(*c, "actor_zoned_attacker_substate", kLeaf_80141438, node);
       const int32_t sVar4 = (int32_t)(int16_t)c->r[R_V0];
       if (sVar4 != 0) {
         c->mem_w16(node + 6, 5);
@@ -418,7 +417,7 @@ void ActorZonedAttacker::defaultSubStateMachine(Core *c) {
     case 5: {
       if (c->mem_r8(node + 7) == 0) {
         a.setStateEcho((uint16_t)(a.stateEcho_u() & 0xfffb));
-        call2(c, node, kSetAnimStateCue, 0x1fu, 8u);
+        psx::cpu::callGuestNow(*c, "actor_zoned_attacker_substate", kSetAnimStateCue, node, 0x1fu, 8u);
         c->mem_w8(node + 7, 0x32);
         c->mem_w16(node + 0x4e, 0);
       }
@@ -427,7 +426,7 @@ void ActorZonedAttacker::defaultSubStateMachine(Core *c) {
         c->mem_w8(node + 7, (uint8_t)(bv - 1));
       }
       a.setPosY((uint16_t)(a.posY() + 0x10));
-      call1(c, node, kMotionAnimStep);
+      psx::cpu::callGuestNow(*c, "actor_zoned_attacker_substate", kMotionAnimStep, node);
       if (1 < bv) {
         return;
       }
@@ -437,7 +436,7 @@ void ActorZonedAttacker::defaultSubStateMachine(Core *c) {
     case 6: {
       if (c->mem_r8(node + 7) == 0) {
         a.setStateEcho((uint16_t)(a.stateEcho_u() & 0xfffb));
-        call2(c, node, kSetAnimStateCue, 5u, 8u);
+        psx::cpu::callGuestNow(*c, "actor_zoned_attacker_substate", kSetAnimStateCue, node, 5u, 8u);
         c->mem_w8(node + 7, 0x2d);
         c->mem_w16(node + 0x4e, 0);
       }
@@ -447,7 +446,7 @@ void ActorZonedAttacker::defaultSubStateMachine(Core *c) {
       }
       uVar6 = (uint32_t)(1 >= bv);
       a.setPosY((uint16_t)(a.posY() + 0x10));
-      call1(c, node, kMotionAnimStep);
+      psx::cpu::callGuestNow(*c, "actor_zoned_attacker_substate", kMotionAnimStep, node);
       break;
     }
     default:
@@ -467,7 +466,7 @@ void ActorZonedAttacker::defaultSubStateMachine(Core *c) {
       }
       c->mem_w16(node + 6, 1);
     }
-    call1(c, node, kLeaf_80140AF4);
+    psx::cpu::callGuestNow(*c, "actor_zoned_attacker_substate", kLeaf_80140AF4, node);
     iVar5 = (int32_t)((uint32_t)c->r[R_V0] << 16);
     goto LAB_801448e0;
   }
@@ -483,7 +482,7 @@ void ActorZonedAttacker::defaultSubStateMachine(Core *c) {
       }
       c->mem_w16(node + 6, 1);
     }
-    call1(c, node, kLeaf_80140AF4);
+    psx::cpu::callGuestNow(*c, "actor_zoned_attacker_substate", kLeaf_80140AF4, node);
     {
       const int32_t v0copy = (int32_t)(int16_t)c->r[R_V0];
       if (c->mem_r8(node + 7) < 3) {
@@ -498,10 +497,10 @@ void ActorZonedAttacker::defaultSubStateMachine(Core *c) {
     switch (sub_b) {
     case 0:
     case 1:
-      call1(c, node, kLeaf_801408AC);
+      psx::cpu::callGuestNow(*c, "actor_zoned_attacker_substate", kLeaf_801408AC, node);
       return;
     case 2: {
-      call2(c, node, kLeaf_80142A94, 0x300u, 0x1e00u);
+      psx::cpu::callGuestNow(*c, "actor_zoned_attacker_substate", kLeaf_80142A94, node, 0x300u, 0x1e00u);
       const int32_t sVar4 = (int32_t)(int16_t)c->r[R_V0];
       uVar7 = 0xa01u;
       if (sVar4 != -1) {
@@ -527,7 +526,7 @@ void ActorZonedAttacker::defaultSubStateMachine(Core *c) {
       break;
     }
     case 3: {
-      call1(c, node, kLeaf_80142CF4);
+      psx::cpu::callGuestNow(*c, "actor_zoned_attacker_substate", kLeaf_80142CF4, node);
       const int32_t sVar4 = (int32_t)(int16_t)c->r[R_V0];
       uVar7 = 0xa01u;
       if (sVar4 != -1) {
@@ -555,7 +554,7 @@ void ActorZonedAttacker::defaultSubStateMachine(Core *c) {
     case 4: {
       if (c->mem_r8(node + 7) == 0) {
         a.setStateEcho((uint16_t)(a.stateEcho_u() & 0xfffb));
-        call2(c, node, kSetAnimStateCue, 10u, 8u);
+        psx::cpu::callGuestNow(*c, "actor_zoned_attacker_substate", kSetAnimStateCue, node, 10u, 8u);
         c->mem_w8(node + 7, 0x3c);
         c->mem_w16(node + 0x4e, 0);
       }
@@ -565,7 +564,7 @@ void ActorZonedAttacker::defaultSubStateMachine(Core *c) {
       }
       uVar6 = (uint32_t)(1 >= bv);
       a.setPosY((uint16_t)(a.posY() + 0x10));
-      call1(c, node, kMotionAnimStep);
+      psx::cpu::callGuestNow(*c, "actor_zoned_attacker_substate", kMotionAnimStep, node);
       goto LAB_801448fc;
     }
     default:
@@ -593,7 +592,7 @@ void ActorZonedAttacker::defaultSubStateMachine(Core *c) {
         c->mem_w16(node + 6, 3);       // sh 3,6(s0)        [0x80144558]
         return;
       }
-      call2(c, node, kLeaf_80142A94, 800u, 0x1e00u);
+      psx::cpu::callGuestNow(*c, "actor_zoned_attacker_substate", kLeaf_80142A94, node, 800u, 0x1e00u);
       const int32_t sVar4 = (int32_t)(int16_t)c->r[R_V0];
       uVar7 = 0xa01u;
       if (sVar4 != -1) {
@@ -606,13 +605,13 @@ void ActorZonedAttacker::defaultSubStateMachine(Core *c) {
       goto LAB_80144908;
     }
     if (bVar2 < 3) {
-      call1(c, node, kLeaf_801408AC);
+      psx::cpu::callGuestNow(*c, "actor_zoned_attacker_substate", kLeaf_801408AC, node);
       return;
     }
     if (bVar2 != 3) {
       return;
     }
-    call1(c, node, kLeaf_801436C4);
+    psx::cpu::callGuestNow(*c, "actor_zoned_attacker_substate", kLeaf_801436C4, node);
     {
       const int32_t sVar4 = (int32_t)(int16_t)c->r[R_V0];
       uVar7 = 0xa01u;
@@ -632,7 +631,7 @@ void ActorZonedAttacker::defaultSubStateMachine(Core *c) {
   case 0xd: {
     const uint8_t bVar2 = c->mem_r8(node + 6);
     if (bVar2 == 2) {
-      call1(c, node, kLeaf_801431C4);
+      psx::cpu::callGuestNow(*c, "actor_zoned_attacker_substate", kLeaf_801431C4, node);
       const int32_t sVar4 = (int32_t)(int16_t)c->r[R_V0];
       uVar7 = 0xa01u;
       if (sVar4 != -1) {
@@ -645,7 +644,7 @@ void ActorZonedAttacker::defaultSubStateMachine(Core *c) {
       goto LAB_80144908;
     }
     if (bVar2 < 3) {
-      call1(c, node, kLeaf_801408AC);
+      psx::cpu::callGuestNow(*c, "actor_zoned_attacker_substate", kLeaf_801408AC, node);
       return;
     }
     if (bVar2 != 3) {
@@ -653,7 +652,7 @@ void ActorZonedAttacker::defaultSubStateMachine(Core *c) {
     }
     if (c->mem_r8(node + 7) == 0) {
       a.setStateEcho((uint16_t)(a.stateEcho_u() & 0xfffb));
-      call2(c, node, kSetAnimStateCue, 5u, 8u);
+      psx::cpu::callGuestNow(*c, "actor_zoned_attacker_substate", kSetAnimStateCue, node, 5u, 8u);
       c->mem_w8(node + 7, 0x2d);
       c->mem_w16(node + 0x4e, 0);
     }
@@ -663,7 +662,7 @@ void ActorZonedAttacker::defaultSubStateMachine(Core *c) {
     }
     uVar6 = (uint32_t)(1 >= bv);
     a.setPosY((uint16_t)(a.posY() + 0x10));
-    call1(c, node, kMotionAnimStep);
+    psx::cpu::callGuestNow(*c, "actor_zoned_attacker_substate", kMotionAnimStep, node);
     break;
   }
   case 0xe: {
@@ -675,7 +674,7 @@ void ActorZonedAttacker::defaultSubStateMachine(Core *c) {
     }
     if (c->mem_r8(node + 7) == 0) {
       a.setStateEcho((uint16_t)(a.stateEcho_u() & 0xfffb));
-      call2(c, node, kSetAnimStateCue, 0x2fu, 8u);
+      psx::cpu::callGuestNow(*c, "actor_zoned_attacker_substate", kSetAnimStateCue, node, 0x2fu, 8u);
       c->mem_w8(node + 7, 0x1e);
       c->mem_w16(node + 0x4e, 0);
     }
@@ -685,7 +684,7 @@ void ActorZonedAttacker::defaultSubStateMachine(Core *c) {
     }
     uVar6 = (uint32_t)(1 >= bv);
     a.setPosY((uint16_t)(a.posY() + 0x10));
-    call1(c, node, kMotionAnimStep);
+    psx::cpu::callGuestNow(*c, "actor_zoned_attacker_substate", kMotionAnimStep, node);
     break;
   }
   case 0xf: {
@@ -697,7 +696,7 @@ void ActorZonedAttacker::defaultSubStateMachine(Core *c) {
     }
     if (c->mem_r8(node + 7) == 0) {
       a.setStateEcho((uint16_t)(a.stateEcho_u() & 0xfffb));
-      call2(c, node, kSetAnimStateCue, 0x30u, 8u);
+      psx::cpu::callGuestNow(*c, "actor_zoned_attacker_substate", kSetAnimStateCue, node, 0x30u, 8u);
       c->mem_w8(node + 7, 0x1e);
       c->mem_w16(node + 0x4e, 0);
     }
@@ -707,7 +706,7 @@ void ActorZonedAttacker::defaultSubStateMachine(Core *c) {
     }
     uVar6 = (uint32_t)(1 >= bv);
     a.setPosY((uint16_t)(a.posY() + 0x10));
-    call1(c, node, kMotionAnimStep);
+    psx::cpu::callGuestNow(*c, "actor_zoned_attacker_substate", kMotionAnimStep, node);
     break;
   }
   default:
@@ -719,7 +718,7 @@ LAB_801448a8:
   if (sharedBVar2 != 2) {
     return;
   }
-  call1(c, node, kLeaf_8014243C);
+  psx::cpu::callGuestNow(*c, "actor_zoned_attacker_substate", kLeaf_8014243C, node);
   uVar6 = (uint32_t)c->r[R_V0] << 16;
 
 LAB_801448fc:

@@ -1,10 +1,8 @@
 #include "cd_native_startup.h"
 
-#include "cd_control.h"
-#include "cd_ready_delivery.h"
-#include "cdc_state.h"
 #include "core.h"
 #include "game.h"
+#include "stock_libcd.h"
 
 #include <array>
 #include <cstdint>
@@ -75,7 +73,7 @@ void cdControlOverride(Core *core) {
   if (!core || !core->game) {
     std::abort();
   }
-  cd_control_sync(core);
+  core->game->cd.stockLibrary()->control(*core);
   retireUnownedResponses(*core);
 }
 
@@ -83,10 +81,7 @@ void cdControlFOverride(Core *core) {
   if (!core || !core->game) {
     std::abort();
   }
-  // CdControlF has no result-buffer argument. The shared controller owner consumes the CdControl
-  // ABI, so make that absent third argument explicit rather than forwarding a stale caller register.
-  core->r[6] = 0u;
-  cd_control_sync(core);
+  core->game->cd.stockLibrary()->controlFire(*core);
   retireUnownedResponses(*core);
 }
 

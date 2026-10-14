@@ -8,8 +8,12 @@
 
 namespace tomba::test {
 
+struct ImageRequest {
+  std::string_view path;
+  std::string_view sha256;
+  std::size_t maxBytes;
+};
 // A diagnostic must authenticate the exact buffer it passes to the shipping loader.
-std::optional<std::vector<std::uint8_t>>
-readAuthenticatedImage(std::string_view path, std::string_view expectedSha, std::size_t maxBytes);
+std::optional<std::vector<std::uint8_t>> readAuthenticatedImage(const ImageRequest &request);
 
 } // namespace tomba::test

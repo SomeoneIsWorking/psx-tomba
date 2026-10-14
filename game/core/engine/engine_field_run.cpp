@@ -8,7 +8,6 @@
 //
 // The class's own header (game/core/engine.h) remains the single declaration of every method below;
 // nothing is redeclared here.
-#include "c_subsys.h"               // disc_findFile — the native ISO9660 resolver
 #include "camera/cutscene_camera.h" // class CutsceneCamera — the field/follow camera
 #include "core.h"
 #include "core/assets/asset.h" // class Asset
@@ -16,9 +15,8 @@
 #include "core/engine/task_sm.h"         // TaskSm — the typed lens over the task record, owned in one header
 #include "core/overrides/guest_jal.h"    // tomba::guest::dispatchJalToReturn — the guest call convention
 #include "core/overrides/guest_resume.h" // requestGuestContinuation
-#include "entry/game_ctx.h"
+#include "entry/tomba_session.h"
 #include "game.h" // Game — the per-Core product the Engine drives
-#include "guest_abi.h"
 #include "guest_call.h"
 #include "level_load.h"
 #include "math/rng.h" // class Rng
@@ -28,8 +26,12 @@
 #include "render.h"
 #include "scene/card_load_machine.h" // tomba::scene::stepCardLoadMachine
 #include "scene/start_bin_stage.h"   // class StartBinStage — the task-0 file-table builder
+#include "sched/tomba_scheduler.h"
 #include <cstdint>
 #include <cstdio>
+#include <lucent/log.h>
+
+namespace tomba {
 
 void Engine::fieldRun() {
   Core *c = core;
@@ -79,8 +81,8 @@ void Engine::fieldRun() {
     eng(c).pool.selectStateIndex(c->mem_r8(0x800bf870u)); // OWNED native — replaces the guest call 0x80074f24(area)
     break;
   case 2:
-    eng(c).gStateMutate(0x800E7E80u,
-                        0xC); // native — was typed runtime address dispatch 0x80058304(G, 0xC)
+    eng(c).gStateMutate(
+        {.G = 0x800E7E80u, .op = 0xC}); // native — was typed runtime address dispatch 0x80058304(G, 0xC)
     sm = c->mem_r32(0x1f800138u);
     c->mem_w16(sm + 0x4e, (uint16_t)(c->mem_r16(sm + 0x4e) + 1));
     /* fallthrough */
@@ -215,7 +217,7 @@ void Engine::fieldRun() {
     eng(c).fieldFrame();
     sm = c->mem_r32(0x1f800138u);
     uint32_t u = ((uint32_t)c->mem_r8(sm + 0x6e) * (uint32_t)-8) & 0xff;
-    cfg_logf("fadesites", "[fadesite] fieldRun-case10 u=%02x sm6e=%u", u, c->mem_r8(sm + 0x6e));
+    lucent::debug("fadesites", "[fadesite] fieldRun-case10 u={:02x} sm6e={}", u, c->mem_r8(sm + 0x6e));
     fade(c).applyLeafCall((u << 16) | (u << 8) | u, ScreenFade::kSubtractive, 0);
     uint8_t nv = (uint8_t)(c->mem_r8(sm + 0x6e) - 1);
     c->mem_w8(sm + 0x6e, nv);
@@ -273,7 +275,7 @@ void Engine::fieldRunX() {
     c->mem_w16(sm + 0x4e, 1);
     // 0x8006c77c — the per-area transition-ENTER hook (every area's, 0..21).
     // Its cooperative FUN_80044BD4 spawn-and-wait completes on this leg too:
-    // PcScheduler::spawnAndWait runs the spawned body inline when the waiting
+    // TombaScheduler::spawnAndWait runs the spawned body inline when the waiting
     // task cannot suspend (kanban #50).
     c->r[31] = 0x80107108u;
     psx::cpu::dispatchGuestToReturn0(*c, 0x8006c77cu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
@@ -288,7 +290,7 @@ void Engine::fieldRunX() {
     eng(c).audioDispatch.settleField(); // native — was typed runtime address dispatch 0x80074BC4
     sm = c->mem_r32(0x1f800138u);
     c->mem_w16(sm + 0x4c, 2); // back to normal running handler
-    int16_t e_s = c->mem_r16s(0x800e7feeu);
+    int16_t e_s = (int16_t)c->mem_r16(0x800e7feeu);
     uint16_t e_u = c->mem_r16(0x800e7feeu);
     if (e_s != 0) {
       c->mem_w8(0x800bf880u, 1);
@@ -328,7 +330,7 @@ void Engine::submode1Case0Native() {
   psx::cpu::dispatchGuestToReturn0(*c, 0x8005245cu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
   // The owned load is synchronous: retain FUN_80044BD4's flag-2 RNG stamp, then
   // continue without manufacturing a wait frame or loading-screen service.
-  c->game->pcSched.completeSyncWait(c->mem_r32(0x1f800138u), /*flag=*/2);
+  tomba::sched::taskScheduler(*c).completeSyncWait(c->mem_r32(0x1f800138u), /*flag=*/2);
   fieldTransition.areaLoadBd4(c->mem_r8(0x800bf870u), 0); // FUN_80044BD4(0x800452C0, area, 0, 2): destination = bf870
 }
 
@@ -337,11 +339,11 @@ void Engine::submode1() {
   uint32_t sm = c->mem_r32(0x1f800138u);
   uint16_t s4c = c->mem_r16(sm + 0x4c);
   if (s4c <= 1) {
-    cfg_logf("stage",
-             "submode1 case %u: bf870=%u nexttab[bf870]=%u",
-             s4c,
-             c->mem_r8(0x800bf870u),
-             c->mem_r8(0x80108f60u + c->mem_r8(0x800bf870u)));
+    lucent::debug("stage",
+                  "submode1 case {}: bf870={} nexttab[bf870]={}",
+                  s4c,
+                  c->mem_r8(0x800bf870u),
+                  c->mem_r8(0x80108f60u + c->mem_r8(0x800bf870u)));
   }
   switch (s4c) {
   case 0:
@@ -373,6 +375,8 @@ void Engine::submode1() {
     break; // >=7: no-op
   }
 }
+
+} // namespace tomba
 
 // One native loop iteration of the guest body 0x801063F4: dispatch sm[0x48]
 // handler, bump frame counter. Returns 1 if handled natively, 0 if the current

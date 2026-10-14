@@ -71,14 +71,15 @@
 // gates do (disp26c88 / sm40558). See docs/port-progress.md §SAVE.
 
 #include "save_menu.h"
-#include "cfg.h"
 #include "core.h"
-#include "core/entry/game_ctx.h"
+#include "entry/tomba_session.h"
 #include "guest_call.h"
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+namespace tomba {
 
 namespace {
 
@@ -89,7 +90,12 @@ constexpr uint32_t SAVE_CTX_BASE = 0x800D1E68u;    // save-system context struct
 constexpr int SAVE_NUM_STATES = 6;                 // load-select/run, save-confirm/execute, format, delete
 
 // Register file indices (raw MIPS abi slots, matching the rest of the engine overrides).
-enum { R_A0 = 4, R_S0 = 16, R_S1 = 17, R_S2 = 18, R_SP = 29, R_RA = 31 };
+constexpr int R_A0 = 4;
+constexpr int R_S0 = 16;
+constexpr int R_S1 = 17;
+constexpr int R_S2 = 18;
+constexpr int R_SP = 29;
+constexpr int R_RA = 31;
 
 } // namespace
 
@@ -139,3 +145,5 @@ void SaveMenu::runHandler(uint32_t task) {
 void SaveMenu::dispatchBody(Core *c) {
   saveMenuOf(c).runHandler(c->r[R_A0]);
 }
+
+} // namespace tomba

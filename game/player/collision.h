@@ -18,6 +18,12 @@
 #include <stdint.h>
 struct Core;
 
+namespace tomba::native {
+class NativeOverrideCatalog;
+} // namespace tomba::native
+
+namespace tomba {
+
 class Collision {
 public:
   Core *core = nullptr;
@@ -53,5 +59,7 @@ public:
 
   // registerOverrides(): install the field-collision leaves by guest address into the ONE
   //   override registry (tomba::native::declareOverride), so every caller — substrate included — reaches native.
-  void registerOverrides();
+  void registerOverrides(native::NativeOverrideCatalog &natives);
 };
+
+} // namespace tomba

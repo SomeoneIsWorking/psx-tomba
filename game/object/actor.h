@@ -17,8 +17,10 @@
 // it). Do NOT define fields speculatively — only when a handler's RE actually resolved the semantic.
 #pragma once
 #include "core.h"
-#include "core/entry/game_ctx.h"
+#include "entry/tomba_session.h"
 #include <cstdint>
+
+namespace tomba {
 
 class Actor {
 public:
@@ -249,13 +251,13 @@ public:
   // Per-axis velocity (i16, in 1/256 world units per frame — hence the *0x100 when integrated into
   // the 16.16 position) and the Y acceleration the arc/hover motions add to velY each frame.
   int16_t velX() const {
-    return c->mem_r16s(obj + 0x48);
+    return (int16_t)c->mem_r16(obj + 0x48);
   }
   int16_t velY() const {
-    return c->mem_r16s(obj + 0x4A);
+    return (int16_t)c->mem_r16(obj + 0x4A);
   }
   int16_t velZ() const {
-    return c->mem_r16s(obj + 0x4C);
+    return (int16_t)c->mem_r16(obj + 0x4C);
   }
   void setVelX(uint16_t v) {
     c->mem_w16(obj + 0x48, v);
@@ -267,7 +269,7 @@ public:
     c->mem_w16(obj + 0x4C, v);
   }
   int16_t accelY() const {
-    return c->mem_r16s(obj + 0x50);
+    return (int16_t)c->mem_r16(obj + 0x50);
   }
   void setAccelY(uint16_t v) {
     c->mem_w16(obj + 0x50, v);
@@ -444,3 +446,5 @@ inline uint8_t scene_phase(Core *c) {
 inline uint16_t osc_base_table(Core *c, uint8_t type) {
   return c->mem_r16(0x8014A6E4u + (uint32_t)type * 2u);
 }
+
+} // namespace tomba

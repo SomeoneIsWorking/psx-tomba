@@ -14,6 +14,12 @@
 class Core;
 class Game;
 
+namespace tomba::native {
+class NativeOverrideCatalog;
+} // namespace tomba::native
+
+namespace tomba {
+
 class NodeXform {
 public:
   Core *core = nullptr;
@@ -21,7 +27,7 @@ public:
   // registerOverrides — dual-wire seedBlock/propagateRotmat/propagateAxis/buildAxis onto `game`
   // via the process-global override registry (tomba::native::declareOverride + tomba::native::declareOverride). Called
   // once per Game — including SBS's own separately-constructed Games.
-  static void registerOverrides(Game *game);
+  static void registerOverrides(native::NativeOverrideCatalog &natives);
 
   // build (guest FUN_80051844): compose this node's world matrix at node+0x98 from its local
   // euler+translation, copy the world-pos triple, and propagate to children via propagate().
@@ -84,6 +90,12 @@ public:
   // (the packed GTE 3x3 rotation-matrix layout Math::rotmat/matMul use) from `src` to `dst`.
   void copyMatrixBlock(uint32_t src, uint32_t dst);
 
+  struct BuildFromChildArgs {
+    uint32_t nodeAddr;
+    uint32_t inVec;
+    uint32_t tableIdx;
+    uint32_t mode;
+  };
   // buildFromChild (guest FUN_80051614): a THIRD node-build variant, sibling of build()/
   // buildWithOffset(). Composes this node's world matrix at node+0x98 from either a straight
   // rotmat(node+0x54) [mode==0] or a rotmat×scale compose using node+0xB8/BA/BC as the diagonal
@@ -97,17 +109,24 @@ public:
   // spills whatever is currently in r16..r23/r19..r20, so this method sets the callee-saved
   // registers the guest instruction path has live at that point; see .cpp for the exact trace against
   // authenticated executable/overlay evidence guest 0x80051614).
-  void buildFromChild(uint32_t node, uint32_t inVec, uint32_t tableIdx, uint32_t mode);
+  void buildFromChild(const BuildFromChildArgs &args);
 
+  struct WorldPositionArgs {
+    uint32_t nodeAddr;
+    uint32_t inVec;
+    uint32_t outVec;
+  };
   // worldPosFromLocal (guest FUN_80051D90): out[0..2] += node's LOCAL-frame world position
   // (node+0x2C/30/34), after transforming `inVec` by node's LOCAL matrix (node+0x18) via the
   // not-yet-owned libgte leaf FUN_800844C0 (ApplyMatrixLV variant that returns a packed SVECTOR,
   // not a VECTOR — distinct from the already-native Math::applyMatrixLV). Routed via
   // typed runtime address dispatch since FUN_800844C0 (0x800844C0) is outside this region's ownership.
-  void worldPosFromLocal(uint32_t node, uint32_t inVec, uint32_t outVec);
+  void worldPosFromLocal(const WorldPositionArgs &args);
 
   // worldPosFromComposed (guest FUN_80051D20): sibling of worldPosFromLocal() using node's
   // COMPOSED world matrix (node+0x98) and world-space position (node+0xAC/B0/B4) instead of the
   // local ones. Same FUN_800844C0 dependency.
-  void worldPosFromComposed(uint32_t node, uint32_t inVec, uint32_t outVec);
+  void worldPosFromComposed(const WorldPositionArgs &args);
 };
+
+} // namespace tomba

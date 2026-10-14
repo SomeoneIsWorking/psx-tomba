@@ -35,20 +35,22 @@
 // (Disasm: 0x8010633c addiu s2,zero,1 · 0x80106340 addiu s1,zero,2 · 0x80106344 addiu s3,zero,3.)
 
 #include "card_load_machine.h"
-#include "cfg.h"
+#include "cd/engine_cd_loader.h"
 #include "core.h"
 #include "core/assets/asset.h" // class Asset — preloadTexgroup (static, area-load sync)
-#include "core/entry/game_ctx.h"
 #include "core/overrides/guest_resume.h"
-#include "core/overrides/native_override_catalog.h" // DEMO image-scoped native declarations
-#include "frame/movie_policy.h"
+#include "core/overrides/native_override_catalog.h"
+#include "entry/tomba_session.h"
 #include "game.h"
 #include "guest_call.h"
-#include "scheduler.h"       // native_task_spawn (FUN_80051F14 port) — Slip #4 s0 spawn
+#include "sched/tomba_scheduler.h"
 #include "world/placement.h" // ov_place_objects (FUN_80072A78)
 #include "world/pool.h"      // ov_pool_init_run (FUN_8007B18C) + siblings
+#include <lucent/log.h>
 #include <stdio.h>
 #include <stdlib.h>
+
+namespace tomba {
 
 static const uint32_t SM_PTR = tomba::scene::kStatePtr;
 static const uint32_t TAIL_CF2C = 0x80106650u; // jal 0x8001cf2c (engine update) -> attract render -> yield
@@ -56,18 +58,15 @@ static const uint32_t TAIL_REND = 0x80106658u; // jal 0x80075a80 (attract render
 static const uint32_t TAIL_NONE = 0x80106670u; // frame-ctr++ -> yield (no render)
 
 static void demo_log(const char *who, Core *c) {
-  if (!cfg_dbg("demo")) {
-    return;
-  }
   uint32_t sm = c->mem_r32(SM_PTR);
-  cfg_logf("demo",
-           "%s sm[0x48]=%u 0x4a=%u 0x68=%u 0x6b=%u 0x50=%u",
-           who,
-           c->mem_r16(sm + 0x48),
-           c->mem_r16(sm + 0x4a),
-           c->mem_r8(sm + 0x68),
-           c->mem_r8(sm + 0x6b),
-           c->mem_r16(sm + 0x50));
+  lucent::debug("demo",
+                "{} sm[0x48]={} 0x4a={} 0x68={} 0x6b={} 0x50={}",
+                who,
+                c->mem_r16(sm + 0x48),
+                c->mem_r16(sm + 0x4a),
+                c->mem_r8(sm + 0x68),
+                c->mem_r8(sm + 0x6b),
+                c->mem_r16(sm + 0x50));
 }
 
 // s1 0x8010641C — wait/advance: v0 = inner menu input machine 0x80106f80(0). If v0 != 0 the page is
@@ -214,11 +213,11 @@ uint32_t Demo::s3SubMachine() {
         if (edges & 0x80u) { // Left
           cmp = c->mem_r8(sm + 0x68);
         } else if (edges & 0x4008u) { // Confirm
-          eng(c).sfx.trigger(0x11, 0, 0);
+          eng(c).sfx.trigger({.id = 0x11, .pan = 0, .pitchBend = 0});
           result = 2;
           haveCmp = false;
         } else if (edges & 0x2000u) { // Circle / back
-          eng(c).sfx.trigger(0x14, -9, 0);
+          eng(c).sfx.trigger({.id = 0x14, .pan = -9, .pitchBend = 0});
           result = 3;
           haveCmp = false;
         } else {
@@ -227,7 +226,7 @@ uint32_t Demo::s3SubMachine() {
       }
       if (haveCmp) {
         if (cmp != cursor) {
-          eng(c).sfx.trigger(0x15, 0, 0); // cursor-move blip
+          eng(c).sfx.trigger({.id = 0x15, .pan = 0, .pitchBend = 0}); // cursor-move blip
         }
         c->mem_w8(sm + 0x68, cursor);
         c->mem_w16(sm + 0x4a, 0);
@@ -285,20 +284,20 @@ uint32_t Demo::s2SubMachine() {
       if (edges & 0x20u) {     // Right -> select item 1 (Load Game)
         if (c->mem_r8(sm + 0x68) != 1) {
           c->r[31] = 0x80106AA4u;
-          eng(c).sfx.trigger(0x15, 0, 0);
+          eng(c).sfx.trigger({.id = 0x15, .pan = 0, .pitchBend = 0});
         }
         c->mem_w8(sm + 0x68, 1);
         c->mem_w16(sm + 0x4a, 0);
       } else if (edges & 0x80u) { // Left -> select item 0 (New Game)
         if (c->mem_r8(sm + 0x68) != 0) {
           c->r[31] = 0x80106A78u;
-          eng(c).sfx.trigger(0x15, 0, 0);
+          eng(c).sfx.trigger({.id = 0x15, .pan = 0, .pitchBend = 0});
         }
         c->mem_w8(sm + 0x68, 0);
         c->mem_w16(sm + 0x4a, 0);
       } else if (edges & 0x4008u) { // Confirm -> launch selected
         c->r[31] = 0x80106A44u;
-        eng(c).sfx.trigger(0x11, 0, 0);
+        eng(c).sfx.trigger({.id = 0x11, .pan = 0, .pitchBend = 0});
         result = 2;
       }
       // else: no relevant edge -> result stays 0, sm[0x4a] left set (re-enter next frame)
@@ -321,9 +320,9 @@ void ov_demoS2SubMachine(Core *c) {
 }
 } // namespace
 
-void Demo::registerOverrides(Game * /*game*/) {
-  tomba::native::declareOverlayOverride("DEMO", 0x80106AC4u, "Demo::s3SubMachine", ov_demoS3SubMachine);
-  tomba::native::declareOverlayOverride("DEMO", 0x8010696Cu, "Demo::s2SubMachine", ov_demoS2SubMachine);
+void Demo::registerOverrides(native::NativeOverrideCatalog &natives) {
+  natives.declareOverlay("DEMO", 0x80106AC4u, "Demo::s3SubMachine", ov_demoS3SubMachine);
+  natives.declareOverlay("DEMO", 0x8010696Cu, "Demo::s2SubMachine", ov_demoS2SubMachine);
 }
 
 // s6 0x801065EC — page sub-machine 0x8007b45c(); if sm[0x50]==3 fire the commit pair 0x80106824(1,1)
@@ -497,13 +496,13 @@ void Demo::s7Phase() {
   Core *c = core;
   uint32_t sm = c->mem_r32(SM_PTR);
   uint16_t phase = c->mem_r16(sm + 0x4a);
-  cfg_logf("demo",
-           "s7_phase sm[0x4a]=%u sm[0x48]=%u sm[0x6e]=%u sm[0x5a]=%u (ra=0x%08X)",
-           phase,
-           c->mem_r16(sm + 0x48),
-           c->mem_r8(sm + 0x6e),
-           c->mem_r16(sm + 0x5a),
-           c->r[31]);
+  lucent::debug("demo",
+                "s7_phase sm[0x4a]={} sm[0x48]={} sm[0x6e]={} sm[0x5a]={} (ra=0x{:08X})",
+                phase,
+                c->mem_r16(sm + 0x48),
+                c->mem_r8(sm + 0x6e),
+                c->mem_r16(sm + 0x5a),
+                c->r[31]);
 
   if (phase == 2) {
     // PHASE2 teardown — fully native, all SYNC. No s7 frame entered -> redirect to the trampoline TAIL.
@@ -621,13 +620,8 @@ static uint32_t demo_menu_machine(Core *c) {
   // self-contained native .STR player (native_fmv.cpp — already plays LOGO/OP at boot), then replicate
   // state 7's teardown and return nonzero so s1 advances to s2 (the front-end/title proper).
   if (s4a >= 4) {
-    if (tomba::MoviePolicy::plays(true)) {
+    if (!tombaSession(c).settings.skipMovies) {
       c->game->fmv.play("MOVIE/OP.STR");
-    } else if (cfg_dbg("demo")) {
-      static int w = 0;
-      if (!w++) {
-        cfg_logf("demo", "OP.STR opening movie skipped (NO_FMV/headless); running teardown -> s2");
-      }
     }
     // state 7 (0x80107280) teardown, faithful — the CdControlB(CdlPause) busy-loop becomes a native no-op
     // (no async CD read is running in our model). The other callees are synchronous libgs/SPU/cleanup.
@@ -666,13 +660,13 @@ void Demo::s0PreYield() {
   c->mem_w16(sm + 0x4a, 0);
   {
     uint32_t tab = 0x800be118u + 2u * 8u;
-    c->game->cd.dc40Sync(0x80108f9cu, c->mem_r32(tab), c->mem_r32(tab + 4));
-    tomba::native::activateModeOverlay(*c, eng(c).activeModeOverlay, 2u);
+    tomba::EngineCdLoader(*c).dc40Sync({.dest = 0x80108f9cu, .lba = c->mem_r32(tab), .size = c->mem_r32(tab + 4)});
+    tombaSession(c).nativeOverrides.activateModeOverlay(*c, eng(c).activeModeOverlay, 2u);
   }
   c->mem_w8(0x801fe0deu, 2);
   c->mem_w8(0x801fe0ddu, 0);
-  c->mem_w8(0x1f80019bu, 0);            // done_flag = 0
-  native_task_spawn(c, 1, 0x80044F58u); // spawn task-1: FUN_80051F14 native port
+  c->mem_w8(0x1f80019bu, 0);                                                // done_flag = 0
+  tomba::sched::taskScheduler(*c).spawn({.slot = 1, .entry = 0x80044F58u}); // FUN_80051F14
 }
 
 void Demo::s0PostYield() {
@@ -681,17 +675,16 @@ void Demo::s0PostYield() {
   eng(c).pool.reset75240();
   c->r[4] = 1;
   psx::cpu::dispatchGuestToReturn0(*c, 0x8001CF00u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
-  cfg_logf("demo",
-           "s0 post-yield: sm[0x48]=1, task-1 preload done "
-           "(texgroup meta[0x800FB170]=%08X)",
-           c->mem_r32(0x800fb170u));
+  lucent::debug("demo",
+                "s0 post-yield: sm[0x48]=1, task-1 preload done (texgroup meta[0x800FB170]={:08X})",
+                c->mem_r32(0x800fb170u));
 }
 
 void Demo::s0Body() {
   Core *c = core;
   s0PreYield();
-  eng(c).asset.preloadTexgroup(0, 2); // synchronous FUN_80044F58 (task-1 callback body)
-  c->mem_w8(0x1f80019bu, 1);          // done_flag = 1 (as if task-1 signalled)
+  eng(c).asset.preloadTexgroup({.mode = 0, .set = 2}); // synchronous FUN_80044F58 (task-1 callback body)
+  c->mem_w8(0x1f80019bu, 1);                           // done_flag = 1 (as if task-1 signalled)
   s0PostYield();
 }
 void Demo::s0Native() {
@@ -819,7 +812,7 @@ static void demo_frame_s5(Core *c) {
 // just-loaded overlay's slot browser FUN_8018fa88/fbcc). The memcard reads inside the browser are
 // already sync+instant via the BIOS B0/A0 card HLE (memcard.cpp), so the browser does not yield.
 static void demo_frame_s4(Core *c) {
-  tomba::scene::stepCardLoadMachine(*c, 0u, 0u); // = jal 0x8007bf20(0,0), native+sync
+  tomba::scene::stepCardLoadMachine(*c, {.mode = 0u, .inGame = 0u}); // = jal 0x8007bf20(0,0), native+sync
   uint32_t sm = c->mem_r32(SM_PTR);
   uint8_t s6b = c->mem_r8(sm + 0x6b);
   if (s6b == 1) {
@@ -890,13 +883,13 @@ static void demo_frame_s6(Core *c) {
 static void demo_frame_s7(Core *c) {
   uint32_t sm = c->mem_r32(SM_PTR);
   uint16_t phase = c->mem_r16(sm + 0x4a);
-  cfg_logf("demo",
-           "s7 attract phase=%u sm[0x6e]=%u sm[0x5a]=%u bf870=%u sm56=%02x",
-           phase,
-           c->mem_r8(sm + 0x6e),
-           c->mem_r16(sm + 0x5a),
-           c->mem_r8(0x800bf870u),
-           c->mem_r8(sm + 0x56u));
+  lucent::debug("demo",
+                "s7 attract phase={} sm[0x6e]={} sm[0x5a]={} bf870={} sm56={:02x}",
+                phase,
+                c->mem_r8(sm + 0x6e),
+                c->mem_r16(sm + 0x5a),
+                c->mem_r8(0x800bf870u),
+                c->mem_r8(sm + 0x56u));
   if (phase == 0) {
     // PHASE0 0x80106c74 — launch: advance to phase1, set the item timer, select+load the attract area.
     c->mem_w16(sm + 0x4a, 1); // sh s1(=1),0x4a -> phase1
@@ -917,7 +910,7 @@ static void demo_frame_s7(Core *c) {
     c->mem_w8(0x1f80019bu, 0);
     // The owned load is synchronous: retain FUN_80044BD4's flag-2 RNG stamp, then continue without
     // manufacturing a wait frame or loading-screen service.
-    c->game->pcSched.completeSyncWait(sm, /*flag=*/2);
+    tomba::sched::taskScheduler(*c).completeSyncWait(sm, /*flag=*/2);
     eng(c).sop.transitionAreaLoad();
     // reinit subsystems (all SYNC; no incoming args / self-args)
     eng(c).pool.init();                  // 0x8007B18C — native (via LIVE gated entry)
@@ -973,7 +966,7 @@ static void demo_frame_s7(Core *c) {
     c->mem_w16(sm + 0x48, 0); // sm[0x48]=0 (restart)
   } else {
     // phase index out of range — match the guest epilogue (no-op) and don't spin.
-    cfg_logf("demo", "s7 attract: phase=%u out of range (no-op)", phase);
+    lucent::debug("demo", "s7 attract: phase={} out of range (no-op)", phase);
   }
 }
 
@@ -1008,128 +1001,13 @@ void Demo::frame() {
     demo_frame_s7(c);
     break; // attract demo (idle timeout)
   default:
-    if (cfg_dbg("demo")) {
-      static int w = 0;
-      if (!w++) {
-        cfg_logf("demo", "ov_demo_frame: sm[0x48]=%u not yet native (frontier — s4 needs conversion)", s48);
-      }
-    }
+    lucent::debug("demo", "ov_demo_frame: sm[0x48]={} not yet native (frontier — s4 needs conversion)", s48);
     break;
   }
   c->mem_w16(0x1f800198u, c->mem_r16(0x1f800198u) + 1); // per-frame counter (every guest tail bumps it)
 }
 
-void Demo::stageBodyFaithful() {
-  Core *c = core;
-  c->r[29] -= 48;
-  const uint32_t sp = c->r[29];
-  c->mem_w16(sp + 16, 0); // draw-env rect local {x,y,w,h-ish}
-  c->mem_w16(sp + 18, 0);
-  c->mem_w16(sp + 20, 320);
-  c->mem_w16(sp + 22, 512);
-  c->mem_w32(sp + 40, c->r[31]);
-  c->mem_w32(sp + 36, c->r[19]);
-  c->mem_w32(sp + 32, c->r[18]);
-  c->mem_w32(sp + 28, c->r[17]);
-  c->mem_w32(sp + 24, c->r[16]);
-  c->r[4] = sp + 16;
-  c->r[5] = 0;
-  c->r[6] = 0;
-  c->r[7] = 0;
-  c->r[31] = 0x80106328u;
-  psx::cpu::dispatchGuestToReturn0(
-      *c, 0x800810F0u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // UI / print-stream context init
-  c->r[16] = 0x1F800000u; // s0..s3 loop constants (live for deep spills)
-  c->r[18] = 1;
-  c->r[17] = 2;
-  c->r[19] = 3;
-  uint32_t sm = c->mem_r32(SM_PTR);
-  c->mem_w8(0x800be0e4u, 0);
-  c->mem_w16(0x800e7e68u, 0);
-  c->mem_w16(0x800ecf54u, 0);
-  c->mem_w16(0x800ecf56u, 0);
-  c->mem_w8(0x1f80019au, 0);
-  c->mem_w8(0x1f80019du, 0);
-  c->mem_w16(sm + 0x48, 0);
-  c->r[4] = 0;
-  c->r[5] = 0;
-  c->r[6] = 0;
-  c->r[31] = 0x80106388u;
-  c->mem_w8(sm + 0x6e, 0);
-  psx::cpu::dispatchGuestToReturn0(
-      *c, 0x8005082Cu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // mode-state arm (substrate leaf)
-  for (;;) {
-    sm = c->mem_r32(SM_PTR);
-    uint16_t sub = c->mem_r16(sm + 0x48);
-    switch (sub < 8 ? sub : 8) {
-    case 0: {                // L_801063C0 — init loaders; falls into s1
-      c->r[4] = 0x80108F9Cu; // loader-0 arg table
-      c->mem_w8(sm + 0x68, 0);
-      uint16_t s48 = c->mem_r16(sm + 0x48);
-      c->r[5] = 2;
-      c->r[6] = c->mem_r32(SM_PTR);
-      c->mem_w16(sm + 0x48, s48 + 1);
-      c->r[31] = 0x801063ECu;
-      c->mem_w16(sm + 0x4a, 0); // jal delay slot: sh zero,0x4a(a2)
-      psx::cpu::dispatchGuestToReturn0(
-          *c, 0x80045080u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // indexed file load (platform-sync)
-      c->r[4] = 0x80044F58u;
-      c->r[5] = 2;
-      c->r[6] = 0;
-      c->r[7] = 0;
-      c->r[31] = 0x80106404u;
-      psx::cpu::dispatchGuestToReturn0(*c,
-                                       0x80044BD4u,
-                                       psx::cpu::ExecutionBudget::currentTurn(*c),
-                                       __func__); // spawn-and-wait (registered override -> native prim)
-      c->r[31] = 0x8010640Cu;
-      psx::cpu::dispatchGuestToReturn0(*c, 0x8007982Cu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
-      c->r[31] = 0x80106414u;
-      psx::cpu::dispatchGuestToReturn0(*c, 0x80075240u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
-      c->r[4] = 1;
-      c->r[31] = 0x8010641Cu;
-      psx::cpu::dispatchGuestToReturn0(*c, 0x8001CF00u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
-    }
-      [[fallthrough]];
-    case 1:
-      demo_frame_s1(c);
-      break;
-    case 2:
-      demo_frame_s2(c);
-      break;
-    case 3:
-      demo_frame_s3(c);
-      break;
-    case 4:
-      demo_frame_s4(c);
-      break;
-    case 5: // L_801065DC — LEAVE DEMO: stage swap parks the fiber
-      c->r[4] = 2;
-      c->r[31] = 0x801065E4u;
-      psx::cpu::dispatchGuestToReturn0(*c,
-                                       0x80052078u,
-                                       psx::cpu::ExecutionBudget::currentTurn(*c),
-                                       __func__); // does not return (entry rewrite + yield)
-      break;
-    case 6:
-      demo_frame_s6(c);
-      break;
-    case 7:                   // L_80106668 — ATTRACT: run the real phase
-      c->r[31] = 0x80106670u; // machine; its deep loads yield on the fiber
-      psx::cpu::dispatchGuestToReturn0(*c, 0x80106C24u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
-      break;
-    default:
-      break; // sub >= 8: straight to the tail
-    }
-    c->mem_w16(0x1f800198u, c->mem_r16(0x1f800198u) + 1); // L_80106674 frame counter
-    c->r[4] = 1;
-    c->r[31] = 0x80106688u;
-    psx::cpu::dispatchGuestToReturn0(*c,
-                                     0x80051F80u,
-                                     psx::cpu::ExecutionBudget::currentTurn(*c),
-                                     __func__); // loop-tail yield (registered override -> yieldPrim)
-  }
-}
+} // namespace tomba
 
 // Register the DEMO substate overrides when the just-loaded overlay is the DEMO overlay at the stage
 // base. Distinguish from GAME.BIN (which aliases the same base) by the root-dispatcher prologue:

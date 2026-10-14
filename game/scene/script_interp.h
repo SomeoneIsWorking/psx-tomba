@@ -59,6 +59,12 @@
 #include <cstdint>
 struct Core;
 
+namespace tomba::native {
+class NativeOverrideCatalog;
+} // namespace tomba::native
+
+namespace tomba {
+
 class ScriptInterp {
 public:
   Core *core = nullptr;
@@ -83,14 +89,23 @@ public:
   // The MAIN.EXE handler table base (63 entries, indexed by `opcodeWord & 0x07FF`).
   static constexpr uint32_t kHandlerTableBase = 0x800A3B78u;
 
+  struct InitArgs {
+    uint32_t obj;
+    uint32_t tableA;
+    uint32_t scriptPtr;
+  };
   // init(obj, tableA, scriptPtr): FUN_80040CDC. Wire an object as script-driven — set the secondary
   //   table + zero the progress/flag/scratch, then load the first entry via loadCurrentEntry.
-  void init(uint32_t obj, uint32_t tableA, uint32_t scriptPtr);
+  void init(const InitArgs &args);
 
+  struct LoadCurrentEntryArgs {
+    uint32_t obj;
+    uint32_t scriptPtr;
+  };
   // loadCurrentEntry(obj, scriptPtr): FUN_80040DE0. Copy the current entry's 3 arg words into
   //   obj[+0x72..+0x76]; if the opcode word's flag 0x2000 is set, also copy the extra 4 halfword
   //   block at scriptPtr+8 into obj[+0x64..+0x6A]. Records scriptPtr into obj[+0x6C].
-  void loadCurrentEntry(uint32_t obj, uint32_t scriptPtr);
+  void loadCurrentEntry(const LoadCurrentEntryArgs &args);
 
   // advanceEntry(obj, kindArg): the post-handler advance step() runs after every non-pause return.
   //   It owns guest FUN_80040FA0 (see advanceStep, which it calls directly) — NOT 0x80040E54; that
@@ -177,6 +192,10 @@ public:
   //   Faithful from authenticated executable/overlay evidence (leaf, no frame).
   int op34ClaimGate(uint32_t obj);
 
+  struct AdvanceStepArgs {
+    uint32_t obj;
+    uint32_t kindArg;
+  };
   // ---- FUN_80040FA0 — VERIFIED + WIRED (frontier tier, 2026-07-10) — advanceEntry() now calls this directly ----
   // "Advance sub-machine" wrapper the guest step() calls after every non-pause handler return
   // (see the `RET_ADVANCE_*` comment above `advanceEntry()`). NOTE ON NAMING: the CURRENT
@@ -196,7 +215,7 @@ public:
   // Table read directly out of MAIN.EXE (scratch/re/advance_switch_table.txt, this session) at
   // guest 0x8001534C, 7 x u32, values 0x80040FE0/8004100C/8004103C/80041080/80041050/8004105C/
   // 80041070 for index 0..6 respectively (matches the guest instruction path's switch-case literals exactly).
-  int advanceStep(uint32_t obj, uint32_t kindArg);
+  int advanceStep(const AdvanceStepArgs &args);
 
   // ==== Wide-RE pass 2026-07-10 (dedicated follow-up session) — op36/op31 movement-script family ==
   // VERIFIED + WIRED (frontier tier, 2026-07-10 wiring pass). Both cross-checked via Ghidra headless decompile
@@ -233,7 +252,12 @@ public:
   //   reach — delegates to the leaf stepAngleToward() below at anglePtr = obj+0x56. Both op36 (on
   //   itself) and op31 (on the resolved actor, self-or-global) call this by address, so the object
   //   passed here is NOT always the driven script object. Frame: sp-=24, spills ra only.
-  int turnFacing(uint32_t obj, int16_t targetAngle, int16_t step);
+  // A turn toward `targetAngle` by at most `step` per call, in 4096-per-turn units.
+  struct AngleTurn {
+    int16_t targetAngle;
+    int16_t step;
+  };
+  int turnFacing(uint32_t obj, AngleTurn turn);
   // Guest-ABI twin: reads obj/targetAngle/step from c->r[4..6], mirrors FUN_80041438's own sp-=24/
   // ra-spill frame (nested ON TOP of the caller's already-descended sp), writes result to c->r[2].
   void turnFacingFramed();
@@ -244,8 +268,13 @@ public:
   //   whichever direction is the SHORT way around the circle (per the masked-delta-vs-2048 test),
   //   then re-test and snap if the remainder is now within `step`. Returns 1 iff it snapped exactly
   //   to targetAngle this call, else 0. Faithful from authenticated executable/overlay evidence.
-  int stepAngleToward(uint32_t anglePtr, int16_t targetAngle, int16_t step);
+  int stepAngleToward(uint32_t anglePtr, AngleTurn turn);
 
+  struct StepEventPulseArgs {
+    uint32_t obj;
+    uint32_t flagsPtr;
+    uint32_t packedArg;
+  };
   // FUN_80042EA4 — stepEventPulse(obj, flagsPtr, packedArg): op36's per-call "movement event" gate
   //   (obj unused inside except via `*(obj+0x38)` — an owner/parent pointer — for the bit-0x80 arm).
   //   flagsPtr points at a 16-bit flags word (obj+0x68 in every known caller): 0 -> no-op; low 6
@@ -256,7 +285,7 @@ public:
   //   gated OFF by that shared mask, e.g. a "sound already playing this frame" guard). packedArg
   //   packs (lowByte=sfx id, highByte=pitch bend) — matches Sfx::trigger(id, pan, pitchBend)'s ABI
   //   with pan=0. Frame: sp-=24, spills ra only. Faithful from authenticated executable/overlay evidence.
-  int stepEventPulse(uint32_t obj, uint32_t flagsPtr, uint32_t packedArg);
+  int stepEventPulse(const StepEventPulseArgs &args);
   void stepEventPulseFramed(); // guest-ABI twin: obj/flagsPtr/packedArg from c->r[4..6]
 
   // Wire the §9-verified opcode handlers into the override registry (tomba::native::declareOverride) at their
@@ -267,14 +296,20 @@ public:
   // in step()'s dispatch loop itself. The other draft leaves (turnFacing/stepAngleToward/
   // stepEventPulse/advanceStep) are reached only as C++ callees of the two opcode handlers, not
   // separately dispatched, so they need no table entry of their own.
-  void registerOverrides();
+  void registerOverrides(native::NativeOverrideCatalog &natives);
 
   // ---- Resident-leaf sweep (2026-07-17) — five small unowned MAIN.EXE leaves homed here. NOT script
   // opcodes; generic object/scratchpad helpers with no prior native owner. Byte-faithful to their
   // original guest instructions oracles (see script_interp.cpp for the per-function commentary + the ORACLE markers).
-  void refreshCachedTailHi(uint32_t obj);       // FUN_80031708 — cache tail node+4, flag byte @ node+3
-  void refreshCachedTailLo(uint32_t obj);       // FUN_80031744 — cache tail node+1, flag byte @ node+0
-  int matchesActiveByKind(uint32_t obj);        // FUN_80042170 — self/global match-byte query (0/1)
-  int mirrorGlobalStatusByte();                 // FUN_80044090 — copy 0x800E7EAA -> scratchpad 0x1F800207
-  int advanceGauge(uint32_t obj, uint32_t rec); // FUN_80073194 — wrapping gauge + wrap-event pulse (ready-frame)
+  void refreshCachedTailHi(uint32_t obj); // FUN_80031708 — cache tail node+4, flag byte @ node+3
+  void refreshCachedTailLo(uint32_t obj); // FUN_80031744 — cache tail node+1, flag byte @ node+0
+  int matchesActiveByKind(uint32_t obj);  // FUN_80042170 — self/global match-byte query (0/1)
+  int mirrorGlobalStatusByte();           // FUN_80044090 — copy 0x800E7EAA -> scratchpad 0x1F800207
+  struct AdvanceGaugeArgs {
+    uint32_t obj;
+    uint32_t rec;
+  };
+  int advanceGauge(const AdvanceGaugeArgs &args); // FUN_80073194 — wrapping gauge + wrap-event pulse (ready-frame)
 };
+
+} // namespace tomba

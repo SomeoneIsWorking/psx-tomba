@@ -3,6 +3,8 @@
 #include "core.h"
 #include "guest_call.h"
 
+namespace tomba {
+
 namespace {
 
 // Object field offsets (see attack_orbit_substate.h for the full writeup).
@@ -212,3 +214,5 @@ void AttackOrbitSubstate::aimAtTargetAnchor() {
     c->mem_w8(obj + O_KIND, 7);
   }
 }
+
+} // namespace tomba

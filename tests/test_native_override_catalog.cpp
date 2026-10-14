@@ -1,29 +1,13 @@
 #include "core/overrides/native_override_catalog.h"
 #include "game.h"
-#include "game_runtime.h"
 #include "level_load.h"
 #include "lightrec_executor.h"
+#include "stub_game_runtime.h"
 
 #include <lucent/log.h>
 #include <memory>
 
 namespace {
-
-class Runtime final : public GameRuntime {
-public:
-  void *createContext(Core &) override {
-    return nullptr;
-  }
-  void destroyContext(void *) override {}
-  void registerOverrides(Game &) override {}
-  void bootInit(Core &) override {}
-  RenderCapabilities renderCapabilities() const override {
-    return RenderCapabilities::direct();
-  }
-  bool guestVramIsPicture(const Game &) const override {
-    return false;
-  }
-};
 
 constexpr std::uint32_t kEntry = 0x80010000u;
 constexpr std::uint32_t kReturn = 0x80010100u;
@@ -104,25 +88,24 @@ void check(bool condition, const char *name) {
 } // namespace
 
 int main() {
-  Runtime runtime;
-  psxport_install_game(runtime);
-  auto game = std::make_unique<Game>();
+  tomba::native::NativeOverrideCatalog natives;
+  psx::test::StubGameRuntime runtime;
+  auto game = std::make_unique<Game>(runtime, psx::config::Config{});
   Core &core = game->core;
   core.mem_w32(kEntry, 0x24020005u);      // addiu v0, zero, 5
   core.mem_w32(kEntry + 4u, 0x03e00008u); // jr ra
   core.mem_w32(kEntry + 8u, 0u);
   const auto first = core.imageCatalog().activate("resident", kResidentText, 1u);
-  tomba::native::declareOverride(kEntry, "native-owner", nativeOwner);
-  tomba::native::declareOverlayOverride("A03", kEntry, "a03-owner", nativeA03);
-  tomba::native::declareOverlayOverride("A0B", kEntry, "a0b-owner", nativeA0B);
-  tomba::native::declareOverlayOverride("DEMO", kStageEntry, "demo-owner", nativeDemo);
-  tomba::native::declareOverlayOverride("SOP", kModeEntry, "sop-owner", nativeSop);
-  tomba::native::declareOverlayOverride("A03", kModeEntry, "mode-a03-owner", nativeModeA03);
-  tomba::native::declareOverlayOverride("OPN", kAreaEntry, "opn-owner", nativeOpn);
-  tomba::native::declareOverlayOverride("CRD", kAreaEntry, "crd-owner", nativeCrd);
-  tomba::native::declareOverride(
-      kProducerEntry, "producer-owner", nativeProducer, psx::present::Producer{psx::present::Arg::A0});
-  tomba::native::bindResident(core, first, kResidentText);
+  natives.declare(kEntry, "native-owner", nativeOwner);
+  natives.declareOverlay("A03", kEntry, "a03-owner", nativeA03);
+  natives.declareOverlay("A0B", kEntry, "a0b-owner", nativeA0B);
+  natives.declareOverlay("DEMO", kStageEntry, "demo-owner", nativeDemo);
+  natives.declareOverlay("SOP", kModeEntry, "sop-owner", nativeSop);
+  natives.declareOverlay("A03", kModeEntry, "mode-a03-owner", nativeModeA03);
+  natives.declareOverlay("OPN", kAreaEntry, "opn-owner", nativeOpn);
+  natives.declareOverlay("CRD", kAreaEntry, "crd-owner", nativeCrd);
+  natives.declare(kProducerEntry, "producer-owner", nativeProducer, psx::present::Producer{psx::present::Arg::A0});
+  natives.bindResident(core, first, kResidentText);
   const auto budget = psx::cpu::ExecutionBudget::fromCycles(1000u);
 
   core.r[4] = kListObject;
@@ -148,8 +131,8 @@ int main() {
   check(result.returned() && core.r[2] == 5u && nativeCalls == 1,
         "stale image registration cannot select the native owner");
 
-  tomba::native::bindResident(core, second, kResidentText);
-  tomba::native::bindResident(core, second, kResidentText);
+  natives.bindResident(core, second, kResidentText);
+  natives.bindResident(core, second, kResidentText);
   core.r[31] = kReturn;
   result = psx::cpu::dispatchGuest(core, kEntry, budget);
   check(result.returned() && core.r[2] == 41u && nativeCalls == 2, "final image rebinding is effective and idempotent");
@@ -160,7 +143,7 @@ int main() {
         "scoped original executes guest instructions without native recursion");
 
   std::optional<psx::cpu::ImageIdentity> activeOverlay;
-  const auto a03 = tomba::native::activateOverlay(core, activeOverlay, "A03", kResidentText);
+  const auto a03 = natives.activateOverlay(core, activeOverlay, "A03", kResidentText);
   core.r[31] = kReturn;
   result = psx::cpu::dispatchGuest(core, kEntry, budget);
   check(result.returned() && core.r[2] == 43u && nativeCalls == 3 && core.nativeDispatcher().isInstalled({a03, kEntry}),
@@ -170,7 +153,7 @@ int main() {
   check(result.returned() && core.r[2] == 5u && nativeCalls == 3, "A03 scoped original reaches the overlay guest body");
 
   core.mem_w32(kEntry, 0x2402000bu); // A0B has a different guest body at the same address.
-  const auto a0b = tomba::native::activateOverlay(core, activeOverlay, "A0B", kResidentText);
+  const auto a0b = natives.activateOverlay(core, activeOverlay, "A0B", kResidentText);
   core.r[31] = kReturn;
   result = psx::cpu::dispatchGuest(core, kEntry, budget);
   check(result.returned() && core.r[2] == 47u && nativeCalls == 4 &&
@@ -181,7 +164,7 @@ int main() {
 
   core.mem_w32(kEntry, 0x24020009u); // different image: addiu v0, zero, 9
   const auto other = core.imageCatalog().activate("different-image", kResidentText, 2u);
-  tomba::native::bindResident(core, second, kResidentText);
+  natives.bindResident(core, second, kResidentText);
   core.r[31] = kReturn;
   result = psx::cpu::dispatchGuest(core, kEntry, budget);
   check(result.returned() && core.r[2] == 9u && nativeCalls == 4 &&
@@ -194,7 +177,7 @@ int main() {
   core.mem_w32(kModeFileTable + 2u * 8u + 4u, 0x2000u);
   core.mem_w32(kModeFileTable + 6u * 8u + 4u, 0x2000u);
   std::optional<psx::cpu::ImageIdentity> activeMode;
-  const auto sop = tomba::native::activateModeOverlay(core, activeMode, 2u);
+  const auto sop = natives.activateModeOverlay(core, activeMode, 2u);
   core.r[31] = kReturn;
   result = psx::cpu::dispatchGuest(core, kModeEntry, budget);
   check(result.returned() && core.r[2] == 59u && modeCalls == 1 &&
@@ -207,7 +190,7 @@ int main() {
 
   core.mem_w32(kModeEntry, 0x2402000cu); // A03 body: addiu v0, zero, 12
   const auto invalidationsBeforeMode = core.lightrecExecutor().counters().invalidations;
-  const auto modeA03 = tomba::native::activateModeOverlay(core, activeMode, 6u);
+  const auto modeA03 = natives.activateModeOverlay(core, activeMode, 6u);
   core.r[31] = kReturn;
   result = psx::cpu::dispatchGuest(core, kModeEntry, budget);
   check(result.returned() && core.r[2] == 61u && modeCalls == 2 && core.currentImageIdentity(kModeEntry) == modeA03 &&
@@ -225,7 +208,7 @@ int main() {
   core.mem_w32(kModeFileTable + 0u * 8u + 4u, 0x4000u);
   core.mem_w32(kModeFileTable + 1u * 8u + 4u, 0x4000u);
   std::optional<psx::cpu::ImageIdentity> activeArea;
-  const auto opn = tomba::native::activateAreaSlotOverlay(core, activeArea, 0u);
+  const auto opn = natives.activateAreaSlotOverlay(core, activeArea, 0u);
   core.r[31] = kReturn;
   result = psx::cpu::dispatchGuest(core, kAreaEntry, budget);
   check(result.returned() && core.r[2] == 67u && areaCalls == 1 &&
@@ -238,14 +221,14 @@ int main() {
 
   core.mem_w32(kAreaEntry, 0x24020010u); // CRD body: addiu v0, zero, 16
   const auto invalidationsBeforeArea = core.lightrecExecutor().counters().invalidations;
-  const auto crd = tomba::native::activateAreaSlotOverlay(core, activeArea, 1u);
+  const auto crd = natives.activateAreaSlotOverlay(core, activeArea, 1u);
   core.r[31] = kReturn;
   result = psx::cpu::dispatchGuest(core, kAreaEntry, budget);
   check(result.returned() && core.r[2] == 71u && areaCalls == 2 && core.currentImageIdentity(kAreaEntry) == crd &&
             !core.nativeDispatcher().isInstalled({opn, kAreaEntry}) &&
             core.lightrecExecutor().counters().invalidations > invalidationsBeforeArea,
         "CRD replacement retires OPN's native owner and translated body");
-  tomba::native::retireOverlay(core, activeArea);
+  natives.retireOverlay(core, activeArea);
   check(!activeArea && !core.currentImageIdentity(kAreaEntry),
         "raw area-data overwrite retires the prior executable AREA identity");
 
@@ -253,14 +236,14 @@ int main() {
   core.mem_w32(kStageEntry + 4u, 0x03e00008u); // jr ra
   core.mem_w32(kStageEntry + 8u, 0u);
   std::optional<psx::cpu::ImageIdentity> activeStage;
-  const auto start = tomba::stage::activateLoaded(core, activeStage, 0u, 2048u);
+  const auto start = tomba::stage::activateLoaded(natives, core, activeStage, 0u, 2048u);
   core.r[31] = kReturn;
   result = psx::cpu::dispatchGuest(core, kStageEntry, budget);
   check(result.returned() && core.r[2] == 7u && nativeCalls == 4 &&
             !core.nativeDispatcher().isInstalled({start, kStageEntry}),
         "START stage cannot acquire DEMO's native declaration");
 
-  const auto demo = tomba::stage::activateLoaded(core, activeStage, 1u, 2048u);
+  const auto demo = tomba::stage::activateLoaded(natives, core, activeStage, 1u, 2048u);
   core.r[31] = kReturn;
   result = psx::cpu::dispatchGuest(core, kStageEntry, budget);
   check(result.returned() && core.r[2] == 53u && nativeCalls == 5 &&
@@ -273,7 +256,7 @@ int main() {
 
   core.mem_w32(kStageEntry, 0x2402000du); // GAME body: addiu v0, zero, 13
   const auto invalidationsBeforeGame = core.lightrecExecutor().counters().invalidations;
-  const auto gameStage = tomba::stage::activateLoaded(core, activeStage, 2u, 2048u);
+  const auto gameStage = tomba::stage::activateLoaded(natives, core, activeStage, 2u, 2048u);
   core.r[31] = kReturn;
   result = psx::cpu::dispatchGuest(core, kStageEntry, budget);
   check(result.returned() && core.r[2] == 13u && nativeCalls == 5 &&
@@ -281,14 +264,14 @@ int main() {
             !core.nativeDispatcher().isInstalled({demo, kStageEntry}) &&
             core.lightrecExecutor().counters().invalidations > invalidationsBeforeGame,
         "GAME replacement invalidates the DEMO dispatch and translated body");
-  tomba::native::retireOverlay(core, activeStage);
+  natives.retireOverlay(core, activeStage);
   check(!activeStage && !core.currentImageIdentity(kStageEntry), "resident stage retires the previous code image");
   constexpr std::uint32_t kTaskFields = 0x1f800040u;
   constexpr std::uint32_t kResidentEntry = 0x80045678u;
   constexpr std::uint32_t kCallerGp = 0x80012345u;
   core.mem_w32(tomba::stage::kEntryTable + 3u * 4u, kResidentEntry);
   core.r[28] = kCallerGp;
-  tomba::stage::loadOverlay(core, activeStage, kTaskFields, 3u);
+  tomba::stage::loadOverlay(natives, core, {.active = activeStage, .taskFields = kTaskFields, .stage = 3u});
   check(core.mem_r32(kTaskFields) == kResidentEntry && core.mem_r32(kTaskFields + 4u) == kCallerGp && !activeStage,
         "resident stage writes distinct entry PC and caller gp to the task context");
   const auto &counters = core.lightrecExecutor().counters();

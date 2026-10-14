@@ -47,6 +47,6 @@ OT/GP0 reconstruction, and GTE-output-derived pictures are not widescreen.
 
 From the repository root, consult the project authorities before work. Read `docs/migration.md`, root `docs/re-frontier.md`, this title's `docs/re-frontier.md`, and
 `docs/codemap.md`. The first Tomba! 1 implementation discriminator is the recorded 35/35 CRT0
-boundary through Lightrec with forced-mismatch and too-short negatives. Next cross issue 0006's
-internal-`CdSync` boundary, reach the title screen, prove input, and pass representative gameplay.
+boundary through Lightrec with forced-mismatch and too-short negatives. Next reach the title screen,
+prove input, and pass representative gameplay.
 Only then resume widescreen work.

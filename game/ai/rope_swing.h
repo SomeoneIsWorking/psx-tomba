@@ -30,6 +30,12 @@ constexpr uint32_t kImpulse = 26;     // s16 — per-tick push added into the ve
 constexpr uint32_t kTargetAngle = 28; // s16 — the angle the spring pulls back toward
 } // namespace ropeswing
 
+namespace tomba::native {
+class NativeOverrideCatalog;
+} // namespace tomba::native
+
+namespace tomba {
+
 struct RopeSwingState {
   Core *mCore;
   uint32_t mAt; // = node + ropeswing::kStateBlock
@@ -76,6 +82,8 @@ struct RopeSwingState {
   }
 };
 
+} // namespace tomba
+
 // ------------------------------------------------------------------------------------------------
 // The rope NODE and one SEGMENT. node+0xC0 is the same sub-part pointer table AssemblyNode::childPtr
 // and NodeXform::propagate walk; a segment's +0x0C is what node_xform.cpp's CHILD-role lens calls
@@ -86,6 +94,8 @@ constexpr uint32_t kSegmentCount = 0x08; // u8  — how many segments this rope 
 constexpr uint32_t kSegmentTable = 0xC0; // u32[] — one pointer per segment
 constexpr uint32_t kSegmentBendZ = 0x0C; // s16 on a SEGMENT — its Z rotation (childEulerZ)
 } // namespace ropenode
+
+namespace tomba {
 
 struct RopeNode {
   Core *mCore;
@@ -113,5 +123,7 @@ public:
   // 0x801281B8 — the rope's whole per-frame tick. a0 = the rope node.
   static void swingTickAndBendSegments(Core *c);
 
-  static void registerOverrides();
+  static void registerOverrides(native::NativeOverrideCatalog &natives);
 };
+
+} // namespace tomba

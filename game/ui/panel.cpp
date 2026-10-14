@@ -3,6 +3,10 @@
 #include "core.h"
 #include "core/overrides/native_override_catalog.h"
 
-void Panel::install() {
-  tomba::native::declareOverride(0x8004FFB4u, "Panel::fillQuad", Panel::fillQuad);
+namespace tomba {
+
+void Panel::install(native::NativeOverrideCatalog &natives) {
+  natives.declare(0x8004FFB4u, "Panel::fillQuad", Panel::fillQuad);
 }
+
+} // namespace tomba

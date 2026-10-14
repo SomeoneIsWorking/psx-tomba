@@ -1,11 +1,13 @@
-#include "core/entry/title_facts.h"
+#include "cd/tomba_cd.h"
+#include "core/entry/tomba_runtime.h"
+#include "core/sched/task_slot_layout.h"
+#include "core/sched/tomba_scheduler.h"
 #include "execution_control.h"
 #include "game.h"
 #include "game_runtime.h"
 #include "guest_call.h"
-#include "legacy_game_config.h"
 #include "lightrec_executor.h"
-#include "scheduler.h"
+#include "stock_libgpu.h"
 
 #include <lucent/log.h>
 #include <memory>
@@ -23,17 +25,12 @@ struct NestedObservation {
   int calls = 0;
 };
 
-class Runtime final : public GameRuntime {
+// Binds Tomba's libgpu; MAIN.EXE itself is not loaded.
+class Runtime final : public psx::game::GameRuntime {
 public:
-  Runtime() {
-    bindLegacyInterface(&tomba::title::measuredConfig(), nullptr);
+  void registerOverrides(Game &game) override {
+    libgpu_.bind(game);
   }
-  void *createContext(Core &) override {
-    return &nested;
-  }
-  void destroyContext(void *) override {}
-  void registerOverrides(Game &) override {}
-  void bootInit(Core &) override {}
   RenderCapabilities renderCapabilities() const override {
     return RenderCapabilities::direct();
   }
@@ -42,13 +39,16 @@ public:
   }
 
   NestedObservation nested;
+
+private:
+  psx::hle::StockLibgpu libgpu_{tomba::kStockLibgpu};
 };
 
 void callTimeoutFromNative(Core *core) {
-  auto &observed = *static_cast<NestedObservation *>(core->gameCtx);
+  auto &observed = static_cast<Runtime &>(core->runtime).nested;
   ++observed.calls;
   observed.result =
-      psx::cpu::dispatchGuest0(*core, core->cfg->hle.gpuTimeoutArm, psx::cpu::ExecutionBudget::fromCycles(1));
+      psx::cpu::dispatchGuest0(*core, tomba::kStockLibgpu.timeoutArm, psx::cpu::ExecutionBudget::fromCycles(1));
   observed.callerPc = core->pc;
   observed.activeAddress = core->active_native_address;
 }
@@ -77,7 +77,7 @@ void checkGpuAfterTaskBudget(Game &game, Checks &checks) {
   Core &core = game.core;
   constexpr std::uint32_t entry = 0x80011000u;
   constexpr int slot = 1;
-  const std::uint32_t base = core.cfg->taskTableBase + slot * core.cfg->taskSlotStride;
+  const std::uint32_t base = tomba::sched::taskSlotBase(slot);
   core.mem_w32(entry, 0x1000ffffu); // synthetic busy-loop reaches a scheduler budget suspension
   core.mem_w32(entry + 4u, 0u);
   core.imageCatalog().activate("gpu-preceding-task", {0x11000u, 0x11008u}, 2u);
@@ -85,13 +85,15 @@ void checkGpuAfterTaskBudget(Game &game, Checks &checks) {
   core.mem_w32(base + 8u, 0x801ff000u);
   core.mem_w32(base + 12u, entry);
   const R3000 caller = core;
-  guest_run_coro_fiber_stanza(&core, slot, base, 2u, false, caller);
+  tomba::TombaCd cd(core);
+  tomba::sched::TombaScheduler scheduler(game, cd);
+  scheduler.stepSlot(slot, caller);
   checks.require(core.lightrecExecutor().counters().executedBlocks > 0 &&
                      core.lightrecExecutor().counters().fallback.calls == 0,
                  "GPU precondition reaches the shipping task executor through JIT with zero fallback");
   core.r[31] = kReturn;
   const auto result =
-      psx::cpu::dispatchGuest0(core, core.cfg->hle.gpuTimeoutArm, psx::cpu::ExecutionBudget::fromCycles(1));
+      psx::cpu::dispatchGuest0(core, tomba::kStockLibgpu.timeoutArm, psx::cpu::ExecutionBudget::fromCycles(1));
   checks.require(result.returned(), "next GPU timeout arm does not consume a prior guest-task budget exit");
   if (!result.returned()) {
     lucent::error("tomba-gpu-timeout-test",
@@ -106,32 +108,30 @@ void checkGpuAfterTaskBudget(Game &game, Checks &checks) {
 
 int main() {
   Runtime runtime;
-  psxport_install_game(runtime);
-  auto game = std::make_unique<Game>();
+  auto game = std::make_unique<Game>(runtime, psx::config::Config{});
   Core &core = game->core;
   Checks checks;
-  const auto &hle = tomba::title::measuredConfig().hle;
+  const auto &hle = tomba::kStockLibgpu;
   const auto budget = psx::cpu::ExecutionBudget::fromCycles(1);
-  checks.require(core.cfg == &tomba::title::measuredConfig(), "Core uses the production title facts");
-  checks.require(game->platform_hle.lookup(hle.gpuTimeoutArm) == nullptr,
-                 "timeout service is absent before the production installation boundary");
-  game->platform_hle.initBuiltins();
-  game->platform_hle.initBuiltins();
-  checks.require(game->platform_hle.lookup(hle.gpuTimeoutArm) != nullptr,
-                 "production installation binds the measured timeout entry idempotently");
+  checks.require(game->platform_hle.lookup(hle.timeoutArm) == nullptr,
+                 "timeout service is absent before the title binds its libgpu");
+  runtime.registerOverrides(*game);
+  runtime.registerOverrides(*game);
+  checks.require(game->platform_hle.lookup(hle.timeoutArm) != nullptr,
+                 "the title's libgpu binds the timeout entry idempotently");
 
   const auto initialCounters = core.lightrecExecutor().counters();
-  core.mem_w32(hle.gpuTimeoutDeadlineVar, 7u);
-  core.mem_w32(hle.gpuTimeoutFlagVar, 9u);
+  core.mem_w32(hle.timeoutDeadlineWord, 7u);
+  core.mem_w32(hle.timeoutFlagWord, 9u);
   core.r[31] = kReturn;
   core.r[29] = 0x801fff00u;
   core.pc = kNativeCaller;
-  auto result = psx::cpu::dispatchGuest0(core, hle.gpuTimeoutArm, budget);
+  auto result = psx::cpu::dispatchGuest0(core, hle.timeoutArm, budget);
   checks.require(result.returned() && result.cycles == 0 && result.guestPc == kReturn,
                  "direct timeout arm returns without executing guest cycles");
   checks.require(core.pc == kReturn && core.r[31] == kReturn && core.r[29] == 0x801fff00u,
                  "direct timeout arm preserves the caller stack and return address");
-  checks.require(core.mem_r32(hle.gpuTimeoutDeadlineVar) == 0x7fffffffu && core.mem_r32(hle.gpuTimeoutFlagVar) == 0,
+  checks.require(core.mem_r32(hle.timeoutDeadlineWord) == 0x7fffffffu && core.mem_r32(hle.timeoutFlagWord) == 0,
                  "timeout arm reaches the existing synchronous GPU deadline/flag policy");
 
   const auto image = core.imageCatalog().activate("synthetic-native-caller", kSyntheticText, 1u);
@@ -145,9 +145,9 @@ int main() {
                  "nested timeout arm restores the native caller context");
 
   core.imageCatalog().activate("synthetic-native-caller", kSyntheticText, 1u);
-  result = psx::cpu::dispatchGuest0(core, hle.gpuTimeoutArm, budget);
+  result = psx::cpu::dispatchGuest0(core, hle.timeoutArm, budget);
   checks.require(result.returned(), "resident image replacement does not remove the platform service");
-  result = psx::cpu::dispatchGuest0(core, hle.gpuTimeoutArm + 4u, budget);
+  result = psx::cpu::dispatchGuest0(core, hle.timeoutArm + 4u, budget);
   checks.require(result.reason == psx::cpu::ExecutionExitReason::Fault,
                  "adjacent unowned address cannot masquerade as the timeout service");
   const auto &counters = core.lightrecExecutor().counters();

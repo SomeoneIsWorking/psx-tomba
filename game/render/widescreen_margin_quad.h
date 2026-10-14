@@ -7,11 +7,19 @@
 struct Core;
 class Game;
 
+namespace tomba::native {
+class NativeOverrideCatalog;
+} // namespace tomba::native
+
+namespace tomba {
+
 class WidescreenMarginQuad {
 public:
   // FUN_8013CDD4(obj=a0) -> void. Walks obj's single margin-node + its 36-byte-stride quad
   // record array, GTE-transforms each into a POLY_GT4 packet, and links it into the OT.
   static void emit(Core *c);
 
-  static void registerOverrides(Game *game);
+  static void registerOverrides(native::NativeOverrideCatalog &natives);
 };
+
+} // namespace tomba

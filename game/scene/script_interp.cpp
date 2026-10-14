@@ -14,11 +14,10 @@
 // opcode handlers (op04/op05/op06/op31/op34/op36), and five resident leaves that had no prior home.
 // The other 56 opcode handlers are still the guest's own bodies.
 #include "scene/script_interp.h"
-#include "cfg.h"
 #include "core.h"
 #include "core/engine/engine.h"
-#include "core/entry/game_ctx.h"
-#include "core/overrides/native_override_catalog.h" // tomba::native::declareOverride — the one native-override registry
+#include "core/overrides/native_override_catalog.h"
+#include "entry/tomba_session.h"
 #include "execution_services.h"
 #include "game.h"
 #include "guest_abi.h" // GuestFrame — mirror the guest stack frame (CLAUDE.md)
@@ -30,6 +29,7 @@
 #include "scene/script_opcode.h"
 #include <cstdint>
 #include <cstdio>
+#include <lucent/log.h>
 
 // Everything the bodies below reach for is owned by exactly one of three headers:
 //   script_object.h   — the driven object's block, as typed accessors (ScriptObject).
@@ -38,6 +38,8 @@
 //   script_globals.h  — the fixed scratchpad / resident addresses that are not object fields.
 // A reader who wants to know what `0x70` or `0x2000` or `0x1F800214` is now has one place to look,
 // per kind, instead of a flat constant list two hundred lines above its first use.
+namespace tomba {
+
 namespace {
 using tomba::scene::ScriptObject;
 using tomba::scene::script_globals::kClaimGate;
@@ -81,14 +83,14 @@ constexpr int8_t kProgressGateValue = 2;
 int ScriptInterp::callFnptr(uint32_t obj) {
   Core *c = core;
   const ScriptObject so{c, obj};
-  static constexpr GuestFrameSpill kSpills[] = {{31, 16}};
+  constexpr GuestFrameSpill kSpills[] = {{31, 16}};
   GuestFrame<24, 1> frame(c, kSpills);
   // The ret code is EXACTLY what the callee left in v0. Address dispatch sets v0 to the guest
   // body's own return, so the substrate path is transparent; a native `beh_*` handler is
   // void-returning, so a native fade MUST set `c->r[2]` before returning, exactly as the guest
   // instruction path would have. Every fade in game/ai/beh_a06_fade_*.cpp follows that convention.
   c->r[31] = tomba::script::kJalReturnFromCallFnptr; // the trampoline's own post-jalr constant
-  eng(c).behaviors.dispatchObj(obj, so.functionPointer());
+  eng(c).behaviors.dispatchObj({.object = obj, .handler = so.functionPointer()});
   return (int)c->r[2];
 }
 
@@ -120,7 +122,7 @@ void beh_script_interp_step(Core *c) {
 void ScriptInterp::step(uint32_t obj) {
   Core *c = core;
   const ScriptObject so{c, obj};
-  static constexpr GuestFrameSpill kSpills[] = {{17, 20}, {19, 28}, {18, 24}, {31, 32}, {16, 16}};
+  constexpr GuestFrameSpill kSpills[] = {{17, 20}, {19, 28}, {18, 24}, {31, 32}, {16, 16}};
   GuestFrame<40, 5> frame(c, kSpills);
   c->r[17] = obj;
   c->r[19] = kHandlerTableBase;
@@ -160,19 +162,19 @@ void ScriptInterp::step(uint32_t obj) {
     // PSXPORT_DEBUG=script — one line per opcode dispatch, naming the opcode as well as its word
     // so a log can be read without a second pass over the handler table. Both execution paths run
     // this same native loop for natively-dispatched parents, so the two logs diff directly.
-    cfg_logf("script",
-             "obj=%08X ptr=%08X op=%04X (%s) ret=%u",
-             obj,
-             scriptPtr,
-             opWord,
-             tomba::script::scriptOpcodeName(opWord),
-             ret);
+    lucent::debug("script",
+                  "obj={:08X} ptr={:08X} op={:04X} ({}) ret={}",
+                  obj,
+                  scriptPtr,
+                  opWord,
+                  tomba::script::scriptOpcodeName(opWord),
+                  ret);
 
     // What the handler's return DOES to guest state. The guest calls the advance with a kind byte
     // chosen here, and then continues ONLY if the advance returns exactly 1; any other advance
     // return leaves the loop with v0 = 0.
     uint32_t advanceKindArg;
-    switch (static_cast<StepReturn>(ret)) {
+    switch (ret < static_cast<uint32_t>(StepReturn::kLeave) ? static_cast<StepReturn>(ret) : StepReturn::kLeave) {
     case StepReturn::kPause: {
       so.pauseRequested();
       c->r[2] = 1u; // the guest's pause exit leaves v0 = 1
@@ -185,9 +187,8 @@ void ScriptInterp::step(uint32_t obj) {
     case StepReturn::kAdvanceKind1:
       advanceKindArg = 1u;
       break;
-    default:
-      // 4 and above: the guest falls through to the loop test with the compare register still 0,
-      // so it exits with v0 = 0.
+    case StepReturn::kLeave:
+      // The guest falls through to the loop test with the compare register still 0.
       c->r[2] = 0u;
       return;
     }
@@ -220,7 +221,8 @@ constexpr uint32_t kTurnStepDefault = 0x100u; // the step op36 hands its own tur
 // toward `targetAngle` by up to `step`, taking whichever direction is SHORT around the circle, and
 // snaps exactly onto the target when the remainder is within one step. Returns 1 iff it snapped
 // exactly this call, which is what op36 and op31 each test to decide whether to advance.
-int ScriptInterp::stepAngleToward(uint32_t anglePtr, int16_t targetAngle, int16_t step) {
+int ScriptInterp::stepAngleToward(uint32_t anglePtr, AngleTurn turn) {
+  const auto [targetAngle, step] = turn;
   Core *c = core;
   const int16_t cur = static_cast<int16_t>(c->mem_r16(anglePtr));
   const int32_t straightDelta = static_cast<int32_t>(targetAngle) - static_cast<int32_t>(cur);
@@ -246,8 +248,8 @@ int ScriptInterp::stepAngleToward(uint32_t anglePtr, int16_t targetAngle, int16_
 // FUN_80041438 — "turn this actor's facing toward an angle". The actor here is whichever one is
 // being turned, NOT always the script-driven object: op31 calls it on the actor it resolved (self or
 // the global secondary), op36 calls it on itself.
-int ScriptInterp::turnFacing(uint32_t obj, int16_t targetAngle, int16_t step) {
-  return stepAngleToward(obj + ScriptObject::kFacingAngle, targetAngle, step);
+int ScriptInterp::turnFacing(uint32_t obj, AngleTurn turn) {
+  return stepAngleToward(obj + ScriptObject::kFacingAngle, turn);
 }
 
 // Guest-ABI twin of turnFacing, mirroring the guest's own 24-byte frame NESTED on whatever the
@@ -257,9 +259,9 @@ void ScriptInterp::turnFacingFramed() {
   const uint32_t obj = c->r[4];
   const int16_t targetAngle = static_cast<int16_t>(c->r[5]);
   const int16_t step = static_cast<int16_t>(c->r[6]);
-  static constexpr GuestFrameSpill kSpills[] = {{31, 16}};
+  constexpr GuestFrameSpill kSpills[] = {{31, 16}};
   GuestFrame<24, 1> frame(c, kSpills);
-  c->r[2] = static_cast<uint32_t>(turnFacing(obj, targetAngle, step));
+  c->r[2] = static_cast<uint32_t>(turnFacing(obj, {.targetAngle = targetAngle, .step = step}));
 }
 
 // op36's per-move EVENT gate — FUN_80042EA4. `flagsPtr` points at a 16-bit flags word, and the
@@ -274,7 +276,8 @@ void ScriptInterp::turnFacingFramed() {
 //   low six bits clear, bit 0x80 clear — a no-op.
 //
 // Returns 1 only on the frame the arm-once latch fires; the repeat arm always returns 0.
-int ScriptInterp::stepEventPulse(uint32_t obj, uint32_t flagsPtr, uint32_t packedArg) {
+int ScriptInterp::stepEventPulse(const StepEventPulseArgs &args) {
+  auto [obj, flagsPtr, packedArg] = args;
   Core *c = core;
   const ScriptObject so{c, obj};
   const uint16_t flagsWord = c->mem_r16(flagsPtr);
@@ -298,12 +301,12 @@ int ScriptInterp::stepEventPulse(uint32_t obj, uint32_t flagsPtr, uint32_t packe
       return 0; // already latched — wait for the consumer to clear it
     }
     c->mem_w16(flagsPtr, static_cast<uint16_t>(flagsWord | kLatchedBit));
-    eng(c).sfx.trigger(soundId, 0, pitchBend);
+    eng(c).sfx.trigger({.id = soundId, .pan = 0, .pitchBend = pitchBend});
     return 1;
   }
   // low 6 bits nonzero: fire every call the shared scratchpad mask has none of flagsWord's bits set.
   if ((c->mem_r16(kEventHandledMask) & flagsWord) == 0) {
-    eng(c).sfx.trigger(soundId, 0, pitchBend);
+    eng(c).sfx.trigger({.id = soundId, .pan = 0, .pitchBend = pitchBend});
   }
   return 0;
 }
@@ -314,9 +317,9 @@ void ScriptInterp::stepEventPulseFramed() {
   const uint32_t obj = c->r[4];
   const uint32_t flagsPtr = c->r[5];
   const uint32_t packedArg = c->r[6];
-  static constexpr GuestFrameSpill kSpills[] = {{31, 16}};
+  constexpr GuestFrameSpill kSpills[] = {{31, 16}};
   GuestFrame<24, 1> frame(c, kSpills);
-  c->r[2] = static_cast<uint32_t>(stepEventPulse(obj, flagsPtr, packedArg));
+  c->r[2] = static_cast<uint32_t>(stepEventPulse({.obj = obj, .flagsPtr = flagsPtr, .packedArg = packedArg}));
 }
 
 namespace {
@@ -375,7 +378,13 @@ uint16_t solvePerCallStep(Core *c, uint16_t stepDiv) {
 // with the guest's round-toward-zero nudge on a negative product. `from` is the target coordinate
 // read out of the entry's arguments, which is where the guest reads it from rather than from the
 // stored delta.
-int16_t interpolateQ12(int16_t remaining, int16_t delta, int16_t from) {
+struct Q12Step {
+  int16_t remaining;
+  int16_t delta;
+  int16_t from;
+};
+int16_t interpolateQ12(const Q12Step &stepArgs) {
+  const auto [remaining, delta, from] = stepArgs;
   int32_t scaled = static_cast<int32_t>(remaining) * static_cast<int32_t>(delta);
   if (scaled < 0) {
     scaled += kQ12RoundUp;
@@ -405,7 +414,7 @@ int ScriptInterp::op36MoveTowardScriptTarget(uint32_t obj) {
   const ScriptObject so{c, obj};
   // The guest's 40-byte frame: s0@+16, s1@+20, s2@+24, s3@+28, s4@+32, ra@+36, all LIVE values.
   // s1 in particular survives the square-root call, so it has to be a register and not a local.
-  static constexpr GuestFrameSpill kSpills[] = {{16, 16}, {17, 20}, {18, 24}, {19, 28}, {20, 32}, {31, 36}};
+  constexpr GuestFrameSpill kSpills[] = {{16, 16}, {17, 20}, {18, 24}, {19, 28}, {20, 32}, {31, 36}};
   GuestFrame<40, 6> frame(c, kSpills);
   c->r[16] = obj; // s0 = obj
   c->r[20] = 1u;  // s4 = a constant 1 the body reuses
@@ -429,7 +438,7 @@ int ScriptInterp::op36MoveTowardScriptTarget(uint32_t obj) {
 
     // ---- phase 0: solve the move. ---------------------------------------------------------------
     {
-      int32_t stepsRequested = static_cast<int32_t>(so.requestedStepCount());
+      int32_t stepsRequested = so.requestedStepCount();
       if (stepsRequested == 0) {
         stepsRequested = kDefaultStepCount;
       }
@@ -502,12 +511,15 @@ commit:
     // The cursor is re-read fresh here, per the guest's own access pattern — the target coordinate
     // is read from the ENTRY, not from the delta that was stored at phase 0.
     const uint32_t entry = so.cursor();
-    so.setPositionZ(interpolateQ12(
-        static_cast<int16_t>(stepsRemaining), so.deltaZ(), static_cast<int16_t>(c->mem_r16(entry + 2u))));
-    so.setPositionY(interpolateQ12(
-        static_cast<int16_t>(stepsRemaining), so.deltaY(), static_cast<int16_t>(c->mem_r16(entry + 4u))));
-    so.setPositionX(interpolateQ12(
-        static_cast<int16_t>(stepsRemaining), so.deltaX(), static_cast<int16_t>(c->mem_r16(entry + 6u))));
+    so.setPositionZ(interpolateQ12({.remaining = static_cast<int16_t>(stepsRemaining),
+                                    .delta = so.deltaZ(),
+                                    .from = static_cast<int16_t>(c->mem_r16(entry + 2u))}));
+    so.setPositionY(interpolateQ12({.remaining = static_cast<int16_t>(stepsRemaining),
+                                    .delta = so.deltaY(),
+                                    .from = static_cast<int16_t>(c->mem_r16(entry + 4u))}));
+    so.setPositionX(interpolateQ12({.remaining = static_cast<int16_t>(stepsRemaining),
+                                    .delta = so.deltaX(),
+                                    .from = static_cast<int16_t>(c->mem_r16(entry + 6u))}));
 
     if (stepsRemaining != 0) {
       c->r[4] = obj;
@@ -542,7 +554,7 @@ int ScriptInterp::op31TurnTowardTarget(uint32_t obj) {
   Core *c = core;
   const ScriptObject so{c, obj};
   // The guest's 48-byte frame: s0@+32, s1@+36, ra@+40, all LIVE values.
-  static constexpr GuestFrameSpill kSpills[] = {{16, 32}, {17, 36}, {31, 40}};
+  constexpr GuestFrameSpill kSpills[] = {{16, 32}, {17, 36}, {31, 40}};
   GuestFrame<48, 3> frame(c, kSpills);
   c->r[16] = obj; // s0 = obj
 
@@ -653,12 +665,17 @@ constexpr uint32_t kJalReturnFromWrapPulse = 0x80073238u;
 constexpr int32_t kWrapEventArg0 = 24;
 constexpr int32_t kWrapEventArg2 = 15;
 
+struct RefreshCachedTailArgs {
+  uint32_t flagByteOffset;
+  uint32_t cacheDistance;
+};
 // The two cached-tail leaves, guest 0x80031708 and 0x80031744, are the SAME machine: a null head
 // node is a no-op, a node whose flag byte carries 0x80 is dead and both pointers are cleared, and
 // otherwise the cache slot is refreshed to a pointer a fixed distance past the flag byte. The only
 // thing that differs between them is WHICH header byte carries the flag and how far past it the
 // cached pointer starts — so that is the leaf's only argument, and it is named.
-void refreshCachedTail(Core *c, const ScriptObject &so, uint32_t flagByteOffset, uint32_t cacheDistance) {
+void refreshCachedTail(Core *c, const ScriptObject &so, const RefreshCachedTailArgs &args) {
+  auto [flagByteOffset, cacheDistance] = args;
   const uint32_t node = so.tailNode();
   if (node == 0) {
     return;
@@ -673,12 +690,18 @@ void refreshCachedTail(Core *c, const ScriptObject &so, uint32_t flagByteOffset,
 
 // The cached-tail refresh, guest 0x80031708. Flag byte at node+3, cache pointer at node+4.
 void ScriptInterp::refreshCachedTailHi(uint32_t obj) {
-  refreshCachedTail(core, ScriptObject{core, obj}, ScriptObject::kTailFlagAtHi, ScriptObject::kTailCachePastFlagHi);
+  refreshCachedTail(
+      core,
+      ScriptObject{core, obj},
+      {.flagByteOffset = ScriptObject::kTailFlagAtHi, .cacheDistance = ScriptObject::kTailCachePastFlagHi});
 }
 
 // Its twin, guest 0x80031744: flag byte at node+0, cache pointer at node+1.
 void ScriptInterp::refreshCachedTailLo(uint32_t obj) {
-  refreshCachedTail(core, ScriptObject{core, obj}, ScriptObject::kTailFlagAtLo, ScriptObject::kTailCachePastFlagLo);
+  refreshCachedTail(
+      core,
+      ScriptObject{core, obj},
+      {.flagByteOffset = ScriptObject::kTailFlagAtLo, .cacheDistance = ScriptObject::kTailCachePastFlagLo});
 }
 
 // The active-actor query, guest 0x80042170. "Does the acted-upon actor's match byte read 1?"
@@ -718,10 +741,11 @@ int ScriptInterp::mirrorGlobalStatusByte() {
 // GUEST FRAME MIRROR: 32 bytes, s0 (the record) at +16, s1 (the wrap flag) at +20 and ra at +24,
 // all LIVE incoming values. s0 in particular is read back after the substrate call, so it has to be
 // the register and not a local.
-int ScriptInterp::advanceGauge(uint32_t obj, uint32_t rec) {
+int ScriptInterp::advanceGauge(const AdvanceGaugeArgs &args) {
+  auto [obj, rec] = args;
   Core *c = core;
   const ScriptObject so{c, obj};
-  static constexpr GuestFrameSpill kSpills[] = {{16, 16}, {17, 20}, {31, 24}};
+  constexpr GuestFrameSpill kSpills[] = {{16, 16}, {17, 20}, {31, 24}};
   GuestFrame<32, 3> frame(c, kSpills);
   c->r[16] = rec; // s0 = the gauge record
 
@@ -810,7 +834,7 @@ void eov_mirrorGlobalStatusByte(Core *c) {
   c->r[2] = static_cast<uint32_t>(eng(c).script.mirrorGlobalStatusByte());
 }
 void eov_advanceGauge(Core *c) {
-  c->r[2] = static_cast<uint32_t>(eng(c).script.advanceGauge(c->r[4], c->r[5]));
+  c->r[2] = static_cast<uint32_t>(eng(c).script.advanceGauge({.obj = c->r[4], .rec = c->r[5]}));
 }
 
 struct OverrideDeclaration {
@@ -840,8 +864,10 @@ constexpr OverrideDeclaration kOverrides[] = {
 };
 } // namespace
 
-void ScriptInterp::registerOverrides() {
+void ScriptInterp::registerOverrides(native::NativeOverrideCatalog &natives) {
   for (const OverrideDeclaration &row : kOverrides) {
-    tomba::native::declareOverride(row.guestAddress, row.owner, row.entry);
+    natives.declare(row.guestAddress, row.owner, row.entry);
   }
 }
+
+} // namespace tomba

@@ -19,10 +19,12 @@
 //     and an unrecognised opcode branches to the loop tail WITHOUT advancing — the guest spins
 //     forever. That cannot happen with valid pool data; we FAIL-FAST rather than reproduce a hang or
 //     silently skip (either would be a different behaviour).
-#include "cfg.h"
 #include "core.h"
 #include "render.h"
+#include <lucent/log.h>
 #include <stdlib.h>
+
+namespace tomba {
 
 namespace {
 
@@ -141,14 +143,14 @@ template <class Apply> void walkPackets(Core *c, uint32_t lo, uint32_t hi, const
     if (shape.stride == 0) {
       // The guest's table sends an unrecognised opcode to the loop tail without advancing, i.e. it
       // hangs. Never reachable from a well-formed pool; refuse loudly instead of spinning.
-      cfg_loge("effectmod",
-               "%s: unrecognised GP0 opcode 0x%02X at packet 0x%08X in span "
-               "[0x%08X,0x%08X) — the packet pool is malformed",
-               what,
-               pkt.opcode(),
-               p,
-               lo,
-               hi);
+      lucent::error("effectmod",
+                    "{}: unrecognised GP0 opcode 0x{:02X} at packet 0x{:08X} in span [0x{:08X},0x{:08X}) — the packet "
+                    "pool is malformed",
+                    what,
+                    pkt.opcode(),
+                    p,
+                    lo,
+                    hi);
       abort();
     }
     if (shape.colourWords) {
@@ -176,7 +178,8 @@ void Render::effectSemiOff(uint32_t, uint32_t lo, uint32_t hi) {
 
 // FUN_8003F344 — stamp the node's CLUT id onto every colour-bearing packet, repointing them at a
 // different texture palette. One u16 per packet regardless of vertex count.
-void Render::effectClutSwap(uint32_t node, uint32_t lo, uint32_t hi) {
+void Render::effectClutSwap(const EffectRangeArgs &args) {
+  auto [node, lo, hi] = args;
   Core *c = mCore;
   const EffectParams fx{c, node};
   walkPackets(c, lo, hi, "clutSwap", [&](GpuPacket pkt, PacketShape) {
@@ -186,7 +189,8 @@ void Render::effectClutSwap(uint32_t node, uint32_t lo, uint32_t hi) {
 
 // FUN_8003F594 — overwrite the packet's colour word(s) with one flat colour and force semi on.
 // Order matters: the colour write covers the command byte, so save and restore it (see file header).
-void Render::effectFlatTint(uint32_t node, uint32_t lo, uint32_t hi) {
+void Render::effectFlatTint(const EffectRangeArgs &args) {
+  auto [node, lo, hi] = args;
   Core *c = mCore;
   const uint32_t rgb = EffectParams{c, node}.tintRgb(); // read ONCE, before the walk
   walkPackets(c, lo, hi, "flatTint", [&](GpuPacket pkt, PacketShape shape) {
@@ -204,7 +208,8 @@ void Render::effectFlatTint(uint32_t node, uint32_t lo, uint32_t hi) {
 //     t == 0x80  ->  no write at all                                             (identity)
 //     t >= 0x81  ->  saturating add: p + t, clamped at 255                       (brighten)
 // Writes the three colour BYTES individually, never the whole word, so the command byte is untouched.
-void Render::effectColorAdd(uint32_t node, uint32_t lo, uint32_t hi) {
+void Render::effectColorAdd(const EffectRangeArgs &args) {
+  auto [node, lo, hi] = args;
   Core *c = mCore;
   const EffectParams fx{c, node};
   walkPackets(c, lo, hi, "colorAdd", [&](GpuPacket pkt, PacketShape shape) {
@@ -224,3 +229,5 @@ void Render::effectColorAdd(uint32_t node, uint32_t lo, uint32_t hi) {
     }
   });
 }
+
+} // namespace tomba

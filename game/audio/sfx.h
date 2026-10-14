@@ -27,10 +27,21 @@
 #include <cstdint>
 struct Core;
 
+namespace tomba::native {
+class NativeOverrideCatalog;
+} // namespace tomba::native
+
+namespace tomba {
+
 class Sfx {
 public:
   Core *core = nullptr;
 
+  struct TriggerArgs {
+    int id;
+    int pan;
+    int pitchBend;
+  };
   // trigger(id, pan, pitchBend): FUN_80074590. Fire the SFX by id with optional pan and pitch bend.
   //   * id        : 0..255 — dispatches per the id-space split above.
   //   * pan       : int8 — added to the SFX entry's byte4 for the SPU's stack arg (sp+16).
@@ -39,17 +50,23 @@ public:
   // substrate leaves reachable from this method (FUN_80074BF8, FUN_80074EEC, FUN_80075E04) all
   // stay reachable by address via typed runtime address dispatch — this method owns the CONTROL FLOW + the id-space
   // routing + the pitch/pan math, not the voice hardware.
-  void trigger(int id, int pan, int pitchBend);
+  void trigger(const TriggerArgs &args);
 
+  struct TriggerPannedArgs {
+    int id;
+    int pan;
+  };
   // triggerPanned(id, pan): FUN_80074810 — the two-arg SFX entry. A thin wrapper that fires an
   // SFX by id with a pan offset and NO pitch bend (pitchBend forced to 0), then tail-calls the
   // firing primitive FUN_80074590. id is masked to a byte, pan is sign-extended from its low byte.
   // Mirrors the guest instruction path's 24-byte frame (ra spilled at sp+16) so FUN_80074590 lands on the right
   // stack. Reachable both directly (shard_4 guest 0x80074810) and via typed runtime address dispatch from overlays.
-  void triggerPanned(int id, int pan);
+  void triggerPanned(const TriggerPannedArgs &args);
 
   // registerOverrides(): wires triggerPanned (0x80074810) into the global override registry so
   // every caller — direct guest 0x80074810 and typed runtime address dispatch — reaches the native method. Called once
   // from boot.cpp's register_engine_overrides.
-  void registerOverrides();
+  void registerOverrides(native::NativeOverrideCatalog &natives);
 };
+
+} // namespace tomba

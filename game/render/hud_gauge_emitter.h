@@ -9,6 +9,12 @@
 struct Core;
 class Game;
 
+namespace tomba::native {
+class NativeOverrideCatalog;
+} // namespace tomba::native
+
+namespace tomba {
+
 class HudGaugeEmitter {
 public:
   // FUN_8004FD30() -> void. Frame entry: draws the two fixed HUD viewport/panel DR_AREA clip
@@ -21,5 +27,7 @@ public:
   // DR_AREA clip box, then hands off to the still-substrate digit/label leaf FUN_8005019C.
   static void emitItem(Core *c);
 
-  static void registerOverrides(Game *game);
+  static void registerOverrides(native::NativeOverrideCatalog &natives);
 };
+
+} // namespace tomba

@@ -13,11 +13,17 @@
 #include <stdint.h>
 class Core;
 
+namespace tomba::native {
+class NativeOverrideCatalog;
+} // namespace tomba::native
+
+namespace tomba {
+
 class MusicCoord {
 public:
   Core *core = nullptr;
 
-  // PSXPORT_XA_DBG change-detector for tick()'s [coord] log line (song/xa-active/xa-loop last-seen).
+  // Last-logged song, XA-active and XA-loop, so tick() logs its [coord] line only on a change.
   uint32_t mPrev = 0xDEAD;
   int mPa = -1, mPl = -1;
 
@@ -30,21 +36,6 @@ public:
   //   game's per-frame ramp then climbs volume back to target (~2s fade-in). Caller MUST only
   //   invoke this when the music is the sole XA user — CDVOL also scales the dialog voice.
   void musicFadeIn();
-
-  // cutIfDialog(): if a dialog tone is currently active and a looping ingame-music clip is
-  //   playing, stop the clip so it can't leak a frame past the dialog start. Called from the
-  //   BGM-start hook (sound.cpp ov_sound_play_bgm) synchronously with the dialog-tone song
-  //   index becoming current. Kept pending so tick() resumes it when the dialog ends.
-  void cutIfDialog();
-
-  // fieldBgmDirector(): NATIVE field BGM director (currently unwired — the frame loop plays the
-  //   guest libsnd path; this director played a HARDCODED song over everything from the menu
-  //   on). Drives the PC-native synth from the LIVE area bundle (guest 0x80182000: 10 SEPs + the
-  //   field VAB @+0x26b4): while the GAME stage (0x8010637C) is active AND the bundle is present,
-  //   start the area BGM natively (once, on entry) and keep it playing; stop it when leaving the
-  //   field. Song defaults to 8 (field theme); PSXPORT_FIELD_SONG=<0..9> overrides for auditioning.
-  //   Gated by the `music` native gate; latch lives on Game (field_bgm_started).
-  void fieldBgmDirector();
 
   // tick(): once-per-frame update (called from native_step_frame). Enforces "dialogs stop
   //   the ingame music" — stops a looping ingame-music clip while a dialog tone is up; resumes
@@ -80,5 +71,7 @@ public:
   // registerOverrides(): wires FUN_80075D24 into the global override registry (no static
   // `a direct guest-address call` call site exists in the guest output — only reached via indirect
   // typed runtime address dispatch).
-  void registerOverrides();
+  void registerOverrides(native::NativeOverrideCatalog &natives);
 };
+
+} // namespace tomba

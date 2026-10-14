@@ -2,7 +2,7 @@
 // transition state machine (guest FUN_80108A60 dispatcher + its 4 FUN_80107xxx workers).
 //
 // PROPER OOP: one instance per Core, embedded as `Core::engine::fieldTransition`. Back-pointer
-// wired once by TombaCtx's constructor (game/core/game_ctx.cpp). Callers reach it through the
+// wired once by the TombaSession constructor (entry/tomba_session.cpp). Callers reach it through the
 // object graph:
 //
 //     eng(c).fieldTransition.step();          // per-frame entry, was Engine::fieldTransition()
@@ -31,6 +31,8 @@
 #pragma once
 #include <cstdint>
 class Core;
+
+namespace tomba {
 
 class FieldTransition {
 public:
@@ -66,3 +68,5 @@ private:
   // raised). Case 4 uses the normal 0x800452c0 loader.
   void f3c();
 };
+
+} // namespace tomba

@@ -23,16 +23,17 @@
 // Transcribed 1:1 as a register machine; signed (lh/slt) vs unsigned (lhu/lbu) preserved. The byte-exact
 // A/B gate (full RAM+scratchpad vs original guest-body call) is the safety net. NO GTE/render.
 
-#include "cfg.h"
 #include "core.h"
-#include "core/entry/game_ctx.h"
 #include "core/overrides/guest_jal.h"
+#include "entry/tomba_session.h"
 #include "graphics_bind.h" // ov_obj_render_update (FUN_800517F8)
 #include "guest_abi.h"
 #include "spawn.h" // class Spawn (eng(c).spawn.despawn / dispatch / spawnAndInit)
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+namespace tomba {
 
 namespace {
 
@@ -104,7 +105,8 @@ S0: {
       c->mem_w32(rec + 8, 0);
       c->mem_w32(rec + 12, 0);
       uint32_t a2 = (uint32_t)c->mem_r16s(s4 + 6);
-      tomba::guest::dispatchLeafToReturn(*c, 0x80051b04u, rec, 12, a2); // FUN_80051B04(rec, 12, (int16)src[6])
+      psx::cpu::callGuestNowResult(
+          *c, "beh_quad_record_table_seed", 0x80051b04u, rec, 12, a2); // FUN_80051B04(rec, 12, (int16)src[6])
       s4 += 8;
       s0 += 4;
     } while ((int32_t)s3 < (int32_t)c->mem_r8(nd + 8));
@@ -153,8 +155,8 @@ L5fa4: {
   uint8_t n3 = c->mem_r8(nd + 3);
   if (n3 == 0) {
     if (c->mem_r16(0x800e7e84u) == 770) {
-      int16_t x = c->mem_r16s(0x1f800160u);
-      int16_t y = c->mem_r16s(0x8014a7bau);
+      int16_t x = (int16_t)c->mem_r16(0x1f800160u);
+      int16_t y = (int16_t)c->mem_r16(0x8014a7bau);
       a0 = (x < y) ? 1u : 0u;
     }
   }
@@ -183,7 +185,7 @@ L5fa4: {
   if (!(c->mem_r8(0x800e7eaau) < 32)) {
     goto Lret;
   }
-  if (tomba::guest::dispatchLeafToReturn(*c, 0x8007778cu, nd) == 0) {
+  if (psx::cpu::callGuestNowResult(*c, "beh_quad_record_table_seed", 0x8007778cu, nd) == 0) {
     goto Lret;
   }
   goto L60b4;
@@ -191,9 +193,11 @@ L5fa4: {
 
 // ================= shared tail (state 0 & 1) =================
 L60b4:
-  tomba::guest::dispatchLeafToReturn(*c, 0x80135414u, nd); // FUN_80135414(node)
+  psx::cpu::callGuestNowResult(*c, "beh_quad_record_table_seed", 0x80135414u, nd); // FUN_80135414(node)
   c->r[4] = nd;
   eng(c).graphicsBind.renderUpdate(); // FUN_800517F8(node)
 Lret:
   return;
 }
+
+} // namespace tomba

@@ -5,6 +5,8 @@
 #include "core/overrides/native_override_catalog.h"
 #include "guest_call.h"
 
+namespace tomba {
+
 namespace {
 constexpr uint32_t kOscFrame = 32;
 constexpr uint32_t kOscSpillSlot = 16;
@@ -63,8 +65,10 @@ void SubstateEdgeLeaves::tickChildOscillators(Core *c) {
   c->r[29] = sp0;
 }
 
-void SubstateEdgeLeaves::registerOverrides(Game *) {
+void SubstateEdgeLeaves::registerOverrides(native::NativeOverrideCatalog &natives) {
   // Of 23 authenticated MODE images only A00 holds a function at 0x801316CC.
-  tomba::native::declareOverlayOverride(
+  natives.declareOverlay(
       "A00", 0x801316CCu, "SubstateEdgeLeaves::tickChildOscillators", &SubstateEdgeLeaves::tickChildOscillators);
 }
+
+} // namespace tomba

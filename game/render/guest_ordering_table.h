@@ -8,9 +8,11 @@
 
 #include "emit_memory.h"
 
+#include <algorithm>
 #include <cstdint>
+#include <span>
 
-namespace tomba2::render {
+namespace tomba::render {
 
 class OrderingTable {
 public:
@@ -37,15 +39,28 @@ public:
   std::uint32_t head(std::uint32_t bucket) const;
   void setHead(std::uint32_t bucket, std::uint32_t packet) const;
 
+  struct LinkArgs {
+    std::uint32_t packet;
+    std::uint32_t words;
+    std::uint32_t bucket;
+  };
   // AddPrim: returns the tag word written to the packet.
-  std::uint32_t link(std::uint32_t packet, std::uint32_t words, std::uint32_t bucket) const;
+  std::uint32_t link(const LinkArgs &args) const;
+  struct ChainToHeadArgs {
+    std::uint32_t lastPacket;
+    std::uint32_t bucket;
+  };
   // Points a packet chain's last tag at the bucket's head, keeping that tag's word count.
-  void chainToHead(std::uint32_t lastPacket, std::uint32_t bucket) const;
+  void chainToHead(const ChainToHeadArgs &args) const;
 
   // The log-scale depth compression: bits above 10 pick a band that both shifts and offsets the depth.
   static constexpr std::int32_t compressDepth(std::int32_t depth) {
     const std::int32_t band = depth >> 10;
     return (depth >> (band & 31)) + band * 0x200;
+  }
+  // A blended record's depth: the farthest or nearest of its SZ FIFO values, quartered.
+  static constexpr std::int32_t extremeDepth(bool farthest, std::span<const std::int32_t> depths) {
+    return (farthest ? std::ranges::max(depths) : std::ranges::min(depths)) >> 2;
   }
   // [kNearestBucket, kFarthestBucket], the gate most leaves apply.
   static constexpr bool inDepthRange(std::int32_t bucket) {
@@ -70,6 +85,11 @@ public:
   static constexpr std::uint32_t kCursor = 0x800BF544u;
   // Guest code addresses kCursor as this page - 2748, with the page held in a register.
   static constexpr std::uint32_t kCursorPage = 0x800C0000u;
+  // The two parity pools, kStride bytes each from kBase.
+  static constexpr std::uint32_t kBase = 0x800BFE68u;
+  static constexpr std::uint32_t kStride = 0x14000u;
+  // Guest word holding the cursor the previous pass ended at.
+  static constexpr std::uint32_t kLastCursor = 0x800BF4F4u;
 
   explicit PacketPool(const psx::present::EmitMemory &memory);
 
@@ -84,4 +104,4 @@ private:
 
 static_assert(PacketPool::kCursorPage - 2748u == PacketPool::kCursor);
 
-} // namespace tomba2::render
+} // namespace tomba::render

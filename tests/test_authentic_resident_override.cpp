@@ -4,7 +4,7 @@
 #include "game.h"
 #include "lightrec_executor.h"
 #include "psx_exe_image.h"
-#include "stub_runtime.h"
+#include "stub_game_runtime.h"
 
 #include <array>
 #include <lucent/log.h>
@@ -36,21 +36,23 @@ void prepareCall(Core &core) {
 } // namespace
 
 int main(int argc, char **argv) {
+  tomba::native::NativeOverrideCatalog natives;
   if (argc != 3) {
     lucent::error("real-resident-test", "expected MAIN.EXE path and manifest digest");
     return 2;
   }
-  auto bytes = tomba::test::readAuthenticatedImage(argv[1], argv[2], psx::cpu::kPsxExeMaxBytes);
+  auto bytes =
+      tomba::test::readAuthenticatedImage({.path = argv[1], .sha256 = argv[2], .maxBytes = psx::cpu::kPsxExeMaxBytes});
   if (!bytes) {
     return 2;
   }
 
-  tomba::test::StubRuntime runtime;
-  psxport_install_game(runtime);
-  auto game = std::make_unique<Game>();
+  psx::test::StubGameRuntime runtime;
+  auto game = std::make_unique<Game>(runtime, psx::config::Config{});
   Core &core = game->core;
   auto loaded = psx::cpu::loadPsxExeImage(core, *bytes, "MAIN.EXE");
-  if (!check(static_cast<bool>(loaded), "authenticated MAIN.EXE maps through the shipping loader")) {
+  if (!loaded.identity) {
+    lucent::error("real-resident-test", "failed: authenticated MAIN.EXE maps through the shipping loader");
     return 1;
   }
   auto image = *loaded.identity;
@@ -59,8 +61,8 @@ int main(int argc, char **argv) {
              "strlen entry belongs to the loaded resident image")) {
     return 1;
   }
-  tomba::Str::registerOverrides();
-  tomba::native::bindResident(core, image, loaded.image.physicalText);
+  tomba::Str::registerOverrides(natives);
+  natives.bindResident(core, image, loaded.image.physicalText);
   if (!check(core.nativeDispatcher().isInstalled(key), "shipping Str::length owner binds to MAIN.EXE")) {
     return 1;
   }

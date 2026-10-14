@@ -23,6 +23,12 @@ constexpr uint32_t kContactState = 0x2B; // u8  — the shared object CONTACT by
 constexpr uint32_t kRotX = 0x54;         // s16 — the node's X rotation (pitch); Actor::rotX
 } // namespace tiltfollow
 
+namespace tomba::native {
+class NativeOverrideCatalog;
+} // namespace tomba::native
+
+namespace tomba {
+
 struct TiltFollowerNode {
   Core *mCore;
   uint32_t mAt;
@@ -39,6 +45,8 @@ struct TiltFollowerNode {
   }
 };
 
+} // namespace tomba
+
 // ------------------------------------------------------------------------------------------------
 // One sub-part of the owner, reached through the owner's +0xC0 pointer table — the SAME table
 // AssemblyNode::childPtr and NodeXform::propagate walk (game/ai/assembly_node.h,
@@ -47,6 +55,8 @@ namespace tiltpart {
 constexpr uint32_t kChildTable = 0xC0;  // owner+0xC0: array of sub-part pointers, one per slot
 constexpr uint32_t kChildEulerX = 0x08; // s16 — the sub-part's X Euler angle, node_xform's childEulerX
 } // namespace tiltpart
+
+namespace tomba {
 
 struct TiltSourcePart {
   Core *mCore;
@@ -58,12 +68,18 @@ struct TiltSourcePart {
   }
 };
 
+} // namespace tomba
+
 class Game;
+
+namespace tomba {
 
 class TiltFollower {
 public:
   // 0x80125FE0 — substate 0 of outer state 1 of behaviour FUN_80125E0C. a0 = the follower node.
   static void applyHalvedOwnerPartPitch(Core *c);
 
-  static void registerOverrides();
+  static void registerOverrides(native::NativeOverrideCatalog &natives);
 };
+
+} // namespace tomba

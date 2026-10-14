@@ -16,6 +16,7 @@
 // threshold has to hold for, and the owner already publishes and reports that one number.
 #include "core.h"
 #include "core/frame/frame_cadence.h"
+#include "stub_game_runtime.h"
 
 #include <cstdint>
 #include <cstdio>
@@ -51,10 +52,11 @@ void guestIncrementsCounter(Core &core) {
 } // namespace
 
 int main() {
+  psx::test::StubGameRuntime runtime;
   using tomba::FrameCadence;
 
-  auto core = std::make_unique<Core>();
-  auto other = std::make_unique<Core>();
+  auto core = std::make_unique<Core>(runtime);
+  auto other = std::make_unique<Core>(runtime);
   auto cadence = wire(*core);
   wire(*other);
 

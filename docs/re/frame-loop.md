@@ -12,9 +12,9 @@ loop per frame; `enterLoop` is the prologue, called at the end of `TombaRuntime:
 | `0x800E809C` u16 | dwell counter, zeroed at pass top | `FrameCadence::beginLogicFrame` |
 | `0x1F800235` u8 | vblank quota the pass waits for | `FrameCadence` |
 | `0x800788AC` | per-frame state update | `Engine::frameUpdate` |
-| `0x80051E60` | task scheduler | `PcScheduler::step` |
+| `0x80051E60` | task scheduler | `TombaScheduler::step` |
 | `0x80080F6C(0)` | DrawSync | guest, `cfg.drawSync` |
-| `0x800506D0` | task sleep countdown: state 1 slots decrement +2, re-arm to 2 at zero | `PcScheduler::tickSleepCountdown` |
+| `0x800506D0` | task sleep countdown: state 1 slots decrement +2, re-arm to 2 at zero | `TombaScheduler::tickSleepCountdown` |
 | `0x1F80019C` u8 | present state, read after the gate | `finishPass` |
 | state 0 | PutDispEnv(env+0x2000), PutDrawEnv(env+0x2014), DrawOTag(env+0x1FFC), flip, ClearOTagR(new env, 0x800) | `0x8008179C`, `0x800815D0`, `Engine::drawOTag`, `0x80081458` |
 | state 1 | next pass, nothing presented | |

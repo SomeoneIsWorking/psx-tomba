@@ -32,9 +32,8 @@
 // call). The idle/active field path is exercised by the gate; the scene-driven sub-states are faithfully transcribed
 // and verify when a scene drives them (same caveat as the sibling orchestrators).
 
-#include "cfg.h"
 #include "core.h"
-#include "core/entry/game_ctx.h"
+#include "entry/tomba_session.h"
 #include "graphics_bind.h" // ov_obj_record_init
 #include "guest_abi.h"     // GuestFrame — mirror the guest stack frame (CLAUDE.md)
 #include "object/actor.h"  // class Actor — Actor::boundsCull (FUN_8007778C native)
@@ -43,6 +42,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+namespace tomba {
 
 namespace {
 
@@ -193,3 +194,5 @@ void beh_sibling_angle_track(Core *c) {
   eng(c).graphicsBind.renderUpdate(); // 80139808 jal 0x800517f8 (render; a0=s2 delay)
   // 80139810 j 0x80139820 (epilogue)
 }
+
+} // namespace tomba

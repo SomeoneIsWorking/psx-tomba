@@ -1,7 +1,7 @@
 // OrderingTable and PacketPool: the guest's AddPrim link, chain splice, pool bump and depth buckets.
 #include "game.h"
 #include "guest_ordering_table.h"
-#include "stub_runtime.h"
+#include "stub_game_runtime.h"
 
 #include <cstdint>
 #include <lucent/log.h>
@@ -9,8 +9,8 @@
 
 namespace {
 
-using tomba2::render::OrderingTable;
-using tomba2::render::PacketPool;
+using tomba::render::OrderingTable;
+using tomba::render::PacketPool;
 
 constexpr std::uint32_t kOt = 0x801B0000u;
 constexpr std::uint32_t kPool = 0x801A0000u;
@@ -33,11 +33,11 @@ void testLink(Core &core) {
   const auto ot = OrderingTable::active(core);
   check(ot.base() == kOt && ot.slot(7u) == kOt + 28u, "the active OT is the published base");
 
-  const std::uint32_t first = ot.link(kPool, 9u, 7u);
+  const std::uint32_t first = ot.link({.packet = kPool, .words = 9u, .bucket = 7u});
   check(first == (kChainEnd | 0x09000000u) && core.mem_r32(kPool) == first, "the tag is the old head with the count");
   check(core.mem_r32(kOt + 28u) == kPool, "the bucket head is the linked packet");
 
-  const std::uint32_t second = ot.link(kPool + 40u, 2u, 7u);
+  const std::uint32_t second = ot.link({.packet = kPool + 40u, .words = 2u, .bucket = 7u});
   check(second == (kPool | 0x02000000u) && ot.head(7u) == kPool + 40u, "a second packet is drawn before the first");
 
   const OrderingTable handed(core, kOt + 0x100u);
@@ -49,7 +49,7 @@ void testChainToHead(Core &core) {
   constexpr std::uint32_t kLast = kPool + 0x200u;
   ot.setHead(OrderingTable::kFarthestBucket, 0x80123456u);
   core.mem_w32(kLast, 0x03ABCDEFu);
-  ot.chainToHead(kLast, OrderingTable::kFarthestBucket);
+  ot.chainToHead({.lastPacket = kLast, .bucket = OrderingTable::kFarthestBucket});
   check(core.mem_r32(kLast) == 0x83123456u, "a chain's last tag keeps its top byte and takes the head");
   check(ot.head(OrderingTable::kFarthestBucket) == 0x80123456u, "splicing a chain leaves the head alone");
 }
@@ -76,9 +76,8 @@ void testDepth() {
 } // namespace
 
 int main() {
-  tomba::test::StubRuntime runtime;
-  psxport_install_game(runtime);
-  auto game = std::make_unique<Game>();
+  psx::test::StubGameRuntime runtime;
+  auto game = std::make_unique<Game>(runtime, psx::config::Config{});
   Core &core = game->core;
   testLink(core);
   testChainToHead(core);

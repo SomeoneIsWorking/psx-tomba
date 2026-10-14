@@ -34,7 +34,8 @@ uint32_t Str::length(Core *c, uint32_t addr) {
 // The signedness is the only subtle part: the guest tests `n > 0` as a signed compare both before
 // and inside the loop, so a negative length is a no-op. An unsigned transcription would turn one
 // into a 4-billion-byte copy that walks off the end of guest RAM.
-uint32_t Str::copyBytes(Core *c, uint32_t dst, uint32_t src, int32_t n) {
+uint32_t Str::copyBytes(Core *c, const CopyBytesArgs &args) {
+  auto [dst, src, n] = args;
   if (dst == 0) {
     c->r[2] = 0;
     return 0;
@@ -70,7 +71,7 @@ void ov_strLength(Core *c) {
 // every site as well as via typed runtime address dispatch, so it is wired with the main-module setter like the rest.
 namespace {
 void ov_copyBytes(Core *c) {
-  Str::copyBytes(c, c->r[4], c->r[5], (int32_t)c->r[6]);
+  Str::copyBytes(c, {.dst = c->r[4], .src = c->r[5], .n = (int32_t)c->r[6]});
 }
 } // namespace
 
@@ -116,8 +117,8 @@ L_8009A668:;
     }
   }
 L_8009A674:;
-  c->r[3] = (uint32_t)(int8_t)c->mem_r8((c->r[4] + (uint32_t)0));
-  c->r[2] = (uint32_t)(int8_t)c->mem_r8((c->r[5] + (uint32_t)0));
+  c->r[3] = (uint32_t)c->mem_r8s((c->r[4] + (uint32_t)0));
+  c->r[2] = (uint32_t)c->mem_r8s((c->r[5] + (uint32_t)0));
   {
     int _t = (c->r[3] != c->r[2]);
     c->r[5] = c->r[5] + (uint32_t)1;
@@ -146,8 +147,8 @@ L_8009A69C:;
       goto L_8009A6B4;
     }
   }
-  c->r[3] = (uint32_t)(int8_t)c->mem_r8((c->r[4] + (uint32_t)0));
-  c->r[2] = (uint32_t)(int8_t)c->mem_r8((c->r[5] + (uint32_t)-1));
+  c->r[3] = (uint32_t)c->mem_r8s((c->r[4] + (uint32_t)0));
+  c->r[2] = (uint32_t)c->mem_r8s((c->r[5] + (uint32_t)-1));
   c->r[2] = c->r[3] - c->r[2];
   goto L_8009A6B8;
 L_8009A6B4:;
@@ -156,11 +157,11 @@ L_8009A6B8:;
   return;
 }
 
-void Str::registerOverrides() {
-  tomba::native::declareOverride(0x80079528u, "ov_strLength", ov_strLength);
-  tomba::native::declareOverride(0x8009A3E0u, "ov_copyBytes", ov_copyBytes);
+void Str::registerOverrides(native::NativeOverrideCatalog &natives) {
+  natives.declare(0x80079528u, "ov_strLength", ov_strLength);
+  natives.declare(0x8009A3E0u, "ov_copyBytes", ov_copyBytes);
   {
-    tomba::native::declareOverride(0x8009A640u, "&Str::compareBytes", &Str::compareBytes);
+    natives.declare(0x8009A640u, "&Str::compareBytes", &Str::compareBytes);
   }
 }
 

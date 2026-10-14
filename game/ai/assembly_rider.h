@@ -54,6 +54,12 @@
 // The assembly as the RIDER sees it. AssemblyNode already owns the two fields the rider reads to
 // decide what to do (modeByte +0x5E, angleSelector +0x6C); the only thing missing is the render
 // visibility byte the rider copies, so this view adds exactly that and nothing else.
+namespace tomba::native {
+class NativeOverrideCatalog;
+} // namespace tomba::native
+
+namespace tomba {
+
 class RiddenAssembly : public AssemblyNode {
 public:
   RiddenAssembly(Core *c, uint32_t at) : AssemblyNode(c, at) {}
@@ -246,9 +252,11 @@ public:
   // 0x80118B10 — the rider's whole per-frame tick. See the banner in assembly_rider.cpp.
   static void rideSlotAndReactToStroke(Core *c);
 
-  static void registerOverrides();
+  static void registerOverrides(native::NativeOverrideCatalog &natives);
 
 private:
   Core *mCore;
   uint32_t mAt;
 };
+
+} // namespace tomba

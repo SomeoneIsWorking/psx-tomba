@@ -7,6 +7,12 @@
 struct Core;
 class Game;
 
+namespace tomba::native {
+class NativeOverrideCatalog;
+} // namespace tomba::native
+
+namespace tomba {
+
 class GteTransform3 {
 public:
   // FUN_80084250(matInOut = a0, src = a1) -> a0 in v0.
@@ -19,5 +25,7 @@ public:
   // the reads observe the right vertex) and is transcribed as-is rather than tidied.
   static void rotate3AndPackIr(Core *c);
 
-  static void registerOverrides(Game *game);
+  static void registerOverrides(native::NativeOverrideCatalog &natives);
 };
+
+} // namespace tomba

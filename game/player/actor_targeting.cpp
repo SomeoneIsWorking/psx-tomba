@@ -57,6 +57,8 @@
 #include "core/overrides/native_override_catalog.h"
 #include "guest_abi.h"
 
+namespace tomba {
+
 namespace {
 
 constexpr GuestFrameSpill kSpills_8001FAE0[5] = {
@@ -118,7 +120,7 @@ void ActorTargeting::tryAcquireTarget(Core *c) {
   guest_mult(c, (int32_t)(uint32_t)deltaZ, (int32_t)(uint32_t)deltaZ);
 
   c->r[4] = dxSq + c->lo;
-  tomba::guest::dispatchJalToReturn(*c, 0x80084080u, kRaAfterDistance);
+  tomba::guest::dispatchJalToReturn(*c, {.target = 0x80084080u, .returnAddress = kRaAfterDistance});
   const uint32_t distance = c->r[2] & 0xFFFFu;
 
   if ((target.reach() + actor.reach()) < (int32_t)distance) {
@@ -133,7 +135,7 @@ void ActorTargeting::tryAcquireTarget(Core *c) {
   // The heading from the actor to the target, then the directional window.
   c->r[4] = (uint32_t)(0 - (int32_t)(uint32_t)deltaZ);
   c->r[5] = (uint32_t)deltaX;
-  tomba::guest::dispatchJalToReturn(*c, 0x80085690u, kRaAfterAngle);
+  tomba::guest::dispatchJalToReturn(*c, {.target = 0x80085690u, .returnAddress = kRaAfterAngle});
   const uint32_t angle = c->r[2];
   if (!((((angle - actor.heading()) + kArcOffset) & kAngleMask) < kArcWidth)) {
     return;
@@ -156,6 +158,8 @@ void ActorTargeting::tryAcquireTarget(Core *c) {
   c->mem_w8(kAcquireGlobal, kAcquireSignal);
 }
 
-void ActorTargeting::registerOverrides() {
-  tomba::native::declareOverride(0x8001FAE0u, "ActorTargeting::tryAcquireTarget", &ActorTargeting::tryAcquireTarget);
+void ActorTargeting::registerOverrides(native::NativeOverrideCatalog &natives) {
+  natives.declare(0x8001FAE0u, "ActorTargeting::tryAcquireTarget", &ActorTargeting::tryAcquireTarget);
 }
+
+} // namespace tomba

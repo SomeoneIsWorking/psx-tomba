@@ -4,18 +4,14 @@ class Core;
 
 namespace tomba1 {
 
-class StreamFieldTurn {
-public:
+// The two per-field stream operations, in the order service() runs them.
+struct StreamFieldTurn {
   using Operation = void (*)(Core &core);
 
-  constexpr StreamFieldTurn(Operation advanceAudio, Operation pumpDisc)
-      : advanceAudio_(advanceAudio), pumpDisc_(pumpDisc) {}
+  Operation advanceAudio;
+  Operation pumpDisc;
 
   void service(Core &core) const;
-
-private:
-  Operation advanceAudio_;
-  Operation pumpDisc_;
 };
 
 // One display field's audio advance and disc stream pump, called by the frame driver once per field

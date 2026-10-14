@@ -6,20 +6,22 @@ using tomba::parallax::guestReduce;
 
 // ---- guestReduce: identity in range, NOT a canonical wrap outside it ---------------------------
 
-static void test_guest_reduce_is_the_identity_inside_the_range(void) {
+namespace {
+
+void test_guest_reduce_is_the_identity_inside_the_range() {
   for (int32_t v = 0; v < 256; v++) {
     CHECK_EQ(guestReduce(v, 256), v);
   }
 }
 
-static void test_guest_reduce_is_not_a_canonical_wrap(void) {
+void test_guest_reduce_is_not_a_canonical_wrap() {
   // A true wrap would give 251, 88 and 255.
   CHECK_EQ(guestReduce(-5, 256), -5);
   CHECK_EQ(guestReduce(600, 256), 344);
   CHECK_EQ(guestReduce(-513, 256), -1);
 }
 
-static void test_guest_reduce_lands_within_one_modulus_of_the_range(void) {
+void test_guest_reduce_lands_within_one_modulus_of_the_range() {
   // What it DOES guarantee: the result is modulus-equivalent to the input and no further than one
   // modulus outside [0, mod). That is the property the signed-16-bit store depends on.
   const int32_t mod = 126; // the seaside's Y modulus shape: (H*0x8E8)/0x90, not H*16
@@ -36,7 +38,9 @@ static void test_guest_reduce_lands_within_one_modulus_of_the_range(void) {
   CHECK(outside > 400);
 }
 
-int main(void) {
+} // namespace
+
+int main() {
   RUN(guest_reduce_is_the_identity_inside_the_range);
   RUN(guest_reduce_is_not_a_canonical_wrap);
   RUN(guest_reduce_lands_within_one_modulus_of_the_range);

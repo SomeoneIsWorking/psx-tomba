@@ -31,6 +31,12 @@ constexpr uint32_t kPhase = 0x05;   // u8  — schedule phase, 0..5, the jump-ta
 constexpr uint32_t kRate = 0x50;    // u16 — the oscillator's per-frame phase step ("how fast it rocks")
 } // namespace swaynode
 
+namespace tomba::native {
+class NativeOverrideCatalog;
+} // namespace tomba::native
+
+namespace tomba {
+
 struct SwayNode {
   Core *mCore;
   uint32_t mAt;
@@ -44,7 +50,7 @@ struct SwayNode {
   // The guest reads the rate BOTH ways in the same breath — signed for the "have we wound down far
   // enough" compare, unsigned for the subtraction that produces the next rate. Keep both.
   int16_t rate() const {
-    return mCore->mem_r16s(mAt + swaynode::kRate);
+    return (int16_t)mCore->mem_r16(mAt + swaynode::kRate);
   }
   uint16_t rate_u() const {
     return mCore->mem_r16(mAt + swaynode::kRate);
@@ -57,6 +63,8 @@ struct SwayNode {
     mCore->mem_w16(mAt + swaynode::kRate, v);
   }
 };
+
+} // namespace tomba
 
 // ------------------------------------------------------------------------------------------------
 // The two bytes of the save/state block this schedule waits on. The block base 0x800BF870 is the
@@ -78,6 +86,8 @@ constexpr uint32_t kEventStep = kBlockBase + 0x170u; // 0x800BF9E0
 constexpr uint8_t kFinishedSentinel = 255;
 } // namespace areaseq
 
+namespace tomba {
+
 struct AreaSequence {
   Core *mCore;
 
@@ -96,5 +106,7 @@ public:
   // called with a0 = the object node once the object survives the frame's cull.
   static void advanceRateThenSway(Core *c);
 
-  static void registerOverrides();
+  static void registerOverrides(native::NativeOverrideCatalog &natives);
 };
+
+} // namespace tomba

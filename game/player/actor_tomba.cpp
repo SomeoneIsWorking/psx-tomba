@@ -4,14 +4,13 @@
 // G IS TOMBA'S NODE — the master block at 0x800E7E80 (see game/player/tomba_state.h for the lens
 // and the address vocabulary). What touching an item MEANS is ActorInteraction
 // (game/player/actor_interaction.{h,cpp}); this class owns the walks that choose which items to hand
-// it, and everything else Tomba does in a frame. Addresses, field layouts and the per-cluster call
-// graph are in docs/engine_re.md's "ActorTomba G-block" section and docs/codemap.md.
+// it, and everything else Tomba does in a frame. Guest addresses: docs/guest-addresses.md.
 #include "actor_tomba.h"
 
 #include "core.h"
-#include "core/entry/game_ctx.h"
 #include "core/overrides/guest_jal.h"
 #include "core/overrides/native_override_catalog.h"
+#include "entry/tomba_session.h"
 #include "game.h"
 #include "guest_abi.h"
 #include "guest_call.h"
@@ -113,14 +112,14 @@ void ActorTomba::postInteractWalk() {
     }
     if (c->mem_r8(item + 0xCu) == 9) { // special-type items
       if ((tomba.growthFlags() & 0x8200u) == 0) {
-        tomba::guest::dispatchLeafToReturn(*c, LEAF_TYPE_9_SPECIAL, G, item);
+        psx::cpu::callGuestNowResult(*c, "actor_tomba", LEAF_TYPE_9_SPECIAL, G, item);
       }
       continue; // keep walking
     }
     const uint8_t typ = c->mem_r8(item + 2u);
     switch (typ) {
     case 3:
-      tomba::guest::dispatchLeafToReturn(*c, LEAF_TYPE_3, G, item);
+      psx::cpu::callGuestNowResult(*c, "actor_tomba", LEAF_TYPE_3, G, item);
       break;
     case 4: {
       // Detailed guarded state-transition (case 4). Faithful to the guest instruction path:
@@ -131,7 +130,7 @@ void ActorTomba::postInteractWalk() {
       //   * silence path: skip if 0x1F800137 != 0 OR G[0] & 6 OR G+0x144 > 1 OR G+0x164 != 0.
       //   * else: DAT_800BF9E5 != 6 → announcer cue 0x2A/0x41; stamp G/item state as the
       //     "type-4 hit" transition (see writes below).
-      const int32_t v0 = (int32_t)tomba::guest::dispatchLeafToReturn(*c, LEAF_TYPE_4_PROX_STEP, G, item, 1u);
+      const int32_t v0 = (int32_t)psx::cpu::callGuestNowResult(*c, "actor_tomba", LEAF_TYPE_4_PROX_STEP, G, item, 1u);
       if (v0 < 0) {
         break; // no hit
       }
@@ -139,7 +138,7 @@ void ActorTomba::postInteractWalk() {
       const uint8_t bf9e5 = c->mem_r8(0x800BF9E5u);
       const uint8_t g144 = tomba.justTransitioned();
       if (bf9e5 == 6 && g144 == 1 && v0 < 2) {
-        tomba::guest::dispatchLeafToReturn(*c, LEAF_TYPE_4_TAG_SET, item, 0xFFFF8001u, 0x10u, 0x20u);
+        psx::cpu::callGuestNowResult(*c, "actor_tomba", LEAF_TYPE_4_TAG_SET, item, 0xFFFF8001u, 0x10u, 0x20u);
         break; // continue at loop top (via while)
       }
       if (c->mem_r8(0x1F800137u) != 0) {
@@ -155,7 +154,7 @@ void ActorTomba::postInteractWalk() {
         break;
       }
       if (bf9e5 != 6) {
-        eng(c).announcerCue(0x2A, 0x41); // native FUN_8004ED94
+        eng(c).announcerCue({.id = 0x2A, .flag = 0x41}); // native FUN_8004ED94
       }
       // Type-4 hit state transition on G + item.
       c->mem_w8(G + 4, 2);
@@ -168,21 +167,21 @@ void ActorTomba::postInteractWalk() {
       break;
     }
     case 7:
-      tomba::guest::dispatchLeafToReturn(*c, LEAF_TYPE_7, G, item);
+      psx::cpu::callGuestNowResult(*c, "actor_tomba", LEAF_TYPE_7, G, item);
       break;
     case 8:
-      tomba::guest::dispatchLeafToReturn(*c, LEAF_TYPE_8, G, item);
+      psx::cpu::callGuestNowResult(*c, "actor_tomba", LEAF_TYPE_8, G, item);
       break;
     case 0x0F:
     case 0x14:
     case 0x56:
-      tomba::guest::dispatchLeafToReturn(*c, LEAF_TYPE_0F_14_56, G, item, 0u);
+      psx::cpu::callGuestNowResult(*c, "actor_tomba", LEAF_TYPE_0F_14_56, G, item, 0u);
       break;
     case 0x13:
-      tomba::guest::dispatchLeafToReturn(*c, LEAF_TYPE_13, G, item);
+      psx::cpu::callGuestNowResult(*c, "actor_tomba", LEAF_TYPE_13, G, item);
       break;
     case 0x2F:
-      tomba::guest::dispatchLeafToReturn(*c, LEAF_TYPE_0F_14_56, G, item, 2u);
+      psx::cpu::callGuestNowResult(*c, "actor_tomba", LEAF_TYPE_0F_14_56, G, item, 2u);
       break;
     default:
       break; // no interaction for other types
@@ -257,7 +256,7 @@ void ActorTomba::postFrameWaterCheck() {
   if (waterMode == 0) {
     // Dry land: run the per-frame Tomba tick if not paused.
     if (c->mem_r8(PAUSE_FLAG_SPAD) == 0) {
-      tomba::guest::dispatchLeafToReturn(*c, LEAF_DRY_TICK, G);
+      psx::cpu::callGuestNowResult(*c, "actor_tomba", LEAF_DRY_TICK, G);
     }
   } else {
     // Water/sea mode. When water-state is 2 with a specific 800E7FEB (== 8) config, clamp
@@ -276,7 +275,7 @@ void ActorTomba::postFrameWaterCheck() {
       if ((tomba.groundedGate() & 1) == 0 &&
           (int32_t)waterLevel - (int32_t)tomba.physOffsetY() <= (int32_t)tomba.posY()) {
         tomba.setPosY((int16_t)(waterLevel - tomba.physOffsetY())); // Y = waterLevel - G+0x62
-        tomba::guest::dispatchLeafToReturn(*c, LEAF_WATER_SPLASH, G);
+        psx::cpu::callGuestNowResult(*c, "actor_tomba", LEAF_WATER_SPLASH, G);
       }
     }
   }
@@ -406,7 +405,7 @@ uint32_t ActorTomba::settleStep(int32_t mode) {
     c->r[5] = probeOffset;
     c->r[6] = (uint32_t)(int32_t)offset;
     psx::cpu::dispatchGuestToReturn0(
-        *c, 0x8004954Cu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // grid probe
+        *c, 0x8004954Cu, psx::cpu::ExecutionBudget::currentTurn(*c), "actor_tomba"); // grid probe
     return (int32_t)c->r[2];
   };
 
@@ -461,22 +460,24 @@ void ActorTomba::velocityIntegrate(bool suppressY) {
 void ActorTomba::mode0ActionGate() {
   Core *c = core;
   const uint32_t G = G_ADDR;
-  static constexpr GuestFrameSpill kSpills[] = {{31, 16}};
+  constexpr GuestFrameSpill kSpills[] = {{31, 16}};
   GuestFrame<24, 1> frame(c, kSpills);
   bool pathA = c->mem_r8(0x800BF816u) != 0                // water mode on
                || c->mem_r8(G + 0x17Cu) == 0              // action-enable byte clear
                || (c->mem_r16(G + 0x17Eu) & 0x640u) != 0; // a suppress bit set
   if (pathA) {
-    tomba::guest::dispatchJalToReturn(*c, 0x8005A970u, 0x8005A950u); // normal handler (direct same-shard in gen)
+    tomba::guest::dispatchJalToReturn(
+        *c, {.target = 0x8005A970u, .returnAddress = 0x8005A950u}); // normal handler (direct same-shard in gen)
   } else {
-    tomba::guest::dispatchJalToReturn(*c, 0x80112B50u, 0x8005A960u); // swim/water-interaction handler
+    tomba::guest::dispatchJalToReturn(
+        *c, {.target = 0x80112B50u, .returnAddress = 0x8005A960u}); // swim/water-interaction handler
   }
 }
 
 void ActorTomba::ov_stepModeInteract(Core *c) {
   const uint32_t item = c->r[5];
   const uint32_t mode = c->r[6];
-  c->r[2] = eng(c).actorTomba.interaction_.stepModeInteract(item, mode);
+  c->r[2] = eng(c).actorTomba.interaction_.stepModeInteract({.item = item, .mode = mode});
 }
 
 void ActorTomba::ov_type8Interact(Core *c) {
@@ -540,21 +541,21 @@ void ActorTomba::gov_mode0ActionGate(Core *c) {
   eng(c).actorTomba.mode0ActionGate();
 }
 
-void ActorTomba::registerOverrides(Game * /*game*/) {
+void ActorTomba::registerOverrides(native::NativeOverrideCatalog &natives) {
   // typed runtime address dispatch-only postInteractWalk sub-handlers + frameTick (no direct same-module caller ->
   // setter omitted). turnBiasCompute/outerTransitionGate/outerTransitionCommit/assetReady are
   // dual-wired via tomba::native::declareOverride below (direct callers exist).
-  tomba::native::declareOverride(0x80020364u, "ActorTomba::stepModeInteract", ov_stepModeInteract);
-  tomba::native::declareOverride(0x800205CCu, "ActorTomba::type8Interact", ov_type8Interact);
-  tomba::native::declareOverride(0x800235A0u, "ActorTomba::type7Interact", ov_type7Interact);
-  tomba::native::declareOverride(0x80022C78u, "ActorTomba::growthYSnap", ov_growthYSnap);
-  tomba::native::declareOverride(0x8005950Cu, "ActorTomba::frameTick", ov_frameTick);
+  natives.declare(0x80020364u, "ActorTomba::stepModeInteract", ov_stepModeInteract);
+  natives.declare(0x800205CCu, "ActorTomba::type8Interact", ov_type8Interact);
+  natives.declare(0x800235A0u, "ActorTomba::type7Interact", ov_type7Interact);
+  natives.declare(0x80022C78u, "ActorTomba::growthYSnap", ov_growthYSnap);
+  natives.declare(0x8005950Cu, "ActorTomba::frameTick", ov_frameTick);
 
-  tomba::native::declareOverride(0x80055C9Cu, "gov_turnBiasCompute", gov_turnBiasCompute);
-  tomba::native::declareOverride(0x80053E50u, "gov_outerTransitionGate", gov_outerTransitionGate);
-  tomba::native::declareOverride(0x80053FDCu, "gov_outerTransitionCommit", gov_outerTransitionCommit);
-  tomba::native::declareOverride(0x80045580u, "gov_assetReady", gov_assetReady);
-  tomba::native::declareOverride(0x8005A910u, "gov_mode0ActionGate", gov_mode0ActionGate);
+  natives.declare(0x80055C9Cu, "gov_turnBiasCompute", gov_turnBiasCompute);
+  natives.declare(0x80053E50u, "gov_outerTransitionGate", gov_outerTransitionGate);
+  natives.declare(0x80053FDCu, "gov_outerTransitionCommit", gov_outerTransitionCommit);
+  natives.declare(0x80045580u, "gov_assetReady", gov_assetReady);
+  natives.declare(0x8005A910u, "gov_mode0ActionGate", gov_mode0ActionGate);
 }
 
 // turnBiasCompute — guest FUN_80055C9C. See actor_tomba.h for the full RE writeup. Frameless leaf
@@ -598,28 +599,31 @@ void ActorTomba::turnBiasCompute(Core *c, int16_t facing) {
 // resetLoadGate — guest FUN_80042310. See actor_tomba.h for the full RE writeup. Guest frame
 // (abi_extract --contract): 24 B, ra@sp+16 only.
 void ActorTomba::resetLoadGate(Core *c) {
-  static constexpr GuestFrameSpill kSpills[] = {{31, 16}};
+  constexpr GuestFrameSpill kSpills[] = {{31, 16}};
   GuestFrame<24, 1> frameGuard(c, kSpills);
 
-  tomba::guest::dispatchLeafToReturn(*c, 0x8001CF78u);                            // niladic cue
-  tomba::guest::dispatchJalToReturn(*c, 0x80074590u, 0x80042320u, 0x7Fu, 0u, 0u); // FUN_80074590(0x7F, 0, 0)
-  const uint8_t areaMode = c->mem_r8(0x800BF870u);                                // read before the unpause write below
-  c->mem_w8(0x1F800137u, 0);                                                      // unpause
-  tomba::guest::dispatchJalToReturn(*c, 0x80074F24u, 0x80042320u, areaMode);      // FUN_80074F24(DAT_800BF870)
+  psx::cpu::callGuestNowResult(*c, "actor_tomba", 0x8001CF78u); // niladic cue
+  tomba::guest::dispatchJalToReturn(
+      *c, {.target = 0x80074590u, .returnAddress = 0x80042320u}, 0x7Fu, 0u, 0u); // FUN_80074590(0x7F, 0, 0)
+  const uint8_t areaMode = c->mem_r8(0x800BF870u);                               // read before the unpause write below
+  c->mem_w8(0x1F800137u, 0);                                                     // unpause
+  tomba::guest::dispatchJalToReturn(
+      *c, {.target = 0x80074F24u, .returnAddress = 0x80042320u}, areaMode); // FUN_80074F24(DAT_800BF870)
 }
 
 // assetReady — guest FUN_80045580. See actor_tomba.h for the full RE writeup. Guest frame: 24 B,
 // ra@sp+16 only.
 bool ActorTomba::assetReady(Core *c, int32_t slot) {
-  static constexpr GuestFrameSpill kSpills[] = {{31, 16}};
+  constexpr GuestFrameSpill kSpills[] = {{31, 16}};
   GuestFrame<24, 1> frameGuard(c, kSpills);
 
   constexpr uint32_t TABLE_8018A000 = 0x8018A000u;
   constexpr uint32_t DAT_800A3EC8 = 0x800A3EC8u;
   constexpr uint32_t SLOT_TABLE = 0x800BE118u; // &DAT_800be11c - 4 (slot*8 + 4 == +0xC)
   const uint32_t rec = c->mem_r32(SLOT_TABLE + (uint32_t)slot * 8u + 4u);
-  const bool ready = tomba::guest::dispatchJalToReturn(
-                         *c, 0x80044CD4u, 0x800455B0u, TABLE_8018A000, c->mem_r32(DAT_800A3EC8), rec) > 0;
+  const bool ready =
+      tomba::guest::dispatchJalToReturn(
+          *c, {.target = 0x80044CD4u, .returnAddress = 0x800455B0u}, TABLE_8018A000, c->mem_r32(DAT_800A3EC8), rec) > 0;
   return ready;
 }
 
@@ -637,7 +641,7 @@ constexpr uint32_t LEAF_STOPMOTION = 0x800312D4u;   // stop-motion task spawn (d
 bool ActorTomba::outerTransitionGate() {
   Core *c = core;
   const uint32_t G = G_ADDR;
-  static constexpr GuestFrameSpill kSpills[] = {{16, 16}, {17, 20}, {18, 24}, {31, 28}};
+  constexpr GuestFrameSpill kSpills[] = {{16, 16}, {17, 20}, {18, 24}, {31, 28}};
   GuestFrame<32, 4> frameGuard(c, kSpills);
   TombaState tomba{c, G};
 
@@ -646,16 +650,17 @@ bool ActorTomba::outerTransitionGate() {
   }
 
   c->mem_w8(BUSY_LATCH_HI, 0);
-  eng(c).gStateMutate(G, 0xB);
+  eng(c).gStateMutate({.G = G, .op = 0xB});
 
   if (tomba.transitionSlot() == 1) {
     if ((tomba.statusFlags() & 4u) == 0) {
       if ((tomba.latchFlags() & 0x80u) == 0) {
-        tomba::guest::dispatchJalToReturn(*c, LEAF_CUE_800521F4, 0x80053F14u, 0u, 0x81u, 0x81u, 0x0Fu);
+        tomba::guest::dispatchJalToReturn(
+            *c, {.target = LEAF_CUE_800521F4, .returnAddress = 0x80053F14u}, 0u, 0x81u, 0x81u, 0x0Fu);
       }
       tomba.setLatchFlags(0);
       tomba.setStopMotionAux(0);
-      tomba::guest::dispatchJalToReturn(*c, LEAF_WALK_RESET, 0x80053F24u, G);
+      tomba::guest::dispatchJalToReturn(*c, {.target = LEAF_WALK_RESET, .returnAddress = 0x80053F24u}, G);
       tomba.setStatusFlags(3);
       tomba.setTurnCurrent(0);
       tomba.setTurnTarget(0);
@@ -664,22 +669,25 @@ bool ActorTomba::outerTransitionGate() {
       tomba.setLoadStep(1);
       tomba.setLoadSub(0);
       c->mem_w8(BUSY_LATCH, 1);
-      tomba::guest::dispatchJalToReturn(*c, LEAF_STOPMOTION, 0x80053FC0u, 6u, tomba.posAddr(), (uint32_t)-80);
+      tomba::guest::dispatchJalToReturn(
+          *c, {.target = LEAF_STOPMOTION, .returnAddress = 0x80053FC0u}, 6u, tomba.posAddr(), (uint32_t)-80);
       return true;
     }
     if ((tomba.latchFlags() & 0x80u) != 0) {
       return true;
     }
-    tomba::guest::dispatchJalToReturn(*c, LEAF_CUE_800521F4, 0x80053ED8u, 0u, 0x81u, 0x81u, 0x0Fu);
+    tomba::guest::dispatchJalToReturn(
+        *c, {.target = LEAF_CUE_800521F4, .returnAddress = 0x80053ED8u}, 0u, 0x81u, 0x81u, 0x0Fu);
     tomba.setLatchFlags((uint8_t)(tomba.latchFlags() | 0x82u));
     return true;
   }
 
   if (c->mem_r8s(BUSY_LATCH) < 1) {
-    tomba::guest::dispatchJalToReturn(*c, LEAF_CUE_800521F4, 0x80053F74u, 0u, 0x81u, 0x81u, 0x0Fu);
+    tomba::guest::dispatchJalToReturn(
+        *c, {.target = LEAF_CUE_800521F4, .returnAddress = 0x80053F74u}, 0u, 0x81u, 0x81u, 0x0Fu);
     tomba.setLatchFlags(0);
     tomba.setStopMotionAux(0);
-    tomba::guest::dispatchJalToReturn(*c, LEAF_WALK_RESET, 0x80053F84u, G);
+    tomba::guest::dispatchJalToReturn(*c, {.target = LEAF_WALK_RESET, .returnAddress = 0x80053F84u}, G);
     tomba.setStatusFlags(3);
     tomba.setTurnCurrent(0);
     tomba.setTurnTarget(0);
@@ -689,7 +697,8 @@ bool ActorTomba::outerTransitionGate() {
     tomba.setLoadStep(1);
     tomba.setLoadSub(0);
     c->mem_w8(BUSY_LATCH, 1);
-    tomba::guest::dispatchJalToReturn(*c, LEAF_STOPMOTION, 0x80053FC0u, 6u, tomba.posAddr(), (uint32_t)-80);
+    tomba::guest::dispatchJalToReturn(
+        *c, {.target = LEAF_STOPMOTION, .returnAddress = 0x80053FC0u}, 6u, tomba.posAddr(), (uint32_t)-80);
   }
   // else (busy latch already set): nothing to do.
   return true;
@@ -702,7 +711,7 @@ bool ActorTomba::outerTransitionGate() {
 void ActorTomba::outerTransitionCommit(int32_t mode) {
   Core *c = core;
   const uint32_t G = G_ADDR;
-  static constexpr GuestFrameSpill kSpills[] = {{16, 16}, {17, 20}, {31, 24}};
+  constexpr GuestFrameSpill kSpills[] = {{16, 16}, {17, 20}, {31, 24}};
   GuestFrame<32, 3> frameGuard(c, kSpills);
   TombaState tomba{c, G};
 
@@ -713,11 +722,12 @@ void ActorTomba::outerTransitionCommit(int32_t mode) {
 
   if (tomba.turnCurrent() != tomba.turnTarget()) {
     // "reset to new target" — cue + gStateMutate(0xB) + conditional stop-motion clear.
-    tomba::guest::dispatchJalToReturn(*c, LEAF_CUE_800521F4, 0x80054024u, 0u, 0x81u, 0x81u, 0x0Fu);
-    eng(c).gStateMutate(G, 0xB);
+    tomba::guest::dispatchJalToReturn(
+        *c, {.target = LEAF_CUE_800521F4, .returnAddress = 0x80054024u}, 0u, 0x81u, 0x81u, 0x0Fu);
+    eng(c).gStateMutate({.G = G, .op = 0xB});
     c->mem_w8(BUSY_LATCH_HI, 0);
     if ((tomba.statusFlags() & 4u) == 0) {
-      tomba::guest::dispatchJalToReturn(*c, LEAF_WALK_RESET, 0x80054054u, G);
+      tomba::guest::dispatchJalToReturn(*c, {.target = LEAF_WALK_RESET, .returnAddress = 0x80054054u}, G);
       tomba.setStopMotionAux(0);
     }
     if (mode != 1 && tomba.outerState() == 2) {
@@ -728,8 +738,9 @@ void ActorTomba::outerTransitionCommit(int32_t mode) {
     tomba.setTurnTarget((uint16_t)tomba.turnCurrent());
     tomba.setLatchFlags((uint8_t)(tomba.latchFlags() | 0x82u));
     if ((tomba.statusFlags() & 0xCu) != 0) {
-      tomba::guest::dispatchJalToReturn(*c, 0x80074590u, 0x80054108u, 0x23u, 0u, 0u);
-      tomba::guest::dispatchJalToReturn(*c, LEAF_STOPMOTION, 0x80054118u, 6u, tomba.posAddr(), (uint32_t)-80);
+      tomba::guest::dispatchJalToReturn(*c, {.target = 0x80074590u, .returnAddress = 0x80054108u}, 0x23u, 0u, 0u);
+      tomba::guest::dispatchJalToReturn(
+          *c, {.target = LEAF_STOPMOTION, .returnAddress = 0x80054118u}, 6u, tomba.posAddr(), (uint32_t)-80);
       return;
     }
     tomba.setStatusFlags(3);
@@ -785,7 +796,7 @@ constexpr uint32_t ANIM_PTR_SPAD = 0x1F800138u;
 void ActorTomba::frameTick() {
   Core *c = core;
   const uint32_t G = c->r[4]; // a0 (== G_ADDR from both callers; matches gen's r16=r4+r0)
-  static constexpr GuestFrameSpill kSpills[] = {{16, 16}, {31, 28}, {18, 24}, {17, 20}};
+  constexpr GuestFrameSpill kSpills[] = {{16, 16}, {31, 28}, {18, 24}, {17, 20}};
   GuestFrame<32, 4> frameGuard(c, kSpills);
   GuestReg<16> gReg(c);
   gReg = G;
@@ -795,7 +806,8 @@ void ActorTomba::frameTick() {
   if (outerState < 8) {
     switch (outerState) {
     case 0: {
-      tomba::guest::dispatchJalToReturn(*c, 0x80058648u, 0x80059560u, G, 0u); // enterOuterState0
+      tomba::guest::dispatchJalToReturn(
+          *c, {.target = 0x80058648u, .returnAddress = 0x80059560u}, G, 0u); // enterOuterState0
       break;
     }
     case 1: {
@@ -818,14 +830,18 @@ void ActorTomba::frameTick() {
         c->mem_w16(TURN_SUPPRESS_B, 0);
       }
 
+      tomba::guest::dispatchJalToReturn(*c,
+                                        {.target = 0x80055C9Cu, .returnAddress = 0x800595DCu},
+                                        G,
+                                        (uint32_t)(int32_t)tomba.facing()); // turnBiasCompute
       tomba::guest::dispatchJalToReturn(
-          *c, 0x80055C9Cu, 0x800595DCu, G, (uint32_t)(int32_t)tomba.facing()); // turnBiasCompute
-      tomba::guest::dispatchJalToReturn(*c, 0x80058918u, 0x800595E4u, G);      // mode-N dispatch table A
+          *c, {.target = 0x80058918u, .returnAddress = 0x800595E4u}, G); // mode-N dispatch table A
       if (tomba.turnSuppressGate() == 0) {
         c->mem_w8(TURN_SUPPRESS_ACTIVE_OUT, 1);
       }
-      tomba::guest::dispatchJalToReturn(*c, 0x800597ACu, 0x80059604u, G);     // matrix-compose
-      tomba::guest::dispatchJalToReturn(*c, 0x80053FDCu, 0x80059610u, G, 0u); // outerTransitionCommit (mode=0)
+      tomba::guest::dispatchJalToReturn(*c, {.target = 0x800597ACu, .returnAddress = 0x80059604u}, G); // matrix-compose
+      tomba::guest::dispatchJalToReturn(
+          *c, {.target = 0x80053FDCu, .returnAddress = 0x80059610u}, G, 0u); // outerTransitionCommit (mode=0)
 
       c->mem_w16(TURN_SUPPRESS_A, savedA);
       c->mem_w16(TURN_SUPPRESS_B, savedB);
@@ -833,8 +849,8 @@ void ActorTomba::frameTick() {
     }
     case 2: {
       tomba.setCommitting(1);
-      tomba::guest::dispatchJalToReturn(*c, 0x80067CA4u, 0x80059628u, G);
-      tomba::guest::dispatchJalToReturn(*c, 0x800597ACu, 0x800596D8u, G);
+      tomba::guest::dispatchJalToReturn(*c, {.target = 0x80067CA4u, .returnAddress = 0x80059628u}, G);
+      tomba::guest::dispatchJalToReturn(*c, {.target = 0x800597ACu, .returnAddress = 0x800596D8u}, G);
       break;
     }
     case 3:
@@ -854,24 +870,30 @@ void ActorTomba::frameTick() {
         c->mem_w16(TURN_SUPPRESS_A, 0);
         c->mem_w16(TURN_SUPPRESS_B, 0);
       }
+      tomba::guest::dispatchJalToReturn(*c,
+                                        {.target = 0x80055C9Cu, .returnAddress = 0x8005968Cu},
+                                        G,
+                                        (uint32_t)(int32_t)tomba.facing()); // turnBiasCompute
       tomba::guest::dispatchJalToReturn(
-          *c, 0x80055C9Cu, 0x8005968Cu, G, (uint32_t)(int32_t)tomba.facing()); // turnBiasCompute
-      tomba::guest::dispatchJalToReturn(*c, 0x80058F5Cu, 0x80059694u, G);      // mode-N dispatch table B
-      tomba::guest::dispatchJalToReturn(*c, 0x800597ACu, 0x8005969Cu, G);      // matrix-compose
-      tomba::guest::dispatchJalToReturn(*c, 0x80053E50u, 0x800596A4u, G);      // outerTransitionGate (bare tick)
+          *c, {.target = 0x80058F5Cu, .returnAddress = 0x80059694u}, G); // mode-N dispatch table B
+      tomba::guest::dispatchJalToReturn(*c, {.target = 0x800597ACu, .returnAddress = 0x8005969Cu}, G); // matrix-compose
+      tomba::guest::dispatchJalToReturn(
+          *c, {.target = 0x80053E50u, .returnAddress = 0x800596A4u}, G); // outerTransitionGate (bare tick)
 
       c->mem_w16(TURN_SUPPRESS_A, savedA);
       c->mem_w16(TURN_SUPPRESS_B, savedB);
       break;
     }
     case 5: {
-      tomba::guest::dispatchJalToReturn(*c, 0x8018BD30u, 0x800596C0u, G); // scripted leaf (overlay)
-      tomba::guest::dispatchJalToReturn(*c, 0x800597ACu, 0x800596D8u, G);
+      tomba::guest::dispatchJalToReturn(
+          *c, {.target = 0x8018BD30u, .returnAddress = 0x800596C0u}, G); // scripted leaf (overlay)
+      tomba::guest::dispatchJalToReturn(*c, {.target = 0x800597ACu, .returnAddress = 0x800596D8u}, G);
       break;
     }
     case 6: {
-      tomba::guest::dispatchJalToReturn(*c, 0x8018BE40u, 0x800596D0u, G); // scripted leaf (overlay)
-      tomba::guest::dispatchJalToReturn(*c, 0x800597ACu, 0x800596D8u, G);
+      tomba::guest::dispatchJalToReturn(
+          *c, {.target = 0x8018BE40u, .returnAddress = 0x800596D0u}, G); // scripted leaf (overlay)
+      tomba::guest::dispatchJalToReturn(*c, {.target = 0x800597ACu, .returnAddress = 0x800596D8u}, G);
       break;
     }
     case 7: {
@@ -882,14 +904,17 @@ void ActorTomba::frameTick() {
       r18Reg = 1u;
       bool advance = false;
       if (sub == 0) {
-        tomba::guest::dispatchJalToReturn(*c, 0x8001CF2Cu, 0x80059720u, G); // engine tick cue
+        tomba::guest::dispatchJalToReturn(
+            *c, {.target = 0x8001CF2Cu, .returnAddress = 0x80059720u}, G); // engine tick cue
         advance = true;
       } else if (sub == 1) {
-        advance = tomba::guest::dispatchJalToReturn(*c, 0x80045580u, 0x80059730u, 1u) != 0; // assetReady
+        advance = tomba::guest::dispatchJalToReturn(*c, {.target = 0x80045580u, .returnAddress = 0x80059730u}, 1u) !=
+                  0; // assetReady
       } else if (sub == 2) {
         if (c->mem_r8(LOAD_KICK_GATE_SPAD) != 0) {
           c->mem_w8(LOAD_KICK_MODE_BYTE, 4);
-          tomba::guest::dispatchJalToReturn(*c, 0x80042310u, 0x80059768u, G); // resetLoadGate
+          tomba::guest::dispatchJalToReturn(
+              *c, {.target = 0x80042310u, .returnAddress = 0x80059768u}, G); // resetLoadGate
           tomba.setOuterState(1);
           tomba.setLoadStep(0);
           tomba.setLoadSub(0);
@@ -902,9 +927,12 @@ void ActorTomba::frameTick() {
       if (advance) {
         tomba.setLoadStep((uint8_t)(tomba.loadStep() + 1));
       }
-      tomba::guest::dispatchJalToReturn(*c, 0x80076D68u, 0x80059794u, G); // Animation::step
+      tomba::guest::dispatchJalToReturn(
+          *c, {.target = 0x80076D68u, .returnAddress = 0x80059794u}, G); // Animation::step
       break;
     }
+    default:
+      break;
     }
   }
 }

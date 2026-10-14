@@ -4,6 +4,8 @@
 #include "core/overrides/native_override_catalog.h"
 #include "render/guest_ordering_table.h"
 
+namespace tomba {
+
 namespace {
 
 // ---- FUN_8007FC24's guest state (the same pool/table the dialog backdrop uses) ------------------
@@ -24,7 +26,7 @@ constexpr uint16_t kScreenH = 240u;
 // ORACLE: guest 0x8007FC24
 void OptionsPage::pushBackdrop(Core *c) {
   // Take a packet off the pool and bump it, exactly as the guest allocator does.
-  const uint32_t packet = tomba2::render::PacketPool(*c).allocate(kPacketBytes);
+  const uint32_t packet = tomba::render::PacketPool(*c).allocate(kPacketBytes);
 
   // POLY_G4 body: per-vertex colour word (RGB in the low three bytes, the GP0 opcode riding in the
   // top byte of the FIRST one) followed by that vertex's screen XY. The 4th byte of the other three
@@ -52,7 +54,7 @@ void OptionsPage::pushBackdrop(Core *c) {
   c->mem_w16(packet + 34, kScreenH); // v3 (320,240)
 
   // Link it at the head of its bucket: the packet inherits whatever was there, and becomes the head.
-  tomba2::render::OrderingTable::active(*c).link(packet, kTagWordCount, kOtBucketNear);
+  tomba::render::OrderingTable::active(*c).link({.packet = packet, .words = kTagWordCount, .bucket = kOtBucketNear});
 }
 
 namespace {
@@ -63,6 +65,8 @@ void backdropEmit(Core *c) {
 
 } // namespace
 
-void OptionsPage::install() {
-  tomba::native::declareOverride(0x8007FC24u, "OptionsPage::backdrop", backdropEmit);
+void OptionsPage::install(native::NativeOverrideCatalog &natives) {
+  natives.declare(0x8007FC24u, "OptionsPage::backdrop", backdropEmit);
 }
+
+} // namespace tomba

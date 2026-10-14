@@ -14,16 +14,17 @@
 // labels = guest addresses). The handler writes no RAM, so the A/B gate (full RAM+scratchpad vs original guest-body
 // call) only confirms the routing chose the same leaves in the same order.
 
-#include "cfg.h"
 #include "core.h"
-#include "core/entry/game_ctx.h"
 #include "core/overrides/guest_jal.h"
+#include "entry/tomba_session.h"
 #include "guest_abi.h"
 #include "object/actor.h" // Actor::boundsCull (FUN_8007778C — thin wrapper native)
 #include "spawn.h"        // class Spawn (eng(c).spawn.despawn / dispatch / spawnAndInit)
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+namespace tomba {
 
 namespace {
 
@@ -61,7 +62,7 @@ Lef0:
   eng(c).spawn.despawn(obj);
   goto Lret; // STATE 3
 Ldf0:
-  tomba::guest::dispatchLeafToReturn(*c, 0x80136F08u, obj);
+  psx::cpu::callGuestNowResult(*c, "beh_pure_inner_dispatch", 0x80136F08u, obj);
   goto Lret; // STATE 0
 
 Le00: // STATE 1
@@ -83,24 +84,26 @@ Le3c: {
   }
   // n5 == 0
   if (c->mem_r8(obj + 3) == 3) {
-    tomba::guest::dispatchLeafToReturn(*c, 0x8018CDC4u, obj);
+    psx::cpu::callGuestNowResult(*c, "beh_pure_inner_dispatch", 0x8018CDC4u, obj);
   } else {
-    tomba::guest::dispatchLeafToReturn(*c, 0x80138A64u, obj);
+    psx::cpu::callGuestNowResult(*c, "beh_pure_inner_dispatch", 0x80138A64u, obj);
   }
   goto Led0;
 }
 Lea4: // n5 == 1
   if (c->mem_r8(0x800BF809u) == 0) {
-    tomba::guest::dispatchLeafToReturn(*c, 0x80137198u, obj);
+    psx::cpu::callGuestNowResult(*c, "beh_pure_inner_dispatch", 0x80137198u, obj);
   }
   goto Led0;
 Lec8: // n5 == 2
-  tomba::guest::dispatchLeafToReturn(*c, 0x8018CA1Cu, obj);
+  psx::cpu::callGuestNowResult(*c, "beh_pure_inner_dispatch", 0x8018CA1Cu, obj);
   // fall into Led0
 Led0:
   if (c->mem_r8(obj + 1) != 0) {
-    tomba::guest::dispatchLeafToReturn(*c, 0x801389C8u, obj);
+    psx::cpu::callGuestNowResult(*c, "beh_pure_inner_dispatch", 0x801389C8u, obj);
   }
 Lret:
   return;
 }
+
+} // namespace tomba

@@ -44,14 +44,16 @@
 //   itself, never a C++ local: the leaves this loop reaches spill those callee-saved registers as their
 //   caller state, so a stale value would reach guest RAM (perobj_dispatch.cpp's CmdListFrame banner).
 #include "core.h"
-#include "core/entry/game_ctx.h"
 #include "core/overrides/native_override_catalog.h"
+#include "entry/tomba_session.h"
 #include "game.h"
 #include "guest_call.h"
 #include "render.h"
 #include <cstdint>
 // original guest instructions fallbacks for the oracle-gated thunk — SBS core B (the pure oracle) must keep running the
 // real guest body; see render_walk_dispatch.cpp's identical banner for the full rationale.
+
+namespace tomba {
 
 namespace {
 // Shared "already refreshed this field frame" flag (BB50/BCF4 both gate their cursor-refresh on it;
@@ -608,9 +610,11 @@ void ov_objListWalk4(Core *c) {
 // ORACLE-PURITY: installed via tomba::native::declareOverride (never the raw tomba::native::declareOverride), so SBS
 // core B (the pure original guest instructions oracle) always runs the real guest body while core A / standalone
 // runs these native methods — see perobj_dispatch.cpp's identical banner for the full rationale.
-void objlist_walk_install() {
-  tomba::native::declareOverride(0x8003BB50u, "ov_objListWalk1", ov_objListWalk1);
-  tomba::native::declareOverride(0x8003BCF4u, "ov_objListWalk2", ov_objListWalk2);
-  tomba::native::declareOverride(0x8003BF00u, "ov_objListWalk3", ov_objListWalk3);
-  tomba::native::declareOverride(0x8003EEC0u, "ov_objListWalk4", ov_objListWalk4);
+void objlist_walk_install(native::NativeOverrideCatalog &natives) {
+  natives.declare(0x8003BB50u, "ov_objListWalk1", ov_objListWalk1);
+  natives.declare(0x8003BCF4u, "ov_objListWalk2", ov_objListWalk2);
+  natives.declare(0x8003BF00u, "ov_objListWalk3", ov_objListWalk3);
+  natives.declare(0x8003EEC0u, "ov_objListWalk4", ov_objListWalk4);
 }
+
+} // namespace tomba

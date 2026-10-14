@@ -13,6 +13,8 @@
 #include <cstdint>
 class Core;
 
+namespace tomba {
+
 class Rng {
 public:
   static constexpr uint32_t SEED_ADDR = 0x80105EE8u;
@@ -26,3 +28,5 @@ public:
   //   verbatim: PSX MULT/MFLO on 32-bit signed operands + `sra 15`. Body from disas 0x80032A44.
   int32_t inRange(int32_t lo, int32_t hi);
 };
+
+} // namespace tomba

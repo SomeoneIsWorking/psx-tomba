@@ -34,6 +34,8 @@
 #include "render/guest_ordering_table.h"
 #include "ui/panel.h"
 
+namespace tomba {
+
 namespace {
 
 constexpr uint32_t PACKET_BYTES = 40u;
@@ -79,7 +81,7 @@ void Panel::fillQuad(Core *c) {
   const uint16_t attr = (uint16_t)c->r[6];
   const uint32_t otBucket = c->r[7];
 
-  const uint32_t packet = tomba2::render::PacketPool(*c).allocate(PACKET_BYTES);
+  const uint32_t packet = tomba::render::PacketPool(*c).allocate(PACKET_BYTES);
 
   c->mem_w8(packet + 7, GP0_QUAD);
   if (attr & ATTR_SEMI) {
@@ -124,5 +126,7 @@ void Panel::fillQuad(Core *c) {
   }
 
   // link at the head of the requested bucket
-  tomba2::render::OrderingTable::active(*c).link(packet, TAG_WORDS, otBucket);
+  tomba::render::OrderingTable::active(*c).link({.packet = packet, .words = TAG_WORDS, .bucket = otBucket});
 }
+
+} // namespace tomba

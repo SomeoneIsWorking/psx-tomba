@@ -15,20 +15,22 @@
 // (T2OBJ_*) to read guest RAM — they're authoritative; the struct below is partial/opaque-padded.
 #define T2OBJ_STRIDE 0xD0u // bytes per pool node
 
-enum {
-  T2OBJ_RENDER_FLAG = 0x01, // u8  cleared each frame by the walk + cull
-  T2OBJ_STATE = 0x04,       // u8  per-type substate (handlers switch on it)
-  T2OBJ_TYPE = 0x0c,        // u8  entity type (cull switch)
-  T2OBJ_MODEL_ID = 0x0e,    // u16 & 0x3fff
-  T2OBJ_HANDLER = 0x1c,     // ptr per-type update/render fn (called with node in a0; gameplay = PSX)
-  T2OBJ_PREV = 0x20,        // ptr prev node
-  T2OBJ_NEXT = 0x24,        // ptr next node (list walk follows this; 0 = end)
-  T2OBJ_ID = 0x2a,          // u16 per-object id (high half of the u16 pair at +0x28; +0x28=state)
-  T2OBJ_POS_X = 0x2e,       // u16
-  T2OBJ_POS_Y = 0x32,       // u16
-  T2OBJ_POS_Z = 0x36,       // u16
-  T2OBJ_MODEL_PTR = 0x38,   // ptr to model data
-};
+namespace tomba {
+
+inline constexpr int T2OBJ_RENDER_FLAG = 0x01; // u8  cleared each frame by the walk + cull
+inline constexpr int T2OBJ_STATE = 0x04;       // u8  per-type substate (handlers switch on it)
+inline constexpr int T2OBJ_TYPE = 0x0c;        // u8  entity type (cull switch)
+inline constexpr int T2OBJ_MODEL_ID = 0x0e;    // u16 & 0x3fff
+inline constexpr int T2OBJ_HANDLER = 0x1c;     // ptr per-type update/render fn (called with node in a0; gameplay = PSX)
+inline constexpr int T2OBJ_PREV = 0x20;        // ptr prev node
+inline constexpr int T2OBJ_NEXT = 0x24;        // ptr next node (list walk follows this; 0 = end)
+inline constexpr int T2OBJ_ID = 0x2a;          // u16 per-object id (high half of the u16 pair at +0x28; +0x28=state)
+inline constexpr int T2OBJ_POS_X = 0x2e;       // u16
+inline constexpr int T2OBJ_POS_Y = 0x32;       // u16
+inline constexpr int T2OBJ_POS_Z = 0x36;       // u16
+inline constexpr int T2OBJ_MODEL_PTR = 0x38;   // ptr to model data
+
+} // namespace tomba
 
 // Entity-list heads (guest globals) + the engine's per-frame object walk.
 #define T2_OBJLIST_HEAD_1 0x800FB168u // DAT_800fb168

@@ -10,6 +10,8 @@
 #include "guest_ordering_table.h"
 #include <cstdint>
 
+namespace tomba {
+
 namespace {
 
 // -------------------------------------------------------------------------------------------
@@ -22,8 +24,8 @@ constexpr uint32_t kRecordStride = 140u;        // 0x8C, per docs/findings/rende
 
 // gen holds the pool-cursor page (r20) and the OT-base page (r19) live across the item's nested
 // leaves, which spill them.
-constexpr uint32_t kPktPoolBaseReg = tomba2::render::PacketPool::kCursorPage;
-constexpr uint32_t kOtBaseReg = tomba2::render::OrderingTable::kBasePointerPage;
+constexpr uint32_t kPktPoolBaseReg = tomba::render::PacketPool::kCursorPage;
+constexpr uint32_t kOtBaseReg = tomba::render::OrderingTable::kBasePointerPage;
 constexpr uint32_t kHudOtBucketIndex = 3u; // the fixed near/HUD bucket, never a Z-derived index
 constexpr uint32_t kDrawAreaOtWords = 2u;  // DR_AREA's top-left + bottom-right words
 constexpr uint32_t kDrawAreaOtTag = kDrawAreaOtWords << 24;
@@ -112,13 +114,14 @@ void buildDrawAreaRect(Core *c, uint32_t spOff, uint16_t x, uint16_t y, uint16_t
 // a real SBS diff, not residual scratch: CLAUDE.md "MIRROR THE GUEST STACK").
 void emitDrawAreaAndLink(Core *c, uint32_t raConst, uint32_t rectOff) {
   GuestReg<16> pktAddr(c);
-  pktAddr = tomba2::render::PacketPool(*c).allocate(kDrawAreaPacketBytes);
-  tomba::guest::dispatchJalToReturn(*c, kFunBuildDrawArea, raConst, (uint32_t)pktAddr, c->r[29] + rectOff);
+  pktAddr = tomba::render::PacketPool(*c).allocate(kDrawAreaPacketBytes);
+  tomba::guest::dispatchJalToReturn(
+      *c, {.target = kFunBuildDrawArea, .returnAddress = raConst}, (uint32_t)pktAddr, c->r[29] + rectOff);
 
   // gen leaves the DR_AREA tag length word live in r3/v1, the leaf's v1 return residue.
   c->r[3] = kDrawAreaOtTag;
-  const uint32_t tagWord =
-      tomba2::render::OrderingTable::active(*c).link((uint32_t)pktAddr, kDrawAreaOtWords, kHudOtBucketIndex);
+  const uint32_t tagWord = tomba::render::OrderingTable::active(*c).link(
+      {.packet = (uint32_t)pktAddr, .words = kDrawAreaOtWords, .bucket = kHudOtBucketIndex});
   // gen computes this tag word in r2 as its literal last step before falling through to the
   // caller's epilogue — a real v0 return-register residue at both of emitFrame's call sites
   // (MIRROR_VERIFY caught this: without it, v0 held stale garbage from unrelated earlier code).
@@ -129,13 +132,14 @@ void emitDrawAreaAndLink(Core *c, uint32_t raConst, uint32_t rectOff) {
 // three segment-layout call sites (primary/secondary/else).
 void emitSegmentLayout(Core *c, uint32_t raConst, uint32_t descAddr, const HudGaugeItemRecord &rec, int32_t bias) {
   const uint16_t sum = (uint16_t)(rec.spanBase() + rec.spanBias() + bias);
-  tomba::guest::dispatchJalToReturn(*c, kFunSegmentLayout, raConst, descAddr, (uint32_t)(int32_t)(int16_t)sum);
+  tomba::guest::dispatchJalToReturn(
+      *c, {.target = kFunSegmentLayout, .returnAddress = raConst}, descAddr, (uint32_t)(int32_t)(int16_t)sum);
 }
 
 } // namespace
 
 void HudGaugeEmitter::emitFrame(Core *c) {
-  static constexpr GuestFrameSpill kSpills[] = {{18, 32}, {31, 36}, {17, 28}, {16, 24}};
+  constexpr GuestFrameSpill kSpills[] = {{18, 32}, {31, 36}, {17, 28}, {16, 24}};
   GuestFrame<40, 4> frame(c, kSpills);
   constexpr uint32_t kRectOff = 16;
 
@@ -182,7 +186,7 @@ void HudGaugeEmitter::emitFrame(Core *c) {
 
 void HudGaugeEmitter::emitItem(Core *c) {
   // Frame: sp -= 64, spill s0..s6/ra at their RE'd offsets.
-  static constexpr GuestFrameSpill kSpills[] = {
+  constexpr GuestFrameSpill kSpills[] = {
       {17, 36},
       {31, 60},
       {22, 56},
@@ -251,10 +255,13 @@ void HudGaugeEmitter::emitItem(Core *c) {
     emitSegmentLayout(c, kRaItemSegElse, (uint32_t)rec + kSegPrimaryOff, item, 0);
   }
 
-  tomba::guest::dispatchJalToReturn(*c, kFunLabelOrDigits, kRaItemFinal, sp + kWord0Off, item.labelByte(), 0u, 3u);
+  tomba::guest::dispatchJalToReturn(
+      *c, {.target = kFunLabelOrDigits, .returnAddress = kRaItemFinal}, sp + kWord0Off, item.labelByte(), 0u, 3u);
 }
 
-void HudGaugeEmitter::registerOverrides(Game *) {
-  tomba::native::declareOverride(0x8004FD30u, "&HudGaugeEmitter::emitFrame", &HudGaugeEmitter::emitFrame);
-  tomba::native::declareOverride(0x8004FB4Cu, "&HudGaugeEmitter::emitItem", &HudGaugeEmitter::emitItem);
+void HudGaugeEmitter::registerOverrides(native::NativeOverrideCatalog &natives) {
+  natives.declare(0x8004FD30u, "&HudGaugeEmitter::emitFrame", &HudGaugeEmitter::emitFrame);
+  natives.declare(0x8004FB4Cu, "&HudGaugeEmitter::emitItem", &HudGaugeEmitter::emitItem);
 }
+
+} // namespace tomba

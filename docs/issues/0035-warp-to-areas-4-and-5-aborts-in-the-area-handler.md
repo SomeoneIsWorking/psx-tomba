@@ -1,5 +1,7 @@
 # 0035 — warp to area 4 or 5 aborts in the area handler
 
+Features: F-DEBUG.
+
 Status: open.
 
 `warp 4` and `warp 5` from the field (after `@padgame` to the GAME stage) run the game's transition, load the

@@ -5,10 +5,10 @@
 // idx 7). The container is loaded once from \CD\TOMBA2.SND at first use. Each entry resolves to
 // a (seqOff, vabOff) byte pair into that buffer, fed straight to native_music.play().
 //
-// One `class MusicList` per Core, on the game-side TombaCtx aggregate (gctx(c)->music_list). Audio
+// One `class MusicList` per Core, on TombaSession (tombaSession(c).music_list). Audio
 // is one host output stream so per-Core each has its own catalogue (only the Core whose Game owns
 // the SDL device via SpuAudio is actually audible). Holds a Core* and reaches the disc backend
-// (core->game->disc) + its sibling native_music (gctx(core)->native_music) at call time.
+// (core->game->disc) + its sibling native_music (tombaSession(core).native_music) at call time.
 #ifndef MUSIC_LIST_H
 #define MUSIC_LIST_H
 #include <stdint.h>
@@ -16,9 +16,11 @@
 #ifdef __cplusplus
 class Core;
 
+namespace tomba {
+
 class MusicList {
 public:
-  Core *core = nullptr; // back-pointer wired by createTombaContext (game_ctx.cpp)
+  Core *core = nullptr; // back-pointer wired by the TombaSession constructor
   ~MusicList();
 
   int count() const {
@@ -37,7 +39,7 @@ private:
   int loadContainer();
   long seqOff(int si) const;
   long vabOff(int vi) const {
-    return (long)(mBuf[vi * 2] | (mBuf[vi * 2 + 1] << 8)) * 0x800;
+    return (long)(mBuf[(long)vi * 2] | (mBuf[(long)vi * 2 + 1] << 8)) * 0x800;
   }
   long areaSeqOff(int si) const;
 
@@ -47,5 +49,7 @@ private:
   uint8_t *mArea = nullptr; // per-Game copy of the live area bundle (in-game BGM)
   long mAreaLen = 0;
 };
+
+} // namespace tomba
 #endif // __cplusplus
 #endif

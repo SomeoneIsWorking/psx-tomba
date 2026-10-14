@@ -9,8 +9,7 @@
 // One instance per Core, embedded as `Core::engine::actorTomba`. What touching an item MEANS is
 // ActorInteraction (game/player/actor_interaction.{h,cpp}); this class owns the two walks that choose
 // which items to hand it, the G-block driver, growth, motion and the outer-transition/asset gating.
-// Addresses, field layouts and the per-cluster call graph are in docs/engine_re.md's "ActorTomba
-// G-block" section and docs/codemap.md.
+// Guest addresses: docs/guest-addresses.md.
 #pragma once
 
 #include "player/actor_interaction.h"
@@ -19,6 +18,10 @@
 
 class Core;
 class Game;
+
+namespace tomba::native {
+class NativeOverrideCatalog;
+} // namespace tomba::native
 
 namespace tomba::player {
 
@@ -108,7 +111,7 @@ public:
   // guest 0x8005950C caller is guest 0x80059D28 = the substrate frameStartTickFaithful, core-B only),
   // so a typed runtime address dispatch-only registration (no tomba::native::declareOverride setter) is sufficient for
   // all 5.
-  static void registerOverrides(Game *game);
+  static void registerOverrides(native::NativeOverrideCatalog &natives);
 
 private:
   // EngineOverrideFn-shaped trampolines for registerOverrides (need class access to the private
@@ -133,9 +136,7 @@ private:
 
 public:
   // ----------------------------------------------------------------------------
-  // Per-frame G-block driver (0x8005950C cascade) — RE'd 2026-07-08 wide-RE pass. See
-  // docs/engine_re.md's "ActorTomba G-block" section for the full call-graph writeup of the
-  // ~99-function 0x80052xxx-0x8005Fxxx region this drives, and docs/codemap.md for addresses.
+  // Per-frame G-block driver (0x8005950C cascade) over the 0x80052xxx-0x8005Fxxx region.
   // ----------------------------------------------------------------------------
   // frameTick() — guest FUN_8005950C. Tomba's own per-frame G-block driver, called directly
   //   from the already-native Engine::frameStartTick/frameStartTickFaithful (game/core/

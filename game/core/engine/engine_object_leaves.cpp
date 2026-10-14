@@ -8,7 +8,6 @@
 //
 // The class's own header (game/core/engine.h) remains the single declaration of every method below;
 // nothing is redeclared here.
-#include "c_subsys.h"               // disc_findFile — the native ISO9660 resolver
 #include "camera/cutscene_camera.h" // class CutsceneCamera — the field/follow camera
 #include "core.h"
 #include "core/assets/asset.h" // class Asset
@@ -16,7 +15,7 @@
 #include "core/engine/task_sm.h"         // TaskSm — the typed lens over the task record, owned in one header
 #include "core/overrides/guest_jal.h"    // tomba::guest::dispatchJalToReturn — the guest call convention
 #include "core/overrides/guest_resume.h" // requestGuestContinuation
-#include "entry/game_ctx.h"
+#include "entry/tomba_session.h"
 #include "game.h" // Game — the per-Core product the Engine drives
 #include "guest_abi.h"
 #include "guest_call.h"
@@ -31,10 +30,12 @@
 #include <cstdint>
 #include <cstdio>
 
+namespace tomba {
+
 void Engine::fieldFrame() {
   Core *c = core;
   // yields — SBS-gated: fieldFrameFaithful() drives the render orchestrator
-  // (0x8003F9A8) and other callees that can scheduler_yield; strict replay check only
+  // (0x8003F9A8) and other callees that can TombaScheduler::yield; strict replay check only
   // supports yield-free mirrors (strictCheck aborts on yield-while-inCheck) and
   // a rewind+replay of the substrate body here does not reproduce the same
   // interleaving as the live run, so the compare is bogus (10+ byte diffs at
@@ -70,6 +71,8 @@ void Engine::fieldFrame() {
   eng(c).areaSlots.updateTail(); // 0x80075a80 NATIVE (AreaSlots::updateTail)
 }
 
+} // namespace tomba
+
 // -- Small per-object leaves shared across many behavior handlers. Ghidra
 // decomp:
 //    scratch/decomp/batch_leaves.c
@@ -98,6 +101,8 @@ constexpr uint32_t kAnimResult = 0x79u; // u8:  animTick's stashed VM return byt
 // Animation::step, which is the full port of FUN_80076D68 — its 3 frame
 // sub-leaves stay substrate) and stashes its return byte into obj+0x79. Returns
 // 1 (matches guest instruction path v0).
+namespace tomba {
+
 uint32_t Engine::animTick(uint32_t obj) {
   Core *c = core;
   using namespace ObjAnimField;
@@ -106,7 +111,7 @@ uint32_t Engine::animTick(uint32_t obj) {
   // FUN_80076D68 call. stepFramed pushes 76D68's own 40-byte frame exactly like
   // the gen callee does — step() (frameless) left every downstream substrate
   // spill 24+40 bytes high vs core B (SBS watch-cut f218, 2026-07-10).
-  static constexpr GuestFrameSpill kSpills[] = {{16, 16}, {31, 20}};
+  constexpr GuestFrameSpill kSpills[] = {{16, 16}, {31, 20}};
   GuestFrame<24, 2> frame(c, kSpills);
   c->r[16] = obj;
   c->r[31] = 0x80041920u;
@@ -119,7 +124,8 @@ uint32_t Engine::animTick(uint32_t obj) {
 // Engine::announcerCue — FUN_8004ED94. `id` sign-extended s16, then times-2
 // index into u16 table at *DAT_800BF7FC. That u16 offset is added to base
 // *DAT_800BF800, then FUN_8004FA38 fires.
-void Engine::announcerCue(uint32_t id, uint8_t flag) {
+void Engine::announcerCue(const AnnouncerCueArgs &args) {
+  auto [id, flag] = args;
   Core *c = core;
   const int32_t id32 = (int32_t)(int16_t)(uint16_t)id; // (id << 16) >> 15 in the decomp = sext16 << 1
   const uint32_t idxOff = (uint32_t)(id32 * 2);
@@ -142,7 +148,8 @@ void Engine::announcerCue(uint32_t id, uint8_t flag) {
 // surfaced the dual-ownership (see docs/findings/render.md).
 
 // Engine::walkStart — FUN_80054D14.
-uint32_t Engine::walkStart(uint32_t obj, uint32_t mode, int16_t subMode) {
+uint32_t Engine::walkStart(const WalkStartArgs &args) {
+  auto [obj, mode, subMode] = args;
   Core *c = core;
   using namespace ObjAnimField;
   // GUEST FRAME MIRROR (abi_extract --contract, single epilogue label -> RAII
@@ -152,7 +159,7 @@ uint32_t Engine::walkStart(uint32_t obj, uint32_t mode, int16_t subMode) {
   // leaves the caller's ra at sp+28 (SBS watch-cut f747 diverged on exactly
   // that slot when the mirror sat below the test — stale byte vs B's spilled
   // 0x8010A990).
-  static constexpr GuestFrameSpill kSpills[] = {{16, 16}, {17, 20}, {18, 24}, {31, 28}};
+  constexpr GuestFrameSpill kSpills[] = {{16, 16}, {17, 20}, {18, 24}, {31, 28}};
   GuestFrame<32, 4> frame(c, kSpills);
   c->r[16] = obj;
   c->r[17] = mode;
@@ -163,7 +170,8 @@ uint32_t Engine::walkStart(uint32_t obj, uint32_t mode, int16_t subMode) {
     return 0;
   }
   c->mem_w8(obj + kAnimMode, (uint8_t)mode);
-  tomba::guest::dispatchJalToReturn(*c, 0x80054790u, 0x80054D58u, obj, mode); // pre-hook (substrate)
+  tomba::guest::dispatchJalToReturn(
+      *c, {.target = 0x80054790u, .returnAddress = 0x80054D58u}, obj, mode); // pre-hook (substrate)
   // guest 0x80054D14 passes FOUR args: a3 = subMode (sext16).
   // guest 0x80077CFC consumes it as the anim PHASE SEED (obj+0x0E = a3 +
   // 0x1000) and as the frame-seek arg for the stream decoder
@@ -172,9 +180,11 @@ uint32_t Engine::walkStart(uint32_t obj, uint32_t mode, int16_t subMode) {
   // (2026-07-10).
   const uint32_t subMode32 = (uint32_t)(int32_t)subMode;
   if (subMode == 0) {
-    tomba::guest::dispatchJalToReturn(*c, 0x80077C40u, 0x80054D78u, obj, 0x80017FE8u, mode, subMode32);
+    tomba::guest::dispatchJalToReturn(
+        *c, {.target = 0x80077C40u, .returnAddress = 0x80054D78u}, obj, 0x80017FE8u, mode, subMode32);
   } else {
-    tomba::guest::dispatchJalToReturn(*c, 0x80077CFCu, 0x80054D90u, obj, 0x80017FE8u, mode, subMode32);
+    tomba::guest::dispatchJalToReturn(
+        *c, {.target = 0x80077CFCu, .returnAddress = 0x80054D90u}, obj, 0x80017FE8u, mode, subMode32);
   }
   c->r[2] = 1;
   return 1;
@@ -237,7 +247,7 @@ void Engine::uploadModeSprites() {
     psx::cpu::dispatchGuestToReturn0(*c,
                                      0x80081218u,
                                      psx::cpu::ExecutionBudget::currentTurn(*c),
-                                     __func__); // LoadImage(rect, data) — substrate leaf
+                                     "engine_object_leaves"); // LoadImage(rect, data) — substrate leaf
   };
   upload(0x1E2, p0);
   upload(0x1E5, p1);
@@ -255,14 +265,16 @@ void Engine::uploadModeSprites() {
 // announcer/UI cue queue) and FUN_800310F4(0x25, 0) (case 1's inventory
 // refresh) — neither has a native equivalent yet. Sfx::trigger is native (Sfx
 // class) so the alt-cue path routes there directly.
-void Engine::gStateMutate(uint32_t G, uint8_t op) {
+void Engine::gStateMutate(const GStateMutateArgs &args) {
+  auto [G, op] = args;
   Core *c = core;
   auto cue = [&](uint32_t id) {
-    announcerCue(id, 0x41);
+    announcerCue({.id = id, .flag = 0x41});
   }; // native FUN_8004ED94
   const uint8_t f174 = c->mem_r8(G + 0x174u);
   const uint8_t f0D = c->mem_r8(G + 0x0Du);
-  uint8_t n174 = f174, n0D = f0D;
+  uint8_t n174 = f174;
+  uint8_t n0D;
 
   switch (op) {
   case 0:
@@ -346,7 +358,7 @@ void Engine::gStateMutate(uint32_t G, uint8_t op) {
     c->mem_w8(G + 0x174u, n174);
     cue(0x45);
     if (op == 0xD) {
-      eng(c).sfx.trigger(0x39, 0, 0); // Sfx::trigger — native (FUN_80074590 alt-cue path)
+      eng(c).sfx.trigger({.id = 0x39, .pan = 0, .pitchBend = 0}); // Sfx::trigger — native (FUN_80074590 alt-cue path)
     } else {
       c->mem_w8(G + 5, 0x38);
       c->mem_w8(G + 6, 2);
@@ -364,7 +376,7 @@ void Engine::gStateMutate(uint32_t G, uint8_t op) {
     c->mem_w8(G + 0x174u, n174);
     cue(0x47);
     if (op == 0xE) {
-      eng(c).sfx.trigger(0x3A, 0, 0);
+      eng(c).sfx.trigger({.id = 0x3A, .pan = 0, .pitchBend = 0});
     } else {
       c->mem_w8(G + 5, 0x39);
       c->mem_w8(G + 6, 2);
@@ -401,7 +413,6 @@ void Engine::gStateMutate(uint32_t G, uint8_t op) {
     c->mem_w8(G + 0x174u, 0);
     n174 = 0;
     c->mem_w8(G + 0x0Du, 0);
-    n0D = 0;
     const int16_t f17E = (int16_t)c->mem_r16(G + 0x17Eu);
     if ((uint16_t)f17E & 0x8000u) {
       const uint16_t masked = (uint16_t)(f17E & 0x7FFF);
@@ -424,6 +435,8 @@ void Engine::gStateMutate(uint32_t G, uint8_t op) {
   c->mem_w8(0x800BF881u,
             n174); // shared tail — mirror the post-mutation G+0x174
 }
+
+} // namespace tomba
 
 // FIELD RUNNING sub-machine 0x80106b98 — native control flow + state bodies
 // (decomp: scratch/decomp/game/80106b98.c). A 12-way switch on sm[0x4e]; the

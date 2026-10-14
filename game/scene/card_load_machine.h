@@ -8,6 +8,10 @@ namespace tomba::scene {
 
 inline constexpr std::uint32_t kStatePtr = 0x1f800138u;
 
+struct StepCardLoadMachineArgs {
+  std::uint32_t mode;
+  std::uint32_t inGame;
+};
 // Advance the memory-card LOAD/SAVE page sub-machine, guest FUN_8007BF20(mode, inGame), one step.
 // mode is the browser mode handed to the resident UI driver FUN_8007BE18 (0 = load page,
 // 0x81 = save page); inGame selects the caller: 0 for the DEMO title-screen load page, 1 for the
@@ -18,6 +22,6 @@ inline constexpr std::uint32_t kStatePtr = 0x1f800138u;
 // spin forever in the no-IRQ runtime. This is also the one owner of CRD code-image residency in the
 // AREA slot: the overlay is activated right after its synchronous load and retired before the
 // in-game area-asset reload overwrites it.
-void stepCardLoadMachine(Core &core, std::uint32_t mode, std::uint32_t inGame);
+void stepCardLoadMachine(Core &core, const StepCardLoadMachineArgs &args);
 
 } // namespace tomba::scene

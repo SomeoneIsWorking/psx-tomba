@@ -1,14 +1,12 @@
 #include "stream_field_turn.h"
 
 #include "cd_native_startup.h"
-#include "cdc_state.h"
 
 #include "core.h"
-#include "dma_callbacks.h"
 #include "game.h"
-#include "game_runtime.h"
-#include "guest_cd_stream_callback_layout.h"
 #include "platform_hle.h"
+#include "stock_libcd.h"
+#include "stub_game_runtime.h"
 #include "sync_native.h"
 
 #include <cstdint>
@@ -29,29 +27,15 @@ void recordDiscOperation(Core &) {
   discOperationIndex = fieldOperationCount++;
 }
 
-class TestRuntime final : public GameRuntime {
+class TestRuntime final : public psx::test::StubGameRuntime {
 public:
-  void *createContext(Core &) override {
-    return nullptr;
-  }
-  void destroyContext(void *) override {}
-  void registerOverrides(Game &) override {}
-  void bootInit(Core &) override {}
-
-  const GuestCdStreamCallbackLayout *guestCdStreamCallbackLayout() const override {
-    return exposeCallbackLayout ? &callbackLayout : nullptr;
-  }
-
   RenderCapabilities renderCapabilities() const override {
-    return RenderCapabilities::widescreenOnly();
+    return RenderCapabilities{.defaultPath = RenderPath::Record, .nativeRenderPath = false};
   }
 
   bool guestVramIsPicture(const Game &) const override {
     return true;
   }
-
-  bool exposeCallbackLayout = false;
-  GuestCdStreamCallbackLayout callbackLayout{0x80095FF0u};
 };
 
 bool check(bool condition, const char *message) {
@@ -68,36 +52,23 @@ int main() {
              "shipping stream pump must use the CdReadyCallback slot written by 0x80064920")) {
     return 1;
   }
-  const PlatformHlePlan &plan = tomba1::platformHlePlan();
-  if (!check(plan.cdReadAddress != 0u && plan.cdReadSyncAddress != 0u,
-             "shipping plan must publish both typed stock-read addresses")) {
-    return 1;
-  }
-  for (int index = 0; index < plan.bindingCount; ++index) {
-    const std::uint32_t address = plan.bindings[index].addr;
-    if (!check(address != plan.cdReadAddress && address != plan.cdReadSyncAddress,
-               "framework-owned stock-read leaves must not remain in generic bindings")) {
-      return 1;
-    }
-  }
-  bool hasInternalCdSync = false;
-  for (int index = 0; index < plan.bindingCount; ++index) {
-    if (plan.bindings[index].addr == tomba1::kCdSyncInternalEntry) {
-      hasInternalCdSync = plan.bindings[index].fn == tomba1::cdSyncOverride;
-    }
-  }
-  if (!check(hasInternalCdSync,
-             "linked libcd's direct internal CdSync calls must share the public wrapper's native owner")) {
-    return 1;
-  }
   if (!check(tomba1::kDmaCallbackEntry == 0x80067E84u,
              "shipping override must bind the measured linked DMACallback entry")) {
     return 1;
   }
 
   TestRuntime runtime;
-  psxport_install_game(runtime);
-  auto game = std::make_unique<Game>();
+  auto game = std::make_unique<Game>(runtime, psx::config::Config{});
+  tomba1::bindTitleLibraryOwners(*game);
+  if (!check(game->platform_hle.lookup(tomba1::kCdRead) == nullptr &&
+                 game->platform_hle.lookup(tomba1::kCdReadSync) == nullptr,
+             "stock-read leaves belong to StockLibcd, not the title's bindings")) {
+    return 1;
+  }
+  if (!check(game->platform_hle.lookup(tomba1::kCdSyncInternalEntry) == tomba1::cdSyncOverride,
+             "linked libcd's direct internal CdSync calls must share the public wrapper's native owner")) {
+    return 1;
+  }
 
   constexpr std::uint32_t dmaInterruptControl = 0x1F8010F4u;
   constexpr std::uint32_t firstCallback = 0x80066D80u;
@@ -121,7 +92,7 @@ int main() {
     return 1;
   }
 
-  const tomba1::StreamFieldTurn orderedFieldTurn{recordAudioOperation, recordDiscOperation};
+  const tomba1::StreamFieldTurn orderedFieldTurn{.advanceAudio = recordAudioOperation, .pumpDisc = recordDiscOperation};
   orderedFieldTurn.service(game->core);
   if (!check(fieldOperationCount == 2 && audioOperationIndex == 0 && discOperationIndex == 1,
              "one stream field must advance audio exactly once before pumping disc")) {
@@ -155,13 +126,16 @@ int main() {
 
   game->cd.stream_active = 1;
   game->cd.stream_delivered = 11u;
+  const psx::cd::StockLibcd noReadySlot({}, {}, 0u);
+  noReadySlot.bind(*game);
   tomba1::serviceStreamField(game->core);
-  if (!check(game->cd.stream_delivered == 11u, "missing callback layout must not deliver a sector")) {
+  if (!check(game->cd.stream_delivered == 11u, "a libcd without a ready slot must not deliver a sector")) {
     return 1;
   }
 
-  runtime.exposeCallbackLayout = true;
-  game->core.mem_w32(runtime.callbackLayout.readyCallbackPointer, 0x80010000u);
+  const psx::cd::StockLibcd libcd({}, {}, tomba1::kCdReadyCallbackPointer);
+  libcd.bind(*game);
+  game->core.mem_w32(tomba1::kCdReadyCallbackPointer, 0x80010000u);
   game->cd.stream_active = 0;
   game->cd.stream_delivered = 17u;
   tomba1::serviceStreamField(game->core);
@@ -188,13 +162,13 @@ int main() {
              "CdSync must retire command responses and keep data-ready for the installed callback")) {
     return 1;
   }
-  game->core.mem_w32(runtime.callbackLayout.readyCallbackPointer, 0u);
+  game->core.mem_w32(tomba1::kCdReadyCallbackPointer, 0u);
   tomba1::cdSyncOverride(&game->core);
   if (!check(cdc_current_irq_type(&controller) == 0u, "CdSync must drop data-ready when no callback is installed")) {
     return 1;
   }
 
-  std::puts("PASS: CdSync, DMA registration, field order, callback layout, inactive stream and response "
+  std::puts("PASS: CdSync, DMA registration, field order, ready slot, inactive stream and response "
             "retirement contracts hold");
   return 0;
 }

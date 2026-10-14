@@ -22,15 +22,16 @@
 // original guest-body call). The idle/active field path is exercised by the gate; the input/scene-driven sub-states
 // are faithfully transcribed and verify when a scene drives them.
 
-#include "cfg.h"
 #include "core.h"
-#include "core/entry/game_ctx.h"
+#include "entry/tomba_session.h"
 #include "guest_abi.h" // GuestFrame — mirror the guest stack frame (CLAUDE.md)
 #include "guest_call.h"
 #include "spawn.h" // class Spawn (eng(c).spawn.despawn / dispatch / spawnAndInit)
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+namespace tomba {
 
 namespace {
 
@@ -114,6 +115,8 @@ void beh_substate_edge_orchestrator(Core *c) {
       psx::cpu::dispatchGuestToReturn0(
           *c, 0x8018C820u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // FUN_8018c820
       break;
+    default:
+      break;
     }
   }
 
@@ -145,7 +148,7 @@ void beh_substate_edge_orchestrator(Core *c) {
       uint16_t nv = (n78 & 0x8000) ? 0x8002 : 2; // bnez (v1&0x8000) -> 0x8002 else 2 [0x8012ECF8/D00]
       c->mem_w16(obj + 0x78, nv);                // sh v0,0x78(s1) [0x8012ED04]
       // node[0x48] -> node[0x4e] sign clamp [0x8012ED08..28]
-      int16_t x = c->mem_r16s(obj + 0x48); // lh v0,0x48(s1)
+      int16_t x = (int16_t)c->mem_r16(obj + 0x48); // lh v0,0x48(s1)
       if (x > 0) {
         c->mem_w16(obj + 0x4e, (uint16_t)(uint32_t)(int32_t)-0x80); // blez false -> -0x80
       } else if (x < 0) {
@@ -174,3 +177,5 @@ void beh_substate_edge_orchestrator(Core *c) {
   }
   c->mem_w8(obj + 0x2b, 0); // sb zero,0x2b(s1) [delay slot @ED64, always runs]
 }
+
+} // namespace tomba

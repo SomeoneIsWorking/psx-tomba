@@ -1,6 +1,8 @@
 #include "trig.h"
 #include "core.h"
 
+namespace tomba {
+
 int32_t Trig::rsin(int32_t angle) const {
   Core *c = this->core;
   int32_t sign = 1;
@@ -77,7 +79,8 @@ int32_t Trig::ratan2(int32_t y_in, int32_t x_in) const {
   return v1;
 }
 
-int32_t Trig::angleCmp(int32_t a, int32_t b, int32_t mode) {
+int32_t Trig::angleCmp(const AngleCmpArgs &args) {
+  auto [a, b, mode] = args;
   uint32_t d = (uint32_t)(a - b - 1024) & 0xFFFu;
   int32_t inFirstHalf = (d < 2048u) ? 1 : 0;
   return (mode == 0) ? inFirstHalf : (inFirstHalf ^ 1);
@@ -133,6 +136,8 @@ int32_t Trig::vecLen(int32_t x, int32_t y, int32_t z) {
   return x - (x >> 4) + (rest >> 2) + (rest >> 3);
 }
 
+} // namespace tomba
+
 // ── Override wiring (phase-3 fallthrough native-ize, 2026-07-15) ────────────────────────────────────
 #include "game.h"
 
@@ -146,4 +151,8 @@ int32_t Trig::vecLen(int32_t x, int32_t y, int32_t z) {
 // chain (its own + guest 0x80083EBC's), defeating the point. So the overrides stay OFF: dispatch/substrate
 // callers keep running substrate (correct), and the Trig methods remain for DIRECT callers (which run
 // native on both SBS cores → no split). Do NOT re-register without full guest-stack-frame mirroring.
-void Trig::registerOverrides(Game * /*game*/) {}
+namespace tomba {
+
+void Trig::registerOverrides(native::NativeOverrideCatalog &natives) {}
+
+} // namespace tomba

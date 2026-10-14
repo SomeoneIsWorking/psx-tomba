@@ -23,17 +23,18 @@
 // vs original guest-body call). The idle/active field path is exercised by the gate; the scene-driven init is
 // faithfully transcribed and verifies when a scene drives it.
 
-#include "cfg.h"
 #include "core.h"
-#include "core/entry/game_ctx.h"
 #include "core/overrides/guest_jal.h" // GuestFrame — mirror the guest stack frame (CLAUDE.md)
-#include "graphics_bind.h"            // ov_obj_record_init
+#include "entry/tomba_session.h"
+#include "graphics_bind.h" // ov_obj_record_init
 #include "guest_abi.h"
 #include "object/actor.h" // Actor::boundsCull (FUN_8007778C native)
 #include "spawn.h"        // class Spawn (eng(c).spawn.despawn / dispatch / spawnAndInit)
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+namespace tomba {
 
 namespace {
 
@@ -71,7 +72,7 @@ void beh_cull_tick_render(Core *c) {
     uint8_t n3a = c->mem_r8(obj + 3); // 8012D45C lbu v0, 3(s0)
     // 8012D458 lui v1,0x8015 ; 8012D460 addiu v1,-0x5da0 -> 0x8014A260
     // 8012D464 sll v0,1 ; 8012D468 addu ; 8012D46C lh a2,(v0)  (SIGNED halfword)
-    int16_t tv = c->mem_r16s(0x8014A260u + (uint32_t)n3a * 2);
+    int16_t tv = (int16_t)c->mem_r16(0x8014A260u + (uint32_t)n3a * 2);
     c->r[4] = obj;
     c->r[5] = 0xc;
     c->r[6] = (uint32_t)(int32_t)tv;
@@ -98,8 +99,10 @@ void beh_cull_tick_render(Core *c) {
   // leaves 0x8012D4C4 there (the instruction after the delay slot at 0x8012D4C0), so the return-address
   // constant has to be set here or that stack word holds a stale ra and SBS diverges on it.
   c->r[4] = obj;
-  tomba::guest::dispatchJalToReturn(*c, 0x8012D27Cu, 0x8012D4C4u);
+  tomba::guest::dispatchJalToReturn(*c, {.target = 0x8012D27Cu, .returnAddress = 0x8012D4C4u});
   c->r[4] = obj;
   eng(c).graphicsBind.renderUpdate(); // 8012D4C4 jal 0x800517f8 (a0=s0)  render-state update
   // 8012D4CC j 0x8012d4dc (epilogue)
 }
+
+} // namespace tomba

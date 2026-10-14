@@ -2,13 +2,15 @@
 #include "start_bin_stage.h"
 #include "cd/libcd_dir_cache.h" // class LibcdDirCache — native_sync writer of libcd's guest dir cache
 #include "cd/libcd_native.h"    // class LibcdNative — pc_faithful guest libcd chain
-#include "cfg.h"
 #include "core.h"
 #include "core/assets/asset.h"
-#include "disc.h" // disc_find_file — native ISO9660 resolver
-#include "game.h" // Game::disc, Game::pcSched
+#include "game.h"
 #include "guest_call.h"
-#include "scheduler.h" // CUR_TASK
+#include "sched/task_slot_layout.h"
+#include "sched/tomba_scheduler.h"
+#include <lucent/log.h>
+
+namespace tomba {
 
 namespace {
 // A START.BIN CdSearchFile loop: a table of guest filename pointers resolved into a parallel
@@ -43,7 +45,7 @@ bool StartBinStage::resolveViaIso9660(uint32_t name_ptr, uint32_t *lba, uint32_t
   if (disc_find_file(&core_.game->disc, name, lba, size)) {
     return true;
   }
-  cfg_logi("start.bin", "not found: %s", name);
+  lucent::info("start.bin", "not found: {}", name);
   return false;
 }
 
@@ -69,10 +71,10 @@ void StartBinStage::resolveFileTablesNative() {
 // (task-1 spawn for the preload, FUN_80044BD4 tail for sm[0x48]:=1, FUN_80044BD4 body for the RNG
 // stamp).
 void StartBinStage::advanceWithBootPreload() {
-  const uint32_t task = core_.mem_r32(CUR_TASK);
+  const uint32_t task = core_.mem_r32(tomba::sched::kCurrentTaskPointer);
   core_.mem_w16(task + 0x4a, 0);
-  asset_.preloadTexgroup(0, 0);
-  core_.game->pcSched.completeSyncWait(task, 0);
+  asset_.preloadTexgroup({.mode = 0, .set = 0});
+  tomba::sched::taskScheduler(core_).completeSyncWait(task, 0);
   core_.mem_w16(task + 0x48, 1);
 }
 
@@ -86,7 +88,7 @@ void StartBinStage::runNative() {
   core_.mem_w16(0x1F800008u + 2, 256);
   core_.mem_w16(0x1F800008u + 4, 16);
   core_.mem_w16(0x1F800008u + 6, 1);
-  asset_.uploadImage(0x1F800008u, kLoadImageSrc);
+  asset_.uploadImage({.desc = 0x1F800008u, .src = kLoadImageSrc});
 
   LibcdDirCache libcd(core_);
   libcd.newMedia();
@@ -97,130 +99,12 @@ void StartBinStage::runNative() {
   resolveFileTablesNative();
 
   advanceWithBootPreload();
-  const uint32_t task = core_.mem_r32(CUR_TASK);
+  const uint32_t task = core_.mem_r32(tomba::sched::kCurrentTaskPointer);
   core_.mem_w16(task + 0x48, 2);
   asset_.preloadStage1();
-  core_.game->pcSched.completeSyncWait(task, 0);
+  tomba::sched::taskScheduler(core_).completeSyncWait(task, 0);
   core_.mem_w16(task + 0x48, 3);
-  cfg_logi("start.bin", "file table and boot preloads completed synchronously");
+  lucent::info("start.bin", "file table and boot preloads completed synchronously");
 }
 
-// The COMPLETE overlay guest 0x8010649C task body. Frame: sp -= 456; LoadImage RECT at sp+400,
-// per-iteration CdlFILE records at sp+16+i*24, XA CdlFILE at sp+408; ra/s4..s0 spilled at
-// 452..432. NOTE fiber teardown unwinds via longjmp — no destructibles may live across a yield.
-void StartBinStage::runFaithful() {
-  Core &c = core_;
-  psx::frame::PcScheduler &sched = c.game->pcSched;
-
-  // Prologue spills the live frame-loop registers + the 0xDEAD0000 entry ra, same as core B's fiber.
-  c.r[29] -= 456;
-  const uint32_t S = c.r[29];
-  c.mem_w32(S + 452, c.r[31]);
-  c.mem_w32(S + 448, c.r[20]);
-  c.mem_w32(S + 444, c.r[19]);
-  c.mem_w32(S + 440, c.r[18]);
-  c.mem_w32(S + 436, c.r[17]);
-  c.mem_w32(S + 432, c.r[16]);
-
-  // LoadImage RECT {944,256,16,1} is a frame local at sp+400 (the native shortcut's lives in
-  // scratchpad).
-  c.mem_w16(S + 400, 944);
-  c.mem_w16(S + 402, 256);
-  c.mem_w16(S + 404, 16);
-  c.mem_w16(S + 406, 1);
-  c.r[4] = S + 400;
-  c.r[5] = kLoadImageSrc;
-  c.r[31] = 0x801064E8u;
-  psx::cpu::callGuestNow(c, __func__, 0x80081218u); // libgs LoadImage
-  c.r[4] = 0;
-  c.r[31] = 0x801064F0u;
-  psx::cpu::callGuestNow(c, __func__, 0x80080F6Cu); // DrawSync(0)
-
-  // Three CdSearchFile loops. Loop registers live in the guest s-regs (r16=CdlFILE ptr,
-  // r17=name-table ptr, r18=dest ptr, r19=index, r20=i*24) because CdSearchFile's prologue spills
-  // them into its frame — compared task-0 stack bytes.
-  LibcdNative libcd(&c);
-  for (const auto &table : kFileTables) {
-    c.r[19] = 0;
-    c.r[20] = 0;
-    c.r[18] = table.dest;
-    c.r[17] = table.names;
-    do {
-      c.r[16] = S + 16 + c.r[20]; // per-iteration CdlFILE record
-      if (libcd.searchFile(c.r[16], c.mem_r32(c.r[17]), table.raSearch)) {
-        c.mem_w32(c.r[18], libcd.posToInt(c.r[16], table.raPosToInt));
-        c.mem_w32(c.r[18] + 4, c.mem_r32(c.r[16] + 4));
-      } else {
-        c.r[4] = kNotFoundFmt;
-        c.r[5] = c.mem_r32(c.r[17]);
-        c.r[31] = table.raPrintf;
-        psx::cpu::callGuestNow(c, __func__, kGuestPrintf);
-      }
-      c.r[18] += 8;
-      c.r[17] += 4;
-      c.r[19] += 1;
-      c.r[20] += 24;
-    } while ((int32_t)c.r[19] < (int32_t)table.count);
-  }
-
-  // Three XA singletons — CdlFILE at sp+408, LBA to the scratchpad slots.
-  for (const auto &xa : kXaFiles) {
-    c.r[16] = S + 408;
-    c.r[17] = xa.name;
-    if (libcd.searchFile(c.r[16], c.r[17], xa.raSearch)) {
-      c.mem_w32(xa.dest, libcd.posToInt(c.r[16], xa.raPosToInt));
-    } else {
-      c.r[4] = kNotFoundFmt;
-      c.r[5] = c.r[17];
-      c.r[31] = xa.raPrintf;
-      psx::cpu::callGuestNow(c, __func__, kGuestPrintf);
-    }
-  }
-  cfg_logi("start.bin", "pc_faithful file table built via libcd (fiber body)");
-
-  // SM loop (L_80106744): the state constants live in the s-regs — spawnAndWait's prologue spills
-  // them (s0=3, s1=2, s2=1, s3=r19 left at 5 by loop 3's exit — the RE'd live values).
-  c.r[16] = 3;
-  c.r[17] = 2;
-  c.r[18] = 1;
-  uint32_t task = c.mem_r32(CUR_TASK);
-  c.mem_w16(task + 0x48, 0);
-  c.mem_w16(task + 0x4A, 0);
-  for (;;) {
-    task = c.mem_r32(CUR_TASK);
-    switch (c.mem_r16(task + 0x48)) {
-    case 0: // L_8010678C: spawn task-1 texgroup preload
-      c.mem_w16(task + 0x48, 1);
-      c.mem_w16(task + 0x4A, 0);
-      c.r[4] = 0x80044F58u;
-      c.r[5] = 0;
-      c.r[6] = 0;
-      c.r[7] = 0;
-      c.r[31] = 0x801067A8u;
-      sched.spawnAndWait(0x80044F58u, 0, 0, 0); // parks here once per wait frame
-      break;
-    case 1: // L_801067B0: spawn task-1 stage-1 preload
-      c.mem_w16(task + 0x48, 2);
-      c.r[4] = 0x8004514Cu;
-      c.r[5] = 1;
-      c.r[6] = 1;
-      c.r[7] = 0;
-      c.r[31] = 0x801067CCu;
-      sched.spawnAndWait(0x8004514Cu, 1, 1, 0);
-      break;
-    case 2:
-      c.mem_w16(task + 0x48, 3);
-      break;
-    case 3: // L_801067DC: stage swap to DEMO — parks the fiber; the stanza cancels on entry rewrite
-      c.r[4] = 1;
-      c.r[31] = 0x801067E4u;
-      psx::cpu::callGuestNow(c, __func__, 0x80052078u);
-      break;
-    default:
-      break;
-    }
-    c.r[4] = 1;
-    c.r[31] = 0x801067ECu; // L_801067E4 trailing per-iteration yield
-    sched.yieldPrim(1);
-  }
-}
+} // namespace tomba

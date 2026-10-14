@@ -38,7 +38,7 @@
 //   - The near-plane Z-select for a nonzero flag byte is a TRUE 3-way (GT3) / 4-way (GT4)
 //     min-or-max of the raw SZ FIFO values, selected by flag&3 (1=>max/far, 2=>min/near, 0=>the
 //     ordinary AVSZ3/4 average) — verified by fully unrolling both stack-spill branches by hand
-//     (see sz3_minmax/sz4_minmax below). This differs from the field pair's flag&2 pairwise-clamp
+//     (OrderingTable::extremeDepth). This differs from the field pair's flag&2 pairwise-clamp
 //     encoding (mathematically equivalent to min/max of 3, but a DIFFERENT flag-bit convention —
 //     do not conflate the two encodings when a future session wires this).
 //   - GT3 also stages a 16-bit uv2-hi word at packet offset +36 (mem_w16, from the upper half of
@@ -54,7 +54,6 @@
 // address) around its two call sites. All descend/spill/ascend on the REAL c->r[29], matching
 // game/render/cull.cpp's Cull::wrapFrame idiom.
 #include "overlay_ground_gt3gt4.h"
-#include "cfg.h"
 #include "core.h"
 #include "core/overrides/native_override_catalog.h"
 #include "game.h"
@@ -63,7 +62,9 @@
 #include "list_state_producer.h"
 #include "model_element.h"
 #include "model_packet.h"
+#include <array>
 #include <cstdint>
+#include <lucent/log.h>
 #include <memory>
 #include <string_view>
 
@@ -85,32 +86,16 @@
 
 // -- OT-index compute: guest 0x8013FB88's one gate is unsigned `(idx - 4) < 2044`, i.e. [4, 2047],
 //    unlike the field pair's exclusive (4, 0x7FF) in overlay_gt3gt4.cpp.
+namespace tomba {
+
 static int32_t ground_otz_index(int32_t z) {
-  using tomba2::render::OrderingTable;
+  using tomba::render::OrderingTable;
   const int32_t idx = OrderingTable::compressDepth(z);
   return OrderingTable::inDepthRange(idx) ? idx : OrderingTable::kNoBucket;
 }
 
-// Fully-unrolled 3-way min/max (GT3's flag&3==1 => max, ==2 => min branch, hand-verified by
-// walking BOTH stack-spill code paths of FUN_8013FB88 to their common convergence point). The
-// convergence labels (L_8013FD38/L_8013FD98/L_8013FDA4) apply a final ARITHMETIC `>> 2` to the
-// selected value before storing it to the OTZ scratch (gen L24053/24056: `r2 = r3 >> 2`). The
-// prior draft returned the raw min/max — 4x too large, so too many records failed the
-// `idx >= 2048` depth gate and got dropped (pool offset shift, the f118 divergence). The AVSZ3
-// path (below, in gt3/gt4) correctly has NO >>2 — only this manual min/max path does.
-static int32_t sz3_minmax(bool want_max, int32_t a, int32_t b, int32_t c3) {
-  int32_t hi_ab = want_max ? (a > b ? a : b) : (a < b ? a : b);
-  int32_t r = want_max ? (hi_ab > c3 ? hi_ab : c3) : (hi_ab < c3 ? hi_ab : c3);
-  return r >> 2;
-}
-// Same, 4-way (GT4's flag&3==1/2 branch: pairs (a,b) and (e,f), then combine). Same trailing
-// `>> 2` as sz3_minmax (gen gt4 L_80140100: `r2 = r3 >> 2` at the convergence label, stored to OTZ).
-static int32_t sz4_minmax(bool want_max, int32_t a, int32_t b, int32_t e, int32_t f) {
-  int32_t hi_ab = want_max ? (a > b ? a : b) : (a < b ? a : b);
-  int32_t hi_ef = want_max ? (e > f ? e : f) : (e < f ? e : f);
-  return (want_max ? (hi_ab > hi_ef ? hi_ab : hi_ef) : (hi_ab < hi_ef ? hi_ab : hi_ef)) >> 2;
-}
-
+// Flag&3==1 takes the farthest SZ, ==2 the nearest; both end in the guest's `>> 2` before the OTZ
+// store (L_8013FD38 and L_80140100), which the AVSZ path does not have.
 // FUN_8013FB88 — ground/scene POLY_GT3 emit. Record = 36 bytes, SAME field layout as the
 // field-object GT3 leaf: {+0 rgb0|code, +4 rgb1(rgb2=rgb1<<4)|flag@[31:24], +8 uv0|clut,
 // +12 uv1|tpage, +16 VXY0, +20 VZ0(lo)|VZ1(hi), +24 VXY1, +28 VXY2, +32 VZ2(lo)|uv2hi(hi)}.
@@ -133,7 +118,7 @@ static int32_t sz4_minmax(bool want_max, int32_t a, int32_t b, int32_t e, int32_
 // ORACLE: overlay guest 0x8013FB88 (tools/dynamic differential evidence equivalence-gate marker; see
 // docs/port-framework.md)
 uint32_t OverlayGroundGt3Gt4::emitGt3(const psx::present::EmitMemory &memory,
-                                      const tomba2::render::ListCall &call,
+                                      const tomba::render::ListCall &call,
                                       const ListDepth &depth) {
   Core *const c = &memory.core();
   uint32_t rec = call.list, count = call.count;
@@ -141,23 +126,23 @@ uint32_t OverlayGroundGt3Gt4::emitGt3(const psx::present::EmitMemory &memory,
     return rec;
   }
 
-  uint32_t pool = tomba2::render::PacketPool(memory).cursor();
+  uint32_t pool = tomba::render::PacketPool(memory).cursor();
   const uint32_t sp = call.sp; // the real frame below it is 6 scratch words, no spills
 
   const uint32_t list = rec;
   for (; count != 0; count--, rec += 36) {
     const psx::present::ElementScope primitive(
-        memory, tomba2::render::modelElement(tomba2::render::ModelList::Gt3, (rec - list) / 36));
-    gte_write_data(0, memory.mem_r32(rec + 16)); // VXY0
+        memory, tomba::render::modelElement(tomba::render::ModelList::Gt3, (rec - list) / 36));
+    c->gte().writeData(0, memory.mem_r32(rec + 16)); // VXY0
     uint32_t vz01 = memory.mem_r32(rec + 20);
-    gte_write_data(2, memory.mem_r32(rec + 24)); // VXY1
-    gte_write_data(1, vz01);                     // VZ0
-    gte_write_data(4, memory.mem_r32(rec + 28)); // VXY2
-    gte_write_data(3, vz01 >> 16);               // VZ1
-    gte_write_data(5, memory.mem_r32(rec + 32)); // VZ2(lo)|uv2hi(hi)
+    c->gte().writeData(2, memory.mem_r32(rec + 24)); // VXY1
+    c->gte().writeData(1, vz01);                     // VZ0
+    c->gte().writeData(4, memory.mem_r32(rec + 28)); // VXY2
+    c->gte().writeData(3, vz01 >> 16);               // VZ1
+    c->gte().writeData(5, memory.mem_r32(rec + 32)); // VZ2(lo)|uv2hi(hi)
     uint32_t rgb0_code = memory.mem_r32(rec + 0);
     memory.mem_w32(pool + 4, rgb0_code); // rgb0 -- unconditional
-    gte_op(c, 0x4A280030u);              // RTPT
+    c->gte().execute(0x4A280030u);       // RTPT
 
     // uv0/uv1 -- UNCONDITIONAL right after RTPT (gen writes these before ANY gate, including the
     // GTE FLAG check below); see banner.
@@ -166,23 +151,23 @@ uint32_t OverlayGroundGt3Gt4::emitGt3(const psx::present::EmitMemory &memory,
     memory.mem_w32(pool + 24, uv1);
 
     uint32_t rgb1_src = memory.mem_r32(rec + 4);
-    uint32_t flagreg = gte_read_ctrl(31);
+    uint32_t flagreg = c->gte().readControl(31);
     memory.mem_w32(SCRATCH_FLAG_TMP, flagreg);
     if ((int32_t)memory.mem_r32(SCRATCH_FLAG_TMP) < 0) {
       continue; // GTE FLAG error -> drop record
     }
 
-    gte_op(c, 0x4B400006u); // NCLIP (backface / MAC0)
+    c->gte().execute(0x4B400006u); // NCLIP (backface / MAC0)
     uint32_t rgb1 = rgb1_src & COL_MASK_GROUND;
     memory.mem_w32(pool + 16, rgb1);
-    memory.mem_w32(SCRATCH_FLAG_TMP, gte_read_data(24)); // MAC0
+    memory.mem_w32(SCRATCH_FLAG_TMP, c->gte().readData(24)); // MAC0
     if ((int32_t)memory.mem_r32(SCRATCH_FLAG_TMP) <= 0) {
       continue; // backface cull
     }
 
-    memory.mem_w32(pool + 8, gte_read_data(12));  // SXY0
-    memory.mem_w32(pool + 20, gte_read_data(13)); // SXY1
-    memory.mem_w32(pool + 32, gte_read_data(14)); // SXY2
+    memory.mem_w32(pool + 8, c->gte().readData(12));  // SXY0
+    memory.mem_w32(pool + 20, c->gte().readData(13)); // SXY1
+    memory.mem_w32(pool + 32, c->gte().readData(14)); // SXY2
 
     // The recovered screen-edge cull, triangle form: OR over the three corners on each axis, the two
     // axes AND-ed, every compare UNSIGNED so a negative projected coordinate fails it. The bound comes
@@ -190,10 +175,10 @@ uint32_t OverlayGroundGt3Gt4::emitGt3(const psx::present::EmitMemory &memory,
     // established that no guest owner derives one); at 4:3 this is the literal 320/240 it replaced,
     // bit for bit. The vertical half of the bound is a constant because widening OFX at unchanged OFY
     // and H leaves the vertical field of view alone.
-    const tomba2::horizontal_cull::Visibility visible = tomba2::horizontal_cull::forDrawWindow(c);
+    const tomba::horizontal_cull::Visibility visible = tomba::horizontal_cull::forDrawWindow(c);
     const std::uint32_t sx[3] = {memory.mem_r16(pool + 8), memory.mem_r16(pool + 20), memory.mem_r16(pool + 32)};
     const std::uint32_t sy[3] = {memory.mem_r16(pool + 10), memory.mem_r16(pool + 22), memory.mem_r16(pool + 34)};
-    if (!visible.keeps(sx, sy, 3, tomba2::horizontal_cull::Domain::Packed16)) {
+    if (!visible.keeps(sx, sy, 3, tomba::horizontal_cull::Domain::Packed16)) {
       continue;
     }
 
@@ -204,7 +189,8 @@ uint32_t OverlayGroundGt3Gt4::emitGt3(const psx::present::EmitMemory &memory,
     int32_t z;
     uint32_t mode = flagbyte & 3u;
     if (mode == 1u || mode == 2u) {
-      int32_t sz1 = (int32_t)gte_read_data(17), sz2 = (int32_t)gte_read_data(18), sz3 = (int32_t)gte_read_data(19);
+      int32_t sz1 = (int32_t)c->gte().readData(17), sz2 = (int32_t)c->gte().readData(18),
+              sz3 = (int32_t)c->gte().readData(19);
       // Guest-stack mirror (RE: overlay guest 0x8013FB88 L_8013FD00 vs L_8013FD54) — the ORIGINAL
       // compiler inlined the same sz-minmax computation TWICE at two DIFFERENT dead-scratch stack
       // offsets depending on mode: mode==1 writes to (new sp)+0/4/8, mode==2 writes to (new
@@ -216,14 +202,14 @@ uint32_t OverlayGroundGt3Gt4::emitGt3(const psx::present::EmitMemory &memory,
       memory.mem_w32(base + 0, sz1);
       memory.mem_w32(base + 4, sz2);
       memory.mem_w32(base + 8, sz3); // real stack mirror
-      z = sz3_minmax(mode == 1u || !depth.modeTwoNearest, sz1, sz2, sz3);
+      z = tomba::render::OrderingTable::extremeDepth(mode == 1u || !depth.modeTwoNearest, std::array{sz1, sz2, sz3});
       if (mode == depth.biasedMode) {
         z += kModeBias;
       }
       memory.mem_w32(SCRATCH_OTZ_TMP, z);
     } else {
-      gte_op(c, 0x4B58002Du); // AVSZ3
-      z = (int32_t)gte_read_data(7);
+      c->gte().execute(0x4B58002Du); // AVSZ3
+      z = (int32_t)c->gte().readData(7);
       memory.mem_w32(SCRATCH_OTZ_TMP, z);
     }
 
@@ -237,11 +223,12 @@ uint32_t OverlayGroundGt3Gt4::emitGt3(const psx::present::EmitMemory &memory,
     // packet slot; see file banner re: the field leaf not currently reproducing it.
     memory.mem_w16(pool + 36, (uint16_t)(memory.mem_r32(rec + 32) >> 16));
 
-    tomba2::render::OrderingTable(memory, call.ot).link(pool, TAG_WORDS_GT3, (uint32_t)idx);
+    tomba::render::OrderingTable(memory, call.ot)
+        .link({.packet = pool, .words = TAG_WORDS_GT3, .bucket = (uint32_t)idx});
     pool += 40;
   }
 
-  tomba2::render::PacketPool(memory).setCursor(pool);
+  tomba::render::PacketPool(memory).setCursor(pool);
   return rec;
 }
 
@@ -273,7 +260,7 @@ uint32_t OverlayGroundGt3Gt4::emitGt3(const psx::present::EmitMemory &memory,
 //   "leftover" byte patterns on the two engines. Fix: reordered to match gen's write timing
 //   exactly, gate for gate.
 uint32_t OverlayGroundGt3Gt4::emitGt4(const psx::present::EmitMemory &memory,
-                                      const tomba2::render::ListCall &call,
+                                      const tomba::render::ListCall &call,
                                       const ListDepth &depth) {
   Core *const c = &memory.core();
   uint32_t rec = call.list, count = call.count;
@@ -281,72 +268,72 @@ uint32_t OverlayGroundGt3Gt4::emitGt4(const psx::present::EmitMemory &memory,
     return rec;
   }
 
-  uint32_t pool = tomba2::render::PacketPool(memory).cursor();
+  uint32_t pool = tomba::render::PacketPool(memory).cursor();
   const uint32_t sp = call.sp; // the real frame below it is 8 scratch words, no spills
 
   const uint32_t list = rec;
   for (; count != 0; count--, rec += 44) {
     const psx::present::ElementScope primitive(
-        memory, tomba2::render::modelElement(tomba2::render::ModelList::Gt4, (rec - list) / 44));
-    gte_write_data(0, memory.mem_r32(rec + 20)); // VXY0
+        memory, tomba::render::modelElement(tomba::render::ModelList::Gt4, (rec - list) / 44));
+    c->gte().writeData(0, memory.mem_r32(rec + 20)); // VXY0
     uint32_t vz01 = memory.mem_r32(rec + 24);
-    gte_write_data(2, memory.mem_r32(rec + 28)); // VXY1
-    gte_write_data(1, vz01);                     // VZ0
-    gte_write_data(4, memory.mem_r32(rec + 32)); // VXY2
-    gte_write_data(3, vz01 >> 16);               // VZ1
+    c->gte().writeData(2, memory.mem_r32(rec + 28)); // VXY1
+    c->gte().writeData(1, vz01);                     // VZ0
+    c->gte().writeData(4, memory.mem_r32(rec + 32)); // VXY2
+    c->gte().writeData(3, vz01 >> 16);               // VZ1
     uint32_t vz23 = memory.mem_r32(rec + 36);
-    gte_write_data(5, vz23); // VZ2
+    c->gte().writeData(5, vz23); // VZ2
 
     uint32_t hdr0 = memory.mem_r32(rec + 0);
     memory.mem_w32(pool + 4, hdr0 & COL_MASK_STD); // rgb0, STANDARD mask (differs from GT3's raw + from rgb1-3 below)
-    gte_op(c, 0x4A280030u);                        // RTPT (verts 0..2)
+    c->gte().execute(0x4A280030u);                 // RTPT (verts 0..2)
     memory.mem_w32(pool + 16, (hdr0 << 4) & COL_MASK_GROUND); // rgb1
 
     uint32_t rec4 = memory.mem_r32(rec + 4); // rgb2|flag -- loaded EARLY, before any gate
 
-    uint32_t flagreg = gte_read_ctrl(31);
+    uint32_t flagreg = c->gte().readControl(31);
     memory.mem_w32(SCRATCH_FLAG_TMP, flagreg);
     if ((int32_t)memory.mem_r32(SCRATCH_FLAG_TMP) < 0) {
       continue;
     }
-    gte_op(c, 0x4B400006u); // NCLIP
+    c->gte().execute(0x4B400006u); // NCLIP
     uint32_t uv0 = memory.mem_r32(rec + 8);
     memory.mem_w32(pool + 12, uv0); // uv0 -- UNCONDITIONAL right after NCLIP, before the backface gate
 
-    memory.mem_w32(SCRATCH_FLAG_TMP, gte_read_data(24)); // MAC0
+    memory.mem_w32(SCRATCH_FLAG_TMP, c->gte().readData(24)); // MAC0
     if ((int32_t)memory.mem_r32(SCRATCH_FLAG_TMP) <= 0) {
       continue; // backface cull
     }
 
-    memory.mem_w32(pool + 8, gte_read_data(12));  // SXY0
-    memory.mem_w32(pool + 20, gte_read_data(13)); // SXY1
-    memory.mem_w32(pool + 32, gte_read_data(14)); // SXY2
+    memory.mem_w32(pool + 8, c->gte().readData(12));  // SXY0
+    memory.mem_w32(pool + 20, c->gte().readData(13)); // SXY1
+    memory.mem_w32(pool + 32, c->gte().readData(14)); // SXY2
 
-    gte_write_data(0, memory.mem_r32(rec + 40)); // VXY3
-    gte_write_data(1, vz23 >> 16);               // VZ3
+    c->gte().writeData(0, memory.mem_r32(rec + 40)); // VXY3
+    c->gte().writeData(1, vz23 >> 16);               // VZ3
 
     memory.mem_w32(pool + 28, rec4 & COL_MASK_GROUND);        // rgb2
-    gte_op(c, 0x4A180001u);                                   // RTPS (4th point)
+    c->gte().execute(0x4A180001u);                            // RTPS (4th point)
     memory.mem_w32(pool + 40, (rec4 << 4) & COL_MASK_GROUND); // rgb3
     uint32_t uv1 = memory.mem_r32(rec + 12);
     memory.mem_w32(pool + 24, uv1); // uv1
 
-    uint32_t flagreg2 = gte_read_ctrl(31);
+    uint32_t flagreg2 = c->gte().readControl(31);
     memory.mem_w32(SCRATCH_FLAG_TMP, flagreg2);
     if ((int32_t)memory.mem_r32(SCRATCH_FLAG_TMP) < 0) {
       continue;
     }
-    memory.mem_w32(pool + 44, gte_read_data(14)); // SXY3
+    memory.mem_w32(pool + 44, c->gte().readData(14)); // SXY3
 
     // The same recovered predicate in its quad form: four corners, OR over corners per axis, the axes
     // AND-ed, compares unsigned. Bound from the draw window, not a literal — see the triangle site
     // above and horizontal_visibility_cull.h for why that is the same decision at 4:3.
-    const tomba2::horizontal_cull::Visibility visible = tomba2::horizontal_cull::forDrawWindow(c);
+    const tomba::horizontal_cull::Visibility visible = tomba::horizontal_cull::forDrawWindow(c);
     const std::uint32_t sx[4] = {
         memory.mem_r16(pool + 8), memory.mem_r16(pool + 20), memory.mem_r16(pool + 32), memory.mem_r16(pool + 44)};
     const std::uint32_t sy[4] = {
         memory.mem_r16(pool + 10), memory.mem_r16(pool + 22), memory.mem_r16(pool + 34), memory.mem_r16(pool + 46)};
-    if (!visible.keeps(sx, sy, 4, tomba2::horizontal_cull::Domain::Packed16)) {
+    if (!visible.keeps(sx, sy, 4, tomba::horizontal_cull::Domain::Packed16)) {
       continue;
     }
 
@@ -354,8 +341,8 @@ uint32_t OverlayGroundGt3Gt4::emitGt4(const psx::present::EmitMemory &memory,
     int32_t z;
     uint32_t mode = flagbyte & 3u;
     if (mode == 1u || mode == 2u) {
-      int32_t sz1 = (int32_t)gte_read_data(16), sz2 = (int32_t)gte_read_data(17), sz3 = (int32_t)gte_read_data(18),
-              sz4 = (int32_t)gte_read_data(19);
+      int32_t sz1 = (int32_t)c->gte().readData(16), sz2 = (int32_t)c->gte().readData(17),
+              sz3 = (int32_t)c->gte().readData(18), sz4 = (int32_t)c->gte().readData(19);
       // Guest-stack mirror (RE: overlay guest 0x8013FE58, same duplicated-inline shape as gt3 above) —
       // mode==1 writes to (new sp)+0/4/8/12, mode==2 writes to (new sp)+16/20/24/28. A prior draft
       // always used the mode==1 offsets; mirror the real per-mode offset (CLAUDE.md "MIRROR THE
@@ -365,14 +352,15 @@ uint32_t OverlayGroundGt3Gt4::emitGt4(const psx::present::EmitMemory &memory,
       memory.mem_w32(base + 4, sz2);
       memory.mem_w32(base + 8, sz3);
       memory.mem_w32(base + 12, sz4); // real stack mirror
-      z = sz4_minmax(mode == 1u || !depth.modeTwoNearest, sz1, sz2, sz3, sz4);
+      z = tomba::render::OrderingTable::extremeDepth(mode == 1u || !depth.modeTwoNearest,
+                                                     std::array{sz1, sz2, sz3, sz4});
       if (mode == depth.biasedMode) {
         z += kModeBias;
       }
       memory.mem_w32(SCRATCH_OTZ_TMP, z);
     } else {
-      gte_op(c, 0x4B68002Eu); // AVSZ4
-      z = (int32_t)gte_read_data(7);
+      c->gte().execute(0x4B68002Eu); // AVSZ4
+      z = (int32_t)c->gte().readData(7);
       memory.mem_w32(SCRATCH_OTZ_TMP, z);
     }
 
@@ -388,11 +376,12 @@ uint32_t OverlayGroundGt3Gt4::emitGt4(const psx::present::EmitMemory &memory,
     memory.mem_w32(pool + 36, uv23);       // uv2 (lo half)
     memory.mem_w32(pool + 48, uv23 >> 16); // uv3 (hi half)
 
-    tomba2::render::OrderingTable(memory, call.ot).link(pool, TAG_WORDS_GT4, (uint32_t)idx);
+    tomba::render::OrderingTable(memory, call.ot)
+        .link({.packet = pool, .words = TAG_WORDS_GT4, .bucket = (uint32_t)idx});
     pool += 52;
   }
 
-  tomba2::render::PacketPool(memory).setCursor(pool);
+  tomba::render::PacketPool(memory).setCursor(pool);
   return rec;
 }
 
@@ -407,12 +396,6 @@ uint32_t OverlayGroundGt3Gt4::emitGt4(const psx::present::EmitMemory &memory,
 // array gt3()/gt4() walk, under the active OT.
 void OverlayGroundGt3Gt4::entityLoop(Core *c) {
   uint32_t list = c->r[4];
-  if (cfg_dbg("ovgtgnd")) {
-    static long n = 0;
-    if (n++ % 128 == 0) {
-      cfg_logf("ovgtgnd", "entityLoop call#%ld", n);
-    }
-  }
 
   // Real 40-byte guest stack frame (RE: authenticated executable/overlay evidence overlay guest 0x801401B8:
   // `addiu sp,-40; sw ra,36(sp); sw r20,32(sp); sw r19,28(sp); sw r18,24(sp); sw r17,20(sp);
@@ -435,12 +418,12 @@ void OverlayGroundGt3Gt4::entityLoop(Core *c) {
   uint32_t idxCursor = list + 16;
   uint32_t idxEnd = idxCursor + (uint32_t)count * 2;
 
-  uint32_t otBase = tomba2::render::OrderingTable::active(*c).base();
+  uint32_t otBase = tomba::render::OrderingTable::active(*c).base();
   uint32_t table = c->mem_r32(list + 12);
 
   // camera GTE control block (8 words, CR0..CR7 — matches the guest instruction path's own 8-word load)
   for (int i = 0; i < 8; i++) {
-    gte_write_ctrl((uint32_t)i, c->mem_r32(CAMERA_GTE_CTRL + (uint32_t)i * 4));
+    c->gte().writeControl((uint32_t)i, c->mem_r32(CAMERA_GTE_CTRL + (uint32_t)i * 4));
   }
 
   while (idxCursor < idxEnd) {
@@ -479,10 +462,10 @@ void OverlayGroundGt3Gt4::entityLoop(Core *c) {
 }
 
 void OverlayGroundGt3Gt4::leaf(Core *c, std::uint32_t entry, bool quad, const ListDepth &depth) {
-  const tomba2::render::ListCall call = tomba2::render::ListCall::fromRegisters(*c);
-  const tomba2::render::EmitterObject object(c->emission, entry, call.list);
-  tomba2::render::ListJobWriter job = tomba2::render::modelListJob(
-      *c, quad ? 1u : 0u, call, quad ? tomba2::render::kModelGt4 : tomba2::render::kModelGt3);
+  const tomba::render::ListCall call = tomba::render::ListCall::fromRegisters(*c);
+  const tomba::render::EmitterObject object(c->emission, entry, call.list);
+  tomba::render::ListJobWriter job =
+      tomba::render::modelListJob(*c, quad ? 1u : 0u, call, quad ? tomba::render::kModelGt4 : tomba::render::kModelGt3);
   c->r[2] = quad ? emitGt4(*c, call, depth) : emitGt3(*c, call, depth);
   job.save(*c);
 }
@@ -525,14 +508,13 @@ constexpr Copy kCopies[] = {
     {"A0L", 0x8010AA4Cu, 0x8010AD40u, &emitAt<0x8010AA4Cu, false, kA0L>, &emitAt<0x8010AD40u, true, kA0L>, &kA0L},
 };
 
-class GroundStateProducer final : public tomba2::render::ListStateProducer {
+class GroundStateProducer final : public tomba::render::ListStateProducer {
 public:
   GroundStateProducer(Core &core, const OverlayGroundGt3Gt4::ListDepth &depth, bool quad)
       : ListStateProducer(core), mDepth(depth), mQuad(quad) {}
 
 protected:
-  void
-  emit(const psx::present::EmitMemory &memory, std::uint32_t, const tomba2::render::ListCall &call) const override {
+  void emit(const psx::present::EmitMemory &memory, std::uint32_t, const tomba::render::ListCall &call) const override {
     if (mQuad) {
       OverlayGroundGt3Gt4::emitGt4(memory, call, mDepth);
     } else {
@@ -547,22 +529,24 @@ private:
 
 } // namespace
 
-void OverlayGroundGt3Gt4::registerOverrides(Game *) {
+void OverlayGroundGt3Gt4::registerOverrides(native::NativeOverrideCatalog &natives) {
   for (const Copy &copy : kCopies) {
-    tomba::native::declareOverlayOverride(copy.image, copy.gt3, "OverlayGroundGt3Gt4::gt3", copy.gt3Body);
-    tomba::native::declareOverlayOverride(copy.image, copy.gt4, "OverlayGroundGt3Gt4::gt4", copy.gt4Body);
+    natives.declareOverlay(copy.image, copy.gt3, "OverlayGroundGt3Gt4::gt3", copy.gt3Body);
+    natives.declareOverlay(copy.image, copy.gt4, "OverlayGroundGt3Gt4::gt4", copy.gt4Body);
   }
   // Each listed table slot is the drawn object; gt3/gt4 name its records.
-  tomba::native::declareOverlayOverride("A00",
-                                        0x801401B8u,
-                                        "&OverlayGroundGt3Gt4::entityLoop",
-                                        &OverlayGroundGt3Gt4::entityLoop,
-                                        psx::present::Producer{psx::present::Arg::A0});
+  natives.declareOverlay("A00",
+                         0x801401B8u,
+                         "&OverlayGroundGt3Gt4::entityLoop",
+                         &OverlayGroundGt3Gt4::entityLoop,
+                         psx::present::Producer{psx::present::Arg::A0});
 }
 
-void OverlayGroundGt3Gt4::registerStateRenders(Core &core) {
+void OverlayGroundGt3Gt4::registerStateRenders(psx::present::StateProducerTable &renders, Core &core) {
   for (const Copy &copy : kCopies) {
-    core.stateProducers.install(copy.gt3, std::make_unique<GroundStateProducer>(core, copy.variant->gt3, false));
-    core.stateProducers.install(copy.gt4, std::make_unique<GroundStateProducer>(core, copy.variant->gt4, true));
+    renders.install(copy.gt3, std::make_unique<GroundStateProducer>(core, copy.variant->gt3, false));
+    renders.install(copy.gt4, std::make_unique<GroundStateProducer>(core, copy.variant->gt4, true));
   }
 }
+
+} // namespace tomba

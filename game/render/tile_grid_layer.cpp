@@ -149,12 +149,13 @@
 #include "list_job.h"
 #include "list_state_producer.h"
 #include "render.h"
-#include "render_queue.h"
 #include "wide_window.h"
 #include <cstdint>
 #include <memory>
 #include <string_view>
 #include <utility>
+
+namespace tomba {
 
 namespace {
 constexpr uint32_t kOtBucketBg = 0x7FFu; // background layer, static depth
@@ -190,21 +191,20 @@ constexpr uint32_t kScrollSlack = 32u;
 
 // The most packet bytes a grid walk writes: its tiles and the draw mode packet.
 uint32_t gridArenaBytes(Core &core) {
-  const tomba2::wide_window::Window window = tomba2::wide_window::drawWindow(&core);
+  const tomba::wide_window::Window window = tomba::wide_window::drawWindow(&core);
   const uint32_t columns =
       (static_cast<uint32_t>(window.right - window.left) + kScrollSlack) / kTileBytes + kSlackColumns;
   return (kTileRows + kSlackColumns) * columns * kTileBytes + kHeaderBytes;
 }
 
-class TileGridStateProducer final : public tomba2::render::ListStateProducer {
+class TileGridStateProducer final : public tomba::render::ListStateProducer {
 public:
   using ListStateProducer::ListStateProducer;
 
 protected:
-  void emit(const psx::present::EmitMemory &memory,
-            uint32_t tileVBias,
-            const tomba2::render::ListCall &call) const override {
-    TileGridLayer::emitGrid(memory, call.list, tileVBias);
+  void
+  emit(const psx::present::EmitMemory &memory, uint32_t tileVBias, const tomba::render::ListCall &call) const override {
+    TileGridLayer::emitGrid(memory, {.node = call.list, .tileVBias = tileVBias});
   }
 };
 } // namespace
@@ -301,23 +301,24 @@ void TileGridLayer::drawGrid(Core *c, uint32_t node, uint32_t tileVBias) {
   const uint32_t pitchX = c->mem_r16(node + kNodePitchX);
   const uint32_t pitchY = c->mem_r16(node + kNodePitchY);
   if (pitchX != 0u && pitchY != 0u) {
-    tomba2::render::ListJobWriter job(
+    tomba::render::ListJobWriter job(
         *c,
         tileVBias,
-        tomba2::render::ListCall{node, c->mem_r32(tomba2::render::OrderingTable::kBasePointer), 0u, 0u, c->r[29]},
+        tomba::render::ListCall{node, c->mem_r32(tomba::render::OrderingTable::kBasePointer), 0u, 0u, c->r[29]},
         gridArenaBytes(*c));
-    job.input(*c, tomba2::render::OrderingTable::kBasePointer, sizeof(uint32_t));
+    job.input(*c, tomba::render::OrderingTable::kBasePointer, sizeof(uint32_t));
     job.input(*c, node, kNodeScrollX);
-    job.input(*c, node + kNodeScrollX, sizeof(uint16_t), tomba2::render::InputBlend::Wrapped, pitchX);
-    job.input(*c, node + kNodeScrollY, sizeof(uint16_t), tomba2::render::InputBlend::Wrapped, pitchY);
+    job.input(*c, node + kNodeScrollX, sizeof(uint16_t), tomba::render::InputBlend::Wrapped, pitchX);
+    job.input(*c, node + kNodeScrollY, sizeof(uint16_t), tomba::render::InputBlend::Wrapped, pitchY);
     job.input(*c, node + kNodeTrailing, kNodeEnd - kNodeTrailing);
     job.save(*c);
   }
   c->mem_w32(c->r[29] + 16u, 0u); // SetDrawMode's fifth argument
-  emitGrid(psx::present::EmitMemory(*c), node, tileVBias);
+  emitGrid(psx::present::EmitMemory(*c), {.node = node, .tileVBias = tileVBias});
 }
 
-void TileGridLayer::emitGrid(const psx::present::EmitMemory &memory, uint32_t node, uint32_t tileVBias) {
+void TileGridLayer::emitGrid(const psx::present::EmitMemory &memory, const EmitGridArgs &args) {
+  auto [node, tileVBias] = args;
   const int W = memory.mem_r8(node + 0x10u), H = memory.mem_r8(node + 0x11u);
   if (W == 0 || H == 0) {
     return;
@@ -331,7 +332,7 @@ void TileGridLayer::emitGrid(const psx::present::EmitMemory &memory, uint32_t no
   // The guest walks columns [0, 320 + 32) of the screen; the walk spans the draw window, and the map
   // column wraps modulo W as the guest's does, so at 4:3 the packets are the guest's.
   const int cx = 160, cy = 120, slack = 32;
-  const tomba2::wide_window::Window window = tomba2::wide_window::drawWindow(&memory.core());
+  const tomba::wide_window::Window window = tomba::wide_window::drawWindow(&memory.core());
   const int firstColumn = scrollX - cx + window.left;
   int rowtile = ((scrollY - cy) >> 4) % H;
   if (rowtile < 0) {
@@ -348,10 +349,10 @@ void TileGridLayer::emitGrid(const psx::present::EmitMemory &memory, uint32_t no
   const int outer_bound = (int16_t)(scrollY - cy) + 0x100;
   const int t5 = (int16_t)(scrollX - cx) + window.right + slack;
 
-  const tomba2::render::PacketPool packets(memory);
+  const tomba::render::PacketPool packets(memory);
   uint32_t pool = packets.cursor();
   const uint32_t first = pool;
-  uint32_t last = pool;
+  uint32_t last;
 
   for (int t8 = scrollY - cy;;) {
     const int Y = (int16_t)((t8 & 0xFFF0) + yoff);
@@ -361,7 +362,7 @@ void TileGridLayer::emitGrid(const psx::present::EmitMemory &memory, uint32_t no
       const int X = (int16_t)((t1 & 0xFFF0) + xoff);
       const uint32_t cell = tileTable + (uint32_t)(t6 + t0);
       const uint16_t tile = memory.mem_r16(cell);
-      const int u = (tile & 0xFu) << 4;
+      const int u = (int)((tile & 0xFu) << 4);
       const int v = (int)(tile & 0xF0u) + (int)tileVBias;
 
       // Field offsets are relative to THE TILE'S OWN 16-byte packet base. In the guest-visible behavior the
@@ -400,12 +401,13 @@ void TileGridLayer::emitGrid(const psx::present::EmitMemory &memory, uint32_t no
   }
 
   // Patch the last tile's tag: keep the length byte, splice in the pre-existing OT[0x7FF] head.
-  const auto ot = tomba2::render::OrderingTable::active(memory);
-  ot.chainToHead(last, kOtBucketBg);
+  const auto ot = tomba::render::OrderingTable::active(memory);
+  ot.chainToHead({.lastPacket = last, .bucket = kOtBucketBg});
 
   // The draw mode packet that sets the sprites' texture page leads the chain.
   const uint32_t header = pool;
-  tomba2::render::setDrawMode(memory, header, 0u, 0u, tpage, 0u);
+  tomba::render::setDrawMode(memory,
+                             {.packet = header, .drawOnDisplay = 0u, .dither = 0u, .texturePage = tpage, .window = 0u});
   memory.mem_w32(header + 0u, first | 0x02000000u);
   ot.setHead(kOtBucketBg, header);
   pool = header + kHeaderBytes;
@@ -442,29 +444,31 @@ void TileGridLayer::cycleSopPalettes(Core *c) {
   }
 }
 
-void TileGridLayer::registerOverrides(Game *) {
-  tomba::native::declareOverlayOverride("A00", 0x8011534Cu, "&TileGridLayer::scrollStep", &TileGridLayer::scrollStep);
-  tomba::native::declareOverlayOverride(
+void TileGridLayer::registerOverrides(native::NativeOverrideCatalog &natives) {
+  natives.declareOverlay("A00", 0x8011534Cu, "&TileGridLayer::scrollStep", &TileGridLayer::scrollStep);
+  natives.declareOverlay(
       "A00", 0x80115598u, "&TileGridLayer::emit", &TileGridLayer::emit, psx::present::Producer{psx::present::Arg::A0});
   for (const auto &[image, entry] : {std::pair<std::string_view, std::uint32_t>{"A0A", 0x801142ECu},
                                      {"A0B", 0x801141B0u},
                                      {"A0D", 0x80116B9Cu},
                                      {"A0F", 0x80116778u}}) {
-    tomba::native::declareOverlayOverride(image,
-                                          entry,
-                                          "&TileGridLayer::emitUnbiased",
-                                          &TileGridLayer::emitUnbiased,
-                                          psx::present::Producer{psx::present::Arg::A0});
+    natives.declareOverlay(image,
+                           entry,
+                           "&TileGridLayer::emitUnbiased",
+                           &TileGridLayer::emitUnbiased,
+                           psx::present::Producer{psx::present::Arg::A0});
   }
-  tomba::native::declareOverlayOverride("SOP",
-                                        0x8010C26Cu,
-                                        "&TileGridLayer::emitSop",
-                                        &TileGridLayer::emitSop,
-                                        psx::present::Producer{psx::present::Arg::A0});
+  natives.declareOverlay("SOP",
+                         0x8010C26Cu,
+                         "&TileGridLayer::emitSop",
+                         &TileGridLayer::emitSop,
+                         psx::present::Producer{psx::present::Arg::A0});
 }
 
-void TileGridLayer::registerStateRenders(Core &core) {
+void TileGridLayer::registerStateRenders(psx::present::StateProducerTable &renders, Core &core) {
   for (const uint32_t entry : {0x80115598u, 0x801142ECu, 0x801141B0u, 0x80116B9Cu, 0x80116778u, 0x8010C26Cu}) {
-    core.stateProducers.install(entry, std::make_unique<TileGridStateProducer>(core));
+    renders.install(entry, std::make_unique<TileGridStateProducer>(core));
   }
 }
+
+} // namespace tomba

@@ -3,6 +3,7 @@ id: kanban-105
 title: Hut interior: the two fishermen are gone after exiting and re-entering the house (live)
 status: open
 labels: [bug]
+features: [F-TURN]
 ---
 
 

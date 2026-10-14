@@ -8,12 +8,10 @@
 // loop and the per-opcode bodies stay with `step`. `ScriptInterp` remains ONE class with ONE
 // declaration header (`scene/script_interp.h`); only the bodies moved, unchanged.
 
-#include "cfg.h"
 #include "core.h"
 #include "core/engine/engine.h"
-#include "core/entry/game_ctx.h"
 #include "core/overrides/native_override_catalog.h"
-#include "execution_services.h"
+#include "entry/tomba_session.h"
 #include "game.h"
 #include "guest_abi.h"
 #include "guest_call.h"
@@ -23,6 +21,9 @@
 #include "scene/script_interp.h"
 #include "scene/script_object.h"
 #include "scene/script_opcode.h"
+#include <lucent/log.h>
+
+namespace tomba {
 
 using tomba::scene::ScriptObject;
 using tomba::scene::script_globals::kClaimGate;
@@ -87,7 +88,8 @@ int applyGatedAdvance(const ScriptObject &so, uint8_t flagBit) {
   so.setPhase(0);
   return 0;
 }
-void ScriptInterp::init(uint32_t obj, uint32_t tableA, uint32_t scriptPtr) {
+void ScriptInterp::init(const InitArgs &args) {
+  auto [obj, tableA, scriptPtr] = args;
   Core *c = core;
   const ScriptObject so{c, obj};
   // FUN_80040CDC prologue-equivalent state writes on `obj`.
@@ -98,7 +100,7 @@ void ScriptInterp::init(uint32_t obj, uint32_t tableA, uint32_t scriptPtr) {
   so.setPhase(0);
   so.setStateFlags(0);
   // Load the first entry so subsequent step() calls see argA/B/C and the (optional) extra block.
-  loadCurrentEntry(obj, scriptPtr);
+  loadCurrentEntry({.obj = obj, .scriptPtr = scriptPtr});
   // Reload the flag byte from the first entry's flag bits (matches the guest instruction path's
   // post-load flag scan). The two bits are SET, not assigned: the second is an OR onto whatever
   // the first left behind.
@@ -110,7 +112,8 @@ void ScriptInterp::init(uint32_t obj, uint32_t tableA, uint32_t scriptPtr) {
     so.setStateFlags(static_cast<uint8_t>(so.stateFlags() | ScriptObject::kFlagBitFromOpcode));
   }
 }
-void ScriptInterp::loadCurrentEntry(uint32_t obj, uint32_t scriptPtr) {
+void ScriptInterp::loadCurrentEntry(const LoadCurrentEntryArgs &args) {
+  auto [obj, scriptPtr] = args;
   Core *c = core;
   const ScriptObject so{c, obj};
   // FUN_80040DE0 body — copy the 3 u16 args and record the cursor.
@@ -134,7 +137,7 @@ int ScriptInterp::advanceEntry(uint32_t obj, uint32_t kindArg) {
   // entry-advance body at 0x80040E54 stays a substrate leaf that `advanceStep` still dispatches to;
   // this forwards straight to the verified native body instead of taxi-ing through the substrate for
   // a leaf this class already owns.
-  return advanceStep(obj, kindArg);
+  return advanceStep({.obj = obj, .kindArg = kindArg});
 }
 // op05 — FUN_80042090. "Wait N frames": count argA down by one every call.
 //
@@ -204,14 +207,14 @@ int ScriptInterp::op04SceneFlagRendezvous(uint32_t obj) {
     const uint8_t was = c->mem_r8(flagAddr);
     c->mem_w8(flagAddr, postValue);
     so.advancePhase();
-    cfg_logf("rendez",
-             "post obj=%08X ptr=%08X slot=%d %u->%u (await %d)",
-             obj,
-             so.cursor(),
-             (int)slot,
-             was,
-             postValue,
-             (int)awaitValue);
+    lucent::debug("rendez",
+                  "post obj={:08X} ptr={:08X} slot={} {}->{} (await {})",
+                  obj,
+                  so.cursor(),
+                  (int)slot,
+                  was,
+                  postValue,
+                  (int)awaitValue);
     return static_cast<int>(StepReturn::kPause);
   }
   if (phase == kRendezvousAwait) {
@@ -219,7 +222,7 @@ int ScriptInterp::op04SceneFlagRendezvous(uint32_t obj) {
     // The guest compares the zero-extended byte against the FULL sign-extended awaitValue — the same
     // shape as op06's exact-match arm. Do not truncate awaitValue to a byte.
     const bool met = (static_cast<uint32_t>(have) == static_cast<uint32_t>(static_cast<int32_t>(awaitValue)));
-    cfg_logf("rendez", "meet obj=%08X ptr=%08X slot=%d == %d", obj, so.cursor(), (int)slot, (int)awaitValue);
+    lucent::debug("rendez", "meet obj={:08X} ptr={:08X} slot={} == {}", obj, so.cursor(), (int)slot, (int)awaitValue);
     return met ? static_cast<int>(StepReturn::kAdvanceKind0) : static_cast<int>(StepReturn::kPause);
   }
   return static_cast<int>(StepReturn::kPause); // phase >= 2: unreachable in the guest's byte shape
@@ -248,7 +251,7 @@ int ScriptInterp::op04SceneFlagRendezvous(uint32_t obj) {
 // reference. `GuestFrame` is that contract, spelled once.
 int ScriptInterp::loadNextEntry(uint32_t obj, uint32_t kindArg) {
   Core *c = core;
-  static constexpr GuestFrameSpill kSpills[] = {{16, 16}, {17, 20}, {31, 24}};
+  constexpr GuestFrameSpill kSpills[] = {{16, 16}, {17, 20}, {31, 24}};
   GuestFrame<32, 3> frame(c, kSpills);
 
   const ScriptObject so{c, obj};
@@ -264,41 +267,41 @@ int ScriptInterp::loadNextEntry(uint32_t obj, uint32_t kindArg) {
   switch (tomba::script::decodeAdvanceKind(opWord)) {
   case AdvanceKind::kNext8:
     c->r[31] = tomba::script::kJalReturnAfterNext8;
-    loadCurrentEntry(obj, cursor + 8u);
+    loadCurrentEntry({.obj = obj, .scriptPtr = cursor + 8u});
     break;
   case AdvanceKind::kNext16:
     c->r[31] = tomba::script::kJalReturnAfterNext16;
-    loadCurrentEntry(obj, cursor + 16u);
+    loadCurrentEntry({.obj = obj, .scriptPtr = cursor + 16u});
     break;
   case AdvanceKind::kBranchAt12:
     if (kindArg != 0u) {
       c->r[31] = tomba::script::kJalReturnAfterNext16;
-      loadCurrentEntry(obj, cursor + 16u);
+      loadCurrentEntry({.obj = obj, .scriptPtr = cursor + 16u});
     } else {
       c->r[31] = tomba::script::kJalReturnAfterBranch;
       result += 1;
-      loadCurrentEntry(obj, c->mem_r32(cursor + 12u));
+      loadCurrentEntry({.obj = obj, .scriptPtr = c->mem_r32(cursor + 12u)});
     }
     break;
   case AdvanceKind::kBranchAt20:
     if (kindArg != 0u) {
       c->r[31] = tomba::script::kJalReturnAfterBranchElse16;
-      loadCurrentEntry(obj, cursor + 24u);
+      loadCurrentEntry({.obj = obj, .scriptPtr = cursor + 24u});
     } else {
       c->r[31] = tomba::script::kJalReturnAfterBranch;
       result += 1;
-      loadCurrentEntry(obj, c->mem_r32(cursor + 20u));
+      loadCurrentEntry({.obj = obj, .scriptPtr = c->mem_r32(cursor + 20u)});
     }
     break;
   case AdvanceKind::kStop:
     // The cursor is deliberately left pointing at THIS entry; the sub-machine's stop arm writes
     // 0xFF into progress and the flag byte, and step() exits on the next loop test.
-    cfg_logf("script",
-             "advance obj=%08X ptr=%08X op=%04X (%s) -> STOP",
-             obj,
-             cursor,
-             opWord,
-             tomba::script::scriptOpcodeName(opWord));
+    lucent::debug("script",
+                  "advance obj={:08X} ptr={:08X} op={:04X} ({}) -> STOP",
+                  obj,
+                  cursor,
+                  opWord,
+                  tomba::script::scriptOpcodeName(opWord));
     return static_cast<int>(AdvanceStepIndex::kStopWritingFF);
   }
   // The conditional-end bit on the entry just executed overrides everything above: it marks the last
@@ -308,16 +311,16 @@ int ScriptInterp::loadNextEntry(uint32_t obj, uint32_t kindArg) {
     result = static_cast<int>(AdvanceStepIndex::kEndConditional);
   }
 
-  cfg_logf("script",
-           "advance obj=%08X ptr=%08X op=%04X (%s) kind=%04X arg=%u -> %08X (idx %d)",
-           obj,
-           cursor,
-           opWord,
-           tomba::script::scriptOpcodeName(opWord),
-           kindBits,
-           kindArg,
-           so.cursor(),
-           result);
+  lucent::debug("script",
+                "advance obj={:08X} ptr={:08X} op={:04X} ({}) kind={:04X} arg={} -> {:08X} (idx {})",
+                obj,
+                cursor,
+                opWord,
+                tomba::script::scriptOpcodeName(opWord),
+                kindBits,
+                kindArg,
+                so.cursor(),
+                result);
   return result;
 }
 // op34 — FUN_80042E10. "Claim a shared one-byte gate, then wait for it to clear." A two-phase
@@ -363,10 +366,11 @@ int ScriptInterp::op34ClaimGate(uint32_t obj) {
 // — spills relative to this frame's sp, so without the descent every downstream spill landed 24
 // bytes high and carried this core's stale register bytes instead of the reference's (side-by-side
 // watch-cut 153, Charles' anim-install chain, 2026-07-10).
-int ScriptInterp::advanceStep(uint32_t obj, uint32_t kindArg) {
+int ScriptInterp::advanceStep(const AdvanceStepArgs &args) {
+  auto [obj, kindArg] = args;
   Core *c = core;
   const ScriptObject so{c, obj};
-  static constexpr GuestFrameSpill kSpills[] = {{16, 16}, {31, 20}};
+  constexpr GuestFrameSpill kSpills[] = {{16, 16}, {31, 20}};
   GuestFrame<24, 2> frame(c, kSpills);
   c->r[16] = obj;
   c->r[31] = 0x80040FB4u;
@@ -410,3 +414,5 @@ int ScriptInterp::advanceStep(uint32_t obj, uint32_t kindArg) {
   }
   return -1;
 }
+
+} // namespace tomba

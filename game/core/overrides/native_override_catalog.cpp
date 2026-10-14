@@ -1,7 +1,8 @@
 #include "overrides/native_override_catalog.h"
 
+#include "cd/engine_cd_loader.h"
 #include "core.h"
-#include "game.h" // Cd::dc40Sync — the synchronous indexed-file reader
+#include "game.h"
 
 #include <algorithm>
 #include <cstdlib>
@@ -13,35 +14,22 @@
 namespace tomba::native {
 namespace {
 
-struct Declaration {
-  std::string imageName;
-  std::uint32_t address = 0;
-  std::string name;
-  psx::cpu::NativeFunction function = nullptr;
-  std::optional<psx::present::Producer> producer;
-};
-
-std::vector<Declaration> &declarations() {
-  static std::vector<Declaration> value;
-  return value;
-}
-
 bool sameProducer(const std::optional<psx::present::Producer> &a, const std::optional<psx::present::Producer> &b) {
   return a.has_value() == b.has_value() && (!a || a->object == b->object);
 }
 
 } // namespace
 
-void declareOverride(std::uint32_t address,
-                     std::string_view name,
-                     psx::cpu::NativeFunction function,
-                     std::optional<psx::present::Producer> producer) {
+void NativeOverrideCatalog::declare(std::uint32_t address,
+                                    std::string_view name,
+                                    psx::cpu::NativeFunction function,
+                                    std::optional<psx::present::Producer> producer) {
   if (address == 0u || name.empty() || function == nullptr) {
     lucent::error("tomba-native", "refused incomplete native override declaration at 0x{:08X}", address);
     std::abort();
   }
 
-  auto &entries = declarations();
+  auto &entries = declarations_;
   const auto existing = std::find_if(entries.begin(), entries.end(), [address](const Declaration &entry) {
     return entry.imageName.empty() && entry.address == address;
   });
@@ -59,17 +47,17 @@ void declareOverride(std::uint32_t address,
   entries.push_back({{}, address, std::string(name), function, producer});
 }
 
-void declareOverlayOverride(std::string_view imageName,
-                            std::uint32_t address,
-                            std::string_view name,
-                            psx::cpu::NativeFunction function,
-                            std::optional<psx::present::Producer> producer) {
+void NativeOverrideCatalog::declareOverlay(std::string_view imageName,
+                                           std::uint32_t address,
+                                           std::string_view name,
+                                           psx::cpu::NativeFunction function,
+                                           std::optional<psx::present::Producer> producer) {
   if (imageName.empty() || address == 0u || name.empty() || function == nullptr) {
     lucent::error("tomba-native", "refused incomplete overlay override declaration at 0x{:08X}", address);
     std::abort();
   }
 
-  auto &entries = declarations();
+  auto &entries = declarations_;
   const auto existing = std::find_if(entries.begin(), entries.end(), [&](const Declaration &entry) {
     return entry.imageName == imageName && entry.address == address;
   });
@@ -88,12 +76,14 @@ void declareOverlayOverride(std::string_view imageName,
   entries.push_back({std::string(imageName), address, std::string(name), function, producer});
 }
 
-void bindResident(Core &core, psx::cpu::ImageIdentity resident, GuestAddressRange residentText) {
+void NativeOverrideCatalog::bindResident(Core &core,
+                                         psx::cpu::ImageIdentity resident,
+                                         GuestAddressRange residentText) const {
   std::size_t installed = 0;
   std::size_t retained = 0;
   std::size_t inactive = 0;
   std::size_t unreachable = 0;
-  for (const Declaration &entry : declarations()) {
+  for (const Declaration &entry : declarations_) {
     // A RESIDENT declaration outside the resident text range can never install, in any generation:
     // the address belongs to an overlay slot and only declareOverlayOverride can reach it. It is
     // always a mistake, so it is refused by name.
@@ -147,21 +137,21 @@ void bindResident(Core &core, psx::cpu::ImageIdentity resident, GuestAddressRang
   }
   lucent::info("tomba-native",
                "bound resident image generation: declarations={} installed={} retained={} inactive={}",
-               declarations().size(),
+               declarations_.size(),
                installed,
                retained,
                inactive);
 }
 
-void bindOverlay(Core &core,
-                 psx::cpu::ImageIdentity overlay,
-                 std::string_view imageName,
-                 GuestAddressRange overlayText) {
+void NativeOverrideCatalog::bindOverlay(Core &core,
+                                        psx::cpu::ImageIdentity overlay,
+                                        std::string_view imageName,
+                                        GuestAddressRange overlayText) const {
   std::size_t installed = 0;
   std::size_t retained = 0;
   std::size_t inactive = 0;
   std::size_t declaredForImage = 0;
-  for (const Declaration &entry : declarations()) {
+  for (const Declaration &entry : declarations_) {
     if (entry.imageName != imageName) {
       ++inactive;
       continue;
@@ -197,7 +187,7 @@ void bindOverlay(Core &core,
                "bound overlay '{}' generation: declarations={} declared_for_image={} installed={} "
                "retained={} inactive={}",
                imageName,
-               declarations().size(),
+               declarations_.size(),
                declaredForImage,
                installed,
                retained,
@@ -213,9 +203,9 @@ void bindOverlay(Core &core,
   }
 }
 
-void retireOverlay(Core &core, std::optional<psx::cpu::ImageIdentity> &active) {
+void NativeOverrideCatalog::retireOverlay(Core &core, std::optional<psx::cpu::ImageIdentity> &active) const {
   if (active) {
-    for (const Declaration &entry : declarations()) {
+    for (const Declaration &entry : declarations_) {
       core.nativeDispatcher().remove({*active, entry.address});
     }
     if (!core.imageCatalog().deactivate(*active)) {
@@ -227,10 +217,10 @@ void retireOverlay(Core &core, std::optional<psx::cpu::ImageIdentity> &active) {
   }
 }
 
-psx::cpu::ImageIdentity activateOverlay(Core &core,
-                                        std::optional<psx::cpu::ImageIdentity> &active,
-                                        std::string_view imageName,
-                                        GuestAddressRange text) {
+psx::cpu::ImageIdentity NativeOverrideCatalog::activateOverlay(Core &core,
+                                                               std::optional<psx::cpu::ImageIdentity> &active,
+                                                               std::string_view imageName,
+                                                               GuestAddressRange text) const {
   if (imageName.empty() || !text.valid() || text.end > 0x00200000u) {
     lucent::error(
         "tomba-native", "refused invalid overlay image '{}' range [{:08X}, {:08X})", imageName, text.begin, text.end);
@@ -260,8 +250,9 @@ std::string overlayNameForArea(std::uint32_t area) {
   return name;
 }
 
-psx::cpu::ImageIdentity
-activateModeOverlay(Core &core, std::optional<psx::cpu::ImageIdentity> &active, std::uint32_t fileIndex) {
+psx::cpu::ImageIdentity NativeOverrideCatalog::activateModeOverlay(Core &core,
+                                                                   std::optional<psx::cpu::ImageIdentity> &active,
+                                                                   std::uint32_t fileIndex) const {
   constexpr std::uint32_t kModeSlot = 0x00108F9Cu;
   constexpr std::uint32_t kFileTable = 0x800BE118u;
   if (fileIndex < 2u || fileIndex > 24u) {
@@ -300,16 +291,19 @@ std::pair<std::uint32_t, std::uint32_t> areaSlotFileDescriptor(Core &core, std::
 
 } // namespace
 
-psx::cpu::ImageIdentity
-activateAreaSlotOverlay(Core &core, std::optional<psx::cpu::ImageIdentity> &active, std::uint32_t fileIndex) {
+psx::cpu::ImageIdentity NativeOverrideCatalog::activateAreaSlotOverlay(Core &core,
+                                                                       std::optional<psx::cpu::ImageIdentity> &active,
+                                                                       std::uint32_t fileIndex) const {
   const auto [lba, size] = areaSlotFileDescriptor(core, fileIndex);
   return activateOverlay(core, active, fileIndex == 0u ? "OPN" : "CRD", {kAreaSlot, kAreaSlot + size});
 }
 
-std::uint32_t loadAreaSlotFile(Core &core, std::optional<psx::cpu::ImageIdentity> &active, std::uint32_t fileIndex) {
+std::uint32_t NativeOverrideCatalog::loadAreaSlotFile(Core &core,
+                                                      std::optional<psx::cpu::ImageIdentity> &active,
+                                                      std::uint32_t fileIndex) const {
   const auto [lba, size] = areaSlotFileDescriptor(core, fileIndex);
   retireOverlay(core, active);
-  core.game->cd.dc40Sync(0x80000000u | kAreaSlot, lba, size);
+  tomba::EngineCdLoader(core).dc40Sync({.dest = 0x80000000u | kAreaSlot, .lba = lba, .size = size});
   activateAreaSlotOverlay(core, active, fileIndex);
   return size;
 }

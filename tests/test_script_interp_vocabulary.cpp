@@ -23,6 +23,7 @@
 #include "scene/script_globals.h"
 #include "scene/script_object.h"
 #include "scene/script_opcode.h"
+#include "stub_game_runtime.h"
 
 #include <cstdint>
 #include <cstdio>
@@ -87,7 +88,8 @@ constexpr uint32_t kGuestTailCache = 0x40u;
 // ---- ScriptObject: the block's shape ------------------------------------------------------------
 
 static void test_fields_land_on_the_guest_offsets(void) {
-  Core core;
+  psx::test::StubGameRuntime runtime;
+  Core core(runtime);
   const ScriptObject so{&core, kObjectBase};
   core.mem_w16(kObjectBase + kGuestArgA, 0x1234u);
   core.mem_w16(kObjectBase + kGuestArgB, 0x5678u);
@@ -107,7 +109,8 @@ static void test_fields_land_on_the_guest_offsets(void) {
 }
 
 static void test_progress_is_SIGNED_and_the_stop_byte_stops_the_loop(void) {
-  Core core;
+  psx::test::StubGameRuntime runtime;
+  Core core(runtime);
   const ScriptObject so{&core, kObjectBase};
   // The stop arm stores the raw byte 0xFF, which sign-extends to -1. Reading it as unsigned 255
   // would leave the step loop's `<= 0` test never firing, so the sign is the decision under test.
@@ -121,7 +124,8 @@ static void test_progress_is_SIGNED_and_the_stop_byte_stops_the_loop(void) {
 }
 
 static void test_pause_is_a_set_not_an_assign(void) {
-  Core core;
+  psx::test::StubGameRuntime runtime;
+  Core core(runtime);
   const ScriptObject so{&core, kObjectBase};
   so.setStateFlags(ScriptObject::kFlagBitFromOpcode); // bit 2 already set by init
   so.pauseRequested();
@@ -133,7 +137,8 @@ static void test_pause_is_a_set_not_an_assign(void) {
 }
 
 static void test_the_first_extra_halfword_reads_as_two_different_things(void) {
-  Core core;
+  psx::test::StubGameRuntime runtime;
+  Core core(runtime);
   const ScriptObject so{&core, kObjectBase};
   // The request lives in the HIGH byte and is read SIGNED; the divisor is the whole halfword.
   // Collapsing them into one accessor is the mistake this pair of assertions exists to catch.
@@ -161,7 +166,8 @@ static void test_the_first_extra_halfword_reads_as_two_different_things(void) {
 }
 
 static void test_the_remaining_extra_halfwords(void) {
-  Core core;
+  psx::test::StubGameRuntime runtime;
+  Core core(runtime);
   const ScriptObject so{&core, kObjectBase};
   so.setExtraHalfword1(0x1234u);
   so.setExtraHalfword2(0x5678u);
@@ -178,7 +184,8 @@ static void test_the_remaining_extra_halfwords(void) {
 }
 
 static void test_the_function_pointer_composes_low_half_first(void) {
-  Core core;
+  psx::test::StubGameRuntime runtime;
+  Core core(runtime);
   const ScriptObject so{&core, kObjectBase};
   core.mem_w16(kObjectBase + kGuestArgB, 0x8123u); // low half
   core.mem_w16(kObjectBase + kGuestArgC, 0x8001u); // high half
@@ -188,7 +195,8 @@ static void test_the_function_pointer_composes_low_half_first(void) {
 }
 
 static void test_the_position_is_SIGNED(void) {
-  Core core;
+  psx::test::StubGameRuntime runtime;
+  Core core(runtime);
   const ScriptObject so{&core, kObjectBase};
   core.mem_w16(kObjectBase + kGuestPositionX, 0xFF9Cu); // -100
   check(static_cast<int32_t>(so.positionX()) == -100, "the borrowed actor position is not read signed");
@@ -197,7 +205,8 @@ static void test_the_position_is_SIGNED(void) {
 }
 
 static void test_clearing_the_tail_writes_both_slots(void) {
-  Core core;
+  psx::test::StubGameRuntime runtime;
+  Core core(runtime);
   const ScriptObject so{&core, kObjectBase};
   core.mem_w32(kObjectBase + kGuestTailNode, 0x80001234u);
   core.mem_w32(kObjectBase + kGuestTailCache, 0x80005678u);
@@ -209,7 +218,8 @@ static void test_clearing_the_tail_writes_both_slots(void) {
 static void test_two_lenses_over_two_objects_do_not_alias(void) {
   // A lens holds a base, not a cache. Two of them over two objects must not share state, which is
   // the failure a caching lens would introduce.
-  Core core;
+  psx::test::StubGameRuntime runtime;
+  Core core(runtime);
   const ScriptObject a{&core, kObjectBase};
   const ScriptObject b{&core, kObjectBase + 0x100u};
   a.setArgA(0x1111u);
@@ -223,7 +233,8 @@ static void test_a_sentinel_word_is_untouched(void) {
   // The negative case for the whole lens: an address the interpreter never touches must keep its
   // value. Without this, a test that only checked the fields it writes would pass even if the lens
   // were scribbling over the object.
-  Core core;
+  psx::test::StubGameRuntime runtime;
+  Core core(runtime);
   core.mem_w32(kObjectBase + 0x24u, kSentinelWord);
   const ScriptObject so{&core, kObjectBase};
   so.stampInitMarker();

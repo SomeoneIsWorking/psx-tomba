@@ -7,10 +7,9 @@
 #include "audio/libsnd_globals.h"
 #include "audio/sequencer_record.h"
 #include "core.h"
-#include "core/entry/game_ctx.h"
 #include "core/overrides/guest_jal.h"
 #include "core/overrides/native_override_catalog.h"
-#include "execution_services.h"
+#include "entry/tomba_session.h"
 #include "game.h"
 #include "guest_abi.h"
 #include "guest_call.h"
@@ -24,7 +23,7 @@ using namespace tomba::audio::record;
 // without the frame.
 void Sequencer::frameTick() {
   Core *c = core;
-  static constexpr GuestFrameSpill kSpills[] = {{16, 16}, {31, 20}}; // -24 (abi_extract-verified)
+  constexpr GuestFrameSpill kSpills[] = {{16, 16}, {31, 20}}; // -24 (abi_extract-verified)
   GuestFrame<24, 2> frame(c, kSpills);
   // FIX (re-verify pass, same class as channelNoteInit's r16 bug): gen loads r16 = 0x800AC430 (the
   // libsnd cb-slot base it reads +0/-4 from) and keeps it LIVE across both dispatches -- callees
@@ -33,10 +32,10 @@ void Sequencer::frameTick() {
   r16 = libsnd::kUserCallback;
   uint32_t cb = c->mem_r32(libsnd::kUserCallback);
   if (cb != 0u) {
-    tomba::guest::dispatchJalToReturn(*c, cb, 0x800909ECu);
+    tomba::guest::dispatchJalToReturn(*c, {.target = cb, .returnAddress = 0x800909ECu});
   }
   uint32_t seq = c->mem_r32(libsnd::kSeqTickFn);
-  tomba::guest::dispatchJalToReturn(*c, seq, 0x800909FCu);
+  tomba::guest::dispatchJalToReturn(*c, {.target = seq, .returnAddress = 0x800909FCu});
 }
 
 // 0x80090BD0 — the per-VBlank sequence/channel scheduler. A reentrancy-guarded double loop over
@@ -53,7 +52,7 @@ void Sequencer::seqChannelDispatch() {
   // matching gen — including on the early-exit path (CLAUDE.md "mirror the guest stack" applies
   // even to the do-nothing path). Internal control flow/register usage kept LITERAL below (see
   // this function's own header comment: a prior restructure introduced two real bugs).
-  static constexpr GuestFrameSpill kSpills[] = {
+  constexpr GuestFrameSpill kSpills[] = {
       {31, 52}, {30, 48}, {23, 44}, {22, 40}, {21, 36}, {20, 32}, {19, 28}, {18, 24}, {17, 20}, {16, 16}};
   GuestFrame<56, 10> frame(c, kSpills);
   c->r[2] = c->mem_r32(libsnd::kSeqReentryFlag);
@@ -285,18 +284,18 @@ static void nat_seqChannelDispatch(Core *c) {
   eng(c).sequencer.seqChannelDispatch();
 }
 
-void declareDispatchOverrides() {
-  tomba::native::declareOverride(0x800909C0u, "nat_frameTick", nat_frameTick);
-  tomba::native::declareOverride(0x80090BD0u, "nat_seqChannelDispatch", nat_seqChannelDispatch);
+void declareDispatchOverrides(native::NativeOverrideCatalog &natives) {
+  natives.declare(0x800909C0u, "nat_frameTick", nat_frameTick);
+  natives.declare(0x80090BD0u, "nat_seqChannelDispatch", nat_seqChannelDispatch);
 }
 
-void Sequencer::registerOverrides() {
-  declareDispatchOverrides();
-  declareChannelFlagOverrides();
-  declareVoiceWriteOverrides();
-  declareToneRecordOverrides();
-  declareVoiceAllocOverrides();
-  declareVoiceStateOverrides();
+void Sequencer::registerOverrides(native::NativeOverrideCatalog &natives) {
+  declareDispatchOverrides(natives);
+  declareChannelFlagOverrides(natives);
+  declareVoiceWriteOverrides(natives);
+  declareToneRecordOverrides(natives);
+  declareVoiceAllocOverrides(natives);
+  declareVoiceStateOverrides(natives);
 }
 
 } // namespace tomba::audio

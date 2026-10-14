@@ -37,6 +37,8 @@
 #include <cstdint>
 class Core;
 
+namespace tomba {
+
 class AttackOrbitSubstate {
 public:
   Core *core = nullptr;
@@ -71,3 +73,5 @@ public:
   //   func_0x800331D8(node, node[0xC4], -100, 0), latch node[0x1B] bit 0x40, set node[0]=7.
   void aimAtTargetAnchor();
 };
+
+} // namespace tomba

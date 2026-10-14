@@ -1,6 +1,8 @@
 #include "rng.h"
 #include "core.h"
 
+namespace tomba {
+
 int32_t Rng::next() {
   uint32_t s = core->mem_r32(SEED_ADDR) * 0x41C64E6Du + 0x3039u;
   core->mem_w32(SEED_ADDR, s);
@@ -16,3 +18,5 @@ int32_t Rng::inRange(int32_t lo, int32_t hi) {
   int32_t prod = (int32_t)((int64_t)r * (int64_t)span);
   return (prod >> 15) + lo;
 }
+
+} // namespace tomba

@@ -12,6 +12,8 @@
 #include <cstdint>
 class Core;
 
+namespace tomba {
+
 class Inventory {
 public:
   // Back-pointer set once by Core's constructor (same pattern as ScreenFade::core).
@@ -26,10 +28,14 @@ public:
   int count(int item) const; // 0..99
   int has(int item) const;   // count > 0
 
+  struct ItemGrantArgs {
+    uint32_t type;
+    uint32_t amount;
+  };
   // PC-shape mutators (call from native code) --------------------------------------------
-  void add(uint32_t type, uint32_t amount);         // FUN_8004D338 core
-  void give(uint32_t type, uint32_t amount);        // FUN_8004D4F4 — add only
-  void giveAndFlag(uint32_t type, uint32_t amount); // FUN_8004D4C4 — add + flag emit
+  void add(const ItemGrantArgs &args);         // FUN_8004D338 core
+  void give(const ItemGrantArgs &args);        // FUN_8004D4F4 — add only
+  void giveAndFlag(const ItemGrantArgs &args); // FUN_8004D4C4 — add + flag emit
 
   // FUN_xxx entry-shape statics (Core*, args in r[4]/r[5]). These carry the `invverify`
   // A/B gate; still-guest-shaped callers (repl.cpp / any leftover typed runtime address dispatch wire)
@@ -46,3 +52,5 @@ private:
   static void giveBody(Core *c);                                  // FUN_8004D4F4
   static void abGate(Core *c, uint32_t addr, void (*native)(Core *), int exclude_stack, const char *nm);
 };
+
+} // namespace tomba

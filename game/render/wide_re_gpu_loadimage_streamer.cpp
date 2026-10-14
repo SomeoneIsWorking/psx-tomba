@@ -106,11 +106,13 @@
 // alone. A wiring pass should grep for other readers of GPU_DMA_ARG0/ARG1/STATE before trusting the
 // async path is fully understood.
 #include "core.h"
-#include "core/entry/game_ctx.h"
 #include "core/overrides/native_override_catalog.h"
+#include "entry/tomba_session.h"
 #include "guest_call.h"
 #include "render.h"
 #include <stdint.h>
+
+namespace tomba {
 
 namespace {
 constexpr uint32_t GPU_SYS_BASE = (32778u << 16);            // 0x800A0000
@@ -278,6 +280,8 @@ void ov_gpuLoadImageStream(Core *c) {
 }
 } // namespace
 
-void gpu_loadimage_streamer_install() {
-  tomba::native::declareOverride(0x80082734u, "ov_gpuLoadImageStream", ov_gpuLoadImageStream);
+void gpu_loadimage_streamer_install(native::NativeOverrideCatalog &natives) {
+  natives.declare(0x80082734u, "ov_gpuLoadImageStream", ov_gpuLoadImageStream);
 }
+
+} // namespace tomba

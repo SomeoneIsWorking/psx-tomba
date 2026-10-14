@@ -20,6 +20,8 @@
 #include <cstdint>
 class Core;
 
+namespace tomba {
+
 class TransitionState3 {
 public:
   // Back-pointer wired once by Core's constructor (same pattern as ScreenFade::core).
@@ -28,3 +30,5 @@ public:
   // walkOnce: one call of the state-3 walker (guest FUN_8007B04C).
   void walkOnce();
 };
+
+} // namespace tomba

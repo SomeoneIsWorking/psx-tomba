@@ -22,17 +22,17 @@
 // Both jump tables READ live from resident overlay RAM. Transcribed 1:1 as a register machine; the
 // byte-exact A/B gate (full RAM+scratchpad vs original guest-body call) is the safety net. NO GTE/render.
 
-#include "cfg.h"
 #include "core.h"
-#include "core/entry/game_ctx.h"
 #include "core/overrides/guest_jal.h"
+#include "entry/tomba_session.h"
 #include "graphics_bind.h" // ov_obj_set_geom
-#include "guest_abi.h"
-#include "inventory.h" // class Inventory — inv(c).giveAndFlag (FUN_8004D4C4)
-#include "spawn.h"     // class Spawn (eng(c).spawn.despawn / dispatch / spawnAndInit)
+#include "inventory.h"     // class Inventory — inv(c).giveAndFlag (FUN_8004D4C4)
+#include "spawn.h"         // class Spawn (eng(c).spawn.despawn / dispatch / spawnAndInit)
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+namespace tomba {
 
 namespace {
 
@@ -108,6 +108,8 @@ S0:
     c->r[4] = s0;
     eng(c).graphicsBind.renderUpdate(); // FUN_800517F8(node)
     goto Lret;
+  default:
+    break;
   }
   goto Lret;
 
@@ -151,8 +153,8 @@ S1:
     }
     goto Lret; // s1 >= 2
   }
-  case 1:                                                    // jt1 -> 0x8012dc10
-    tomba::guest::dispatchLeafToReturn(*c, 0x8018C574u, s0); // FUN_8018C574(node)
+  case 1:                                                                      // jt1 -> 0x8012dc10
+    psx::cpu::callGuestNowResult(*c, "beh_typed_anim_spawn", 0x8018C574u, s0); // FUN_8018C574(node)
     goto Lret;
   case 2: {                               // jt1 -> 0x8012dc20
     s1 = c->mem_r8(s0 + 5);               // node[5]
@@ -182,8 +184,8 @@ S1:
   }
   case 3:
   case 4:
-  case 5:                                                    // jt1 -> 0x8012dca0
-    tomba::guest::dispatchLeafToReturn(*c, 0x8007778Cu, s0); // FUN_8007778C(node)
+  case 5:                                                                      // jt1 -> 0x8012dca0
+    psx::cpu::callGuestNowResult(*c, "beh_typed_anim_spawn", 0x8007778Cu, s0); // FUN_8007778C(node)
     goto Lret;
   case 6: { // jt1 -> 0x8012dcb0
     s1 = c->mem_r8(s0 + 5);
@@ -243,6 +245,8 @@ S1:
     }
     goto Ltail35; // 0x8012ddfc with a0=35
   }
+  default:
+    break;
   }
   goto Lret;
 
@@ -252,18 +256,18 @@ S2:
     goto Lret; // node[3] != node[4](=2)
   }
   // a0 = 29 -> shared tail 0x8012ddfc
-  inv(c).giveAndFlag(29, 1); // FUN_8004D4C4(29, 1) [native]
+  inv(c).giveAndFlag({.type = 29, .amount = 1}); // FUN_8004D4C4(29, 1) [native]
   goto Ltail_after;
 
 Ltail14:
-  inv(c).giveAndFlag(14, 1); // FUN_8004D4C4(14, 1) [native]
+  inv(c).giveAndFlag({.type = 14, .amount = 1}); // FUN_8004D4C4(14, 1) [native]
   goto Ltail_after;
 Ltail35:
-  inv(c).giveAndFlag(35, 1); // FUN_8004D4C4(35, 1) [native]
+  inv(c).giveAndFlag({.type = 35, .amount = 1}); // FUN_8004D4C4(35, 1) [native]
   goto Ltail_after;
 Ltail_after:
-  tomba::guest::dispatchLeafToReturn(*c, 0x8004B0D8u, s0); // FUN_8004B0D8(node)
-  c->mem_w8(s0 + 4, 3);                                    // node[4] = 3
+  psx::cpu::callGuestNowResult(*c, "beh_typed_anim_spawn", 0x8004B0D8u, s0); // FUN_8004B0D8(node)
+  c->mem_w8(s0 + 4, 3);                                                      // node[4] = 3
   goto Lret;
 
 // ---------------- STATE 3 ----------------
@@ -273,3 +277,5 @@ Lret:
   c->r[29] = entry_sp; // restore caller sp (mirror epilogue)
   return;
 }
+
+} // namespace tomba

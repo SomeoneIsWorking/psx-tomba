@@ -20,12 +20,11 @@
 // leaf's contract is op-exact transcription.
 #include "quad_rtpt_submit.h"
 #include "core.h"
-#include "core/entry/game_ctx.h"
 #include "core/overrides/native_override_catalog.h"
+#include "entry/tomba_session.h"
 #include "game.h"
 #include "guest_ordering_table.h"
 #include "horizontal_visibility_cull.h"
-#include "render_node.h"
 #include <cstdint>
 #include <cstdio>
 #include <lucent/log.h>
@@ -40,6 +39,8 @@
 // all 4 fields as FULL 32-bit words (src's next word, not just its low u16) with an early return
 // that SKIPS the shared +0xE/+0x16 tail (traced exactly from guest 0x8003B054's control flow —
 // this asymmetry is real, not an RE artifact: idx0 is qualitatively different from 1/2/3).
+namespace tomba {
+
 void QuadRtptSubmit::rotateQuadCorners(Core *c) {
   const uint32_t dst = c->r[4];         // a0
   const uint32_t src = c->r[5];         // a1
@@ -101,11 +102,10 @@ void QuadRtptSubmit::rotateQuadCorners(Core *c) {
 // FUN_8003B320 — project a quad through an already-composed GTE transform (RTPT the first 3
 // corners, RTPS the 4th) and, if it survives the on-screen + OT-range gates, bump-copy the
 // pre-built 10-word packet record into the packet pool and link it into the OT bucket for its
-// depth. Traced from guest 0x8003B320 (authenticated executable/overlay evidence) — same gte_op idiom as the already-
-// owned OverlayGt3Gt4::gt3/gt4 (game/render/overlay_gt3gt4.cpp), which this mirrors closely: RTPT
-// via 0x4A280030, an intervening NCLIP via 0x4B400006 (see below), RTPS via 0x4A180001, AVSZ4 via
-// 0x4B68002E, OTZ-bucket compute identical to overlay_gt_otz_index (z>>10 exponent-shift index,
-// valid range [4,0x7ff]).
+// depth. Traced from guest 0x8003B320 (authenticated executable/overlay evidence) — same GTE command idiom as the
+// already- owned OverlayGt3Gt4::gt3/gt4 (game/render/overlay_gt3gt4.cpp), which this mirrors closely: RTPT via
+// 0x4A280030, an intervening NCLIP via 0x4B400006 (see below), RTPS via 0x4A180001, AVSZ4 via 0x4B68002E, OTZ-bucket
+// compute identical to overlay_gt_otz_index (z>>10 exponent-shift index, valid range [4,0x7ff]).
 //
 // NCLIP: guest 0x8003B320 calls it between the RTPT and the VXY3/RTPS setup, storing its MAC0
 // result (data reg 24) to the same 4-byte FLAG scratch slot the RTPT/RTPS flag checks use — but
@@ -133,8 +133,7 @@ void QuadRtptSubmit::submitQuad(Core *c) {
   const uint32_t out = c->r[4];             // a0
   const uint32_t xf = c->r[5];              // a1: composedXform
   const int32_t otzBias = (int32_t)c->r[6]; // a2
-  lucent::debug(
-      "quadrtpt", "submitQuad out={:08X} xf={:08X} otzBias={} node={:08X}", out, xf, otzBias, cur_render_node(c));
+  lucent::debug("quadrtpt", "submitQuad out={:08X} xf={:08X} otzBias={}", out, xf, otzBias);
 
   c->r[29] -= 16;
   const uint32_t sp = c->r[29];
@@ -142,40 +141,40 @@ void QuadRtptSubmit::submitQuad(Core *c) {
     c->r[29] += 16;
   };
 
-  gte_write_data(0, c->mem_r32(xf + 0));  // VXY0
-  gte_write_data(1, c->mem_r32(xf + 4));  // VZ0
-  gte_write_data(2, c->mem_r32(xf + 8));  // VXY1
-  gte_write_data(3, c->mem_r32(xf + 12)); // VZ1
-  gte_write_data(4, c->mem_r32(xf + 16)); // VXY2
-  gte_write_data(5, c->mem_r32(xf + 20)); // VZ2
-  gte_op(c, 0x4A280030u);                 // RTPT (corners 0..2)
-  c->mem_w32(sp + 0, gte_read_ctrl(31));
+  c->gte().writeData(0, c->mem_r32(xf + 0));  // VXY0
+  c->gte().writeData(1, c->mem_r32(xf + 4));  // VZ0
+  c->gte().writeData(2, c->mem_r32(xf + 8));  // VXY1
+  c->gte().writeData(3, c->mem_r32(xf + 12)); // VZ1
+  c->gte().writeData(4, c->mem_r32(xf + 16)); // VXY2
+  c->gte().writeData(5, c->mem_r32(xf + 20)); // VZ2
+  c->gte().execute(0x4A280030u);              // RTPT (corners 0..2)
+  c->mem_w32(sp + 0, c->gte().readControl(31));
   if ((int32_t)c->mem_r32(sp + 0) < 0) {
     c->mem_w32(sp + 8, (uint32_t)-1);
     pop();
     return;
   } // GTE FLAG error -> drop
 
-  c->mem_w32(out + 8, gte_read_data(12));  // SXY0
-  c->mem_w32(out + 16, gte_read_data(13)); // SXY1
-  c->mem_w32(out + 24, gte_read_data(14)); // SXY2
+  c->mem_w32(out + 8, c->gte().readData(12));  // SXY0
+  c->mem_w32(out + 16, c->gte().readData(13)); // SXY1
+  c->mem_w32(out + 24, c->gte().readData(14)); // SXY2
 
-  gte_op(c, 0x4B400006u);                // NCLIP (real, provably dead output — see banner)
-  c->mem_w32(sp + 0, gte_read_data(24)); // MAC0 (clobbered below before ever being read)
+  c->gte().execute(0x4B400006u);             // NCLIP (real, provably dead output — see banner)
+  c->mem_w32(sp + 0, c->gte().readData(24)); // MAC0 (clobbered below before ever being read)
 
-  gte_write_data(0, c->mem_r32(xf + 24)); // VXY3
-  gte_write_data(1, c->mem_r32(xf + 28)); // VZ3
-  gte_op(c, 0x4A180001u);                 // RTPS (corner 3)
-  c->mem_w32(sp + 0, gte_read_ctrl(31));
+  c->gte().writeData(0, c->mem_r32(xf + 24)); // VXY3
+  c->gte().writeData(1, c->mem_r32(xf + 28)); // VZ3
+  c->gte().execute(0x4A180001u);              // RTPS (corner 3)
+  c->mem_w32(sp + 0, c->gte().readControl(31));
   if ((int32_t)c->mem_r32(sp + 0) < 0) {
     c->mem_w32(sp + 8, (uint32_t)-1);
     pop();
     return;
   } // GTE FLAG error -> drop
-  c->mem_w32(out + 32, gte_read_data(14)); // SXY3
+  c->mem_w32(out + 32, c->gte().readData(14)); // SXY3
 
-  gte_op(c, 0x4B68002Eu); // AVSZ4
-  c->mem_w32(sp + 4, gte_read_data(7));
+  c->gte().execute(0x4B68002Eu); // AVSZ4
+  c->mem_w32(sp + 4, c->gte().readData(7));
   int32_t z0 = (int32_t)c->mem_r32(sp + 4);
   c->mem_w32(sp + 8, (uint32_t)z0);
   if (z0 < 0) {
@@ -189,7 +188,7 @@ void QuadRtptSubmit::submitQuad(Core *c) {
     return;
   } // biased z still must be non-negative
 
-  using tomba2::render::OrderingTable;
+  using tomba::render::OrderingTable;
   const int32_t otz = OrderingTable::compressDepth(z);
   c->mem_w32(sp + 8, (uint32_t)otz);
   if (!OrderingTable::inDepthRange(otz)) {
@@ -207,7 +206,7 @@ void QuadRtptSubmit::submitQuad(Core *c) {
   };
   // X over the draw window: [0, 320) at 4:3.
   const std::uint32_t xs[4] = {sx(8), sx(16), sx(24), sx(32)};
-  bool xok = tomba2::horizontal_cull::forDrawWindow(c).keepsX(xs, 4, tomba2::horizontal_cull::Domain::Packed16);
+  bool xok = tomba::horizontal_cull::forDrawWindow(c).keepsX(xs, 4, tomba::horizontal_cull::Domain::Packed16);
   if (!xok) {
     pop();
     return;
@@ -219,9 +218,9 @@ void QuadRtptSubmit::submitQuad(Core *c) {
   }
 
   // bump-copy the whole 10-word record into the packet pool, OT-link it.
-  const tomba2::render::PacketPool packets(*c);
+  const tomba::render::PacketPool packets(*c);
   const uint32_t pool = packets.cursor();
-  OrderingTable::active(*c).link(pool, 9u, (uint32_t)otz);
+  OrderingTable::active(*c).link({.packet = pool, .words = 9u, .bucket = (uint32_t)otz});
   uint32_t dstw = pool + 4;
   for (uint32_t off = 4; off <= 36; off += 4, dstw += 4) {
     c->mem_w32(dstw, c->mem_r32(out + off));
@@ -237,7 +236,9 @@ void QuadRtptSubmit::submitQuad(Core *c) {
 // (runtime/psx/override_registry.h) installs into the ONE process-global override registry, which runs original guest
 // instructions on the oracle leg (core B) and the native handler everywhere else — NOT a raw
 // tomba::native::declareOverride, since these are engine/game natives and the oracle must run the pure guest body.
-void QuadRtptSubmit::registerOverrides(Game *) {
-  tomba::native::declareOverride(0x8003B054u, "&QuadRtptSubmit::rotateQuadCorners", &QuadRtptSubmit::rotateQuadCorners);
-  tomba::native::declareOverride(0x8003B320u, "&QuadRtptSubmit::submitQuad", &QuadRtptSubmit::submitQuad);
+void QuadRtptSubmit::registerOverrides(native::NativeOverrideCatalog &natives) {
+  natives.declare(0x8003B054u, "&QuadRtptSubmit::rotateQuadCorners", &QuadRtptSubmit::rotateQuadCorners);
+  natives.declare(0x8003B320u, "&QuadRtptSubmit::submitQuad", &QuadRtptSubmit::submitQuad);
 }
+
+} // namespace tomba

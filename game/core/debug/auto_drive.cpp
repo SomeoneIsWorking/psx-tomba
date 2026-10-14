@@ -1,8 +1,9 @@
 #include "debug/auto_drive.h"
 
-#include "cfg.h"
 #include "core.h"
+#include "entry/tomba_session.h"
 #include "game.h"
+#include "sched/task_slot_layout.h"
 
 #include <cstring>
 #include <lucent/log.h>
@@ -10,25 +11,19 @@
 namespace tomba {
 namespace {
 
-constexpr uint32_t kTask0 = 0x801fe000u;
-constexpr uint32_t kTaskEntryOffset = 0x0cu;
+constexpr uint32_t kTask0 = sched::kTaskTableBase;
+constexpr uint32_t kTaskEntryOffset = sched::kTaskEntry;
 constexpr uint32_t kCutsceneActive = 0x1f800137u;
 constexpr uint16_t kTapCross = 0xbfffu;
 constexpr uint16_t kTapStart = 0xfff7u;
-
-bool autoSkipRequested() {
-  const char *value = cfg_str("PSXPORT_AUTO_SKIP");
-  return value && std::strcmp(value, "0") != 0;
-}
 
 } // namespace
 
 void AutoDrive::beforeFrame(Core &core, uint32_t frame) {
   Game &game = *core.game;
-  const GameConfig &cfg = *core.cfg;
 
   if (skipPhase_ == SkipPhase::Uninitialized) {
-    skipPhase_ = autoSkipRequested() ? SkipPhase::ReachGame : SkipPhase::Done;
+    skipPhase_ = tombaSession(&core).settings.autoSkip ? SkipPhase::ReachGame : SkipPhase::Done;
     if (skipPhase_ == SkipPhase::ReachGame) {
       lucent::info("autoskip", "armed: drive into GAME free-roam");
     }
@@ -38,7 +33,7 @@ void AutoDrive::beforeFrame(Core &core, uint32_t frame) {
   const bool cutsceneActive = core.mem_r8(kCutsceneActive) != 0;
   switch (skipPhase_) {
   case SkipPhase::ReachGame:
-    if (stage != cfg.stageGame) {
+    if (stage != sched::kStageGameEntry) {
       if ((frame % 12u) == 0) {
         game.pad.driveTap(kTapCross, 6);
       }
@@ -66,11 +61,10 @@ void AutoDrive::beforeFrame(Core &core, uint32_t frame) {
 
 void AutoDrive::afterFrame(Core &core, uint32_t frame) {
   Game &game = *core.game;
-  const GameConfig &cfg = *core.cfg;
   const uint32_t stage = core.mem_r32(kTask0 + kTaskEntryOffset);
   const bool cutsceneActive = core.mem_r8(kCutsceneActive) != 0;
 
-  if (skipPhase_ == SkipPhase::ReachGame && stage == cfg.stageGame) {
+  if (skipPhase_ == SkipPhase::ReachGame && stage == sched::kStageGameEntry) {
     skipPhase_ = SkipPhase::AwaitCutscene;
     lucent::info("autoskip", "reached GAME at frame {}", frame);
   } else if (skipPhase_ == SkipPhase::AwaitCutscene && cutsceneActive) {

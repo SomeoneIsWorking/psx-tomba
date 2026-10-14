@@ -45,7 +45,7 @@ inline constexpr uint16_t kFlagStopAfterEntry = 0x8000u; // the cursor stops on 
 
 // The seven opcode IDs this repository owns natively. NOT an exhaustive list of the table: the
 // remaining 56 are guest bodies, and `kUnownedOpcode` stands for all of them.
-enum class ScriptOpcode : uint16_t {
+enum class ScriptOpcode : uint8_t {
   kSceneFlagRendezvous = 0x04u,    // op04: post a byte into the scene-flag array, then block until it reads back
   kWaitFrames = 0x05u,             // op05: count argA down one frame at a time
   kTestSceneFlag = 0x06u,          // op06: test a scene-flag byte against argC under argA's 3-way mode
@@ -69,13 +69,12 @@ const char *scriptOpcodeName(uint16_t opcodeWord);
 
 // The guest handler's `v0`. The step loop reads it as: pause (0), advance with a kind byte (1/2/3),
 // or exit the loop (4 and above). The names say the effect, because the numbers repeat.
-enum class StepReturn : uint32_t {
+enum class StepReturn : uint8_t {
   kPause = 0u,             // set the flag byte's pause bit and leave the loop with v0 = 1
   kAdvanceKind0 = 1u,      // run the advance sub-machine with kindArg = 0
   kAdvanceKind1 = 2u,      // run the advance sub-machine with kindArg = 1
   kAdvanceKind0Again = 3u, // a SECOND guest switch arm with the same effect as kAdvanceKind0
-  // 4 and above: leave the loop with v0 = 0, no pause bit, no advance. That is the default arm,
-  // not a named member, because the guest names nothing there either.
+  kLeave = 4u,             // 4 and above: leave the loop with v0 = 0, no pause bit, no advance
 };
 static_assert(static_cast<uint32_t>(StepReturn::kAdvanceKind0Again) ==
                   static_cast<uint32_t>(StepReturn::kAdvanceKind0) + 2u,
@@ -86,7 +85,7 @@ static_assert(static_cast<uint32_t>(StepReturn::kAdvanceKind0Again) ==
 // The index the guest's own 7-entry switch table (at 0x8001534C, read out of MAIN.EXE) is taken
 // with. `kOutOfRange` is what the table's literal -1 arm returns; it is a RETURN VALUE here, not an
 // index, so it is named for that.
-enum class AdvanceStepIndex : int {
+enum class AdvanceStepIndex : int8_t {
   kGated = 0,                // keep running only while progress == 2; else clear the flag byte and progress
   kGatedKeepingFlagBit2 = 1, // the same gate, leaving bit 2 (0x04) set in the flag byte
   kStopWritingFF = 2,        // progress and the flag byte are both set to 0xFF; the phase byte is left alone

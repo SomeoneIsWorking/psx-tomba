@@ -79,7 +79,7 @@
 // body, reached by falling through, never by `jal`/`jalr` — the framework's image-scoped native
 // contract (psxport/AGENTS.md, "An override key names a function entry that guest code reaches
 // by jal/jalr") makes it ineligible as an override key, and the enclosing FUN_80050B08 is
-// itself never dispatched by this product: psxport's native_boot calls GameRuntime::bootInit,
+// itself never dispatched by this product: psxport's title session calls GameRuntime::startProgram,
 // which runs FUN_80050b08's INIT PREFIX and then hands iteration to TombaFrameDriver. So the
 // gate's instructions do not execute here, and declaring an override for them would declare
 // something with no reachability. What the port can own, and does, is the gate's STATE: the two
@@ -100,7 +100,7 @@ namespace tomba {
 class FrameCadence {
 public:
   // Back-pointer, wired once where every other Engine-owned subsystem is wired
-  // (game/core/game_ctx.cpp createTombaContext), so no call has to thread a Core through.
+  // (the TombaSession constructor), so no call has to thread a Core through.
   Core *core = nullptr;
 
   // ---- measured guest facts (see the banner; each is read off MAIN.EXE) -------------------

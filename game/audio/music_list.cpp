@@ -5,7 +5,7 @@
 // vabOff from the container's VAB offset table. `game->native_music.play()` drives the shared
 // synth from those offsets.
 #include "music_list.h"
-#include "core/entry/game_ctx.h" // gctx(core)->native_music — the sibling player on the game aggregate
+#include "entry/tomba_session.h" // tombaSession(core).native_music — the sibling player on the game aggregate
 #include "game.h"                // core->game->disc — the native disc backend lives on the framework Game
 #include "native_music.h"
 
@@ -14,8 +14,7 @@
 #include <cstdlib>
 #include <cstring>
 
-#include "cfg.h"
-#include "disc.h"
+#include <lucent/log.h>
 
 // Catalogue: track -> (seq scan-index in TOMBA2.SND, vab scan-index, name).
 //
@@ -23,6 +22,8 @@
 // AUDIBLE bank, NOT the documented §6 bank-slot: §6.4 warns the bank<->VAB-body binding is
 // runtime/area-bound. The vabs below are empirically-resolved (sweep all 24 container VABs per
 // seq, tools/snd_render song <seq> <vab>).
+namespace tomba {
+
 static const struct {
   int seq, vab;
   const char *name;
@@ -64,7 +65,7 @@ int MusicList::loadContainer() {
   }
   uint32_t lba = 0, size = 0;
   if (!disc_find_file(&core->game->disc, "\\CD\\TOMBA2.SND", &lba, &size) || size == 0) {
-    cfg_loge("music_list", "disc_find_file \\CD\\TOMBA2.SND failed");
+    lucent::error("music_list", "disc_find_file \\CD\\TOMBA2.SND failed");
     return -1;
   }
   uint32_t nsec = (size + 2047) / 2048;
@@ -74,14 +75,14 @@ int MusicList::loadContainer() {
   }
   for (uint32_t i = 0; i < nsec; i++) {
     if (!disc_read_sector(&core->game->disc, lba + i, mBuf + (size_t)i * 2048)) {
-      cfg_loge("music_list", "disc read failed at sector %u", i);
+      lucent::error("music_list", "disc read failed at sector {}", i);
       free(mBuf);
       mBuf = nullptr;
       return -1;
     }
   }
   mSize = (long)size;
-  cfg_logi("music_list", "loaded \\CD\\TOMBA2.SND from disc (lba=%u, %ld bytes)", lba, mSize);
+  lucent::info("music_list", "loaded \\CD\\TOMBA2.SND from disc (lba={}, {} bytes)", lba, mSize);
   return 0;
 }
 
@@ -112,15 +113,15 @@ int MusicList::play(int i) {
   }
   long so = seqOff(S2SV[i].seq), vo = vabOff(S2SV[i].vab);
   if (so < 0) {
-    cfg_logi("music_list", "song %d: seq not found", i);
+    lucent::info("music_list", "song {}: seq not found", i);
     return -1;
   }
-  if (gctx(core)->native_music.play(mBuf, so, vo)) {
-    cfg_loge("music_list", "song %d: play failed", i);
+  if (tombaSession(core).native_music.play({.data = mBuf, .seqOff = so, .vabOff = vo})) {
+    lucent::error("music_list", "song {}: play failed", i);
     return -1;
   }
   mNow = i;
-  cfg_logi("music_list", "playing song %d (seq@0x%lx vab@0x%lx)", i, so, vo);
+  lucent::info("music_list", "playing song {} (seq@0x{:x} vab@0x{:x})", i, so, vo);
   return 0;
 }
 
@@ -147,8 +148,8 @@ int MusicList::playArea(const uint8_t *bundle, long bundle_len, int song) {
     return -1;
   }
   // Validate this really is the bundle (SEP at 0x30, area VAB at 0x26b4) before committing.
-  if (memcmp(bundle + 0x30, "pQES", 4) || memcmp(bundle + AREA_VAB_OFF, "pBAV", 4)) {
-    cfg_loge("music_list", "area bundle invalid (no pQES@0x30 / pBAV@0x26b4)");
+  if (memcmp(bundle + 0x30, "pQES", 4) != 0 || memcmp(bundle + AREA_VAB_OFF, "pBAV", 4) != 0) {
+    lucent::error("music_list", "area bundle invalid (no pQES@0x30 / pBAV@0x26b4)");
     return -1;
   }
   long need = bundle_len;
@@ -160,34 +161,36 @@ int MusicList::playArea(const uint8_t *bundle, long bundle_len, int song) {
     return -1;
   }
   memcpy(nb, bundle, need);
-  gctx(core)->native_music.stop();
+  tombaSession(core).native_music.stop();
   free(mArea);
   mArea = nb;
   mAreaLen = need;
   long so = areaSeqOff(song);
   if (so < 0) {
-    cfg_logi("music_list", "area song %d: seq not found", song);
+    lucent::info("music_list", "area song {}: seq not found", song);
     return -1;
   }
-  if (gctx(core)->native_music.play(mArea, so, AREA_VAB_OFF)) {
-    cfg_loge("music_list", "area song %d: play failed", song);
+  if (tombaSession(core).native_music.play({.data = mArea, .seqOff = so, .vabOff = AREA_VAB_OFF})) {
+    lucent::error("music_list", "area song {}: play failed", song);
     return -1;
   }
   mNow = song;
-  cfg_logi("music_list", "area BGM song %d (seq@0x%lx vab@0x%lx)", song, so, (long)AREA_VAB_OFF);
+  lucent::info("music_list", "area BGM song {} (seq@0x{:x} vab@0x{:x})", song, so, (long)AREA_VAB_OFF);
   return 0;
 }
 
 void MusicList::stop() {
   if (core) {
-    gctx(core)->native_music.stop();
+    tombaSession(core).native_music.stop();
   }
   mNow = -1;
 }
 
 int MusicList::nowPlaying() {
-  if (mNow >= 0 && core && !gctx(core)->native_music.active()) {
+  if (mNow >= 0 && core && !tombaSession(core).native_music.active()) {
     mNow = -1;
   }
   return mNow;
 }
+
+} // namespace tomba

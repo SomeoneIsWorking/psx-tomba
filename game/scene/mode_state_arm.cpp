@@ -7,6 +7,8 @@
 // ModeStateArm::arm — native ownership of FUN_8005082C (Ghidra decomp scratch/decomp/
 // bf816_leaves.c). The engine's mode-state arm primitive; see the class doc-comment
 // (mode_state_arm.h) for the field layout + semantics.
+namespace tomba {
+
 void ModeStateArm::arm(uint8_t a, uint8_t b, uint8_t c) {
   Core *c_ = core;
   // Back up the previous payload triple before overwriting.
@@ -52,3 +54,5 @@ void ModeStateArm::armFromAreaTable() {
   c_->mem_w8(0x800BF8A5u, b);
   c_->mem_w8(0x800BF8A6u, d);
 }
+
+} // namespace tomba

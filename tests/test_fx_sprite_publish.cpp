@@ -3,8 +3,7 @@
 #include "game.h"
 #include "gte_registers.h"
 #include "guest_ordering_table.h"
-#include "hw_bind.h"
-#include "stub_runtime.h"
+#include "stub_game_runtime.h"
 
 #include <cstdint>
 #include <lucent/log.h>
@@ -12,7 +11,7 @@
 
 namespace {
 
-using tomba2::render::OrderingTable;
+using tomba::render::OrderingTable;
 
 constexpr std::uint32_t kSceneCamera = 0x1F8000F8u;
 constexpr std::uint32_t kUnity = 0x1000u;
@@ -46,56 +45,63 @@ void clearSlots(Core &core) {
   }
 }
 
-bool project(Core &core, std::uint32_t depth, std::int32_t otBias, std::uint32_t dqa = 6u) {
+struct ProjectArgs {
+  std::uint32_t depth;
+  std::int32_t otBias;
+  std::uint32_t dqa = 6u;
+};
+bool project(Core &core, const ProjectArgs &args) {
+  auto [depth, otBias, dqa] = args;
   parkCamera(core, depth);
   clearSlots(core);
-  FxSpritePublish publish{&core};
+  tomba::FxSpritePublish publish{&core};
   publish.loadSceneCamera(dqa);
-  return publish.projectAnchor(0u, 0u, otBias);
+  return publish.projectAnchor({.worldXY = 0u, .worldZ = 0u, .otBias = otBias});
 }
 
 void testCameraLoad(Core &core) {
   parkCamera(core, 777u);
-  gte_write_ctrl(psx::gte::kDqb, 99u);
-  const FxSpritePublish publish{&core};
+  core.gte().writeControl(psx::gte::kDqb, 99u);
+  const tomba::FxSpritePublish publish{&core};
   publish.loadSceneCamera(4u);
   bool same = true;
   for (std::uint32_t i = 0; i < 8u; i++) {
-    same = same && gte_read_ctrl(psx::gte::kRotation + i) == core.mem_r32(kSceneCamera + i * 4u);
+    same = same && core.gte().readControl(psx::gte::kRotation + i) == core.mem_r32(kSceneCamera + i * 4u);
   }
   check(same, "the scratchpad camera lands in CR0-7");
-  check(gte_read_ctrl(psx::gte::kDqa) == 4u && gte_read_ctrl(psx::gte::kDqb) == 0u,
+  check(core.gte().readControl(psx::gte::kDqa) == 4u && core.gte().readControl(psx::gte::kDqb) == 0u,
         "DQA is the emitter's, DQB is zero");
 }
 
 void testVisible(Core &core) {
-  check(project(core, 1024u, 10), "an anchor in front is published");
+  check(project(core, {.depth = 1024u, .otBias = 10}), "an anchor in front is published");
   check(core.mem_r32(fxpublish::kOtKey) == static_cast<std::uint32_t>(OrderingTable::compressDepth((1024 >> 2) + 10)),
         "the key is SZ3 >> 2 plus the bias, compressed");
   check(core.mem_r32(fxpublish::kScreenXY) == ((kOffsetY << 16) | kOffsetX), "the screen anchor is SXY2");
-  const std::uint32_t mac0 = gte_read_data(psx::gte::kMac0);
+  const std::uint32_t mac0 = core.gte().readData(psx::gte::kMac0);
   check(core.mem_r32(fxpublish::kScaleX) == mac0, "the scale is MAC0");
-  check(project(core, 1024u, 10, 4u) && core.mem_r32(fxpublish::kScaleX) * 3u == mac0 * 2u && mac0 != 0u,
+  check(project(core, {.depth = 1024u, .otBias = 10, .dqa = 4u}) &&
+            core.mem_r32(fxpublish::kScaleX) * 3u == mac0 * 2u && mac0 != 0u,
         "MAC0 is the divide times the emitter's DQA");
 }
 
 void testNearClamp(Core &core) {
-  check(project(core, 1024u, -300), "a key nearer than the nearest bucket is still published");
+  check(project(core, {.depth = 1024u, .otBias = -300}), "a key nearer than the nearest bucket is still published");
   check(core.mem_r32(fxpublish::kOtKey) == static_cast<std::uint32_t>(OrderingTable::kNearestBucket),
         "the key clamps to the nearest bucket");
 }
 
 void testFlagCull(Core &core) {
   // SZ3 below H / 2 overflows the divide, which raises the FLAG error summary.
-  check(!project(core, 8u, 0), "a divide overflow culls");
+  check(!project(core, {.depth = 8u, .otBias = 0}), "a divide overflow culls");
   check(static_cast<std::int32_t>(core.mem_r32(fxpublish::kOtKey)) < 0, "the key slot keeps the FLAG word");
-  check(core.mem_r32(fxpublish::kOtKey) == gte_read_ctrl(psx::gte::kFlag), "the FLAG word is stored as read");
+  check(core.mem_r32(fxpublish::kOtKey) == core.gte().readControl(psx::gte::kFlag), "the FLAG word is stored as read");
   check(core.mem_r32(fxpublish::kScreenXY) == kUntouched && core.mem_r32(fxpublish::kScaleX) == kUntouched,
         "a culled anchor publishes no position or scale");
 }
 
 void testDepthRangeCull(Core &core) {
-  check(!project(core, 40000u, 0), "a key past the far bucket culls");
+  check(!project(core, {.depth = 40000u, .otBias = 0}), "a key past the far bucket culls");
   check(core.mem_r32(fxpublish::kOtKey) == static_cast<std::uint32_t>(OrderingTable::kNoBucket),
         "the trail ends in the no-bucket key");
   check(core.mem_r32(fxpublish::kScreenXY) == kUntouched && core.mem_r32(fxpublish::kScaleX) == kUntouched,
@@ -105,14 +111,13 @@ void testDepthRangeCull(Core &core) {
 } // namespace
 
 int main() {
-  tomba::test::StubRuntime runtime;
-  psxport_install_game(runtime);
-  auto game = std::make_unique<Game>();
+  psx::test::StubGameRuntime runtime;
+  auto game = std::make_unique<Game>(runtime, psx::config::Config{});
   Core &core = game->core;
-  gte_bind(&core);
-  gte_write_ctrl(psx::gte::kOfx, kOffsetX << 16);
-  gte_write_ctrl(psx::gte::kOfy, kOffsetY << 16);
-  gte_write_ctrl(psx::gte::kH, kScreenH);
+  core.gte().bind();
+  core.gte().writeControl(psx::gte::kOfx, kOffsetX << 16);
+  core.gte().writeControl(psx::gte::kOfy, kOffsetY << 16);
+  core.gte().writeControl(psx::gte::kH, kScreenH);
   testCameraLoad(core);
   testVisible(core);
   testNearClamp(core);

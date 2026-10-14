@@ -20,7 +20,7 @@
 // runtime address dispatch, so the registry intercepts it regardless of which object stamped the pointer.
 #include "beh_actor_tomba_proximity_combat.h"
 #include "core.h"
-#include "core/overrides/native_override_catalog.h" // tomba::native::declareOverride — the one native-override registry
+#include "core/overrides/native_override_catalog.h"
 #include "game.h"
 #include "guest_abi.h" // GuestFrameSpill — named spill-table vocabulary only, see below
 #include "guest_call.h"
@@ -42,6 +42,8 @@
 // `return;`s, which would restore+ascend sp on a path ground truth does NOT — a real behavior
 // divergence RAII can't represent here. Kept as manual spill/restore instead; kSpills documents the
 // contract for the record without invoking a lifetime model this function's control flow violates.
+namespace tomba {
+
 static constexpr GuestFrameSpill kSpills[] = {
     {22, 56}, {23, 60}, {31, 64}, {21, 52}, {20, 48}, {19, 44}, {18, 40}, {17, 36}, {16, 32}};
 
@@ -363,7 +365,7 @@ L_80052B70:;
       goto L_80052BBC;
     }
   }
-  c->r[5] = (uint32_t)(int8_t)c->mem_r8((self + (uint32_t)66));
+  c->r[5] = (uint32_t)c->mem_r8s((self + (uint32_t)66));
   c->r[6] = (uint32_t)0 + (uint32_t)0;
   psx::cpu::dispatchGuestToReturn0(*c, 0x80074590u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
   c->r[2] = (uint32_t)c->mem_r16((self + (uint32_t)66));
@@ -416,7 +418,7 @@ L_80052C10:;
       goto L_80052C5C;
     }
   }
-  c->r[5] = (uint32_t)(int8_t)c->mem_r8((self + (uint32_t)66));
+  c->r[5] = (uint32_t)c->mem_r8s((self + (uint32_t)66));
   c->r[6] = (uint32_t)0 + (uint32_t)0;
   psx::cpu::dispatchGuestToReturn0(*c, 0x80074590u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
   c->r[2] = (uint32_t)c->mem_r16((self + (uint32_t)66));
@@ -480,7 +482,7 @@ L_80052CB8:;
     }
   }
   c->r[4] = (uint32_t)0 + (uint32_t)56;
-  c->r[5] = (uint32_t)(int8_t)c->mem_r8((self + (uint32_t)66));
+  c->r[5] = (uint32_t)c->mem_r8s((self + (uint32_t)66));
   c->r[6] = (uint32_t)0 + (uint32_t)0;
   psx::cpu::dispatchGuestToReturn0(*c, 0x80074590u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
   c->r[2] = (uint32_t)c->mem_r16((self + (uint32_t)66));
@@ -797,6 +799,8 @@ L_80053060:;
 // typed runtime address dispatch for this address. Same shape as game/player/actor_tomba.cpp's registerOverrides()
 // comment: "no substrate shard calls this address directly."
 // ---------------------------------------------------------------------------------------------
-void RegisterBehActorTombaProximityCombatOverride(Game * /*game*/) {
-  tomba::native::declareOverride(0x800527C8u, "beh_actor_tomba_proximity_combat", beh_actor_tomba_proximity_combat);
+void RegisterBehActorTombaProximityCombatOverride(native::NativeOverrideCatalog &natives) {
+  natives.declare(0x800527C8u, "beh_actor_tomba_proximity_combat", beh_actor_tomba_proximity_combat);
 }
+
+} // namespace tomba

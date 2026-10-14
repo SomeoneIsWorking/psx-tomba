@@ -3,6 +3,8 @@
 #include "core.h"
 #include "items/inventory_layout.h"
 
+namespace tomba {
+
 namespace {
 
 // {first item id, run length, count}. Ids outside the runs are not granted.
@@ -34,3 +36,5 @@ void ItemGrant::all(Core &core) {
   }
   core.mem_w8(inventory_layout::kQuestPassCounter, kQuestPass);
 }
+
+} // namespace tomba

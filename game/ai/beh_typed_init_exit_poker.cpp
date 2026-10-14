@@ -21,17 +21,17 @@
 // 1:1 as a register machine; the byte-exact A/B gate (full RAM+scratchpad vs original guest-body call) is the safety
 // net. NO GTE/render.
 
-#include "cfg.h"
 #include "core.h"
-#include "core/entry/game_ctx.h"
 #include "core/overrides/guest_jal.h"
+#include "entry/tomba_session.h"
 #include "graphics_bind.h" // ov_obj_set_geom
-#include "guest_abi.h"
-#include "inventory.h" // class Inventory — inv(c).giveAndFlag (FUN_8004D4C4)
-#include "spawn.h"     // class Spawn (eng(c).spawn.despawn / dispatch / spawnAndInit)
+#include "inventory.h"     // class Inventory — inv(c).giveAndFlag (FUN_8004D4C4)
+#include "spawn.h"         // class Spawn (eng(c).spawn.despawn / dispatch / spawnAndInit)
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+namespace tomba {
 
 namespace {
 
@@ -42,11 +42,12 @@ constexpr uint32_t A1_M2 = 0x80017334u; // FUN_80077B38 arg for node[3]==2 (lui 
 // Shared block @0x80118690: FUN_80051D90(node[0x10], a1_buf, 0x1F8000C0) writes the scratchpad work
 // area, then node[0x2E]/0x32/0x36 are copied from 0x1F8000C0/C2/C4 and FUN_8004B374(node,0) is called.
 static void shared_8690(Core *c, uint32_t nd, uint32_t a1_buf) {
-  tomba::guest::dispatchLeafToReturn(*c, 0x80051D90u, c->mem_r32(nd + 0x10), a1_buf, 0x1F8000C0u);
+  psx::cpu::callGuestNowResult(
+      *c, "beh_typed_init_exit_poker", 0x80051D90u, c->mem_r32(nd + 0x10), a1_buf, 0x1F8000C0u);
   c->mem_w16(nd + 0x2E, c->mem_r16(0x1F8000C0u));
   c->mem_w16(nd + 0x32, c->mem_r16(0x1F8000C2u));
   c->mem_w16(nd + 0x36, c->mem_r16(0x1F8000C4u));
-  tomba::guest::dispatchLeafToReturn(*c, 0x8004B374u, nd, 0);
+  psx::cpu::callGuestNowResult(*c, "beh_typed_init_exit_poker", 0x8004B374u, nd, 0);
 }
 
 } // namespace
@@ -142,7 +143,7 @@ L83d0: // 0x801183d0 size block (sub1/sub2)
   c->mem_w16(nd + 0x86, 32);
   goto L8458;
 L8450:
-  tomba::guest::dispatchLeafToReturn(*c, 0x8004B354u, nd, 0); // FUN_8004B354(node, 0)
+  psx::cpu::callGuestNowResult(*c, "beh_typed_init_exit_poker", 0x8004B354u, nd, 0); // FUN_8004B354(node, 0)
 L8458:
   c->mem_w8(nd + 4, (uint8_t)(c->mem_r8(nd + 4) + 1)); // node[4] += 1
   goto Lret;
@@ -177,10 +178,10 @@ S1_0: { // node[3]==0 @0x801184b0
   if (c->mem_r8(c->mem_r32(nd + 0x10) + 0x3F) == 0) {
     goto Lret;
   }
-  tomba::guest::dispatchLeafToReturn(*c, 0x80077EFCu, nd); // FUN_80077EFC(node)
-  c->mem_w8(nd + 1, 1);                                    // node[1] = s1
+  psx::cpu::callGuestNowResult(*c, "beh_typed_init_exit_poker", 0x80077EFCu, nd); // FUN_80077EFC(node)
+  c->mem_w8(nd + 1, 1);                                                           // node[1] = s1
   {
-    int16_t v = c->mem_r16s(c->mem_r32(nd + 0x10) + 0x16);
+    int16_t v = (int16_t)c->mem_r16(c->mem_r32(nd + 0x10) + 0x16);
     if (v != 2) {
       c->mem_w8(nd + 0, 1); // node[0] = s1
     } else {
@@ -234,8 +235,8 @@ S1_1: { // node[3]==1 @0x80118530
   goto Lret; // n5e >= 2
 }
 L185e8:
-  tomba::guest::dispatchLeafToReturn(*c, 0x8007778Cu, nd); // FUN_8007778C(node)
-  tomba::guest::dispatchLeafToReturn(*c, 0x80077B5Cu, nd); // FUN_80077B5C(node)
+  psx::cpu::callGuestNowResult(*c, "beh_typed_init_exit_poker", 0x8007778Cu, nd); // FUN_8007778C(node)
+  psx::cpu::callGuestNowResult(*c, "beh_typed_init_exit_poker", 0x80077B5Cu, nd); // FUN_80077B5C(node)
   goto Lret;
 
 S1_2: { // node[3]==2 @0x80118600
@@ -244,18 +245,18 @@ S1_2: { // node[3]==2 @0x80118600
     c->mem_w16(nd + 0x64, 54);
     c->mem_w8(nd + 5, 1);
     c->mem_w16(nd + 0x66, 80);
-    c->mem_w16(nd + 0x68, 0);                                   // delay-slot store: runs BEFORE the call
-    tomba::guest::dispatchLeafToReturn(*c, 0x8004B354u, nd, 0); // FUN_8004B354(node, 0)
+    c->mem_w16(nd + 0x68, 0); // delay-slot store: runs BEFORE the call
+    psx::cpu::callGuestNowResult(*c, "beh_typed_init_exit_poker", 0x8004B354u, nd, 0); // FUN_8004B354(node, 0)
     goto Lret;
   }
   if (n5 == 1) { // 0x80118648
     if (c->mem_r8(c->mem_r32(nd + 0x10) + 0x3F) == 0) {
       goto Lret;
     }
-    tomba::guest::dispatchLeafToReturn(*c, 0x80077EFCu, nd); // FUN_80077EFC(node)
-    c->mem_w8(nd + 1, 1);                                    // node[1] = s1
+    psx::cpu::callGuestNowResult(*c, "beh_typed_init_exit_poker", 0x80077EFCu, nd); // FUN_80077EFC(node)
+    c->mem_w8(nd + 1, 1);                                                           // node[1] = s1
     {
-      int16_t v = c->mem_r16s(c->mem_r32(nd + 0x10) + 0x16);
+      int16_t v = (int16_t)c->mem_r16(c->mem_r32(nd + 0x10) + 0x16);
       if (v != 2) {
         c->mem_w8(nd + 0, (uint8_t)v); // node[0] = v   (s0 == node[3] == 2)
       } else {
@@ -268,12 +269,12 @@ S1_2: { // node[3]==2 @0x80118600
   goto Lret; // n5 >= 2
 }
 
-S1_3:                                                      // node[3]==3 @0x801186c8
-  tomba::guest::dispatchLeafToReturn(*c, 0x8007778Cu, nd); // FUN_8007778C(node)
+S1_3:                                                                             // node[3]==3 @0x801186c8
+  psx::cpu::callGuestNowResult(*c, "beh_typed_init_exit_poker", 0x8007778Cu, nd); // FUN_8007778C(node)
   if (c->r[2] == 0) {
     goto Lret; // return value
   }
-  tomba::guest::dispatchLeafToReturn(*c, 0x8004B374u, nd, 0); // FUN_8004B374(node, 0)
+  psx::cpu::callGuestNowResult(*c, "beh_typed_init_exit_poker", 0x8004B374u, nd, 0); // FUN_8004B374(node, 0)
   goto Lret;
 
 // ================= STATE 2 =================
@@ -284,34 +285,34 @@ S2:
     // FUN_80040B48 = SceneEvents::arm; caller advances only when events are enabled (r[2] >= 0).
     c->r[31] = 0x80118734u; // ra mirror: gen jal-site (armBody spills ra)
     if (eng(c).sceneEvents.arm(5) >= 0) {
-      inv(c).giveAndFlag(36, 1);                               // FUN_8004D4C4(36, 1) [native]
-      tomba::guest::dispatchLeafToReturn(*c, 0x8004B0D8u, nd); // FUN_8004B0D8(node)
+      inv(c).giveAndFlag({.type = 36, .amount = 1});                                  // FUN_8004D4C4(36, 1) [native]
+      psx::cpu::callGuestNowResult(*c, "beh_typed_init_exit_poker", 0x8004B0D8u, nd); // FUN_8004B0D8(node)
     }
     c->mem_w8(nd + 4, 3); // node[4] = 3
     goto Lret;
-  case 1:                                                    // st2sub1 @0x8011875c
-    inv(c).giveAndFlag(69, 1);                               // FUN_8004D4C4(69, 1) [native]
-    tomba::guest::dispatchLeafToReturn(*c, 0x8004B0D8u, nd); // FUN_8004B0D8(node)
+  case 1:                                                                           // st2sub1 @0x8011875c
+    inv(c).giveAndFlag({.type = 69, .amount = 1});                                  // FUN_8004D4C4(69, 1) [native]
+    psx::cpu::callGuestNowResult(*c, "beh_typed_init_exit_poker", 0x8004B0D8u, nd); // FUN_8004B0D8(node)
     c->mem_w8(nd + 4, 3);
     c->mem_w8(0x800BF9DFu, (uint8_t)(c->mem_r8(0x800BF9DFu) | 0x20));
     goto Lret;
-  case 2: {                                                  // st2sub_v1 @0x80118794
-    inv(c).giveAndFlag(120, 1);                              // FUN_8004D4C4(120, 1) [native]
-    c->mem_w8(nd + 4, 3);                                    // node[4] = 3 (delay slot)
-    tomba::guest::dispatchLeafToReturn(*c, 0x8004B0D8u, nd); // FUN_8004B0D8(node)
+  case 2: {                                                                         // st2sub_v1 @0x80118794
+    inv(c).giveAndFlag({.type = 120, .amount = 1});                                 // FUN_8004D4C4(120, 1) [native]
+    c->mem_w8(nd + 4, 3);                                                           // node[4] = 3 (delay slot)
+    psx::cpu::callGuestNowResult(*c, "beh_typed_init_exit_poker", 0x8004B0D8u, nd); // FUN_8004B0D8(node)
     uint8_t flg = c->mem_r8(0x800BF9EAu);
-    int16_t p = c->mem_r16s(nd + 0x60);
+    int16_t p = (int16_t)c->mem_r16(nd + 0x60);
     flg = (uint8_t)(flg & ~(1u << ((uint32_t)p & 31)));
     c->mem_w8(0x800BF9EAu, flg);
     flg = (uint8_t)(flg & ~(1u << (((uint32_t)p + 4) & 31)));
     c->mem_w8(0x800BF9EAu, flg);
-    tomba::guest::dispatchLeafToReturn(*c, 0x80040C00u, 78); // FUN_80040C00(78)
+    psx::cpu::callGuestNowResult(*c, "beh_typed_init_exit_poker", 0x80040C00u, 78); // FUN_80040C00(78)
     goto Lret;
   }
-  case 3:                                                    // st2sub3 @0x801187f8
-    inv(c).giveAndFlag(83, 1);                               // FUN_8004D4C4(83, 1) [native]
-    tomba::guest::dispatchLeafToReturn(*c, 0x8004B0D8u, nd); // FUN_8004B0D8(node)
-    c->mem_w8(nd + 4, 3);                                    // node[4] = s0 (==3)
+  case 3:                                                                           // st2sub3 @0x801187f8
+    inv(c).giveAndFlag({.type = 83, .amount = 1});                                  // FUN_8004D4C4(83, 1) [native]
+    psx::cpu::callGuestNowResult(*c, "beh_typed_init_exit_poker", 0x8004B0D8u, nd); // FUN_8004B0D8(node)
+    c->mem_w8(nd + 4, 3);                                                           // node[4] = s0 (==3)
     c->mem_w8(0x800BF9EEu, (uint8_t)(c->mem_r8(0x800BF9EEu) | 2));
     goto Lret;
   default:
@@ -322,3 +323,5 @@ Lret:
   c->r[29] = entry_sp; // restore caller sp
   return;
 }
+
+} // namespace tomba

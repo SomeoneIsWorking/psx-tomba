@@ -26,36 +26,38 @@
 #include "audio/music_coord.h"    // Engine owns the MusicCoord dialog↔music coordination
 #include "audio/sequencer.h" // Engine owns the Sequencer libsnd tick wrapper (FUN_800909C0, wide-RE draft, unwired)
 #include "audio/sfx.h"       // Engine owns the Sfx trigger subsystem (FUN_80074590)
-#include "bg_scene_transition_sm.h"            // Engine owns the BG scene-transition fade manager
-#include "core/assets/asset.h"                 // Engine owns the Asset loader subsystem
-#include "core/frame/frame_cadence.h"          // Engine owns FrameCadence — the one frame-rate decision
-#include "core/frame/frame_cut.h"              // Engine owns FrameCut — whether a sealed record is a cut
-#include "demo.h"                              // Engine owns the Demo front-end MENU stage machine
-#include "math/mathlib.h"                      // Engine owns the Bit game-flag bitmap subsystem
-#include "object/animation.h"                  // Engine owns the Animation per-object VM stepper
-#include "object/behavior_dispatch.h"          // Engine owns the per-object BehaviorDispatch subsystem
-#include "object_list.h"                       // Engine owns the ObjectList entity-list walkers
-#include "object_table.h"                      // Engine owns the ObjectTable 40-slot dispatcher
-#include "overrides/native_override_catalog.h" // overlay image residency and scoped native bindings
-#include "parallax_bg.h"                       // Engine owns the SOP parallax-BG state machine
-#include "player/actor_tomba.h"                // Engine owns Tomba's per-frame logic + growth/movement
-#include "player/collision.h"                  // Engine owns the Collision grid-family subsystem
-#include "render/cull.h"                       // Engine owns the Cull visibility subsystem
-#include "scene/field_transition.h"            // Engine owns the FieldTransition sub-scene/door/area FADE machine
-#include "scene/mode_state_arm.h"              // Engine owns the ModeStateArm arm-primitive pair
-#include "scene/scene_events.h"                // Engine owns the SceneEvents arm subsystem (FUN_80040B48)
-#include "scene/script_interp.h"               // Engine owns the ScriptInterp cutscene-script dispatcher
-#include "scene_transition.h"                  // Engine owns the SceneTransition subsystem instance
-#include "sop.h"                               // Engine owns the Sop intro-cutscene field stage machine
-#include "transition_state3.h"                 // Engine owns the TransitionState3 walker instance
-#include "ui/font.h"                           // Engine owns the Font boot-time init subsystem
-#include "world/area_slots.h"                  // Engine owns the AreaSlots slot-table state machine
-#include "world/graphics_bind.h"               // Engine owns the GraphicsBind object render-bind subsystem
-#include "world/placement.h"                   // Engine owns the Placement field-object driver
-#include "world/pool.h"                        // Engine owns the Pool per-area init subsystem
-#include "world/spawn.h"                       // Engine owns the Spawn entity-spawn/despawn subsystem
+#include "bg_scene_transition_sm.h"   // Engine owns the BG scene-transition fade manager
+#include "core/assets/asset.h"        // Engine owns the Asset loader subsystem
+#include "core/frame/frame_cadence.h" // Engine owns FrameCadence — the one frame-rate decision
+#include "core/frame/frame_cut.h"     // Engine owns FrameCut — whether a sealed record is a cut
+#include "demo.h"                     // Engine owns the Demo front-end MENU stage machine
+#include "math/mathlib.h"             // Engine owns the Bit game-flag bitmap subsystem
+#include "object/animation.h"         // Engine owns the Animation per-object VM stepper
+#include "object/behavior_dispatch.h" // Engine owns the per-object BehaviorDispatch subsystem
+#include "object_list.h"              // Engine owns the ObjectList entity-list walkers
+#include "object_table.h"             // Engine owns the ObjectTable 40-slot dispatcher
+#include "overrides/native_override_catalog.h"
+#include "parallax_bg.h"            // Engine owns the SOP parallax-BG state machine
+#include "player/actor_tomba.h"     // Engine owns Tomba's per-frame logic + growth/movement
+#include "player/collision.h"       // Engine owns the Collision grid-family subsystem
+#include "render/cull.h"            // Engine owns the Cull visibility subsystem
+#include "scene/field_transition.h" // Engine owns the FieldTransition sub-scene/door/area FADE machine
+#include "scene/mode_state_arm.h"   // Engine owns the ModeStateArm arm-primitive pair
+#include "scene/scene_events.h"     // Engine owns the SceneEvents arm subsystem (FUN_80040B48)
+#include "scene/script_interp.h"    // Engine owns the ScriptInterp cutscene-script dispatcher
+#include "scene_transition.h"       // Engine owns the SceneTransition subsystem instance
+#include "sop.h"                    // Engine owns the Sop intro-cutscene field stage machine
+#include "transition_state3.h"      // Engine owns the TransitionState3 walker instance
+#include "ui/font.h"                // Engine owns the Font boot-time init subsystem
+#include "world/area_slots.h"       // Engine owns the AreaSlots slot-table state machine
+#include "world/graphics_bind.h"    // Engine owns the GraphicsBind object render-bind subsystem
+#include "world/placement.h"        // Engine owns the Placement field-object driver
+#include "world/pool.h"             // Engine owns the Pool per-area init subsystem
+#include "world/spawn.h"            // Engine owns the Spawn entity-spawn/despawn subsystem
 #include <optional>
 class Core;
+
+namespace tomba {
 
 class Engine {
 public:
@@ -107,8 +109,14 @@ public:
   // mode the area is in.
   bool mCamTpPending = false;
   int32_t mCamTpX = 0, mCamTpY = 0, mCamTpZ = 0;
+  struct CamTeleportArgs {
+    int x;
+    int y;
+    int z;
+  };
   // Arm / disarm the one-shot teleport (`tp X Y Z` / bare `tp`).
-  void camTeleport(int x, int y, int z) {
+  void camTeleport(const CamTeleportArgs &args) {
+    auto [x, y, z] = args;
     mCamTpX = x;
     mCamTpY = y;
     mCamTpZ = z;
@@ -121,15 +129,6 @@ public:
   // armed. Called once per frame from Engine::frameUpdate, before that frame's
   // state update.
   void devTeleportApply();
-
-  // DEV WARP area index (game/core/dev_areas.cpp) — backs the RmlUi warp
-  // selector and the REPL `warp` range guard. Static: no Engine state, and the
-  // framework reaches them through GameHooks so it never learns a Tomba guest
-  // address or an area name. devAreaName returns "" for an area whose name has
-  // no source yet (see docs/areas.md — an index is a fact, a name is a claim).
-  static int devAreaCount();
-  static const char *devAreaName(int area);
-  static bool devWarpAllowed(Core *c); // a warp is only legal from the field (GAME stage)
 
   // `debug stage` change-detector for the RUNNING dispatcher's
   // sm[0x4a]/sm[0x4c] log line (was a function-local static pair in the stage
@@ -202,14 +201,6 @@ public:
   //   substrate); non-zero if handled here (was `ov_game_frame`).
   void stagePrologue();
   int frame();
-  // stageBodyFaithful: the whole overlay guest 0x8010637C arc as a native task body
-  // on a PcScheduler fiber (faithful-execution model, same shape as
-  // Demo::stageBodyFaithful): stagePrologue (already guest-frame-faithful),
-  // then the substate loop — frame() for natively-owned sm[0x48] states, the
-  // guest handler dispatched for unowned ones, substrate tail yield each
-  // iteration. native_sync keeps the per-tick stagePrologue()/frame() pair via
-  // runGameStanza.
-  void stageBodyFaithful();
   // stageMain: OLD guest-loop entry (prologue + guest-continuation into 0x801063F4).
   // Kept as reference / fallback (native per-frame path calls stagePrologue +
   // frame directly). Was ov_game_stage_main.
@@ -301,12 +292,8 @@ public:
   // While a bug report takes this frame, hand its ordering table to the report's PSX render.
   void captureBugReportReference(uint32_t otHead);
 
-  // startBinStage / startBinStageFaithful: the two stage-0 START.BIN task bodies, one per
-  // execution model. Both run StartBinStage (game/scene/start_bin_stage.h); the native body
-  // returns and Engine performs the stage swap to DEMO, the faithful body never returns (its
-  // guest stage-swap arm parks the fiber until the stanza cancels it).
+  // startBinStage: the stage-0 START.BIN task body (StartBinStage), then the stage swap to DEMO.
   void startBinStage();
-  void startBinStageFaithful();
 
   // task0Bootstrap: the boot-init entry that (a) resolves \BIN\START.BIN
   // natively via disc_find_file, (b) records its {LBA,size} into 0x800be1e0,
@@ -386,22 +373,31 @@ public:
   //   stashes its returned byte into obj+0x79. Returns 1 (matches guest instruction path v0).
   uint32_t animTick(uint32_t obj);
 
+  struct AnnouncerCueArgs {
+    uint32_t id;
+    uint8_t flag;
+  };
   // announcerCue(id, flag): guest FUN_8004ED94. Enqueues an announcer/UI cue by
   // (id, flag) via
   //   the substrate FUN_8004FA38 leaf — table lookup at DAT_800BF7FC then
   //   DAT_800BF800 base.
-  void announcerCue(uint32_t id, uint8_t flag);
+  void announcerCue(const AnnouncerCueArgs &args);
 
   // (FUN_800518FC is NodeXform::buildWithOffset, not an Engine leaf — a dead
   // duplicate
   //  Engine::objMatrixCompose was removed here; see engine.cpp +
   //  docs/findings/render.md.)
 
+  struct WalkStartArgs {
+    uint32_t obj;
+    uint32_t mode;
+    int16_t subMode;
+  };
   // walkStart(obj, mode, subMode): guest FUN_80054D14. Transitions the object
   // into anim `mode`.
   //   Returns 0 if already in that mode; else 1 (and delegates to FUN_80077C40
   //   / FUN_80077CFC).
-  uint32_t walkStart(uint32_t obj, uint32_t mode, int16_t subMode);
+  uint32_t walkStart(const WalkStartArgs &args);
 
   // (playerGrowthStep moved to ActorTomba::growthStep — see
   // game/player/actor_tomba.h; callers
@@ -420,6 +416,10 @@ public:
   //   as substrate leaf).
   void uploadModeSprites();
 
+  struct GStateMutateArgs {
+    uint32_t G;
+    uint8_t op;
+  };
   // gStateMutate(G, op): guest FUN_80058304. A 15-case dispatcher that flips
   // flag bits on the
   //   master G block's byte pair (G+0x174, G+0xD) and fires an SFX/announcer
@@ -434,7 +434,7 @@ public:
   //   DAT_800BF881 = G+0x174 (post-mutation snapshot). Ghidra decomp
   //   scratch/decomp/fieldrun_s2_init.c. `op` is the u8 selector (a1 in the
   //   guest instruction path).
-  void gStateMutate(uint32_t G, uint8_t op);
+  void gStateMutate(const GStateMutateArgs &args);
 
   // postRenderTick: small 3-state machine on byte 0x800BF842 at guest
   // 0x80077D8C, called after the
@@ -529,3 +529,5 @@ public:
   //   handlers installModeHandlers registers.
   uint32_t runModeEnter();
 };
+
+} // namespace tomba

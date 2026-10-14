@@ -1,9 +1,8 @@
 #include "stream_field_turn.h"
 
-#include "cd.h"
 #include "core.h"
-#include "dma_irq.h"
 #include "game.h"
+#include "stock_libcd.h"
 
 #include <lucent/log.h>
 
@@ -15,10 +14,10 @@ void advanceStreamAudio(Core &core) {
 }
 
 void pumpStreamDisc(Core &core) {
-  core.game->cd.pumpStream(&core, CD_STREAM_MAX_BURST);
+  core.game->cd.stockLibrary()->pumpStream(core, CD_STREAM_MAX_BURST);
 }
 
-constexpr StreamFieldTurn kStreamFieldTurn{advanceStreamAudio, pumpStreamDisc};
+constexpr StreamFieldTurn kStreamFieldTurn{.advanceAudio = advanceStreamAudio, .pumpDisc = pumpStreamDisc};
 
 void logStreamState(Core &core, const char *phase) {
   const Game &game = *core.game;
@@ -59,8 +58,8 @@ void logStreamState(Core &core, const char *phase) {
 } // namespace
 
 void StreamFieldTurn::service(Core &core) const {
-  advanceAudio_(core);
-  pumpDisc_(core);
+  advanceAudio(core);
+  pumpDisc(core);
 }
 
 void serviceStreamField(Core &core) {

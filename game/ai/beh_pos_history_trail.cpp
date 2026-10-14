@@ -34,14 +34,15 @@
 // owner. The original goto structure (Lc70/Lca0/Ld90/Ld98/Lda8/Lddc/Lde0) is preserved exactly. The
 // byte-exact A/B gate (full RAM+scratchpad vs original guest-body call) is the safety net.
 
-#include "cfg.h"
 #include "core.h"
-#include "core/entry/game_ctx.h"
+#include "entry/tomba_session.h"
 #include "guest_abi.h" // GuestFrame — mirror the guest stack frame (CLAUDE.md)
 #include "spawn.h"     // class Spawn (eng(c).spawn.despawn / dispatch / spawnAndInit)
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+namespace tomba {
 
 namespace {
 
@@ -108,7 +109,7 @@ void beh_pos_history_trail(Core *c) {
     c->mem_w16(nd + 0x3c, 0);
     c->mem_w8(nd + 1, 1);
     if (c->mem_r8(nd + 5) > 1) { // (byte)node[5] > 1
-      int8_t cv = c->mem_r8s(nd + 0x2c);
+      int8_t cv = (int8_t)c->mem_r8(nd + 0x2c);
       int8_t nv = (int8_t)(cv + 1);
       if (nv > 4) {
         nv = 0; // 0..4 wrap (matches '\x04' < (char)(cv+1))
@@ -220,3 +221,5 @@ Lde0: {
   c->mem_w16(nd + 0x3c, c->mem_r16(tgt + 0x36));
 }
 }
+
+} // namespace tomba

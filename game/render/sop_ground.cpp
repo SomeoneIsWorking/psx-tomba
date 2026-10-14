@@ -8,6 +8,8 @@
 #include "guest_ordering_table.h"
 #include "native_dispatch.h"
 
+namespace tomba {
+
 namespace {
 
 constexpr std::uint32_t kEntry = 0x80109FE0u;
@@ -32,10 +34,10 @@ void SopGround::draw(Core *c) {
   if (count == 0u) {
     return;
   }
-  const std::uint32_t orderingTable = tomba2::render::OrderingTable::active(*c).base();
+  const std::uint32_t orderingTable = tomba::render::OrderingTable::active(*c).base();
   const std::uint32_t blocks = c->mem_r32(list + kListBlocks);
   for (std::uint32_t reg = 0; reg < kSceneCameraWords; reg++) {
-    gte_write_ctrl(reg, c->mem_r32(kSceneCamera + reg * 4u));
+    c->gte().writeControl(reg, c->mem_r32(kSceneCamera + reg * 4u));
   }
   for (std::uint32_t slot = 0; slot < count; slot++) {
     const std::uint32_t block = blocks + c->mem_r16(list + kListIndices + slot * 2u) * 4u;
@@ -54,7 +56,9 @@ void SopGround::draw(Core *c) {
   }
 }
 
-void SopGround::registerOverrides() {
-  tomba::native::declareOverlayOverride(
+void SopGround::registerOverrides(native::NativeOverrideCatalog &natives) {
+  natives.declareOverlay(
       "SOP", kEntry, "SopGround::draw", &SopGround::draw, psx::present::Producer{psx::present::Arg::A0});
 }
+
+} // namespace tomba

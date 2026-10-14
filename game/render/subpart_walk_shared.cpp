@@ -19,11 +19,13 @@
 // bottom, and `node[+8] == 0` draws nothing however large `node[+9]` is. Note also that this function
 // checks `node[+8]` BEFORE loading the transform at all, so an empty node costs nothing.
 #include "core.h"
-#include "core/entry/game_ctx.h" // eng()
 #include "core/overrides/native_override_catalog.h"
+#include "entry/tomba_session.h" // eng()
 #include "guest_call.h"
 #include "guest_ordering_table.h"
 #include "render.h"
+
+namespace tomba {
 
 namespace {
 
@@ -51,14 +53,14 @@ void Render::sharedTransformWalk(Core *c) {
 
   if (c->mem_r8(node + NODE_LIMIT) != 0) {
     // one shared transform for the whole node — rotation (0..4) then translation (5..7)
-    gte_write_ctrl(0, c->mem_r32(VIEW_TRANSFORM + 0));
-    gte_write_ctrl(1, c->mem_r32(VIEW_TRANSFORM + 4));
-    gte_write_ctrl(2, c->mem_r32(VIEW_TRANSFORM + 8));
-    gte_write_ctrl(3, c->mem_r32(VIEW_TRANSFORM + 12));
-    gte_write_ctrl(4, c->mem_r32(VIEW_TRANSFORM + 16));
-    gte_write_ctrl(5, c->mem_r32(VIEW_TRANSFORM + 20));
-    gte_write_ctrl(6, c->mem_r32(VIEW_TRANSFORM + 24));
-    gte_write_ctrl(7, c->mem_r32(VIEW_TRANSFORM + 28));
+    c->gte().writeControl(0, c->mem_r32(VIEW_TRANSFORM + 0));
+    c->gte().writeControl(1, c->mem_r32(VIEW_TRANSFORM + 4));
+    c->gte().writeControl(2, c->mem_r32(VIEW_TRANSFORM + 8));
+    c->gte().writeControl(3, c->mem_r32(VIEW_TRANSFORM + 12));
+    c->gte().writeControl(4, c->mem_r32(VIEW_TRANSFORM + 16));
+    c->gte().writeControl(5, c->mem_r32(VIEW_TRANSFORM + 20));
+    c->gte().writeControl(6, c->mem_r32(VIEW_TRANSFORM + 24));
+    c->gte().writeControl(7, c->mem_r32(VIEW_TRANSFORM + 28));
 
     if (c->mem_r8(node + NODE_COUNT) != 0) {
       int32_t index = 0;
@@ -71,7 +73,7 @@ void Render::sharedTransformWalk(Core *c) {
 
         const uint32_t sub = c->mem_r32(cursor + SUBPART_ARRAY);
         c->r[4] = c->mem_r32(sub + SUB_GEOMBLK);
-        c->r[5] = tomba2::render::OrderingTable::active(*c).base();
+        c->r[5] = tomba::render::OrderingTable::active(*c).base();
         c->r[31] = 0x8003F140u; // jal-site ra
         c->r[6] = passThrough;
         const auto part = c->emission.instance(eng(c).graphicsBind.records.object(sub));
@@ -96,9 +98,11 @@ static void ov_shared_transform_walk(Core *c) {
   Render::sharedTransformWalk(c);
 }
 
-void shared_transform_walk_install() {
-  tomba::native::declareOverride(0x8003F07Cu,
-                                 "Render::sharedTransformWalk",
-                                 ov_shared_transform_walk,
-                                 psx::present::Producer{psx::present::Arg::A0});
+void shared_transform_walk_install(native::NativeOverrideCatalog &natives) {
+  natives.declare(0x8003F07Cu,
+                  "Render::sharedTransformWalk",
+                  ov_shared_transform_walk,
+                  psx::present::Producer{psx::present::Arg::A0});
 }
+
+} // namespace tomba

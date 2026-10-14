@@ -7,10 +7,9 @@
 #include "audio/libsnd_globals.h"
 #include "audio/sequencer_record.h"
 #include "core.h"
-#include "core/entry/game_ctx.h"
 #include "core/overrides/guest_jal.h"
 #include "core/overrides/native_override_catalog.h"
-#include "execution_services.h"
+#include "entry/tomba_session.h"
 #include "game.h"
 #include "guest_abi.h"
 #include "guest_call.h"
@@ -94,7 +93,7 @@ void Sequencer::channelVoiceRegisterWrite() {
   // the identical pre-call values gen's own spill sequence did (same reasoning as
   // channelPitchSlideTick's frame comment). Internal control flow/register usage kept LITERAL past
   // this point — see this function's header comment for why.
-  static constexpr GuestFrameSpill kSpills[] = {
+  constexpr GuestFrameSpill kSpills[] = {
       {31, 60}, {30, 56}, {23, 52}, {22, 48}, {21, 44}, {20, 40}, {19, 36}, {18, 32}, {17, 28}, {16, 24}};
   GuestFrame<64, 10> frame(c, kSpills);
   c->r[7] = c->r[4] & 255u;
@@ -134,7 +133,7 @@ L_800955B0:
   }
   c->mem_w16(c->r[17] + 90u, (uint16_t)c->r[2]);
 L_800955C8:
-  c->r[2] = (uint32_t)(int8_t)c->mem_r8(0x80100000u + 23788u); // libsnd::kSpuKeyScanCount
+  c->r[2] = (uint32_t)c->mem_r8s(0x80100000u + 23788u); // libsnd::kSpuKeyScanCount
   {
     int _t = ((int32_t)c->r[2] <= 0);
     c->r[18] = c->r[0] + c->r[0];
@@ -177,7 +176,7 @@ L_80095604:
   }
   c->r[4] = 0x80100000u + c->r[16];
   c->r[4] = (uint32_t)(int16_t)c->mem_r16(c->r[4] + 21728u);
-  c->r[2] = (uint32_t)(int8_t)c->mem_r8(c->r[17] + 38u);
+  c->r[2] = (uint32_t)c->mem_r8s(c->r[17] + 38u);
   {
     int _t = (c->r[4] != c->r[2]);
     c->r[2] = c->r[18] + 1u;
@@ -530,7 +529,7 @@ L_800959A4: {
 L_80095A44:
   c->r[18] = c->r[2] + c->r[0];
   c->r[2] = c->r[2] << 16;
-  c->r[3] = (uint32_t)(int8_t)c->mem_r8(0x80100000u + 23788u); // libsnd::kSpuKeyScanCount
+  c->r[3] = (uint32_t)c->mem_r8s(0x80100000u + 23788u); // libsnd::kSpuKeyScanCount
   c->r[2] = (uint32_t)((int32_t)c->r[2] >> 16);
   c->r[2] = (uint32_t)((int32_t)c->r[2] < (int32_t)c->r[3]);
   {
@@ -631,10 +630,10 @@ static void nat_channelVoiceKeyOn(Core *c) {
   eng(c).sequencer.channelVoiceKeyOn();
 }
 
-void declareVoiceWriteOverrides() {
-  tomba::native::declareOverride(0x80095530u, "nat_channelVoiceRegisterWrite", nat_channelVoiceRegisterWrite);
-  tomba::native::declareOverride(0x800962B0u, "nat_channelVoiceSelectPrep", nat_channelVoiceSelectPrep);
-  tomba::native::declareOverride(0x80091810u, "nat_channelVoiceKeyOn", nat_channelVoiceKeyOn);
+void declareVoiceWriteOverrides(native::NativeOverrideCatalog &natives) {
+  natives.declare(0x80095530u, "nat_channelVoiceRegisterWrite", nat_channelVoiceRegisterWrite);
+  natives.declare(0x800962B0u, "nat_channelVoiceSelectPrep", nat_channelVoiceSelectPrep);
+  natives.declare(0x80091810u, "nat_channelVoiceKeyOn", nat_channelVoiceKeyOn);
 }
 
 } // namespace tomba::audio

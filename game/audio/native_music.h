@@ -1,10 +1,10 @@
-// class NativeMusic — in-game REAL-TIME native music player, on the game-side TombaCtx aggregate.
+// class NativeMusic — in-game REAL-TIME native music player, on TombaSession.
 //
 // Drives the shared synth core (native_audio.c) live: play() binds a SEP sequence + VAB at explicit
 // byte offsets into a caller-owned data buffer; render() pulls stereo @44100 chunks each audio frame
-// (mixed into the SPU sink via the audioMixFrame GameHooks callback). Silent when nothing is playing.
+// (mixed into the SPU sink by TombaAudio::mixFrame). Silent when nothing is playing.
 //
-// One per Core (gctx(c)->native_music). In SBS with two Cores each has its own — only the Core whose
+// One per Core (tombaSession(c).native_music). In SBS with two Cores each has its own — only the Core whose
 // Game drives audio (SpuAudio's mState==1) actually mixes anything audible. Self-contained: no
 // back-pointer needed (operates purely on its caller-supplied buffers + the shared synth core).
 #ifndef NATIVE_MUSIC_H
@@ -15,12 +15,19 @@
 #include "native_audio.h"
 #include <pthread.h>
 
+namespace tomba {
+
 class NativeMusic {
 public:
+  struct PlayArgs {
+    const uint8_t *data;
+    long seqOff;
+    long vabOff;
+  };
   // Bind the SEP sequence at seqOff using the VAB at vabOff, both byte offsets into `data`. `data`
   // must remain valid for the lifetime of playback (no copy). Stops any current track first.
   // Returns 0 on success, -1 if the seq/VAB headers are invalid.
-  int play(const uint8_t *data, long seqOff, long vabOff);
+  int play(const PlayArgs &args);
   // Stop the active track (subsequent renders are silent).
   void stop();
   // Is a track currently playing (and not yet drained)?
@@ -35,5 +42,7 @@ private:
   NaVab mVab;
   NaSeq mSeq;
 };
+
+} // namespace tomba
 #endif // __cplusplus
 #endif

@@ -6,6 +6,12 @@
 
 struct Core;
 
+namespace tomba::native {
+class NativeOverrideCatalog;
+} // namespace tomba::native
+
+namespace tomba {
+
 class SopGround {
 public:
   // FUN_80109FE0(list=a0). The list holds a count byte at +6, the block buffer at +0xC and one u16
@@ -14,5 +20,7 @@ public:
   // SOP's GT3/GT4 list emitters. Each block is its own drawn object: blocks are per map cell, so a
   // block keeps its address while it stays visible, whatever its slot in the list.
   static void draw(Core *c);
-  static void registerOverrides();
+  static void registerOverrides(native::NativeOverrideCatalog &natives);
 };
+
+} // namespace tomba

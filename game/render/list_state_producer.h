@@ -13,7 +13,7 @@
 #include <cstdint>
 #include <span>
 
-namespace tomba2::render {
+namespace tomba::render {
 
 class ListStateProducer : public psx::present::StateProducer {
 public:
@@ -35,4 +35,4 @@ private:
   Core &core_;
 };
 
-} // namespace tomba2::render
+} // namespace tomba::render

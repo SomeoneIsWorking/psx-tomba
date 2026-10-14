@@ -20,16 +20,18 @@
 // jump table becomes switch->goto; signed hword tests (lh/slti) preserved. The byte-exact A/B gate (full
 // RAM+scratchpad vs original guest-body call) is the safety net.
 
-#include "cfg.h"
 #include "core.h"
-#include "core/entry/game_ctx.h"
 #include "core/overrides/guest_jal.h"
+#include "entry/tomba_session.h"
 #include "graphics_bind.h" // ov_obj_render_update (FUN_800517F8)
 #include "guest_abi.h"
 #include "spawn.h" // class Spawn (eng(c).spawn.despawn / dispatch / spawnAndInit)
+#include <lucent/log.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+namespace tomba {
 
 namespace {
 
@@ -47,15 +49,14 @@ void beh_anim_trigger_gates(Core *c) {
   uint32_t v1;
 
   uint8_t st = c->mem_r8(obj + 4); // node[4] = outer state
-  if (getenv("PSXPORT_ANIMTG_ENTRY")) {
-    cfg_logi("animtg-entry",
-             "core=%p node=%08X st=%u n3=%u stage=%08X",
-             (void *)c,
-             obj,
-             st,
-             c->mem_r8(obj + 3),
-             c->mem_r32(0x801fe00c));
-  }
+  lucent::debug("animtg-entry",
+                "core={} node={:08X} st={} n3={} stage={:08X}",
+                (void *)c,
+                obj,
+                st,
+                c->mem_r8(obj + 3),
+                c->mem_r32(0x801fe00c));
+
   if (st == 1) {
     goto Lcb0;
   }
@@ -82,18 +83,18 @@ Lc50: // STATE 0 — node[3] dispatch (per decomp FUN_80129c00
       // guest instruction path. Corrected: n3==3 dispatches 0x8012982C.
   v1 = c->mem_r8(obj + 3);
   if (v1 == 3) {
-    tomba::guest::dispatchLeafToReturn(*c, 0x8012982Cu, obj);
+    psx::cpu::callGuestNowResult(*c, "beh_anim_trigger_gates", 0x8012982Cu, obj);
     goto Lret;
   }
   if (v1 < 4) {
     if ((int8_t)v1 < 0) {
       goto Lret;
     }
-    tomba::guest::dispatchLeafToReturn(*c, 0x801296E0u, obj);
+    psx::cpu::callGuestNowResult(*c, "beh_anim_trigger_gates", 0x801296E0u, obj);
     goto Lret;
   } // 0,1,2
   if (v1 == 4) {
-    tomba::guest::dispatchLeafToReturn(*c, 0x80129984u, obj);
+    psx::cpu::callGuestNowResult(*c, "beh_anim_trigger_gates", 0x80129984u, obj);
     goto Lret;
   }
   goto Lret; // node[3] >= 5
@@ -109,10 +110,10 @@ Lcb0: // STATE 1 — jump table on node[3]
   case 1:
     goto Ld60;
   case 2:
-    tomba::guest::dispatchLeafToReturn(*c, 0x80129160u, obj);
+    psx::cpu::callGuestNowResult(*c, "beh_anim_trigger_gates", 0x80129160u, obj);
     goto Lret; // case 2 @ db4
   case 3:
-    tomba::guest::dispatchLeafToReturn(*c, 0x801292E4u, obj);
+    psx::cpu::callGuestNowResult(*c, "beh_anim_trigger_gates", 0x801292E4u, obj);
     goto Lret; // case 3 @ dc4
   default:
     goto Ldd4; // case 4
@@ -136,7 +137,7 @@ Lce0: // STATE 1 / node[3]==0
   }
 }
 Ld3c:
-  tomba::guest::dispatchLeafToReturn(*c, 0x8007778Cu, obj);
+  psx::cpu::callGuestNowResult(*c, "beh_anim_trigger_gates", 0x8007778Cu, obj);
 Ld44:
   if (c->mem_r8(obj + 1) == 0) {
     goto Lret;
@@ -185,7 +186,9 @@ Ldd4: // STATE 1 / node[3]==4
     } while (a0i < (int)c->mem_r8(obj + 8));
   }
   c->mem_w8(obj + 1, 1);
-  tomba::guest::dispatchLeafToReturn(*c, 0x80051C8Cu, obj);
+  psx::cpu::callGuestNowResult(*c, "beh_anim_trigger_gates", 0x80051C8Cu, obj);
 Lret:
   return;
 }
+
+} // namespace tomba

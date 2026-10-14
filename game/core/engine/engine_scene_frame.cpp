@@ -8,7 +8,6 @@
 //
 // The class's own header (game/core/engine.h) remains the single declaration of every method below;
 // nothing is redeclared here.
-#include "c_subsys.h"               // disc_findFile — the native ISO9660 resolver
 #include "camera/cutscene_camera.h" // class CutsceneCamera — the field/follow camera
 #include "core.h"
 #include "core/assets/asset.h" // class Asset
@@ -16,9 +15,8 @@
 #include "core/engine/task_sm.h"         // TaskSm — the typed lens over the task record, owned in one header
 #include "core/overrides/guest_jal.h"    // tomba::guest::dispatchJalToReturn — the guest call convention
 #include "core/overrides/guest_resume.h" // requestGuestContinuation
-#include "entry/game_ctx.h"
+#include "entry/tomba_session.h"
 #include "game.h" // Game — the per-Core product the Engine drives
-#include "guest_abi.h"
 #include "guest_call.h"
 #include "level_load.h"
 #include "math/rng.h" // class Rng
@@ -40,6 +38,8 @@
 // base[0x0a]!=0) else clear it. phase>=2 is a no-op. Leaf callees stay
 // substrate. Faithful to the guest instruction path; a direct child of ov_field_frame (was
 // `psx::cpu::callGuestNow(*c, __func__, 0x8004fe84)`).
+namespace tomba {
+
 void Engine::sceneRenderListBuilder() {
   Core *c = core;
   // sceneRenderListBuilderFaithful dispatches through typed runtime address dispatch to substrate
@@ -98,7 +98,7 @@ void Engine::sceneRenderListBuilder() {
 // 0x80026c88 now run as the NATIVE ov_objwalk / ov_disp_26c88 (direct C calls —
 // the previously-orphan bodies wired into the live field frame); the remaining
 // callees stay typed runtime address dispatch leaves until owned in turn. NOT yield-free
-// (0x8003F9A8 render orchestrator + other callees can scheduler_yield) — the
+// (0x8003F9A8 render orchestrator + other callees can TombaScheduler::yield) — the
 // earlier "yield-free (transitive jal scan)" claim here was wrong; the fork
 // below is a plain call, proven by SBS full, not strict replay check (mv_tdd.log
 // 2026-07-08: 0x80108B0C FAILED 10+ diffs — a double-run/rewind artifact, not a
@@ -140,3 +140,5 @@ void Engine::devTeleportApply() {
   c->mem_w32(tomba::camera::kCamGlobal + 0x44, 0); // master speed — land stopped
   lucent::info("tp", "Tomba -> ({},{},{})", mCamTpX, mCamTpY, mCamTpZ);
 }
+
+} // namespace tomba

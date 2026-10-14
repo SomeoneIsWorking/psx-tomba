@@ -15,6 +15,12 @@
 #include <stdint.h>
 class Core;
 
+namespace tomba::native {
+class NativeOverrideCatalog;
+} // namespace tomba::native
+
+namespace tomba {
+
 class Animation {
 public:
   Core *core = nullptr;
@@ -50,6 +56,11 @@ public:
   // the `leaf1(c, nd, 0x80077B5Cu)` call-site idiom in ~10 beh_ handlers.
   uint32_t advanceLinkChain(uint32_t node);
 
+  struct AttachArgs {
+    uint32_t node;
+    uint32_t table;
+    uint32_t id;
+  };
   // attach(node, table, id): FUN_80077C40. Installs animation-table entry `id` (an array of
   // struct* at `table`, stride 4) onto `node`: sets the cursor (node+0x38) to the entry pointer,
   // seeds the countdown (node+0xE) from the entry's descriptor low-12 bits, calls loadFrame(node),
@@ -57,8 +68,12 @@ public:
   // (FUN_80075ff8, kept reachable by address; same call shape as step()'s exec_tail) exactly like
   // the anim-VM would for this entry's tag. Was typed runtime address dispatch(c, 0x80077C40u) / the `call3(c, obj,
   // table, id, 0x80077C40u)` idiom.
-  void attach(uint32_t node, uint32_t table, uint32_t id);
+  void attach(const AttachArgs &args);
 
+  struct ApplyFrameArgs {
+    uint32_t node;
+    int32_t snapCursor;
+  };
   // applyFrame(node, snapCursor): FUN_80075F0C — per-frame KEYFRAME APPLIER. Integrates node's
   // base position (node+0x88/0x8a/0x8c) by its per-frame delta (node+0x90/0x92/0x94), then — if
   // node+9 (child count) is nonzero — walks the child-limb pointer array at node+0xC0 (up to
@@ -67,7 +82,7 @@ public:
   // cursor word (node+0x38) — the anim-VM's "just-applied-the-first-frame" marker (RE'd verbatim
   // from Ghidra: FUN_80075f0c). Called from step()'s DELAY branch with snapCursor = the
   // post-decrement counter (only ever compared against 1 by the guest).
-  void applyFrame(uint32_t node, int32_t snapCursor);
+  void applyFrame(const ApplyFrameArgs &args);
 
   // registerOverrides(): wires FUN_80076904 / FUN_80077B5C / FUN_80077C40 / FUN_80075F0C into
   // the override registry (tomba::native::declareOverride) at their guest addresses, so every existing
@@ -79,5 +94,7 @@ public:
   // comment above gov_animApplyFrame / docs/findings/animation.md): the frame mirror (stepFramed()) is correct, but
   // wiring surfaces an unrelated, pre-existing anim_vm_76d68 fidelity gap for node address 0x800E7E80 (pool-adjacent,
   // not a normal animation node) that needs its own RE session. Called once from boot.cpp.
-  void registerOverrides();
+  void registerOverrides(native::NativeOverrideCatalog &natives);
 };
+
+} // namespace tomba

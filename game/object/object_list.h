@@ -23,6 +23,8 @@
 #include <cstdint>
 class Core;
 
+namespace tomba {
+
 class ObjectList {
 public:
   Core *core = nullptr;
@@ -33,8 +35,7 @@ public:
   long mBehCnt[64] = {};
   int mBehN = 0;
   long mBehW = 0;
-  // `debug engine` objwalk log: cfg latch + per-walker cadence counters.
-  int mDbg = -1;
+  // `debug engine` objwalk log cadence.
   long mWalksAll = 0, mWalksL2 = 0;
 
   // Auxiliary-list head (guest FUN_80069B28 walks this one only).
@@ -51,3 +52,5 @@ public:
   //   per-type handler — Tomba included. Behhist diagnostic mirrors walkAll's.
   void walkList2();
 };
+
+} // namespace tomba

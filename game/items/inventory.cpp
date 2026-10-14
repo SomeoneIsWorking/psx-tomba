@@ -40,12 +40,12 @@
 // in BOTH passes (same A/B artifact as the player/grid families), so the wrapper gate excludes the
 // top-of-RAM stack window [sp-0x800, sp) — far above all game data.
 #include "inventory.h"
-#include "cfg.h"
 #include "core.h"
-#include "core/entry/game_ctx.h"
+#include "entry/tomba_session.h"
 #include "game.h"
 #include "guest_call.h"
 #include "inventory_layout.h"
+#include <lucent/log.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -61,6 +61,8 @@
 #define INV_QUEST_TABLE 0x800A2BE8u      // 12-byte stride
 
 // ---- class Inventory: query API (PC-game-shaped) --------------------------------------------------
+namespace tomba {
+
 int Inventory::count(int item) const {
   if (item < 0 || item > 0xff) {
     return 0;
@@ -125,8 +127,8 @@ void Inventory::addBody(Core *c) {
 // dispatch the PSX event sink (0x8004ED0C->0x8004FA38), whose own below-sp frame differs harmlessly across
 // the twice-run passes, so the wrapper gate excludes the top-of-RAM stack window [sp-0x800, sp).
 void Inventory::abGate(Core *c, uint32_t addr, void (*native)(Core *), int exclude_stack, const char *nm) {
-  uint8_t *ram0 = gctx(c)->verification.ram0();
-  uint8_t *ramN = gctx(c)->verification.ramN();
+  uint8_t *ram0 = tombaSession(c).verification.ram0();
+  uint8_t *ramN = tombaSession(c).verification.ramN();
   uint8_t spad0[0x400], spadN[0x400];
   uint32_t regs0[32];
   memcpy(regs0, c->r, sizeof regs0);
@@ -161,30 +163,30 @@ void Inventory::abGate(Core *c, uint32_t addr, void (*native)(Core *), int exclu
       break;
     }
   }
-  tomba::VerificationCounter &chk = gctx(c)->verification.inventory;
+  tomba::VerificationCounter &chk = tombaSession(c).verification.inventory;
   long &ng = chk.nMatch, &nb = chk.nMismatch;
   if (ro >= 0 || so >= 0) { // these fns return void; v0 is dead, don't gate on it
     if (nb++ < 40) {
-      cfg_logi("invverify",
-               "%s: MISMATCH a0=%08x a1=%x v0 n=%x o=%x ram@%x(n=%02x o=%02x) spad@%x sp=%x",
-               nm,
-               a0,
-               a1,
-               v0_n,
-               v0_o,
-               ro,
-               ro >= 0 ? ramN[ro] : 0,
-               ro >= 0 ? c->ram[ro] : 0,
-               so,
-               sp);
+      lucent::info("invverify",
+                   "{}: MISMATCH a0={:08x} a1={:x} v0 n={:x} o={:x} ram@{:x}(n={:02x} o={:02x}) spad@{:x} sp={:x}",
+                   nm,
+                   a0,
+                   a1,
+                   v0_n,
+                   v0_o,
+                   ro,
+                   ro >= 0 ? ramN[ro] : 0,
+                   ro >= 0 ? c->ram[ro] : 0,
+                   so,
+                   sp);
     }
   } else if (++ng % 200 == 0) {
-    cfg_logi("invverify", "%s: %ld matches (last a0=%08x a1=%x)", nm, ng, a0, a1);
+    lucent::info("invverify", "{}: {} matches (last a0={:08x} a1={:x})", nm, ng, a0, a1);
   }
 }
 
 void Inventory::addEntry(Core *c) { // FUN_8004D338
-  if (gctx(c)->verification.on("invverify") && !inv(c).inGate) {
+  if (tombaSession(c).verification.on("invverify") && !inv(c).inGate) {
     abGate(c, 0x8004D338u, &Inventory::addBody, 0, "invverify");
     return;
   }
@@ -201,7 +203,7 @@ void Inventory::giveAndFlagBody(Core *c) {
   psx::cpu::dispatchGuestToReturn0(*c, 0x8004ED0Cu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
 }
 void Inventory::giveAndFlagEntry(Core *c) { // FUN_8004D4C4
-  if (gctx(c)->verification.on("invverify") && !inv(c).inGate) {
+  if (tombaSession(c).verification.on("invverify") && !inv(c).inGate) {
     abGate(c, 0x8004D4C4u, &Inventory::giveAndFlagBody, 1, "invverify");
     return;
   }
@@ -213,7 +215,7 @@ void Inventory::giveBody(Core *c) {
   addNative(c, c->r[4], c->r[5]);
 }
 void Inventory::giveEntry(Core *c) { // FUN_8004D4F4
-  if (gctx(c)->verification.on("invverify") && !inv(c).inGate) {
+  if (tombaSession(c).verification.on("invverify") && !inv(c).inGate) {
     abGate(c, 0x8004D4F4u, &Inventory::giveBody, 1, "invverify");
     return;
   }
@@ -223,18 +225,23 @@ void Inventory::giveEntry(Core *c) { // FUN_8004D4F4
 // (registration of the class is by value in Core; no init function needed.)
 
 // ---- PC-shape mutators: set the guest ABI regs and route through the static entry (invverify gate).
-void Inventory::add(uint32_t type, uint32_t amount) {
+void Inventory::add(const ItemGrantArgs &args) {
+  auto [type, amount] = args;
   core->r[4] = type;
   core->r[5] = amount;
   Inventory::addEntry(core);
 }
-void Inventory::give(uint32_t type, uint32_t amount) {
+void Inventory::give(const ItemGrantArgs &args) {
+  auto [type, amount] = args;
   core->r[4] = type;
   core->r[5] = amount;
   Inventory::giveEntry(core);
 }
-void Inventory::giveAndFlag(uint32_t type, uint32_t amount) {
+void Inventory::giveAndFlag(const ItemGrantArgs &args) {
+  auto [type, amount] = args;
   core->r[4] = type;
   core->r[5] = amount;
   Inventory::giveAndFlagEntry(core);
 }
+
+} // namespace tomba

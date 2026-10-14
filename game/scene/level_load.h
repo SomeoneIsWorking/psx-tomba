@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core/overrides/native_override_catalog.h"
 #include "image_identity.h"
 
 #include <cstdint>
@@ -15,14 +16,19 @@ inline constexpr std::uint32_t kFileTable = 0x800be1e0u;
 
 // START, DEMO, and GAME reuse one code slot. The caller owns its current image
 // token so a stage replacement retires its old native dispatch and JIT identity.
-psx::cpu::ImageIdentity
-activateLoaded(Core &core, std::optional<psx::cpu::ImageIdentity> &active, std::uint32_t stage, std::uint32_t size);
+psx::cpu::ImageIdentity activateLoaded(const native::NativeOverrideCatalog &natives,
+                                       Core &core,
+                                       std::optional<psx::cpu::ImageIdentity> &active,
+                                       std::uint32_t stage,
+                                       std::uint32_t size);
 
+struct LoadOverlayArgs {
+  std::optional<psx::cpu::ImageIdentity> &active;
+  std::uint32_t taskFields;
+  std::uint32_t stage;
+};
 // Load the selected stage, publish its residency, and write the task's entry PC
 // and caller gp. Stage 3 returns to resident code without loading a file.
-void loadOverlay(Core &core,
-                 std::optional<psx::cpu::ImageIdentity> &active,
-                 std::uint32_t taskFields,
-                 std::uint32_t stage);
+void loadOverlay(const native::NativeOverrideCatalog &natives, Core &core, const LoadOverlayArgs &args);
 
 } // namespace tomba::stage

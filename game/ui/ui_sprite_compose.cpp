@@ -27,8 +27,11 @@
 //                      override the CLUT half of the uv word
 #include "core.h"
 #include "guest_call.h"
+#include "render/anchored_packets.h"
 #include "render/guest_ordering_table.h"
 #include "ui/ui_sprite.h"
+
+namespace tomba {
 
 namespace {
 
@@ -72,6 +75,7 @@ void UiSprite::compose(Core *c) {
   uint32_t piece = defBase + (uint32_t)(int32_t)(int16_t)c->mem_r16(entry + 2);
   uint32_t cursor = piece + 11;
   const uint16_t tpage = c->mem_r16(piece + 6);
+  render::AnchoredPackets drawn(c->mem_r32(placement), tpage);
 
   do {
     // position: the caller's x/y pair, nudged by this piece's signed offsets
@@ -99,22 +103,25 @@ void UiSprite::compose(Core *c) {
     }
 
     // link the packet, then copy the template into it
-    const tomba2::render::PacketPool packets(*c);
+    const tomba::render::PacketPool packets(*c);
     const uint32_t packet = packets.cursor();
-    tomba2::render::OrderingTable::active(*c).link(packet, SPRITE_TAG_WORDS, c->mem_r8(attrs + 1));
+    tomba::render::OrderingTable::active(*c).link(
+        {.packet = packet, .words = SPRITE_TAG_WORDS, .bucket = c->mem_r8(attrs + 1)});
 
     cursor += 16;
     piece += 16;
     count -= 1;
-    c->mem_w32(packet + 4, c->mem_r32(STAGE + 4));
-    c->mem_w32(packet + 8, c->mem_r32(STAGE + 8));
-    c->mem_w32(packet + 12, c->mem_r32(STAGE + 12));
-    c->mem_w32(packet + 16, c->mem_r32(STAGE + 16));
+    const uint32_t command[SPRITE_TAG_WORDS] = {
+        c->mem_r32(STAGE + 4), c->mem_r32(STAGE + 8), c->mem_r32(STAGE + 12), c->mem_r32(STAGE + 16)};
+    for (uint32_t word = 0; word < SPRITE_TAG_WORDS; ++word) {
+      c->mem_w32(packet + 4 + word * 4, command[word]);
+    }
     packets.setCursor(packet + SPRITE_PACKET_BYTES);
+    drawn.add(c->mem_r8(attrs + 1), command);
   } while (count != 0);
 
   // tail: one draw-mode packet carrying the definition's tpage, linked in front of the sprites
-  const tomba2::render::PacketPool packets(*c);
+  const tomba::render::PacketPool packets(*c);
   const uint32_t modePacket = packets.cursor();
   c->r[16] = modePacket;
   c->mem_w32(frame + 16, 0); // 5th arg of the builder, passed on the stack
@@ -125,8 +132,12 @@ void UiSprite::compose(Core *c) {
   c->r[31] = 0x8007E890u; // jal-site ra
   psx::cpu::dispatchGuestToReturn0(*c, 0x80083DE0u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
 
-  tomba2::render::OrderingTable::active(*c).link(modePacket, MODE_TAG_WORDS, c->mem_r8(attrs + 1));
+  tomba::render::OrderingTable::active(*c).link(
+      {.packet = modePacket, .words = MODE_TAG_WORDS, .bucket = c->mem_r8(attrs + 1)});
   packets.setCursor(packets.cursor() + MODE_PACKET_BYTES);
+  if (c->emission.isOpen()) {
+    drawn.save(*c);
+  }
 
   c->r[31] = c->mem_r32(frame + 36);
   c->r[18] = c->mem_r32(frame + 32);
@@ -134,3 +145,5 @@ void UiSprite::compose(Core *c) {
   c->r[16] = c->mem_r32(frame + 24);
   c->r[29] += 40;
 }
+
+} // namespace tomba

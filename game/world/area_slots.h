@@ -10,6 +10,12 @@
 #include <cstdint>
 struct Core;
 
+namespace tomba::native {
+class NativeOverrideCatalog;
+} // namespace tomba::native
+
+namespace tomba {
+
 class AreaSlots {
 public:
   Core *core = nullptr;
@@ -64,6 +70,11 @@ public:
   // (scratch/decomp/cluster1.c: FUN_80074a38).
   void primeCountdown(uint32_t idx);
 
+  struct UpdateCellArgs {
+    uint32_t sigArg;
+    int32_t dx;
+    int32_t dy;
+  };
   // updateCell(sigArg, dx, dy): FUN_8007496C — SIGNATURE-MATCHED grid-cell tracker over the same
   // slot table ackIfMatch uses: idx = sigArg & 0xFF; if the high 3 bytes of sigArg don't match the
   // u32 stored at slot[idx].w0, no-op (return false). On match: subtract a fixed global cell offset
@@ -71,11 +82,13 @@ public:
   // cell coords into slot[idx]+6/+7, and notify FUN_80092E3C(idx, dx_cell<<7, dy_cell<<7) (kept
   // substrate — a still-unRE'd notifier outside this band). RE'd via Ghidra headless
   // (scratch/decomp/cluster1.c: FUN_8007496c).
-  bool updateCell(uint32_t sigArg, int32_t dx, int32_t dy);
+  bool updateCell(const UpdateCellArgs &args);
 
   // registerOverrides(): wires FUN_80074A38 / FUN_8007496C into the override registry
   // (tomba::native::declareOverride) — both are ONLY ever reached via an indirect typed runtime address dispatch (no
   // static `a direct guest-address call` call site in the guest output), so no tomba::native::declareOverride is
   // needed.
-  void registerOverrides();
+  void registerOverrides(native::NativeOverrideCatalog &natives);
 };
+
+} // namespace tomba

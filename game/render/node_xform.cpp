@@ -16,9 +16,9 @@
 #include "node_xform.h"
 #include "actor_tomba.h" // tomba::player::ActorTomba::G_ADDR — buildFromChild's parent-table base (UNWIRED draft)
 #include "core.h"
-#include "core/entry/game_ctx.h"
 #include "core/overrides/guest_jal.h" // GuestFrame/GuestReg/guest_fn — ABI vocabulary (2026-07-14 readability pass)
-#include "core/overrides/native_override_catalog.h" // tomba::native::declareOverride — the one native-override registry
+#include "core/overrides/native_override_catalog.h"
+#include "entry/tomba_session.h"
 #include "game.h"
 #include "gte_math.h" // Math::rotmat, Math::matMul (static)
 #include "guest_abi.h"
@@ -29,6 +29,8 @@
 // authenticated executable/overlay evidence/1/2/3/5/6.c), so they install with the tomba::native::declareOverride thunk
 // to intercept those too. 0x80051C8C/0x80051D90/0x80051D20 are only reached via typed runtime address dispatch(c, addr)
 // from an overlay, so they wire typed runtime address dispatch-only (install's setter omitted).
+
+namespace tomba {
 
 namespace {
 
@@ -59,31 +61,31 @@ struct Node {
     return base + 0x54u;
   } // 3x s16, rotmat/rotX/Y/Z input
   int16_t localEulerX() const {
-    return c->mem_r16s(base + 0x54u);
+    return (int16_t)c->mem_r16(base + 0x54u);
   }
   int16_t localEulerY() const {
-    return c->mem_r16s(base + 0x56u);
+    return (int16_t)c->mem_r16(base + 0x56u);
   }
   int16_t localEulerZ() const {
-    return c->mem_r16s(base + 0x58u);
+    return (int16_t)c->mem_r16(base + 0x58u);
   }
   int16_t localScaleX() const {
-    return c->mem_r16s(base + 0xB8u);
+    return (int16_t)c->mem_r16(base + 0xB8u);
   }
   int16_t localScaleY() const {
-    return c->mem_r16s(base + 0xBAu);
+    return (int16_t)c->mem_r16(base + 0xBAu);
   }
   int16_t localScaleZ() const {
-    return c->mem_r16s(base + 0xBCu);
+    return (int16_t)c->mem_r16(base + 0xBCu);
   }
   int16_t localPosX16() const {
-    return c->mem_r16s(base + 0x2Eu);
+    return (int16_t)c->mem_r16(base + 0x2Eu);
   }
   int16_t localPosY16() const {
-    return c->mem_r16s(base + 0x32u);
+    return (int16_t)c->mem_r16(base + 0x32u);
   }
   int16_t localPosZ16() const {
-    return c->mem_r16s(base + 0x36u);
+    return (int16_t)c->mem_r16(base + 0x36u);
   }
   void setLocalPosX16(int16_t v) {
     c->mem_w16(base + 0x2Eu, (uint16_t)v);
@@ -124,25 +126,25 @@ struct Node {
 
   // --- CHILD: fields written/read when this node is positioned via a parent's node+0xC0 array ---
   int16_t sentinel() const {
-    return c->mem_r16s(base + 0x06u);
+    return (int16_t)c->mem_r16(base + 0x06u);
   } // -1=root, else sibling idx
   int16_t childEulerX() const {
-    return c->mem_r16s(base + 0x08u);
+    return (int16_t)c->mem_r16(base + 0x08u);
   }
   int16_t childEulerY() const {
-    return c->mem_r16s(base + 0x0Au);
+    return (int16_t)c->mem_r16(base + 0x0Au);
   }
   int16_t childEulerZ() const {
-    return c->mem_r16s(base + 0x0Cu);
+    return (int16_t)c->mem_r16(base + 0x0Cu);
   }
   int16_t childScaleX() const {
-    return c->mem_r16s(base + 0x38u);
+    return (int16_t)c->mem_r16(base + 0x38u);
   }
   int16_t childScaleY() const {
-    return c->mem_r16s(base + 0x3Au);
+    return (int16_t)c->mem_r16(base + 0x3Au);
   }
   int16_t childScaleZ() const {
-    return c->mem_r16s(base + 0x3Cu);
+    return (int16_t)c->mem_r16(base + 0x3Cu);
   }
   uint32_t frameMatrixPtr() const {
     return base + 0x18u;
@@ -179,13 +181,13 @@ struct Node {
   // Low-16 view of the SAME bytes as framePosX32/Y32/Z32 — worldPosFromLocal/worldPosFromComposed
   // read only the low half (see their own comments; this is a genuine RE'd narrow read, not a bug).
   int16_t framePosX16() const {
-    return c->mem_r16s(base + 0x2Cu);
+    return (int16_t)c->mem_r16(base + 0x2Cu);
   }
   int16_t framePosY16() const {
-    return c->mem_r16s(base + 0x30u);
+    return (int16_t)c->mem_r16(base + 0x30u);
   }
   int16_t framePosZ16() const {
-    return c->mem_r16s(base + 0x34u);
+    return (int16_t)c->mem_r16(base + 0x34u);
   }
 
   // --- PARENT/CONTAINER: this node addressing its own children ---
@@ -276,9 +278,11 @@ void NodeXform::build(uint32_t nodeAddr) {
   r18 = kScrRot;
 
   seedDiagScratch(c, kScrSrcMatrix, node.localScaleX(), node.localScaleY(), node.localScaleZ());
-  mathOf(c).rotmat(node.localEulerPtr(), kScrRot);                 // libgte RotMatrix at 0x80085480
-  mathOf(c).matMul(kScrRot, kScrSrcMatrix, node.worldMatrixPtr()); // world matrix = rot × scale (0x80084110)
-  node.setWorldPosX(node.localPosX16());                           // world-space position copy
+  mathOf(c).rotmat({.anglesPtr = node.localEulerPtr(), .out = kScrRot}); // libgte RotMatrix at 0x80085480
+  mathOf(c).matMul({.rPtr = kScrRot,
+                    .mPtr = kScrSrcMatrix,
+                    .outPtr = node.worldMatrixPtr()}); // world matrix = rot × scale (0x80084110)
+  node.setWorldPosX(node.localPosX16());               // world-space position copy
   node.setWorldPosY(node.localPosY16());
   node.setWorldPosZ(node.localPosZ16());
   propagate(nodeAddr);
@@ -311,9 +315,9 @@ void NodeXform::buildWithOffset(uint32_t nodeAddr) {
   r18 = kScrRot;
 
   seedDiagScratch(c, kScrSrcMatrix, node.localScaleX(), node.localScaleY(), node.localScaleZ());
-  mathOf(c).rotmat(node.localEulerPtr(), kScrRot);
-  mathOf(c).matMul(kScrRot, kScrSrcMatrix, node.worldMatrixPtr());
-  mathOf(c).applyMatrixLV(node.worldMatrixPtr(), node.anchorLocalPtr(), node.worldPosPtr());
+  mathOf(c).rotmat({.anglesPtr = node.localEulerPtr(), .out = kScrRot});
+  mathOf(c).matMul({.rPtr = kScrRot, .mPtr = kScrSrcMatrix, .outPtr = node.worldMatrixPtr()});
+  mathOf(c).applyMatrixLV({.mPtr = node.worldMatrixPtr(), .inPtr = node.anchorLocalPtr(), .out = node.worldPosPtr()});
   // pos += own local position (int16 sign-extended). Order matches disas (X, then Y+Z paired).
   node.setWorldPosX(node.worldPosX() + node.localPosX16());
   node.setWorldPosY(node.worldPosY() + node.localPosY16());
@@ -346,16 +350,16 @@ void NodeXform::propagate(uint32_t nodeAddr) {
     Node child{c, node.childPtr(i)};
     seedDiagScratch(c, kScrSrcMatrix, child.childScaleX(), child.childScaleY(), child.childScaleZ());
     int16_t sentinel = child.sentinel();
-    mathOf(c).rotmat(child.childEulerPtr(), kScrRot);
-    mathOf(c).matMul(kScrRot, kScrSrcMatrix, kScrCompose);
+    mathOf(c).rotmat({.anglesPtr = child.childEulerPtr(), .out = kScrRot});
+    mathOf(c).matMul({.rPtr = kScrRot, .mPtr = kScrSrcMatrix, .outPtr = kScrCompose});
     if (sentinel == -1) {
-      mathOf(c).matMul(node.worldMatrixPtr(), kScrCompose, child.frameMatrixPtr());
-      mathOf(c).applyMatlv(child.base, child.framePosPtr());
+      mathOf(c).matMul({.rPtr = node.worldMatrixPtr(), .mPtr = kScrCompose, .outPtr = child.frameMatrixPtr()});
+      mathOf(c).applyMatlv({.inPtr = child.base, .out = child.framePosPtr()});
       child.addFramePos32(node.worldPosX(), node.worldPosY(), node.worldPosZ());
     } else {
       Node p{c, node.childPtr((int)sentinel)};
-      mathOf(c).matMul(p.frameMatrixPtr(), kScrCompose, child.frameMatrixPtr());
-      mathOf(c).applyMatlv(child.base, child.framePosPtr());
+      mathOf(c).matMul({.rPtr = p.frameMatrixPtr(), .mPtr = kScrCompose, .outPtr = child.frameMatrixPtr()});
+      mathOf(c).applyMatlv({.inPtr = child.base, .out = child.framePosPtr()});
       child.addFramePos32(p.framePosX32(), p.framePosY32(), p.framePosZ32());
     }
     i++;
@@ -400,15 +404,15 @@ void NodeXform::propagateRotmat(uint32_t nodeAddr) {
   while (i < (int)node.childCount()) {
     Node child{c, node.childPtr(i)};
     int16_t sentinel = child.sentinel();
-    mathOf(c).rotmat(child.childEulerPtr(), kScrSrcMatrix);
+    mathOf(c).rotmat({.anglesPtr = child.childEulerPtr(), .out = kScrSrcMatrix});
     if (sentinel == -1) {
-      mathOf(c).matMul(node.worldMatrixPtr(), kScrSrcMatrix, child.frameMatrixPtr());
-      mathOf(c).applyMatlv(child.base, child.framePosPtr());
+      mathOf(c).matMul({.rPtr = node.worldMatrixPtr(), .mPtr = kScrSrcMatrix, .outPtr = child.frameMatrixPtr()});
+      mathOf(c).applyMatlv({.inPtr = child.base, .out = child.framePosPtr()});
       child.addFramePos32(node.worldPosX(), node.worldPosY(), node.worldPosZ());
     } else {
       Node p{c, node.childPtr((int)sentinel)};
-      mathOf(c).matMul(p.frameMatrixPtr(), kScrSrcMatrix, child.frameMatrixPtr());
-      mathOf(c).applyMatlv(child.base, child.framePosPtr());
+      mathOf(c).matMul({.rPtr = p.frameMatrixPtr(), .mPtr = kScrSrcMatrix, .outPtr = child.frameMatrixPtr()});
+      mathOf(c).applyMatlv({.inPtr = child.base, .out = child.framePosPtr()});
       child.addFramePos32(p.framePosX32(), p.framePosY32(), p.framePosZ32());
     }
     i++;
@@ -440,13 +444,13 @@ void NodeXform::propagateAxis(uint32_t nodeAddr) {
     mathOf(c).rotZ(child.childEulerZ(), kScrSrcMatrix);
     int16_t sentinel = child.sentinel();
     if (sentinel == -1) {
-      mathOf(c).matMul(node.worldMatrixPtr(), kScrSrcMatrix, child.frameMatrixPtr());
-      mathOf(c).applyMatlv(child.base, child.framePosPtr());
+      mathOf(c).matMul({.rPtr = node.worldMatrixPtr(), .mPtr = kScrSrcMatrix, .outPtr = child.frameMatrixPtr()});
+      mathOf(c).applyMatlv({.inPtr = child.base, .out = child.framePosPtr()});
       child.addFramePos32(node.worldPosX(), node.worldPosY(), node.worldPosZ());
     } else {
       Node p{c, node.childPtr((int)sentinel)};
-      mathOf(c).matMul(p.frameMatrixPtr(), kScrSrcMatrix, child.frameMatrixPtr());
-      mathOf(c).applyMatlv(child.base, child.framePosPtr());
+      mathOf(c).matMul({.rPtr = p.frameMatrixPtr(), .mPtr = kScrSrcMatrix, .outPtr = child.frameMatrixPtr()});
+      mathOf(c).applyMatlv({.inPtr = child.base, .out = child.framePosPtr()});
       child.addFramePos32(p.framePosX32(), p.framePosY32(), p.framePosZ32());
     }
     i++;
@@ -526,7 +530,8 @@ void NodeXform::copyMatrixBlock(uint32_t src, uint32_t dst) {
 // where a still-substrate caller's own compiled body already sets c->r[31] before reaching an
 // overrides::dispatch-intercepted typed runtime address dispatch) an internal tail-call inside an already-native
 // function must set it itself, or the nested frame's ra spill diverges.
-void NodeXform::buildFromChild(uint32_t nodeAddr, uint32_t inVec, uint32_t tableIdx, uint32_t mode) {
+void NodeXform::buildFromChild(const BuildFromChildArgs &args) {
+  auto [nodeAddr, inVec, tableIdx, mode] = args;
   Core *c = core;
   GuestFrame<48, 7> frame(c, kBuildFromChildSpills);
   Node node{c, nodeAddr};
@@ -544,16 +549,16 @@ void NodeXform::buildFromChild(uint32_t nodeAddr, uint32_t inVec, uint32_t table
   r21 = inVec;
   if (mode == 0) {
     r16 = kScrSrcMatrix;
-    mathOf(c).rotmat(node.localEulerPtr(), kScrSrcMatrix);
+    mathOf(c).rotmat({.anglesPtr = node.localEulerPtr(), .out = kScrSrcMatrix});
   } else {
     r16 = kScrSrcMatrix;
     r17 = kScrRot;
     seedDiagScratch(c, kScrCompose, node.localScaleX(), node.localScaleY(), node.localScaleZ());
-    mathOf(c).rotmat(node.localEulerPtr(), kScrRot);
-    mathOf(c).matMul(kScrRot, kScrCompose, kScrSrcMatrix);
+    mathOf(c).rotmat({.anglesPtr = node.localEulerPtr(), .out = kScrRot});
+    mathOf(c).matMul({.rPtr = kScrRot, .mPtr = kScrCompose, .outPtr = kScrSrcMatrix});
   }
-  mathOf(c).matMul(parent.frameMatrixPtr(), kScrSrcMatrix, node.worldMatrixPtr());
-  mathOf(c).applyMatlv(inVec, node.worldPosPtr());
+  mathOf(c).matMul({.rPtr = parent.frameMatrixPtr(), .mPtr = kScrSrcMatrix, .outPtr = node.worldMatrixPtr()});
+  mathOf(c).applyMatlv({.inPtr = inVec, .out = node.worldPosPtr()});
   node.setWorldPosX(node.worldPosX() + parent.framePosX32());
   node.setWorldPosY(node.worldPosY() + parent.framePosY32());
   node.setWorldPosZ(node.worldPosZ() + parent.framePosZ32());
@@ -581,7 +586,8 @@ void NodeXform::buildFromChild(uint32_t nodeAddr, uint32_t inVec, uint32_t table
 // the transformed local-space vector; this function adds node's LOCAL-frame position (framePos16,
 // the low-16 view of the same bytes propagate's family accumulates as a full 32-bit world position)
 // on top.
-void NodeXform::worldPosFromLocal(uint32_t nodeAddr, uint32_t inVec, uint32_t outVec) {
+void NodeXform::worldPosFromLocal(const WorldPositionArgs &args) {
+  auto [nodeAddr, inVec, outVec] = args;
   Core *c = core;
   GuestFrame<32, 3> frame(c, kWorldPosSpills);
   Node node{c, nodeAddr};
@@ -589,7 +595,8 @@ void NodeXform::worldPosFromLocal(uint32_t nodeAddr, uint32_t inVec, uint32_t ou
   GuestReg<16> r16(c);
   r17 = nodeAddr;
   r16 = outVec;
-  tomba::guest::dispatchJalToReturn(*c, 0x800844C0u, 0x80051DB0u, node.frameMatrixPtr(), inVec, outVec);
+  tomba::guest::dispatchJalToReturn(
+      *c, {.target = 0x800844C0u, .returnAddress = 0x80051DB0u}, node.frameMatrixPtr(), inVec, outVec);
   c->mem_w16(outVec + 0, (uint16_t)(c->mem_r16(outVec + 0) + (uint16_t)node.framePosX16()));
   c->mem_w16(outVec + 2, (uint16_t)(c->mem_r16(outVec + 2) + (uint16_t)node.framePosY16()));
   c->mem_w16(outVec + 4, (uint16_t)(c->mem_r16(outVec + 4) + (uint16_t)node.framePosZ16()));
@@ -598,7 +605,8 @@ void NodeXform::worldPosFromLocal(uint32_t nodeAddr, uint32_t inVec, uint32_t ou
 // FUN_80051D20 — sibling of worldPosFromLocal() using node's COMPOSED world matrix and world-space
 // position instead of the local ones. RE'd from authenticated executable/overlay evidence guest 0x80051D20 (same frame
 // shape as worldPosFromLocal, ra=0x80051D40u before the FUN_800844C0 call).
-void NodeXform::worldPosFromComposed(uint32_t nodeAddr, uint32_t inVec, uint32_t outVec) {
+void NodeXform::worldPosFromComposed(const WorldPositionArgs &args) {
+  auto [nodeAddr, inVec, outVec] = args;
   Core *c = core;
   GuestFrame<32, 3> frame(c, kWorldPosSpills);
   Node node{c, nodeAddr};
@@ -606,7 +614,8 @@ void NodeXform::worldPosFromComposed(uint32_t nodeAddr, uint32_t inVec, uint32_t
   GuestReg<16> r16(c);
   r17 = nodeAddr;
   r16 = outVec;
-  tomba::guest::dispatchJalToReturn(*c, 0x800844C0u, 0x80051D40u, node.worldMatrixPtr(), inVec, outVec);
+  tomba::guest::dispatchJalToReturn(
+      *c, {.target = 0x800844C0u, .returnAddress = 0x80051D40u}, node.worldMatrixPtr(), inVec, outVec);
   c->mem_w16(outVec + 0, (uint16_t)(c->mem_r16(outVec + 0) + (uint16_t)node.worldPosX()));
   c->mem_w16(outVec + 2, (uint16_t)(c->mem_r16(outVec + 2) + (uint16_t)node.worldPosY()));
   c->mem_w16(outVec + 4, (uint16_t)(c->mem_r16(outVec + 4) + (uint16_t)node.worldPosZ()));
@@ -656,15 +665,15 @@ static void eov_copyMatrixBlock(Core *c) {
   rend(c)->mNodeXform.copyMatrixBlock(c->r[4], c->r[5]);
 }
 static void eov_buildFromChild(Core *c) {
-  rend(c)->mNodeXform.buildFromChild(c->r[4], c->r[5], c->r[6], c->r[7]);
+  rend(c)->mNodeXform.buildFromChild({.nodeAddr = c->r[4], .inVec = c->r[5], .tableIdx = c->r[6], .mode = c->r[7]});
   c->r[2] = 0; // v0 always 0 at return -- tail-dispatches into propagate()/propagateRotmat(),
                // both of which structurally always leave v0==0 (see the note above this block).
 }
 static void eov_worldPosFromLocal(Core *c) {
-  rend(c)->mNodeXform.worldPosFromLocal(c->r[4], c->r[5], c->r[6]);
+  rend(c)->mNodeXform.worldPosFromLocal({.nodeAddr = c->r[4], .inVec = c->r[5], .outVec = c->r[6]});
 }
 static void eov_worldPosFromComposed(Core *c) {
-  rend(c)->mNodeXform.worldPosFromComposed(c->r[4], c->r[5], c->r[6]);
+  rend(c)->mNodeXform.worldPosFromComposed({.nodeAddr = c->r[4], .inVec = c->r[5], .outVec = c->r[6]});
 }
 // buildWithOffset (0x800518FC) — the object matrix-compose-with-offset (svec scale + rotmat + matMul +
 // applyMatrixLV + world-pos accumulate + propagate). Dual-wired: 8 direct substrate guest 0x800518FC(c)
@@ -678,19 +687,21 @@ static void eov_buildWithOffset(Core *c) {
   rend(c)->mNodeXform.buildWithOffset(c->r[4]);
 }
 
-void NodeXform::registerOverrides(Game * /*game*/) {
+void NodeXform::registerOverrides(native::NativeOverrideCatalog &natives) {
   // Dual-wired (direct same-module a direct guest-address call callers exist) -> tomba::native::declareOverride
   // installs the thunk.
-  tomba::native::declareOverride(0x800517BCu, "NodeXform::seedBlock", eov_seedBlock);
-  tomba::native::declareOverride(0x80051300u, "NodeXform::propagateRotmat", eov_propagateRotmat);
-  tomba::native::declareOverride(0x80051464u, "NodeXform::propagateAxis", eov_propagateAxis);
-  tomba::native::declareOverride(0x80051B34u, "NodeXform::copyMatrixBlock", eov_copyMatrixBlock);
-  tomba::native::declareOverride(0x80051614u, "NodeXform::buildFromChild", eov_buildFromChild);
-  tomba::native::declareOverride(0x800518FCu, "NodeXform::buildWithOffset", eov_buildWithOffset);
+  natives.declare(0x800517BCu, "NodeXform::seedBlock", eov_seedBlock);
+  natives.declare(0x80051300u, "NodeXform::propagateRotmat", eov_propagateRotmat);
+  natives.declare(0x80051464u, "NodeXform::propagateAxis", eov_propagateAxis);
+  natives.declare(0x80051B34u, "NodeXform::copyMatrixBlock", eov_copyMatrixBlock);
+  natives.declare(0x80051614u, "NodeXform::buildFromChild", eov_buildFromChild);
+  natives.declare(0x800518FCu, "NodeXform::buildWithOffset", eov_buildWithOffset);
   // 0x80051C8C / 0x80051D90 / 0x80051D20 have no direct same-module caller — every reference is
   // typed runtime address dispatch(c, addr) from an overlay, so no thunk (setter omitted); typed runtime address
   // dispatch covers them.
-  tomba::native::declareOverride(0x80051C8Cu, "NodeXform::buildAxis", eov_buildAxis);
-  tomba::native::declareOverride(0x80051D90u, "NodeXform::worldPosFromLocal", eov_worldPosFromLocal);
-  tomba::native::declareOverride(0x80051D20u, "NodeXform::worldPosFromComposed", eov_worldPosFromComposed);
+  natives.declare(0x80051C8Cu, "NodeXform::buildAxis", eov_buildAxis);
+  natives.declare(0x80051D90u, "NodeXform::worldPosFromLocal", eov_worldPosFromLocal);
+  natives.declare(0x80051D20u, "NodeXform::worldPosFromComposed", eov_worldPosFromComposed);
 }
+
+} // namespace tomba

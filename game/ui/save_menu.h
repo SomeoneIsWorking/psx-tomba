@@ -8,6 +8,8 @@
 #include <cstdint>
 class Core;
 
+namespace tomba {
+
 class SaveMenu {
 public:
   Core *core = nullptr;
@@ -21,3 +23,5 @@ public:
   // dispatchBody(c): guest-ABI entry replacing FUN_80036DFC (a0 = the save-menu task struct).
   static void dispatchBody(Core *c);
 };
+
+} // namespace tomba

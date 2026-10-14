@@ -1,5 +1,6 @@
 #pragma once
 #include "core.h"
+#include "core/sched/task_slot_layout.h"
 #include <cstdint>
 
 // TaskSm — typed lens over the GAME task-state-machine record at *0x1F800138
@@ -9,14 +10,12 @@
 // pure re-read wrapper — same guest addresses as the raw c->mem_r/w calls it
 // replaces, not a cache; construct one per use (`TaskSm sm(c);`) exactly like
 // the raw `mem_r32(0x1f800138)` it stands in for.
+namespace tomba {
+
 class TaskSm {
 public:
-  // The pointer to the task record, read at CONSTRUCTION. Every accessor then works from that one
-  // base, which is why a body that re-derives the lens mid-function is re-reading the pointer and not
-  // reusing a cached record.
-  static constexpr uint32_t kTaskRecordPointer = 0x1F800138u;
-
-  explicit TaskSm(Core *c_) : c(c_), base(c_->mem_r32(kTaskRecordPointer)) {}
+  // The running task's record, read at construction; a body that re-derives the lens re-reads it.
+  explicit TaskSm(Core *c_) : c(c_), base(c_->mem_r32(sched::kCurrentTaskPointer)) {}
 
   Core *c;
   uint32_t base;
@@ -77,3 +76,5 @@ public:
     c->mem_w8(base + 0x6Bu, v);
   }
 };
+
+} // namespace tomba

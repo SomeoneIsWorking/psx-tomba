@@ -20,6 +20,14 @@
 #include <cstdint>
 struct Core;
 
+class Game;
+
+namespace tomba::native {
+class NativeOverrideCatalog;
+} // namespace tomba::native
+
+namespace tomba {
+
 class SceneEvents {
 public:
   Core *core = nullptr;
@@ -59,7 +67,7 @@ public:
   static void delayedTriggerOverride(Core *c); // FUN_80042258
   static void applyFlagOpOverride(Core *c);    // FUN_80042448
 
-  static void registerOverrides(class Game *game);
+  static void registerOverrides(native::NativeOverrideCatalog &natives);
 
 private:
   // Guest-ABI arm body (plain fn-pointer shape for the verify gate).
@@ -68,3 +76,5 @@ private:
   static uint32_t delayedTrigger(Core *c); // FUN_80042258 body
   static uint32_t applyFlagOp(Core *c);    // FUN_80042448 body
 };
+
+} // namespace tomba

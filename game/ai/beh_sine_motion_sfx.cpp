@@ -23,11 +23,10 @@
 // (branch conditions read the PRE-delay reg; delay-slot writes/loads still execute). Signed (lh/sra) vs unsigned
 // (lhu/srl/sltiu) preserved exactly; shifts masked to 32-bit. FUN_80083E80 is the owned sin leaf (returns v0). The
 // byte-exact A/B gate (full RAM+scratchpad vs original guest-body call) is the safety net. NO GTE (the sin is a table
-// lookup, not gte_op).
+// lookup, not GTE command).
 
-#include "cfg.h"
 #include "core.h"
-#include "core/entry/game_ctx.h"
+#include "entry/tomba_session.h"
 #include "graphics_bind.h" // ov_obj_render_update (FUN_800517F8)
 #include "guest_abi.h"     // GuestFrame — mirror the guest stack frame (CLAUDE.md)
 #include "guest_call.h"
@@ -38,6 +37,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+namespace tomba {
 
 namespace {
 
@@ -69,7 +70,6 @@ void beh_sine_motion_sfx(Core *c) {
     goto L19c; // beq v0,zero,0x8013619c
   }
   if (v1 == 0) {
-    a0 = (int32_t)nd;
     goto L1b0;
   } // beq v1,zero,0x801361b0 ; delay a0=node
   goto Lret; // j 0x801365a8
@@ -92,7 +92,6 @@ L1b0: // ===== STATE 0 (INIT) =====
     goto Lret; // bne v0,zero,0x801365a8 ; delay v0=576
   }
   v0 = 576;
-  a0 = (int32_t)nd;
   c->mem_w16(nd + 0x80, (uint16_t)v0); // sh v0,128
   v0 = (int32_t)c->mem_r8(nd + 0);     // lbu node[0]
   v1 = 1152;
@@ -252,7 +251,6 @@ L38c: {
   v0 = -a0; // |a0|
   v0 = v0 >> 2;
   s1 = v0;
-  a0 = (int32_t)((uint32_t)s2 << 16); // delay 0x801363d8
   if ((int32_t)((uint32_t)s1 << 16) <= 0) {
     goto L420; // blez
   }
@@ -271,14 +269,12 @@ L3e4:
   v0 = -a0;
   v0 = v0 >> 2; // arith (negative)
   s1 = v0;
-  a0 = (int32_t)((uint32_t)s2 << 16); // delay 0x80136414
   if ((int32_t)((uint32_t)s1 << 16) >= 0) {
     goto L420; // bgez
   }
   s1 = 0;
   goto L420;
 L41c:
-  a0 = (int32_t)((uint32_t)s2 << 16); // sll a0,s2,16
 L420:
   s3 = (int32_t)c->mem_r16(nd + 0x36);      // lhu node[0x36]
   a0 = (int32_t)((uint32_t)s2 << 16) >> 16; // delay sra a0,a0,16 = sext16(s2)
@@ -386,8 +382,8 @@ L56c:
     goto L598;
   }
   a0 = (int32_t)c->mem_r32(nd + 0x68);
-  eng(c).areaSlots.ackIfMatch((uint32_t)a0); // FUN_80074AF0 (native)
-  eng(c).sfx.trigger(129, 0, 0);             // FUN_80074590 (native; id 129 → path A per-area)
+  eng(c).areaSlots.ackIfMatch((uint32_t)a0);                 // FUN_80074AF0 (native)
+  eng(c).sfx.trigger({.id = 129, .pan = 0, .pitchBend = 0}); // FUN_80074590 (native; id 129 → path A per-area)
   v0 = (int32_t)c->r[2];
   c->mem_w32(nd + 0x68, (uint32_t)v0);
   // fall to L598
@@ -403,3 +399,5 @@ L5a0:
 Lret:
   return;
 }
+
+} // namespace tomba

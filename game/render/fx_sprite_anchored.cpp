@@ -13,6 +13,8 @@
 #include "game.h"
 #include "guest_abi.h"
 
+namespace tomba {
+
 namespace {
 
 constexpr uint32_t kDqaBase = 6;       // MAC0 = n * DQA, so this is the base sprite size
@@ -40,11 +42,12 @@ bool FxSpriteAnchored::projectNode(Core *c, uint32_t raListTailResolve) {
     return false;
   }
   publish.loadSceneCamera(kDqaBase);
-  if (publish.projectAnchor(node.worldAnchorXY(), node.worldAnchorZ(), node.otBias())) {
+  if (publish.projectAnchor(
+          {.worldXY = node.worldAnchorXY(), .worldZ = node.worldAnchorZ(), .otBias = node.otBias()})) {
     return true;
   }
   c->r[4] = c->r[16];
-  tomba::guest::dispatchJalToReturn(*c, kListTailResolve, raListTailResolve);
+  tomba::guest::dispatchJalToReturn(*c, {.target = kListTailResolve, .returnAddress = raListTailResolve});
   return false;
 }
 
@@ -52,7 +55,7 @@ void FxSpriteAnchored::stamp(Core *c, uint32_t raSpriteWriter) {
   FxAnchoredNode node{c, c->r[16]};
   c->r[4] = node.recordHead();
   c->r[5] = (node.texturePage() << 16) | node.clut();
-  tomba::guest::dispatchJalToReturn(*c, kSpriteWriter, raSpriteWriter);
+  tomba::guest::dispatchJalToReturn(*c, {.target = kSpriteWriter, .returnAddress = raSpriteWriter});
   node.setRecordTail(c->r[2]);
 }
 
@@ -90,8 +93,9 @@ void FxSpriteAnchored::emitByteScale(Core *c) {
   stamp(c, kRaByteSpriteWriter);
 }
 
-void FxSpriteAnchored::registerOverrides(Game *) {
-  tomba::native::declareOverride(
-      0x80027CB4u, "FxSpriteAnchored::emitUniformScale", &FxSpriteAnchored::emitUniformScale);
-  tomba::native::declareOverride(0x80027E5Cu, "FxSpriteAnchored::emitByteScale", &FxSpriteAnchored::emitByteScale);
+void FxSpriteAnchored::registerOverrides(native::NativeOverrideCatalog &natives) {
+  natives.declare(0x80027CB4u, "FxSpriteAnchored::emitUniformScale", &FxSpriteAnchored::emitUniformScale);
+  natives.declare(0x80027E5Cu, "FxSpriteAnchored::emitByteScale", &FxSpriteAnchored::emitByteScale);
 }
+
+} // namespace tomba

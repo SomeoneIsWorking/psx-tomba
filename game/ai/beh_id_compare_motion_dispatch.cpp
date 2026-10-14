@@ -30,9 +30,8 @@
 // s3 = 1 (const); s2 = lui 0x8015 (DAT_8014bf5e = s2-0x40a2). a0 stays 2 from 0x8014527c into state 3.
 
 #include "animation.h" // Animation::step (FUN_80076D68)
-#include "cfg.h"
 #include "core.h"
-#include "core/entry/game_ctx.h"
+#include "entry/tomba_session.h"
 #include "guest_abi.h" // GuestFrame — mirror the guest stack frame (CLAUDE.md)
 #include "guest_call.h"
 #include "render/cull.h"   // Cull::cullWrapperFlag2 (FUN_800777FC)
@@ -42,6 +41,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+namespace tomba {
 
 namespace {
 
@@ -106,7 +107,7 @@ void beh_id_compare_motion_dispatch(Core *c) {
 
   // ================= STATE 1 (active) [0x801452A8] =================
   // ---- despawn gate [0x801452A8..0x801452EC] ----
-  int16_t n32 = c->mem_r16s(obj + 0x32); // lh a0,0x32(s0)              [0x801452A8]
+  int16_t n32 = (int16_t)c->mem_r16(obj + 0x32); // lh a0,0x32(s0)              [0x801452A8]
   // a0>0 forces v0=1 (delay slot) and SKIPS the xori; a0<=0 computes cond then xori.
   bool to_state3;
   if (n32 > 0) {      // bgtz a0 -> 0x801452e0       [0x801452B0]
@@ -216,10 +217,10 @@ void beh_id_compare_motion_dispatch(Core *c) {
     c->r[4] = obj;
     psx::cpu::dispatchGuestToReturn0(
         *c, 0x80143A00u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // FUN_80143a00 [0x801453EC]
-    if (c->mem_r8(obj + 0x2a) == 1) {        // lbu node[0x2a]; bne 1 -> 0x80145510 [0x801453FC]
-      int16_t n2e = c->mem_r16s(obj + 0x2e); // lh node[0x2e]              [0x80145404]
-      if (n2e >= 0x31a9) {                   // slti 0x31a9; bnez -> 0x80145510 (skip) [0x8014540C/10]
-        c->mem_w16(obj + 0x2e, 0x31a8);      // sh 0x31a8,node[0x2e] [delay slot @0x8014541C]
+    if (c->mem_r8(obj + 0x2a) == 1) {                // lbu node[0x2a]; bne 1 -> 0x80145510 [0x801453FC]
+      int16_t n2e = (int16_t)c->mem_r16(obj + 0x2e); // lh node[0x2e]              [0x80145404]
+      if (n2e >= 0x31a9) {                           // slti 0x31a9; bnez -> 0x80145510 (skip) [0x8014540C/10]
+        c->mem_w16(obj + 0x2e, 0x31a8);              // sh 0x31a8,node[0x2e] [delay slot @0x8014541C]
       }
     }
     goto second_cull; // j 0x80145510
@@ -241,10 +242,10 @@ n3_motion:;
       goto second_cull;            // j 0x80145510
     }
     // node[3]!=2: compute heading bucket, FUN_800781e0, then FUN_801409c0 [0x8014544C..0x801454CC]
-    int16_t a2 = c->mem_r16s(obj + 0x2e);             // lh a2,0x2e(s0)
-    int16_t t0 = c->mem_r16s(0x1F800160u);            // lh a0,0x160(0x1f80_0000)
-    int16_t s36 = c->mem_r16s(obj + 0x36);            // lh v0,0x36(s0)
-    int16_t t1 = c->mem_r16s(0x1F800164u);            // lh a1,0x164(0x1f80_0000)
+    int16_t a2 = (int16_t)c->mem_r16(obj + 0x2e);     // lh a2,0x2e(s0)
+    int16_t t0 = (int16_t)c->mem_r16(0x1F800160u);    // lh a0,0x160(0x1f80_0000)
+    int16_t s36 = (int16_t)c->mem_r16(obj + 0x36);    // lh v0,0x36(s0)
+    int16_t t1 = (int16_t)c->mem_r16(0x1F800164u);    // lh a1,0x164(0x1f80_0000)
     c->r[4] = (uint32_t)(int32_t)(int16_t)(a2 - t0);  // a0 = node[0x2e]-DAT_1f800160 (subu, used as arg)
     c->r[5] = (uint32_t)(int32_t)(int16_t)(s36 - t1); // a1 = node[0x36]-DAT_1f800164
     psx::cpu::dispatchGuestToReturn0(
@@ -294,9 +295,10 @@ second_cull:;
     goto after_no_cull; // beqz v0 -> 0x8014560c        [0x80145518]
   }
   {
-    if (c->mem_r8(s4 + 7) == 1) {                 // lbu node[0x67]; bne 1 -> 0x80145548 [0x80145528]
-      uint32_t rr = (uint32_t)rngOf(c).next();    // FUN_8009A450 -> native class Rng    [0x80145530]
-      eng(c).sfx.trigger(0x87, (int)(rr & 3), 0); // FUN_80074590 (native) — id 0x87 hits path A (per-area)
+    if (c->mem_r8(s4 + 7) == 1) {              // lbu node[0x67]; bne 1 -> 0x80145548 [0x80145528]
+      uint32_t rr = (uint32_t)rngOf(c).next(); // FUN_8009A450 -> native class Rng    [0x80145530]
+      eng(c).sfx.trigger(
+          {.id = 0x87, .pan = (int)(rr & 3), .pitchBend = 0}); // FUN_80074590 (native) — id 0x87 hits path A (per-area)
     }
     // ---- DAT_8014bf5e countdown [0x80145548..0x801455C4] ----
     uint8_t cd = c->mem_r8(0x8014BF5Eu);                         // lbu v0,DAT_8014bf5e         [0x80145548]
@@ -316,11 +318,12 @@ second_cull:;
         // stores into the live guest stack exactly as the disasm does, then pass guest sp+0x10.
         // a0=8 [0x80145598], a1=sp+0x10 [0x801455A4], a2=-0x50 [0x801455B0].
         uint32_t gsp = c->r[29];
-        c->mem_w16(gsp + 0x12, (uint16_t)c->mem_r16(obj + 0x2e));           // sh node[0x2e],0x12(sp) [0x8014559C]
-        c->mem_w16(gsp + 0x16, (uint16_t)c->mem_r16(s4 + 0xa));             // sh node[0x6a],0x16(sp) [0x801455A8]
-        c->mem_w16(gsp + 0x1a, (uint16_t)c->mem_r16(obj + 0x36));           // sh node[0x36],0x1a(sp) [0x801455B8]
-        eng(c).spawn.spawnAndInit(8, gsp + 0x10, (uint32_t)(int32_t)-0x50); // FUN_8003116c (spawn) [0x801455B4]
-        c->mem_w8(0x8014BF5Eu, 0xa);                                        // sb 0xa,DAT_8014bf5e          [0x801455C0]
+        c->mem_w16(gsp + 0x12, (uint16_t)c->mem_r16(obj + 0x2e)); // sh node[0x2e],0x12(sp) [0x8014559C]
+        c->mem_w16(gsp + 0x16, (uint16_t)c->mem_r16(s4 + 0xa));   // sh node[0x6a],0x16(sp) [0x801455A8]
+        c->mem_w16(gsp + 0x1a, (uint16_t)c->mem_r16(obj + 0x36)); // sh node[0x36],0x1a(sp) [0x801455B8]
+        eng(c).spawn.spawnAndInit(
+            {.a0 = 8, .posSrc = gsp + 0x10, .a2 = (uint32_t)(int32_t)-0x50}); // FUN_8003116c (spawn) [0x801455B4]
+        c->mem_w8(0x8014BF5Eu, 0xa); // sb 0xa,DAT_8014bf5e          [0x801455C0]
       }
       c->mem_w16(s4 + 8, 0); // sh zero,8(s1)=node[0x68]     [0x801455C4]
     }
@@ -341,3 +344,5 @@ after_no_cull:;
   c->mem_w8(s4 + 7, 0);     // sb zero,7(s4)=node[0x67] [delay slot @0x80145618]
   // j 0x80145654 (epilogue)
 }
+
+} // namespace tomba

@@ -47,14 +47,16 @@
 // reaches them). Otherwise (or mode>=22) fall back to guest 0x800803DC (the substrate's generic GT3/GT4 packet
 // emitter).
 #include "core.h"
-#include "core/entry/game_ctx.h"
 #include "core/overrides/guest_jal.h" // GuestFrame/guest_dispatch — perModeDispatch's demo migration (docs/port-framework.md)
 #include "core/overrides/native_override_catalog.h"
+#include "entry/tomba_session.h"
 #include "game.h"
 #include "guest_abi.h"
 #include "guest_call.h"
 #include "guest_ordering_table.h"
 #include "render.h"
+namespace tomba {
+
 namespace {
 // Guest-stack frame RAII, mirroring guest 0x8003CDD8's real `addiu sp,-56` prologue (spills
 // r16..r23/ra at +16..+48) and guest 0x8003F698's real `addiu sp,-24` prologue (spills ra only at
@@ -150,50 +152,50 @@ void Render::cmdListDispatch() {
       c->mem_w16(WORLD_POS + 4, c->mem_r16(cmd + 0x34u));
 
       // Load the CAMERA rotation into CR0-4.
-      gte_write_ctrl(0, c->mem_r32(CAM_ROT + 0));
-      gte_write_ctrl(1, c->mem_r32(CAM_ROT + 4));
-      gte_write_ctrl(2, c->mem_r32(CAM_ROT + 8));
-      gte_write_ctrl(3, c->mem_r32(CAM_ROT + 12));
-      gte_write_ctrl(4, c->mem_r32(CAM_ROT + 16));
+      c->gte().writeControl(0, c->mem_r32(CAM_ROT + 0));
+      c->gte().writeControl(1, c->mem_r32(CAM_ROT + 4));
+      c->gte().writeControl(2, c->mem_r32(CAM_ROT + 8));
+      c->gte().writeControl(3, c->mem_r32(CAM_ROT + 12));
+      c->gte().writeControl(4, c->mem_r32(CAM_ROT + 16));
 
       // Compose the object's LOCAL rotation (cmd+0x18, 3 columns, row-stride 6 / col-stride 2) through
       // the camera rotation, one MVMVA per column, into OBJ_ROT (CR-packed 3x3).
       for (int col = 0; col < 3; col++) {
         const uint32_t base = cmd + 0x18u + (uint32_t)col * 2;
-        gte_write_data(9, (uint32_t)c->mem_r16(base + 0));
-        gte_write_data(10, (uint32_t)c->mem_r16(base + 6));
-        gte_write_data(11, (uint32_t)c->mem_r16(base + 12));
-        gte_op(c, MVMVA_ROTCOL);
+        c->gte().writeData(9, (uint32_t)c->mem_r16(base + 0));
+        c->gte().writeData(10, (uint32_t)c->mem_r16(base + 6));
+        c->gte().writeData(11, (uint32_t)c->mem_r16(base + 12));
+        c->gte().execute(MVMVA_ROTCOL);
         const uint32_t dst = OBJ_ROT + (uint32_t)col * 2;
-        c->mem_w16(dst + 0, (uint16_t)gte_read_data(9));
-        c->mem_w16(dst + 6, (uint16_t)gte_read_data(10));
-        c->mem_w16(dst + 12, (uint16_t)gte_read_data(11));
+        c->mem_w16(dst + 0, (uint16_t)c->gte().readData(9));
+        c->mem_w16(dst + 6, (uint16_t)c->gte().readData(10));
+        c->mem_w16(dst + 12, (uint16_t)c->gte().readData(11));
       }
 
       // Transform the stashed world position by the (still-resident) camera rotation, add the camera
       // translation, and store the composed WORLD translation right after the rotation in OBJ_ROT.
-      gte_write_data(0, c->mem_r32(WORLD_POS + 0)); // VXY0 = (posX, posY)
-      gte_write_data(1, c->mem_r32(WORLD_POS + 4)); // VZ0  = posZ (low half)
-      gte_op(c, MVMVA_TRANS);
-      const int32_t tx = (int32_t)gte_read_data(25) + (int32_t)c->mem_r32(CAM_TRANS + 0);
-      const int32_t ty = (int32_t)gte_read_data(26) + (int32_t)c->mem_r32(CAM_TRANS + 4);
-      const int32_t tz = (int32_t)gte_read_data(27) + (int32_t)c->mem_r32(CAM_TRANS + 8);
+      c->gte().writeData(0, c->mem_r32(WORLD_POS + 0)); // VXY0 = (posX, posY)
+      c->gte().writeData(1, c->mem_r32(WORLD_POS + 4)); // VZ0  = posZ (low half)
+      c->gte().execute(MVMVA_TRANS);
+      const int32_t tx = (int32_t)c->gte().readData(25) + (int32_t)c->mem_r32(CAM_TRANS + 0);
+      const int32_t ty = (int32_t)c->gte().readData(26) + (int32_t)c->mem_r32(CAM_TRANS + 4);
+      const int32_t tz = (int32_t)c->gte().readData(27) + (int32_t)c->mem_r32(CAM_TRANS + 8);
       c->mem_w32(OBJ_ROT + 20, (uint32_t)tx);
       c->mem_w32(OBJ_ROT + 24, (uint32_t)ty);
       c->mem_w32(OBJ_ROT + 28, (uint32_t)tz);
 
       // Reload CR0-7 from the composed WORLD object transform for the per-mode renderer to consume.
-      gte_write_ctrl(0, c->mem_r32(OBJ_ROT + 0));
-      gte_write_ctrl(1, c->mem_r32(OBJ_ROT + 4));
-      gte_write_ctrl(2, c->mem_r32(OBJ_ROT + 8));
-      gte_write_ctrl(3, c->mem_r32(OBJ_ROT + 12));
-      gte_write_ctrl(4, c->mem_r32(OBJ_ROT + 16));
-      gte_write_ctrl(5, (uint32_t)tx);
-      gte_write_ctrl(6, (uint32_t)ty);
-      gte_write_ctrl(7, (uint32_t)tz);
+      c->gte().writeControl(0, c->mem_r32(OBJ_ROT + 0));
+      c->gte().writeControl(1, c->mem_r32(OBJ_ROT + 4));
+      c->gte().writeControl(2, c->mem_r32(OBJ_ROT + 8));
+      c->gte().writeControl(3, c->mem_r32(OBJ_ROT + 12));
+      c->gte().writeControl(4, c->mem_r32(OBJ_ROT + 16));
+      c->gte().writeControl(5, (uint32_t)tx);
+      c->gte().writeControl(6, (uint32_t)ty);
+      c->gte().writeControl(7, (uint32_t)tz);
 
       // OT base: sub-bucket by cmd+0x3F for node class 4.
-      const auto ot = tomba2::render::OrderingTable::active(*c);
+      const auto ot = tomba::render::OrderingTable::active(*c);
       uint32_t otbase = ot.base();
       if ((c->mem_r8(node + 0xDu) & 0xFu) == 4) {
         otbase = ot.slot((uint32_t)c->mem_r8s(cmd + 0x3Fu));
@@ -221,7 +223,7 @@ void Render::cmdListDispatch() {
       c->r[17] = SCR;
       c->r[18] = node;
       c->r[19] = SCR + 0xD0u;
-      c->r[20] = tomba2::render::OrderingTable::kBasePointer;
+      c->r[20] = tomba::render::OrderingTable::kBasePointer;
       c->r[21] = WORLD_POS;
       c->r[22] = flag;
       c->r[23] = SCR;
@@ -323,7 +325,7 @@ void Render::perModeDispatch() {
   uint32_t caseLabel = 0;
   const uint32_t emitter = resolvePerModeEmitter(c, flag, &caseLabel);
   if (caseLabel != 0) {
-    tomba::guest::dispatchJalToReturn(*c, emitter, perModeCaseReturnAddr(caseLabel));
+    tomba::guest::dispatchJalToReturn(*c, {.target = emitter, .returnAddress = perModeCaseReturnAddr(caseLabel)});
     return;
   }
   c->r[31] = 0x8003F790u; // RE'd: L_8003F788's own r31 set before guest 0x800803DC (the generic label)
@@ -353,8 +355,9 @@ void ov_perModeDispatch(Core *c) {
 // (tomba::native::declareOverride) like every other engine/game native in this call chain (perobj_billboard.cpp,
 // overlay_gt3gt4.cpp, overlay_ground_gt3gt4.cpp, quad_rtpt_submit.cpp) — B now always runs the real guest 0x8003CDD8/
 // guest 0x8003F698 bodies, closing the leak at its source.
-void perobj_dispatch_install() {
-  tomba::native::declareOverride(
-      0x8003CDD8u, "ov_cmdListDispatch", ov_cmdListDispatch, psx::present::Producer{psx::present::Arg::A0});
-  tomba::native::declareOverride(0x8003F698u, "ov_perModeDispatch", ov_perModeDispatch);
+void perobj_dispatch_install(native::NativeOverrideCatalog &natives) {
+  natives.declare(0x8003CDD8u, "ov_cmdListDispatch", ov_cmdListDispatch, psx::present::Producer{psx::present::Arg::A0});
+  natives.declare(0x8003F698u, "ov_perModeDispatch", ov_perModeDispatch);
 }
+
+} // namespace tomba

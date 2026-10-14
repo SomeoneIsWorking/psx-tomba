@@ -3,6 +3,7 @@ id: kanban-108
 title: Objects from a previous area stay loaded/rendered over the ocean after its terrain unloads
 status: open
 labels: [render, gameplay, bug]
+features: [F-RENDER]
 ---
 
 

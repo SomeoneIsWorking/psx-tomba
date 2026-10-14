@@ -14,7 +14,7 @@
 #include <memory>
 #include <string_view>
 
-namespace tomba2::render {
+namespace tomba::render {
 namespace {
 
 using horizontal_cull::Visibility;
@@ -63,7 +63,7 @@ void light(const psx::present::EmitMemory &memory,
                                              : lightIntensity(memory, packet.record(), shape.corners[corner]);
   }
   for (int corner = 0; corner < shape.cornerCount; ++corner) {
-    packet.shade(corner, intensity[corner]);
+    packet.shade({.corner = corner, .intensity = intensity[corner]});
   }
 }
 
@@ -176,13 +176,14 @@ std::uint32_t LitModelEmitter::emit(
   memory.mem_w32(sp + kOtArgument, call.ot);
   memory.mem_w32(sp + kIntensityArgument, call.a3);
   memory.mem_w32(sp + kSeedLocal, quad ? kGt4Seed : kGt3Seed);
-  gte_write_data(psx::gte::kRgbc, sp + kSeedLocal);
+  memory.core().gte().writeData(psx::gte::kRgbc, sp + kSeedLocal);
   if (call.count != 0u && quad) {
     memory.mem_w32(sp + kMaskLocal, kColourMask);
   }
   return emitModelList(memory, call, shape, kOverlayStage, [&](const ModelPacket &packet) {
     const bool projected =
-        quad ? packet.projectGt4(kColourCodeMask, kColourMask, visible) : packet.projectGt3(kColourMask, visible);
+        quad ? packet.projectGt4({.firstColourMask = kColourCodeMask, .colourMask = kColourMask, .visible = visible})
+             : packet.projectGt3(kColourMask, visible);
     return projected && finish(memory, shape, packet, bits, sp);
   });
 }
@@ -197,18 +198,18 @@ void LitModelEmitter::gt4(Core &core, const Visibility &visible, FlagBits flags)
   runGuest(core, visible, flags, true);
 }
 
-void LitModelEmitter::registerOverrides() {
+void LitModelEmitter::registerOverrides(native::NativeOverrideCatalog &natives) {
   for (const Copy &copy : kCopies) {
-    tomba::native::declareOverlayOverride(copy.image, copy.gt3, "LitModelEmitter::gt3", copy.gt3Body);
-    tomba::native::declareOverlayOverride(copy.image, copy.gt4, "LitModelEmitter::gt4", copy.gt4Body);
+    natives.declareOverlay(copy.image, copy.gt3, "LitModelEmitter::gt3", copy.gt3Body);
+    natives.declareOverlay(copy.image, copy.gt4, "LitModelEmitter::gt4", copy.gt4Body);
   }
 }
 
-void LitModelEmitter::registerStateRenders(Core &core) {
+void LitModelEmitter::registerStateRenders(psx::present::StateProducerTable &renders, Core &core) {
   for (const Copy &copy : kCopies) {
-    core.stateProducers.install(copy.gt3, std::make_unique<LitStateProducer>(core, copy.bits, false));
-    core.stateProducers.install(copy.gt4, std::make_unique<LitStateProducer>(core, copy.bits, true));
+    renders.install(copy.gt3, std::make_unique<LitStateProducer>(core, copy.bits, false));
+    renders.install(copy.gt4, std::make_unique<LitStateProducer>(core, copy.bits, true));
   }
 }
 
-} // namespace tomba2::render
+} // namespace tomba::render

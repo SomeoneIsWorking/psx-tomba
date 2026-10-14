@@ -28,14 +28,15 @@
 // Ghidra decomp: scratch/decomp/sop_scene_actors.c (FUN_8010B990) + scratch/decomp/sop_intro_helpers.c
 // (leaves).
 
-#include "cfg.h"
 #include "core.h"
 #include "core/engine/engine.h" // eng(c).spawn
-#include "core/entry/game_ctx.h"
+#include "entry/tomba_session.h"
 #include "guest_abi.h" // GuestFrame — mirror the guest stack frame (CLAUDE.md)
 #include "guest_call.h"
 #include "render/render.h" // rend(c)->mNodeXform.buildWithOffset (FUN_800518FC)
 #include "spawn.h"         // eng(c).spawn.despawn (FUN_8007A624, native)
+
+namespace tomba {
 
 namespace {
 
@@ -61,12 +62,6 @@ inline int try_model_attach(Core *c, uint32_t obj) {
   c->r[7] = MODEL_DATA_PTR;
   psx::cpu::dispatchGuestToReturn0(*c, 0x800519E0u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
   return (int)c->r[2];
-}
-inline void anim_env_setup(Core *c, uint32_t obj) {
-  c->r[4] = obj;
-  c->r[5] = ANIM_ENV_PTR;
-  c->r[6] = 0;
-  psx::cpu::dispatchGuestToReturn0(*c, 0x80077C40u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
 }
 inline void anim_graphics_tick(Core *c, uint32_t o) {
   (void)eng(c).animTick(o);
@@ -95,7 +90,7 @@ void spawn_narration_prop(Core *c, uint32_t obj) {
 
   const uint16_t sx = c->mem_r16(obj + 0x2E);
   const uint16_t sy = c->mem_r16(obj + 0x32);
-  const int16_t z = (int16_t)c->mem_r16(obj + 0x36) + SPAWN_Z_OFFSET;
+  const auto z = (int16_t)(c->mem_r16(obj + 0x36) + SPAWN_Z_OFFSET);
 
   c->mem_w16(blk + 0x02u, sx);          // gen: sw16 @ sp+18
   c->mem_w16(blk + 0x06u, sy);          // gen: sw16 @ sp+22
@@ -118,7 +113,7 @@ void state_init(Core *c, uint32_t obj) {
   }
 
   c->mem_w32(obj + 0x3C, c->mem_r32(G_ANIM_ALT_PTR));
-  anim_env_setup(c, obj);
+  psx::cpu::callGuestNow(*c, "beh_sop_intro_narration", 0x80077C40u, obj, ANIM_ENV_PTR, 0);
   c->mem_w16(obj + 0x56, 0x400);
   c->mem_w16(obj + 0x54, 0x200);
   c->mem_w8(obj + 4, (uint8_t)(c->mem_r8(obj + 4) + 1)); // advance to RUNNING
@@ -164,3 +159,5 @@ void beh_sop_intro_narration(Core *c) {
   }
   // else: no-op
 }
+
+} // namespace tomba

@@ -9,6 +9,12 @@
 #include <cstdint>
 class Core;
 
+namespace tomba::native {
+class NativeOverrideCatalog;
+} // namespace tomba::native
+
+namespace tomba {
+
 class Cull {
 public:
   Core *core = nullptr;
@@ -141,7 +147,7 @@ public:
   // that frame. Fixed by mirroring it: wrapFrame() descends the frame, spills the LIVE incoming
   // ra to the RE'd offset, sets ra to the per-site guest jal-return constant, runs the cull body,
   // then restores ra from the stack and ascends — byte-exact to the generated prologue/epilogue.
-  void registerOverrides();
+  void registerOverrides(native::NativeOverrideCatalog &natives);
 
 private:
   // wrapFrame — shared frame mirror for the whole cullWrapper* family: every one of the 6
@@ -175,10 +181,6 @@ private:
   void submitLogRoll(); // frame boundary: flush the census, reset the log
   void submitLogFlush(const SubmitLog &log) const;
   SubmitLog mSubmit;
-
-  // Lazily-initialized cfg caches (-1/-2 = not read yet). Per-instance so the two SBS cores don't
-  // share diagnostic state.
-  int mObjLog = -1;                                  // PSXPORT_DEBUG=obj per-object log
-  int mCullEnvRead = -1, mCullFar = 0, mCullFov = 0; // PSXPORT_CULL_FAR / PSXPORT_CULL_FOV
-  int mOnlyType = -2, mSkipType = -2;                // PSXPORT_CULL_ONLY_TYPE / PSXPORT_CULL_SKIP_TYPE
 };
+
+} // namespace tomba

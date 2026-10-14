@@ -93,7 +93,8 @@ static void test_the_two_alias_pairs_still_share_a_follow_target(void) {
   const auto *twelve = tomba::camera::descriptorFor(CameraMode::kForceModeByte);
   check(seven != nullptr && fourteen != nullptr && seven->follows == fourteen->follows,
         "modes 7 and 14 no longer follow the same thing");
-  check(seven != nullptr && seven->guestEntry == fourteen->guestEntry, "modes 7 and 14 no longer share a guest entry");
+  check(seven != nullptr && fourteen != nullptr && seven->guestEntry == fourteen->guestEntry,
+        "modes 7 and 14 no longer share a guest entry");
   check(eleven != nullptr && twelve != nullptr && eleven->follows == twelve->follows,
         "modes 11 and 12 no longer share a follow target");
   checkEq(tomba::camera::kSnapFollowSelfAliasOf, 7u, "the 7/14 alias is recorded against the wrong mode");

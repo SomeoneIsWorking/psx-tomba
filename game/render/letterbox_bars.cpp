@@ -6,7 +6,7 @@
 #include "ui/panel.h"
 #include "wide_window.h"
 
-namespace tomba2::render {
+namespace tomba::render {
 
 namespace {
 
@@ -21,19 +21,28 @@ constexpr std::uint8_t kCueClosed = 0;
 constexpr std::uint8_t kCueEnd = 2;
 constexpr std::uint32_t kBlackNearBucket = 1u; // FUN_8007FCC8 mode: no fill colour, OT bucket 1
 
-void drawBars(Core &core, std::uint32_t slot, int margin) {
+struct DrawBarsArgs {
+  std::uint32_t slot;
+  int margin;
+};
+void drawBars(Core &core, const DrawBarsArgs &args) {
+  auto [slot, margin] = args;
   const int x = -margin;
   const int width = wide_window::kGuestWidth + 2 * margin;
   const std::int16_t top = static_cast<std::int16_t>(core.mem_r16(slot + LetterboxBars::kHeight));
-  Panel::pushDialogBackdrop(
-      &core, static_cast<std::int16_t>(x), 0, static_cast<std::int16_t>(width), top, kBlackNearBucket);
+  Panel::pushDialogBackdrop(&core,
+                            {.x = static_cast<std::int16_t>(x),
+                             .y = 0,
+                             .w = static_cast<std::int16_t>(width),
+                             .h = top,
+                             .mode = kBlackNearBucket});
   const std::int16_t bottom = static_cast<std::int16_t>(core.mem_r16(slot + LetterboxBars::kHeight));
   Panel::pushDialogBackdrop(&core,
-                            static_cast<std::int16_t>(x),
-                            static_cast<std::int16_t>(LetterboxBars::kGuestHeight - bottom),
-                            static_cast<std::int16_t>(width),
-                            bottom,
-                            kBlackNearBucket);
+                            {.x = static_cast<std::int16_t>(x),
+                             .y = static_cast<std::int16_t>(LetterboxBars::kGuestHeight - bottom),
+                             .w = static_cast<std::int16_t>(width),
+                             .h = bottom,
+                             .mode = kBlackNearBucket});
 }
 
 void tickEntry(Core *core) {
@@ -78,11 +87,11 @@ void LetterboxBars::tick(Core &core, std::uint32_t slot, int margin) {
   default:
     return;
   }
-  drawBars(core, slot, margin);
+  drawBars(core, {.slot = slot, .margin = margin});
 }
 
-void LetterboxBars::registerOverrides() {
-  tomba::native::declareOverride(kEntry, "LetterboxBars::tick", &tickEntry);
+void LetterboxBars::registerOverrides(native::NativeOverrideCatalog &natives) {
+  natives.declare(kEntry, "LetterboxBars::tick", &tickEntry);
 }
 
-} // namespace tomba2::render
+} // namespace tomba::render

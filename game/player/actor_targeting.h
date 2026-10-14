@@ -26,6 +26,12 @@ constexpr uint32_t kHeading = 320;   // 0x140 — u16, the direction the arc tes
 constexpr uint32_t kWalkState = 325; // 0x145 — u8, must be 0 to acquire anything
 } // namespace targeting
 
+namespace tomba::native {
+class NativeOverrideCatalog;
+} // namespace tomba::native
+
+namespace tomba {
+
 struct TargetingBody {
   Core *mCore;
   uint32_t mAt;
@@ -71,5 +77,7 @@ public:
   // 0x8001FAE0 — a0 = the actor doing the acquiring, a1 = the candidate target.
   static void tryAcquireTarget(Core *c);
 
-  static void registerOverrides();
+  static void registerOverrides(native::NativeOverrideCatalog &natives);
 };
+
+} // namespace tomba

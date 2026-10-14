@@ -3,7 +3,7 @@
 
 struct Core;
 
-namespace tomba2::wide_window {
+namespace tomba::wide_window {
 
 // The horizontal window the guest's own routines are written against. Retail composes 320 px wide
 // and every stock right-edge cull tests against that, whatever this port presents into.
@@ -22,4 +22,4 @@ Window drawWindow(Core *core);
 // Columns the record path's canvas adds each side of the displayed buffer; 0 at 4:3 and on the oracle.
 int marginColumns(Core *core);
 
-} // namespace tomba2::wide_window
+} // namespace tomba::wide_window

@@ -15,7 +15,11 @@
 
 namespace tomba::ai::zoned {
 
-enum GuestReg : int { R_V0 = 2, R_A0 = 4, R_A1 = 5, R_A2 = 6, R_A3 = 7 };
+inline constexpr int R_V0 = 2;
+inline constexpr int R_A0 = 4;
+inline constexpr int R_A1 = 5;
+inline constexpr int R_A2 = 6;
+inline constexpr int R_A3 = 7;
 
 // Leaves dispatched to by address.
 inline constexpr uint32_t kZoneClassify = 0x80145C78u;
@@ -79,18 +83,6 @@ inline constexpr uint32_t kS_800BF89C = 0x800BF89Cu;      // u8
 inline constexpr uint32_t kS_800BF809 = 0x800BF809u;      // u8
 inline constexpr uint32_t kCountdown = 0x8014BF5Eu;       // u8, shared with the caller's own tail
 inline constexpr uint32_t kS_800E7E80 = 0x800E7E80u;      // u8
-
-inline void call2(Core *c, uint32_t node, uint32_t addr, uint32_t a1, uint32_t a2) {
-  c->r[R_A0] = node;
-  c->r[R_A1] = a1;
-  c->r[R_A2] = a2;
-  psx::cpu::dispatchGuestToReturn0(*c, addr, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
-}
-
-inline void call1(Core *c, uint32_t node, uint32_t addr) {
-  c->r[R_A0] = node;
-  psx::cpu::dispatchGuestToReturn0(*c, addr, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
-}
 
 // Guest-stack frame contracts for the trampolines that allocate a frame. Each must mirror its
 // substrate body's allocation and callee-save spills, or the guest-stack bytes diverge. Tables come

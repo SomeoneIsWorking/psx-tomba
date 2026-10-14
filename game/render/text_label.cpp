@@ -20,15 +20,17 @@
 //
 // Writes guest packets only; the glyphs reach the screen through the guest OT.
 #include "core.h"
-#include "core/entry/game_ctx.h"
 #include "core/overrides/guest_jal.h" // GuestFrame / GuestFrameSpill / guest_call
 #include "core/overrides/native_override_catalog.h"
+#include "entry/tomba_session.h"
 #include "game.h"
 #include "guest_abi.h"
 #include "guest_ordering_table.h"
 #include "horizontal_visibility_cull.h"
 #include "render.h"
 #include <stdint.h>
+
+namespace tomba {
 
 namespace {
 // Guest-stack frame contract — tools/binary ABI evidence 0x80039F4C --scaffold --guestabi (ground truth).
@@ -56,7 +58,7 @@ void textLabelBody(Core *c) {
   // (1) mesh pass: per-cmd pre-composed-matrix geomblk submit (still substrate).
   c->r[4] = node;
   c->r[5] = 1;
-  tomba::guest::dispatchJalToReturn(*c, 0x8003F174u, 0x80039F78u);
+  tomba::guest::dispatchJalToReturn(*c, {.target = 0x8003F174u, .returnAddress = 0x80039F78u});
 
   // (2) glyph template into the REAL guest stack (sp+16..47) — byte order per gen.
   for (int i = 0; i < 4; i++) {
@@ -71,10 +73,10 @@ void textLabelBody(Core *c) {
     c->r[4] = sp + 48u;
     c->r[5] = c->mem_r32(0x800A3A8Cu); // strcpy(buf, "Clear")
     c->r[18] = sp + 48u;               // gen: r18 = buf (live)
-    tomba::guest::dispatchJalToReturn(*c, 0x8009A5B0u, 0x80039FE4u);
+    tomba::guest::dispatchJalToReturn(*c, {.target = 0x8009A5B0u, .returnAddress = 0x80039FE4u});
     c->r[4] = c->r[18];
     c->r[5] = 0x80014A1Cu; // strcat(buf, suffix)
-    tomba::guest::dispatchJalToReturn(*c, 0x8009A490u, 0x80039FF4u);
+    tomba::guest::dispatchJalToReturn(*c, {.target = 0x8009A490u, .returnAddress = 0x80039FF4u});
     text = c->r[18];
   } else {
     const int32_t idx = (int32_t)(int16_t)c->mem_r16(node + 96u);
@@ -93,8 +95,8 @@ void textLabelBody(Core *c) {
   if ((int32_t)c->mem_r8(node + 8u) <= 0) {
     return;
   }
-  c->r[21] = tomba2::render::PacketPool::kCursorPage; // gen's live pool-base register (callees spill it)
-  c->r[19] = node;                                    // cmd cursor (node + i*4; cmd read at +0xC0)
+  c->r[21] = tomba::render::PacketPool::kCursorPage; // gen's live pool-base register (callees spill it)
+  c->r[19] = node;                                   // cmd cursor (node + i*4; cmd read at +0xC0)
   for (;;) {
     const uint32_t ch = c->mem_r8(c->r[18]);
     if (ch == 0u) {
@@ -102,20 +104,23 @@ void textLabelBody(Core *c) {
     }
     // glyph UV fill into the packet at the pool tail (space → v0=-1 → skip).
     c->r[4] = c->r[18];
-    const tomba2::render::PacketPool pool(*c);
+    const tomba::render::PacketPool pool(*c);
     c->r[5] = pool.cursor();
-    tomba::guest::dispatchJalToReturn(*c, 0x80039E80u, 0x8003A05Cu);
+    tomba::guest::dispatchJalToReturn(*c, {.target = 0x80039E80u, .returnAddress = 0x8003A05Cu});
     if ((int32_t)c->r[2] != -1) {
       const uint32_t cmd = c->mem_r32(c->r[19] + 192u);
       c->r[16] = pool.allocate(40u); // this glyph's packet
       c->r[4] = cmd + 24u;
-      tomba::guest::dispatchJalToReturn(*c, 0x80084660u, 0x8003A080u); // SetRotMatrix(cmd+0x18)
+      tomba::guest::dispatchJalToReturn(
+          *c, {.target = 0x80084660u, .returnAddress = 0x8003A080u}); // SetRotMatrix(cmd+0x18)
       c->r[4] = c->mem_r32(c->r[19] + 192u) + 24u;
-      tomba::guest::dispatchJalToReturn(*c, 0x80084690u, 0x8003A08Cu); // SetTransMatrix(cmd+0x18)
+      tomba::guest::dispatchJalToReturn(
+          *c, {.target = 0x80084690u, .returnAddress = 0x8003A08Cu}); // SetTransMatrix(cmd+0x18)
       c->r[4] = c->r[16];
       c->r[5] = sp + 16u;
       c->r[6] = sp + 80u;
-      tomba::guest::dispatchJalToReturn(*c, 0x8003F7D8u, 0x8003A09Cu); // project the template
+      tomba::guest::dispatchJalToReturn(*c,
+                                        {.target = 0x8003F7D8u, .returnAddress = 0x8003A09Cu}); // project the template
       const int32_t otzm1 = (int32_t)c->r[2] - 1;
       if (otzm1 >= 0) {
         const uint32_t pk = c->r[16];
@@ -125,13 +130,13 @@ void textLabelBody(Core *c) {
         // X over the draw window: [0, 320) at 4:3.
         const std::uint32_t xs[4] = {sx(8), sx(16), sx(24), sx(32)};
         const bool xok =
-            tomba2::horizontal_cull::forDrawWindow(c).keepsX(xs, 4, tomba2::horizontal_cull::Domain::Packed16);
+            tomba::horizontal_cull::forDrawWindow(c).keepsX(xs, 4, tomba::horizontal_cull::Domain::Packed16);
         const bool yok = sx(10) < 240u || sx(18) < 240u || sx(26) < 240u || sx(34) < 240u;
         if (xok && yok) {
           c->mem_w8(pk + 7u, 45u);                                            // code 0x2D (textured raw)
           c->mem_w16(pk + 22u, 31u);                                          // tpage half
           c->mem_w16(pk + 14u, c->mem_r8(node + 3u) == 2u ? 31871u : 32255u); // clut
-          tomba2::render::OrderingTable::active(*c).link(pk, 9u, (uint32_t)otzm1);
+          tomba::render::OrderingTable::active(*c).link({.packet = pk, .words = 9u, .bucket = (uint32_t)otzm1});
         }
       }
     }
@@ -156,6 +161,8 @@ void Render::textLabelEmit() {
   textLabelBody(mCore);
 }
 
-void text_label_install() {
-  tomba::native::declareOverride(0x80039F4Cu, "ov_textLabelEmit", ov_textLabelEmit);
+void text_label_install(native::NativeOverrideCatalog &natives) {
+  natives.declare(0x80039F4Cu, "ov_textLabelEmit", ov_textLabelEmit);
 }
+
+} // namespace tomba

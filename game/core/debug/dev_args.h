@@ -13,6 +13,8 @@ public:
   static std::vector<std::string_view> words(std::string_view line);
   // True when `word` is only decimal digits and fits in 32 bits.
   static bool decimal(std::string_view word, uint32_t &value);
+  // `decimal` with an optional leading '-', within int32_t.
+  static bool integer(std::string_view word, int32_t &value);
 };
 
 } // namespace tomba

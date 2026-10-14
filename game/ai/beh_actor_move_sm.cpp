@@ -23,10 +23,9 @@
 // A/B gate (full RAM+scratchpad vs original guest-body call) is the safety net.
 
 #include "animation.h" // Animation::step (FUN_80076D68)
-#include "cfg.h"
 #include "core.h"
-#include "core/entry/game_ctx.h"
 #include "core/overrides/guest_jal.h"
+#include "entry/tomba_session.h"
 #include "guest_abi.h"
 #include "guest_call.h"
 #include "object/actor.h"  // Actor::boundsCull (FUN_8007778C — thin wrapper native)
@@ -36,17 +35,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+namespace tomba {
+
 namespace {
 
 constexpr uint32_t BEH_FN = 0x8011D988u;
-
-static inline uint32_t leafr3(Core *c, uint32_t a0, uint32_t a1, uint32_t a2, uint32_t fn) {
-  c->r[4] = a0;
-  c->r[5] = a1;
-  c->r[6] = a2;
-  psx::cpu::dispatchGuestToReturn0(*c, fn, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
-  return c->r[2];
-}
 
 } // namespace
 static constexpr GuestFrameSpill kSpills_8011D988[2] = {
@@ -62,7 +55,7 @@ void beh_actor_move_sm(Core *c) {
   if (st != 1) {
     if (st < 2) {
       if (st == 0) {
-        tomba::guest::dispatchLeafToReturn(*c, 0x8011dcacu, nd); // FUN_8011DCAC (init)
+        psx::cpu::callGuestNowResult(*c, "beh_actor_move_sm", 0x8011dcacu, nd); // FUN_8011DCAC (init)
       }
       return;
     }
@@ -87,7 +80,8 @@ void beh_actor_move_sm(Core *c) {
     // A/B (kanban #10, house-on-the-point) showed the gen leg allocating graphics records this leg never allocated
     // (freelist cursor 0x800E7E74 + count 0x800ED098 + 2 KB of record bytes diverged) with the missing
     // `Cull::cullWrapper ra=8011D9F4` call as the first difference in the dispatch trace.
-    tomba::guest::dispatchJalToReturn(*c, 0x8007778Cu, 0x8011DBA4u, nd); // FUN_8007778C          [0x8011DBA0]
+    tomba::guest::dispatchJalToReturn(
+        *c, {.target = 0x8007778Cu, .returnAddress = 0x8011DBA4u}, nd); // FUN_8007778C          [0x8011DBA0]
     {
       uint8_t n5 = c->mem_r8(nd + 5);
       uint8_t bf809 = c->mem_r8(0x800bf809u);
@@ -98,15 +92,15 @@ void beh_actor_move_sm(Core *c) {
       case 5:
       case 6:
         if (bf809 == 0 && s137 == 0) {
-          tomba::guest::dispatchLeafToReturn(*c, 0x801206f4u, nd); // FUN_801206F4
+          psx::cpu::callGuestNowResult(*c, "beh_actor_move_sm", 0x801206f4u, nd); // FUN_801206F4
         }
         break;
       case 1:
-        tomba::guest::dispatchLeafToReturn(*c, 0x8012175cu, nd); // FUN_8012175C
+        psx::cpu::callGuestNowResult(*c, "beh_actor_move_sm", 0x8012175cu, nd); // FUN_8012175C
         break;
       case 0xb:
-        tomba::guest::dispatchLeafToReturn(*c, 0x801217f4u, nd); // FUN_801217F4
-        if (leafr3(c, nd, 0, 0, 0x80080750u) != 0) {
+        psx::cpu::callGuestNowResult(*c, "beh_actor_move_sm", 0x801217f4u, nd); // FUN_801217F4
+        if (psx::cpu::callGuestNowResult(*c, "beh_actor_move_sm", 0x80080750u, nd, 0, 0) != 0) {
           c->mem_w8(nd + 4, 3);
           return;
         } // FUN_80080750
@@ -115,7 +109,7 @@ void beh_actor_move_sm(Core *c) {
       case 2:
       case 7:
       case 8:
-        tomba::guest::dispatchLeafToReturn(*c, 0x80120a64u, nd); // FUN_80120A64
+        psx::cpu::callGuestNowResult(*c, "beh_actor_move_sm", 0x80120a64u, nd); // FUN_80120A64
         break;
       default:
         break;
@@ -125,7 +119,8 @@ void beh_actor_move_sm(Core *c) {
   }
 
   // STATE 1
-  tomba::guest::dispatchJalToReturn(*c, 0x8007778Cu, 0x8011D9F4u, nd); // FUN_8007778C          [0x8011D9EC]
+  tomba::guest::dispatchJalToReturn(
+      *c, {.target = 0x8007778Cu, .returnAddress = 0x8011D9F4u}, nd); // FUN_8007778C          [0x8011D9EC]
   if (c->mem_r8(nd + 0x2b) != 0) {
     c->mem_w8(nd + 0x2b, (uint8_t)(c->mem_r8(nd + 0x2b) - 1));
     goto Lcommon;
@@ -142,42 +137,42 @@ void beh_actor_move_sm(Core *c) {
         break;
       }
       if ((n3 & 1) == 0) {
-        tomba::guest::dispatchLeafToReturn(*c, 0x8011dfc0u, nd); // FUN_8011DFC0
+        psx::cpu::callGuestNowResult(*c, "beh_actor_move_sm", 0x8011dfc0u, nd); // FUN_8011DFC0
       } else {
-        tomba::guest::dispatchLeafToReturn(*c, 0x8011e340u, nd); // FUN_8011E340
+        psx::cpu::callGuestNowResult(*c, "beh_actor_move_sm", 0x8011e340u, nd); // FUN_8011E340
       }
       goto Ldb74;
     case 1:
       if (n3 == 3) {
-        tomba::guest::dispatchLeafToReturn(*c, 0x8011f088u, nd); // FUN_8011F088
+        psx::cpu::callGuestNowResult(*c, "beh_actor_move_sm", 0x8011f088u, nd); // FUN_8011F088
       } else {
         if (bf809 != 0 || s137 != 0) {
           break;
         }
-        tomba::guest::dispatchLeafToReturn(*c, 0x8011ead0u, nd); // FUN_8011EAD0
+        psx::cpu::callGuestNowResult(*c, "beh_actor_move_sm", 0x8011ead0u, nd); // FUN_8011EAD0
       }
       goto Ldb74;
     case 2:
       if (bf809 == 0) {
-        tomba::guest::dispatchLeafToReturn(*c, 0x8011f278u, nd); // FUN_8011F278
+        psx::cpu::callGuestNowResult(*c, "beh_actor_move_sm", 0x8011f278u, nd); // FUN_8011F278
       }
       break;
     case 3:
       if (n3 == 3 || (bf809 == 0 && s137 == 0)) {
-        tomba::guest::dispatchLeafToReturn(*c, 0x8011f998u, nd); // FUN_8011F998
-        eng(c).animation.step(nd);                               // FUN_80076D68 (native)
+        psx::cpu::callGuestNowResult(*c, "beh_actor_move_sm", 0x8011f998u, nd); // FUN_8011F998
+        eng(c).animation.step(nd);                                              // FUN_80076D68 (native)
         eng(c).animation.step(nd);
         eng(c).animation.step(nd);
       }
       break;
     case 4:
-      tomba::guest::dispatchLeafToReturn(*c, 0x8011fc78u, nd); // FUN_8011FC78
+      psx::cpu::callGuestNowResult(*c, "beh_actor_move_sm", 0x8011fc78u, nd); // FUN_8011FC78
     Ldb74:
-      tomba::guest::dispatchLeafToReturn(*c, 0x8012185cu, nd); // FUN_8012185C
+      psx::cpu::callGuestNowResult(*c, "beh_actor_move_sm", 0x8012185cu, nd); // FUN_8012185C
       break;
     case 5:
-      eng(c).animation.step(nd);                               // FUN_80076D68 (native)
-      tomba::guest::dispatchLeafToReturn(*c, 0x80120c50u, nd); // FUN_80120C50
+      eng(c).animation.step(nd);                                              // FUN_80076D68 (native)
+      psx::cpu::callGuestNowResult(*c, "beh_actor_move_sm", 0x80120c50u, nd); // FUN_80120C50
       break;
     default:
       break;
@@ -190,3 +185,5 @@ Lcommon:
     rend(c)->mNodeXform.buildWithOffset(nd); // FUN_800518FC (native)
   }
 }
+
+} // namespace tomba

@@ -9,26 +9,23 @@
 // CD reads the area-music start fires immediately (during the dialog gap), so the loop overlaps
 // the dialog tone — the audible bug. Mod: while a dialog tone is the current song, keep the
 // looping ingame music suppressed and remembered; resume it once the dialog ends. One-shot voice
-// clips are unaffected (they ARE the dialog audio). Deferred-music state lives on the instance:
-// c->game->cd.{pending_music,pm_chan,pm_start,pm_end}.
+// clips are unaffected (they ARE the dialog audio). The deferred clip is TombaCd::deferredMusic().
 #include "music_coord.h"
-#include "c_subsys.h"
-#include "cfg.h"
 #include "core.h"
-#include "core/entry/game_ctx.h"
-#include "core/overrides/guest_jal.h"               // GuestFrame — voiceMixTick mirrors FUN_80075824's 32-byte frame
-#include "core/overrides/native_override_catalog.h" // tomba::native::declareOverride — the one native-override registry
+#include "core/overrides/guest_jal.h" // GuestFrame — voiceMixTick mirrors FUN_80075824's 32-byte frame
+#include "core/overrides/native_override_catalog.h"
+#include "entry/tomba_session.h"
 #include "game.h"
 #include "guest_abi.h"
+#include "xa_state.h"
 #include <lucent/log.h> // `coord` diagnostic channel
-#include <stdio.h>
-#include <stdlib.h> // atoi (PSXPORT_FIELD_SONG)
-#include <string.h> // memcmp (fieldBgmDirector bundle validation)
 
 // The game's CURRENT-SONG index. 4..7 are the dialog tones (regular/worry/etc, user-identified);
 // the looping area/ingame music uses other indices. Read-only from here.
 // NOTE: game/ui/font.cpp:43 names this same address `kTextUnusedFlagAddr` — one of the two names
 // is wrong. Not resolved here; see the report for 0x800BED80.
+namespace tomba {
+
 constexpr uint32_t kCurrentSongIdx = 0x800BED80u;
 
 bool MusicCoord::dialogToneActive() {
@@ -50,17 +47,6 @@ void MusicCoord::musicFadeIn() {
   c->mem_w16(0x800be224, 0); // game's fade CURRENT = 0 (its per-frame ramp climbs it back up)
   c->mem_w16(0x1f801db0, 0); // SPU CDVOL L = 0 NOW, so THIS frame's XA mix is silent (no loud blip)
   c->mem_w16(0x1f801db2, 0); // SPU CDVOL R = 0
-}
-
-// Called from the BGM-start override (ov_sound_play_bgm) right after the song index is written, i.e.
-// at the instant a dialog tone begins — synchronously, before this frame's audio mix. Stops the
-// looping ingame music so it can't leak a frame past the dialog start (the per-frame tick() below
-// would otherwise stop it one frame late, after the mix). Keeps it remembered (c->game->cd
-// .pending_music) so tick() resumes it when the dialog ends.
-void MusicCoord::cutIfDialog() {
-  if (dialogToneActive() && xa_stream_is_looping(&core->game->xa)) {
-    xa_stream_stop(&core->game->xa);
-  }
 }
 
 namespace {
@@ -144,7 +130,7 @@ void MusicCoord::voiceMixTick(uint32_t voice_base) {
   // exactly these three words missing on the native path. r17 carries the channel base and r16
   // the running volume; both stay live in the register file so dispatched leaves spill the true
   // values (see guest_abi.h).
-  static constexpr GuestFrameSpill kSpills[] = {{17, 20}, {31, 24}, {16, 16}};
+  constexpr GuestFrameSpill kSpills[] = {{17, 20}, {31, 24}, {16, 16}};
   GuestFrame<32, 3> frameGuard(c, kSpills);
   GuestReg<17> chanReg(c);
   GuestReg<16> volReg(c);
@@ -160,18 +146,18 @@ void MusicCoord::voiceMixTick(uint32_t voice_base) {
   // instances; this + the paired [gain2] trace in setGain2() below let a session correlate each
   // core's ramp/smoother state and setGain2 call cadence directly, instead of re-deriving it by
   // hand every time this bug class resurfaces.
-  cfg_logf("vmt",
-           "f%u %s state=%u cut=%u boost=%u cur=%d tgt=%d g2cur=%u g2tgt=%d base=%d",
-           c->game->timing.logicFrame,
-           "native",
-           state,
-           cutMode,
-           boost,
-           voice.fadeCur(),
-           voice.fadeTarget(),
-           voice.gain2Cur(),
-           voice.gain2Target(),
-           voice.baseVol());
+  lucent::debug("vmt",
+                "f{} {} state={} cut={} boost={} cur={} tgt={} g2cur={} g2tgt={} base={}",
+                c->game->timing.logicFrame,
+                "native",
+                state,
+                cutMode,
+                boost,
+                voice.fadeCur(),
+                voice.fadeTarget(),
+                voice.gain2Cur(),
+                voice.gain2Target(),
+                voice.baseVol());
 
   if (state != 2) {
     // Boot / silence: ~89% of base (0x47FF/0x7FFF), no ramp. (gen computes this with shifts —
@@ -220,8 +206,9 @@ void MusicCoord::voiceMixTick(uint32_t voice_base) {
     // ping the SPU queue, then disarm.
     if (vol < 0x11 && voice.lowVolArmed() && c->mem_r8(kSpQueueGate) == 0) {
       volReg = (uint32_t)vol; // live across the guest calls
-      tomba::guest::dispatchJalToReturn(*c, kFnSetFadeTarget, 0x800759B4u, 0x47FF);
-      tomba::guest::dispatchJalToReturn(*c, kFnSpuQueuePing, 0x800759C4u, c->mem_r8(kSpQueueIdx), 1);
+      tomba::guest::dispatchJalToReturn(*c, {.target = kFnSetFadeTarget, .returnAddress = 0x800759B4u}, 0x47FF);
+      tomba::guest::dispatchJalToReturn(
+          *c, {.target = kFnSpuQueuePing, .returnAddress = 0x800759C4u}, c->mem_r8(kSpQueueIdx), 1);
       voice.disarmLowVol();
     }
     // Second-stage gain smoother: gain2Cur chases gain2Target by delta>>3. The game reads the
@@ -247,7 +234,7 @@ void MusicCoord::voiceMixTick(uint32_t voice_base) {
 void MusicCoord::setGain2(int32_t val) {
   Core *c = this->core;
   const uint32_t V = 0x800BE1F8u;
-  cfg_logf("vmt", "[gain2] f%u %s val=%d", c->game->timing.logicFrame, "native", val);
+  lucent::debug("vmt", "[gain2] f{} {} val={}", c->game->timing.logicFrame, "native", val);
   if (val < 0) {
     uint16_t snap = (uint16_t)(-(int16_t)val);
     c->mem_w16(V + 0x2Eu, snap); // target
@@ -274,8 +261,8 @@ static void eov_musicCoordSetGain2(Core *c) {
   }
 }
 
-void MusicCoord::registerOverrides() {
-  tomba::native::declareOverride(0x80075D24u, "MusicCoord::setGain2", eov_musicCoordSetGain2);
+void MusicCoord::registerOverrides(native::NativeOverrideCatalog &natives) {
+  natives.declare(0x80075D24u, "MusicCoord::setGain2", eov_musicCoordSetGain2);
 }
 
 // Called once per frame (native_step_frame). Enforces "dialogs stop the ingame music":
@@ -295,63 +282,21 @@ void MusicCoord::tick() {
                   dialogToneActive(),
                   a,
                   l,
-                  c->game->cd.pending_music);
+                  tombaSession(c).cd.deferredMusic().pending);
     mPrev = s;
     mPa = a;
     mPl = l;
   }
   if (dialogToneActive()) {
     if (xa_stream_is_looping(&c->game->xa)) {
-      xa_stream_stop(&c->game->xa); // dialog up: silence ingame music (kept pending)
+      tombaSession(c).cd.stopClip(); // dialog up: silence ingame music (kept pending)
     }
-  } else if (c->game->cd.pending_music && !xa_stream_is_active(&c->game->xa)) {
-    xa_stream_play(&c->game->xa,
-                   c->game->cd.pm_chan,
-                   c->game->cd.pm_start,
-                   c->game->cd.pm_end,
-                   1); // dialog over: resume ingame music
-    c->mem_w16(0x801fe0e0, 2);
-    c->game->cd.toSpuMix(1);
+  } else if (tombaSession(c).cd.deferredMusic().pending && !xa_stream_is_active(&c->game->xa)) {
+    TombaCd &cd = tombaSession(c).cd;
+    const TombaCd::DeferredMusic &music = cd.deferredMusic();
+    cd.playClip({.channel = music.channel, .start = music.start, .end = music.end, .loop = true});
     musicFadeIn(); // resumed music fades in from 0 (no voice now)
   }
 }
 
-// NATIVE field BGM director — see music_coord.h. Currently unwired from the frame loop (the
-// guest libsnd path is the music path); kept as the native-synth driver for the area bundle.
-void MusicCoord::fieldBgmDirector() {
-  Core *c = core;
-  // Are we in the field (GAME stage running)? The stage cell holds the active stage's task-0 entry.
-  uint32_t stage = c->mem_r32(0x801fe00c);
-  int in_field = (stage == 0x8010637Cu);
-  int &started = c->game->field_bgm_started;
-  if (!in_field) {
-    if (started) {
-      gctx(c)->music_list.stop();
-      started = 0;
-    }
-    return;
-  }
-  if (started) {
-    // Restart if the song fully drained (one-shot tail) so the field stays scored.
-    if (gctx(c)->music_list.nowPlaying() < 0) {
-      started = 0;
-    } else {
-      return;
-    }
-  }
-  // Validate the bundle is loaded before starting (area data may not be in yet right after a load).
-  const uint8_t *b = c->ram + 0x182000u; // guest 0x80182000 (area bundle)
-  if (memcmp(b + 0x30, "pQES", 4) || memcmp(b + 0x26b4, "pBAV", 4)) {
-    return;
-  }
-  int song = 8; // default field theme (longest area seq)
-  if (const char *s = cfg_str("PSXPORT_FIELD_SONG")) {
-    int v = atoi(s);
-    if (v >= 0 && v < 10) {
-      song = v;
-    }
-  }
-  if (gctx(c)->music_list.playArea(b, 0x50000, song) == 0) {
-    started = 1;
-  }
-}
+} // namespace tomba

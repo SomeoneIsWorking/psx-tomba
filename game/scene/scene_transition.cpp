@@ -12,11 +12,11 @@
 //   * `debug scene_transitionverify` — A/Bs areaMaskTrigger vs psx::cpu::callOriginal(0x800782F0).
 //   * `debug subswapverify`          — A/Bs stepSwapWaiter vs psx::cpu::callOriginal(0x80073328).
 #include "scene_transition.h"
-#include "cfg.h"
 #include "core.h"
-#include "core/entry/game_ctx.h"
+#include "entry/tomba_session.h"
 #include "game.h"
 #include "guest_call.h"
+#include <lucent/log.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -24,6 +24,8 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // FUN_800782F0 — area-mask "seen" register + area-mode bit
 // ─────────────────────────────────────────────────────────────────────────────
+
+namespace tomba {
 
 void SceneTransition::areaMaskTrigger(uint8_t area, uint8_t sub) {
   Core *c = core;
@@ -55,14 +57,14 @@ void SceneTransition::areaMaskTrigger(uint8_t area, uint8_t sub) {
     }
   };
 
-  int s_v = gctx(c)->verification.on("scene_transitionverify");
+  int s_v = tombaSession(c).verification.on("scene_transitionverify");
   if (!s_v) {
     impl(area, sub);
     return;
   }
 
-  uint8_t *ram0 = gctx(c)->verification.ram0();
-  uint8_t *ramN = gctx(c)->verification.ramN();
+  uint8_t *ram0 = tombaSession(c).verification.ram0();
+  uint8_t *ramN = tombaSession(c).verification.ramN();
   uint8_t spad0[0x400], spadN[0x400];
   uint32_t regs0[32];
   memcpy(regs0, c->r, sizeof regs0);
@@ -95,14 +97,14 @@ void SceneTransition::areaMaskTrigger(uint8_t area, uint8_t sub) {
       break;
     }
   }
-  tomba::VerificationCounter &chk = gctx(c)->verification.sceneTransition;
+  tomba::VerificationCounter &chk = tombaSession(c).verification.sceneTransition;
   long &ng = chk.nMatch, &nb = chk.nMismatch;
   if (ro >= 0 || so >= 0) {
     if (nb++ < 40) {
-      cfg_logi("scene_transitionverify", "MISMATCH area=%u sub=%u ram@%x spad@%x", area, sub, ro, so);
+      lucent::info("scene_transitionverify", "MISMATCH area={} sub={} ram@{:x} spad@{:x}", area, sub, ro, so);
     }
   } else if (++ng % 50 == 0) {
-    cfg_logi("scene_transitionverify", "%ld matches", ng);
+    lucent::info("scene_transitionverify", "{} matches", ng);
   }
 }
 
@@ -114,7 +116,7 @@ void SceneTransition::resetSwap(uint32_t node) {
   Core *c = core;
   c->mem_w8(node + 0, 2);
   if (c->mem_r8(node + 0xBF) != 0) {
-    eng(c).sfx.trigger(0x17, 0, 0x0F); // FUN_80074590 (native)
+    eng(c).sfx.trigger({.id = 0x17, .pan = 0, .pitchBend = 0x0F}); // FUN_80074590 (native)
   }
   c->mem_w8(E7FC5_FLAG, 0);
   clearSwapBlock(SCENE_BLOCK); // FUN_80054198 (native)
@@ -309,7 +311,7 @@ int SceneTransition::stepSwapWaiter(uint32_t node) {
       }
       // ZERO-CROSS SFX: only when clampHit && obj[+0xBF] != 0
       if (clampHit != 0 && c->mem_r8(n + 0xBF) != 0) {
-        eng(c).sfx.trigger(24, 0, 15); // FUN_80074590 (native)
+        eng(c).sfx.trigger({.id = 24, .pan = 0, .pitchBend = 15}); // FUN_80074590 (native)
       }
       // TAIL: obj[+0x56] = obj[+0x5A] - obj[+0x50]  (SUB form; matches FUN_80072EFC)
       c->mem_w16(n + 0x56, (uint16_t)(c->mem_r16(n + 0x5A) - c->mem_r16(n + 0x50)));
@@ -324,17 +326,19 @@ int SceneTransition::stepSwapWaiter(uint32_t node) {
       }
       return 0;
     }
+    default:
+      break;
     }
     return 0;
   };
 
-  int s_v = gctx(c)->verification.on("subswapverify");
+  int s_v = tombaSession(c).verification.on("subswapverify");
   if (!s_v) {
     return impl(node);
   }
 
-  uint8_t *ram0 = gctx(c)->verification.ram0();
-  uint8_t *ramN = gctx(c)->verification.ramN();
+  uint8_t *ram0 = tombaSession(c).verification.ram0();
+  uint8_t *ramN = tombaSession(c).verification.ramN();
   uint8_t spad0[0x400], spadN[0x400];
   uint32_t regs0[32];
   memcpy(regs0, c->r, sizeof regs0);
@@ -367,21 +371,23 @@ int SceneTransition::stepSwapWaiter(uint32_t node) {
       break;
     }
   }
-  tomba::VerificationCounter &chk = gctx(c)->verification.substateSwap;
+  tomba::VerificationCounter &chk = tombaSession(c).verification.substateSwap;
   long &ng = chk.nMatch, &nb = chk.nMismatch;
   if (ro >= 0 || so >= 0 || rv_n != rv_s) {
     if (nb++ < 40) {
-      cfg_logi("subswapverify",
-               "MISMATCH node=%08x case=%u ram@%x spad@%x rv_n=%d rv_s=%d",
-               node,
-               c->mem_r8(node + 6),
-               ro,
-               so,
-               rv_n,
-               rv_s);
+      lucent::info("subswapverify",
+                   "MISMATCH node={:08x} case={} ram@{:x} spad@{:x} rv_n={} rv_s={}",
+                   node,
+                   c->mem_r8(node + 6),
+                   ro,
+                   so,
+                   rv_n,
+                   rv_s);
     }
   } else if (++ng % 50 == 0) {
-    cfg_logi("subswapverify", "%ld matches", ng);
+    lucent::info("subswapverify", "{} matches", ng);
   }
   return rv_n;
 }
+
+} // namespace tomba

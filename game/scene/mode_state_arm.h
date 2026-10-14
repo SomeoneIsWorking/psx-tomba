@@ -11,6 +11,8 @@
 #include <cstdint>
 struct Core;
 
+namespace tomba {
+
 class ModeStateArm {
 public:
   Core *core = nullptr;
@@ -31,3 +33,5 @@ public:
   //   Called by pool.finalViewInit (0x800508A8 hop) and bf816_dispatch. No caller args.
   void armFromAreaTable();
 };
+
+} // namespace tomba
