@@ -4,6 +4,14 @@
 # Hand-written mains still outside the framework main; each goes when its title moves to psxport_add_product.
 titles/tomba1/game/core/entry/main.cpp:entry point:main
 
+# Framework steps a title no longer spells out (TitleSession and ProductHost compose them). Tomba! 1's
+# main goes when it joins the catalog (M5).
+titles/tomba1/game/core/entry/main.cpp:retired name:gte_bind
+titles/tomba1/game/core/entry/main.cpp:retired name:load_exe
+titles/tomba1/game/core/entry/main.cpp:retired name:mdec_bind
+titles/tomba1/game/core/entry/main.cpp:retired name:spu_bind
+titles/tomba1/game/core/entry/main.cpp:retired name:watchdog_init
+
 # Functions in the global namespace.
 game/ai/beh_a06_multi_actor.cpp:global-namespace function:beh_a06_multi_actor
 game/ai/beh_a06_script_fades.cpp:global-namespace function:beh_a06_fade_flash_ramp_80139728

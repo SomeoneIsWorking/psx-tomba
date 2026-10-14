@@ -8,7 +8,6 @@
 #include "gpu_vk.h"
 #include "guest_call.h"
 #include "hle/libapi_intr.h"
-#include "hw_bind.h"
 #include "render.h"
 
 #include <cstdlib>
@@ -25,17 +24,13 @@ const GameConfig &requireMeasuredConfig(Core &core) {
   return *core.cfg;
 }
 
-void bindFrameHardware(Core &core) {
-  gte_bind(&core);
+// The wide engine's screen-centre offset, into this Core's GTE (bound by the frame-loop shell).
+void applyWideEngineOffset(Core &core) {
   if (gpu_vk_wide_engine(&core)) {
     const int ofx = gpu_vk_wide_engine_ofx(&core);
     gte_write_ctrl(24u, static_cast<uint32_t>(ofx) << 16);
     core.rsub.projParams.setGeomOfxForAspect(static_cast<float>(ofx));
   }
-  core.rsub.projprim.bind(&core);
-  spu_bind(&core);
-  mdec_bind(&core);
-  xa_bind(&core);
 }
 
 uint8_t bufferParity(Core &core) {
@@ -126,7 +121,7 @@ void TombaFrameDriver::stepFrame(Core &core, uint32_t frame) {
   const GameConfig &cfg = requireMeasuredConfig(core);
 
   autoDrive_.beforeFrame(core, frame);
-  bindFrameHardware(core);
+  applyWideEngineOffset(core);
   game.timing.logicFrame = frame;
   game.perf.frameBegin();
   game.timing.frameTick();

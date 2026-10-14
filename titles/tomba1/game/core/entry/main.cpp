@@ -4,7 +4,6 @@
 #include "frame_loop_shell.h"
 #include "game.h"
 #include "hw_bind.h"
-#include "machine.h"
 #include "psx_exe_image.h"
 #include "run_budget.h"
 #include "stream_field_turn.h"
@@ -76,7 +75,7 @@ int main(int argc, char **argv) {
   psxport_install_game(runtime);
 
   auto game = std::make_unique<Game>();
-  psx::Machine{*game}.insertDisc(kTitleIdentity);
+  game->disc.env_key = kTitleIdentity.discEnvVar;
   Core *core = &game->core;
   tomba1::registerStreamFieldTurn(*core);
   watchdog_init();
