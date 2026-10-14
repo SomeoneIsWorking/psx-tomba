@@ -88,13 +88,15 @@ baseline evidence; they are not Lightrec-product verification.
 
 Once the migration gate lands, `./run.sh` remains the slim locked launcher. With documented native
 dependencies, `uv`, a supported C/C++ compiler, and a user-supplied disc, zero arguments select the
-Tomba! 2 native/Lightrec product, started through psxport's product host: one process and one window; with
-one catalogued title there is no picker (`tomba2_port` with an executable argument runs that title directly).
-Tomba! 1 joins the catalog, and the picker returns, once its product runs past issue 0008; `./run.sh tomba1` still launches its own binary. Neither launcher path may emit guest source or invoke product tests.
+native/Lightrec product, started through psxport's product host: one process and one window, with an
+in-window picker over Tomba! 1 and Tomba! 2 (`tomba2_port` with an executable argument runs that title
+directly). There is no separate Tomba! 1 binary or launcher. The launcher never emits guest source or
+invokes product tests.
 
-Disc resolution remains explicit argument, title-specific environment/`.env`, then exactly one
-repository-root CHD. The selected title validates disc and executable identity before publishing
-untracked runtime inputs.
+The launcher takes no disc. Each title's disc comes from its own key (`PSXPORT_TOMBA1_DISC`,
+`PSXPORT_TOMBA2_DISC`) in the environment or `.env`, then `PSXPORT_DISC`, then a repository-root CHD.
+The product host extracts each catalogued executable from its disc and validates its identity before
+publishing it under `scratch/bin/<slug>/`; a title whose disc is absent gets no picker panel.
 
 ## Documentation map
 

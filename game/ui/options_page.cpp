@@ -64,10 +64,5 @@ void backdropEmit(Core *c) {
 } // namespace
 
 void OptionsPage::install() {
-  static bool done = false;
-  if (done) {
-    return;
-  }
-  done = true;
   tomba::native::declareOverride(0x8007FC24u, "OptionsPage::backdrop", backdropEmit);
 }

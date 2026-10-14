@@ -1,4 +1,4 @@
-#include "frame_driver.h"
+#include "tomba1_frame_driver.h"
 
 #include "context.h"
 #include "core.h"
@@ -7,7 +7,7 @@
 #include "game.h"
 #include "guest_call.h"
 #include "logic_frame.h"
-#include "tomba1_runtime.h"
+#include "stream_field_turn.h"
 
 #include <cstdlib>
 #include <lucent/log.h>
@@ -26,7 +26,7 @@ constexpr std::uint32_t kTickTaskSleeps = 0x800173B0u;
 
 } // namespace
 
-Tomba1FrameDriver::Tomba1FrameDriver(Game &game, Tomba1Runtime &runtime) : game_(game), runtime_(runtime) {}
+Tomba1FrameDriver::Tomba1FrameDriver(Game &game) : game_(game) {}
 
 void Tomba1FrameDriver::finishMainIteration(Core &core, std::uint32_t fields) {
   if (core.mem_r16(kDrawSyncBeforeVblank) != 0u) {
@@ -35,7 +35,7 @@ void Tomba1FrameDriver::finishMainIteration(Core &core, std::uint32_t fields) {
 
   for (std::uint32_t field = 0; field < fields; ++field) {
     game_.hle.deliverEvent(kVblankEventClass, kVblankEventSpec);
-    game_.spu_audio.frame();
+    serviceStreamField(core);
   }
 
   if (core.mem_r16(kDrawSyncBeforeVblank) == 0u) {
@@ -53,7 +53,7 @@ void Tomba1FrameDriver::finishMainIteration(Core &core, std::uint32_t fields) {
 }
 
 void Tomba1FrameDriver::stepFrame(Core &core, std::uint32_t frame) {
-  if (core.game != &game_ || frame != completedFrames_) {
+  if (core.game != &game_ || frame != completedFrames_ + 1u) {
     lucent::error("tomba1-frame",
                   "invalid frame request: game-bound={} requested={} completed={}",
                   core.game == &game_,
@@ -65,21 +65,13 @@ void Tomba1FrameDriver::stepFrame(Core &core, std::uint32_t frame) {
   game_.timing.frameTick();
   psx::frame::LogicFrame::begin(game_, frame);
 
-  if (!booted_) {
-    // The boot prefix is guest code that creates the first task records, so the task owner is
-    // reachable for the duration of it and not one instruction longer.
-    const GuestTaskCreationScope creation(tasks_);
-    runtime_.bootInit(core);
-    booted_ = true;
-  }
-
   core.mem_w16(0x1F8001E8u, 0u);
   if (core.mem_r16(0x1F8001F0u) < 0x4001u) {
     const std::int16_t parity = static_cast<std::int16_t>(core.mem_r16(0x1F8001F4u));
     core.mem_w32(0x8009C8A8u, static_cast<std::uint32_t>(parity * 0x780 + 0x800A1890));
   }
 
-  tasks_.runScheduledTasks(core);
+  context(core).tasks.runScheduledTasks(core);
 
   const std::uint32_t fields = core.mem_r16(kRequestedFields);
   if (fields == 0u || fields > 4u) {

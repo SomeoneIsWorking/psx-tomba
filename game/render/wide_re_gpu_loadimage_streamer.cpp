@@ -279,10 +279,5 @@ void ov_gpuLoadImageStream(Core *c) {
 } // namespace
 
 void gpu_loadimage_streamer_install() {
-  static bool done = false;
-  if (done) {
-    return;
-  }
-  done = true;
   tomba::native::declareOverride(0x80082734u, "ov_gpuLoadImageStream", ov_gpuLoadImageStream);
 }

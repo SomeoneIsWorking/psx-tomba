@@ -6,6 +6,7 @@
   "output_name": "SCUS_942.36",
   "file_size": 559104,
   "sha1": "81cbc79f0230aeb4252e058039f47ac95a777f5a",
+  "sha256": "c45cd788df40a540d8641dc9682007c80e6ab8a4bcdd0e4a4e2c14c5108aa10b",
   "recomp_overlays": [
     {
       "disc_path": "SYSTEM/OPTSUB00.BIN",

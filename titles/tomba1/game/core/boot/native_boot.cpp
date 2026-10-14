@@ -5,22 +5,11 @@
 #include "guest_call.h"
 
 #include <cstdint>
-#include <cstdlib>
 #include <lucent/log.h>
 
 namespace tomba1 {
 namespace {
 
-constexpr std::uint32_t kBssBegin = 0x8009AFB0u;
-constexpr std::uint32_t kBssEnd = 0x800A3348u;
-constexpr std::uint32_t kStackTopWord = 0x80076E38u;
-constexpr std::uint32_t kStackReserveWord = 0x80076E3Cu;
-constexpr std::uint32_t kHeapBase = 0x800A3348u;
-constexpr std::uint32_t kHeapSizeStore = 0x800975C0u;
-constexpr std::uint32_t kHeapBaseStore = 0x800975BCu;
-constexpr std::uint32_t kGlobalPointer = 0x80097FA8u;
-
-constexpr std::uint32_t kLibcInitHeap = 0x8006B70Cu;
 constexpr std::uint32_t kCxxInitGuard = 0x8006B634u;
 constexpr std::uint32_t kSetDisplayMask = 0x8005EAB8u;
 constexpr std::uint32_t kStopCallback = 0x800689D4u;
@@ -50,35 +39,9 @@ constexpr std::uint32_t kInterruptEventMode = 0x1000u;
 constexpr std::uint32_t kVblankCallback = 0x80017374u;
 constexpr std::uint32_t kVblankHandle = 0x1F8001D8u;
 
-void initializeCrt0State(Core &core) {
-  for (std::uint32_t address = kBssBegin; address < kBssEnd; address += sizeof(std::uint32_t)) {
-    core.mem_w32(address, 0u);
-  }
-
-  const std::uint32_t stackTop = (core.mem_r32(kStackTopWord) - 8u) | 0x80000000u;
-  const std::uint32_t stackReserve = core.mem_r32(kStackReserveWord);
-  if (stackTop <= kHeapBase + stackReserve) {
-    lucent::error("tomba1-boot",
-                  "measured crt0 stack/heap relation is invalid: top=0x{:08X} reserve=0x{:08X}",
-                  stackTop,
-                  stackReserve);
-    std::abort();
-  }
-
-  const std::uint32_t heapSize = stackTop - stackReserve - kHeapBase;
-  core.r[28] = kGlobalPointer;
-  core.r[29] = stackTop;
-  core.mem_w32(kHeapSizeStore, heapSize);
-  core.mem_w32(kHeapBaseStore, kHeapBase);
-  psx::cpu::dispatchGuestToReturn2(
-      core, kLibcInitHeap, kHeapBase + 4u, heapSize, psx::cpu::ExecutionBudget::currentTurn(core), __func__);
-}
-
 } // namespace
 
 void runNativeBootPrefix(Core &core) {
-  initializeCrt0State(core);
-
   // Keep the retail 0x800163B0 initialization order, but stop before its non-returning scheduler
   // loop. The 48-byte main activation remains live for process lifetime, as it does on the console.
   core.r[29] -= 48u;

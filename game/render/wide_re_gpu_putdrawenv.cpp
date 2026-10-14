@@ -339,11 +339,6 @@ static void nativePutDrawEnv(Core *c) {
 // keeps SBS core B running the pure original guest instructions body.
 
 void gpu_putdrawenv_install() {
-  static bool done = false;
-  if (done) {
-    return;
-  }
-  done = true;
   tomba::native::declareOverride(0x800815D0u, "nativePutDrawEnv", nativePutDrawEnv);
   tomba::native::declareOverride(0x80082240u, "nativeClipTopLeft", nativeClipTopLeft);
   tomba::native::declareOverride(0x800822D8u, "nativeClipBottomRight", nativeClipBottomRight);

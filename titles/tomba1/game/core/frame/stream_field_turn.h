@@ -18,7 +18,8 @@ private:
   Operation pumpDisc_;
 };
 
-void registerStreamFieldTurn(Core &core);
-void serviceStreamHostTurn(Core *core);
+// One display field's audio advance and disc stream pump, called by the frame driver once per field
+// it delivers.
+void serviceStreamField(Core &core);
 
 } // namespace tomba1

@@ -20,6 +20,8 @@ namespace {
 // handles mode 1 without waiting, and otherwise enters the GPU/vblank wait whose timeout path cites
 // the retail "VSync: timeout" string. Ghidra's next function begins at 0x80067D78.
 constexpr std::uint32_t kVSyncEntry = 0x80067C30u;
+// libetc's VBlank count: what VSync(-1) returns (0x80067C74), advanced by its VBlank handler 0x8006865C.
+constexpr std::uint32_t kVSyncQueryCounter = 0x800974D4u;
 constexpr std::uint32_t kVSyncEnd = 0x80067D78u;
 constexpr std::uint32_t kLibCdEntry = 0x80064664u;
 constexpr std::uint32_t kLibCdEnd = 0x80066BA8u;
@@ -38,6 +40,8 @@ constexpr std::uint32_t kCdSync = 0x800648C8u;
 constexpr std::uint32_t kCdReady = 0x800648E8u;
 constexpr std::uint32_t kCdControl = 0x80064938u;
 constexpr std::uint32_t kCdControlF = 0x80064A70u;
+// CdControlB: CdControl, then CdSync until complete; the movie task stops its stream with it.
+constexpr std::uint32_t kCdControlB = 0x80064B9Cu;
 constexpr std::uint32_t kCdRead = 0x80066A50u;
 constexpr std::uint32_t kCdReadSync = 0x80066B30u;
 constexpr std::uint32_t kDmaInterruptControl = 0x1F8010F4u;
@@ -117,6 +121,7 @@ const PlatformHlePlan kPlatformHlePlan = [] {
   value.cdReadAddress = kCdRead;
   value.cdReadSyncAddress = kCdReadSync;
   value.vsyncAddress = kVSyncEntry;
+  value.vsyncQueryCounterAddress = kVSyncQueryCounter;
   value.bindings[0] = {kCdSync, cdSyncOverride};
   value.bindings[1] = {kCdSyncInternalEntry, cdSyncOverride};
   value.bindings[2] = {kCdReady, cdReadyOverride};
@@ -128,7 +133,8 @@ const PlatformHlePlan kPlatformHlePlan = [] {
   // projection leaves and the stock library services, and a guest libgpu rectangle constructor is
   // none of those.
   value.bindings[5] = {kSetGeomOffset, publishProjectionOverride};
-  value.bindingCount = 6;
+  value.bindings[6] = {kCdControlB, cdControlOverride};
+  value.bindingCount = 7;
   value.windowLo[0] = kLibCdEntry;
   value.windowHi[0] = kLibCdEnd;
   value.windowLo[1] = kVSyncEntry;

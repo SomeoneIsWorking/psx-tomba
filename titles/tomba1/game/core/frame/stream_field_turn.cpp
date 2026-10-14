@@ -3,9 +3,7 @@
 #include "cd.h"
 #include "core.h"
 #include "dma_irq.h"
-#include "field_rate.h"
 #include "game.h"
-#include "host_turn.h"
 
 #include <lucent/log.h>
 
@@ -13,7 +11,7 @@ namespace tomba1 {
 namespace {
 
 void advanceStreamAudio(Core &core) {
-  core.game->spu_audio.frameLogic();
+  core.game->spu_audio.frame();
 }
 
 void pumpStreamDisc(Core &core) {
@@ -65,14 +63,10 @@ void StreamFieldTurn::service(Core &core) const {
   pumpDisc_(core);
 }
 
-void serviceStreamHostTurn(Core *core) {
-  logStreamState(*core, "before");
-  kStreamFieldTurn.service(*core);
-  logStreamState(*core, "after");
-}
-
-void registerStreamFieldTurn(Core &core) {
-  psx::cpu::registerHostTurn(core, serviceStreamHostTurn, psx::frame::FIELD_RATE_NTSC_MILLIHZ);
+void serviceStreamField(Core &core) {
+  logStreamState(core, "before");
+  kStreamFieldTurn.service(core);
+  logStreamState(core, "after");
 }
 
 } // namespace tomba1

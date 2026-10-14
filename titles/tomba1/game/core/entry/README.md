@@ -1,20 +1,19 @@
 # Application composition owner
 
-`main.cpp` installs the Tomba! 1 runtime and generated registry, constructs the shared psxport machine,
-loads the provisioned executable, composes platform devices, and enters the native-owned frame shell.
-It does not implement engine, renderer, input, audio, configuration, or RE logic.
+Tomba! 1 has no entry point of its own. The product's `TombaCatalog` (root `game/core/entry/`) holds
+this title at index 0 and runs it through psxport's `ProductHost`, either from the picker or from
+`tomba2_port scratch/bin/tomba1/SCUS_942.36`.
 
-Startup requires `PSXPORT_TOMBA1_DISC` before constructing the machine. Generic `PSXPORT_DISC` and
-drop-in discovery are intentionally refused here: those framework-wide fallbacks cannot prove that
-the media belongs to this title and previously let another game's disc enter the Tomba! 1 runtime.
-The provisioner remains the authority that verifies the selected disc and extracts the executable.
-`-h` and `--help` are handled before those checks and exit successfully without requiring either
-asset; the CTest contract runs both spellings from an asset-free working directory.
-The repository launcher selects this owner as `./run.sh tomba1`; its own `-h`/`--help` dispatch is
-also resolved before host dependencies, framework synchronization, provisioning, or disc discovery.
+- `tomba1_identity.{h,cpp}`: `tomba1::identity()`, the executable's size, SHA-256, PS-X EXE header and disc
+  facts (`PSXPORT_TOMBA1_DISC`, `SCUS_942.36` on the disc). Every value comes from `executable.json`
+  through the compile definitions `cmake/tomba1_runtime.cmake` sets. The host extracts and authenticates
+  the executable from that disc into `scratch/bin/tomba1/` when it is missing.
+- `tomba1_runtime.{h,cpp}`: `Tomba1Runtime`, the `GameRuntime` the host drives: override binding, the
+  finite boot prefix, the frame driver, the guest program/pad/CD-callback layouts and the code-module
+  landing at `0x800E7388`.
 
-This follows another game project's layout's host-entry shape: lifecycle composition is separate from the subsystem owners
-it connects. The product target was published only after the authenticated executable/overlay evidence boundary agreed.
+`tomba1_runtime` exports only this directory's headers; the per-`Core` `Context` is in `../state/`, and
+every other concept directory is private to the library and Tomba! 1's tests.
 
-The entry point must not parse, register, or forward a 60fps or native-rendering option. Tomba! 1 has
-no such compatibility modes; its only title enhancement control is the future widescreen policy.
+Nothing here parses, registers or forwards a 60fps or native-rendering option; Tomba! 1's only title
+enhancement is widescreen.

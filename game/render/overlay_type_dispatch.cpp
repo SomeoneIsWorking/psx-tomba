@@ -176,10 +176,5 @@ void ov_overlayTypeDispatch(Core *c) {
 } // namespace
 
 void overlay_type_dispatch_install() {
-  static bool done = false;
-  if (done) {
-    return;
-  }
-  done = true;
   tomba::native::declareOverride(0x8003D0BCu, "ov_overlayTypeDispatch", ov_overlayTypeDispatch);
 }

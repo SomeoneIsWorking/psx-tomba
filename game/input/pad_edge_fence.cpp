@@ -353,13 +353,6 @@ void ov_padFenceTail(Core *c) {
 }
 } // namespace
 void pad_edge_fence_install() {
-  {
-    tomba::native::declareOverride(0x8005229Cu, "ov_padFenceTail", ov_padFenceTail);
-  }
-  static bool done = false;
-  if (done) {
-    return;
-  }
-  done = true;
+  tomba::native::declareOverride(0x8005229Cu, "ov_padFenceTail", ov_padFenceTail);
   tomba::native::declareOverride(0x800788ACu, "ov_padEdgeFence", ov_padEdgeFence);
 }

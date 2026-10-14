@@ -17,7 +17,8 @@ the capability rows below:
   replayed, at 4:3, 320x224; at 1x it is byte-identical to the Beetle `device` path. The display-time
   native renderer is deleted. Against the pre-migration hybrid it has no widescreen yet (S005), and 60
   fps interpolation (S006) covers only primitives a producer keys.
-- Startup: Tomba! 2 starts through psxport's multi-title host with the in-window picker (S026).
+- Startup: one `tomba2_port` binary and `./run.sh` start both titles through psxport's multi-title host
+  with an in-window picker (S026); the separate Tomba! 1 binary and its launcher are gone.
 - Platforms: Linux x86-64 (S019); Windows, macOS and Android are missing (S020-S022).
 
 ## Current focus
@@ -54,7 +55,7 @@ original guest body, before the recorded gameplay frontier is restored.
 | S023 | Tomba! 2 loads complete without loading-only waits or presentation | partial | — | G005 |
 | S024 | Tomba! 1 loads complete without loading-only waits or presentation | missing | — | G005 |
 | S025 | Tomba! 2 files in-app bug reports (B key) with a replayable reproduction | partial | — | — |
-| S026 | Tomba runs through psxport's multi-title host and in-window picker | partial | S010 | — |
+| S026 | Tomba runs through psxport's multi-title host and in-window picker | partial | — | — |
 
 ### S001 — Tomba! 2 reaches representative gameplay as a native/Lightrec product
 
@@ -94,7 +95,7 @@ Evidence: Title-local identity + isolation checks and a 35-field CRT0 boundary (
 
 ### S010 — Tomba! 1 reaches representative gameplay as a native/Lightrec product
 
-Blocker: Pre-migration run reached SCEA/Whoopee Camp presentation; next boundary is the guest stream task budget (issue 0008 open).
+Blocker: The product runs past the publisher card, the Whoopee Camp logo and both opening movies, then replays the intro movie (16:34:22) in a loop with no input; 20,000 unpaced frames exit 0 and a 70 s windowed play check holds p50 16.75 ms. The title screen and gameplay are not reached yet.
 
 ### S011 — Tomba! 1 true widescreen works in the actual product
 
@@ -102,7 +103,7 @@ Missing capability: `titles/tomba1/game/render/widescreen_projection.cpp` exists
 
 ### S012 — Tomba! 1 and Tomba! 2 game-engine implementations are isolated
 
-Evidence: Tomba! 1 owners live only under `titles/tomba1/` and import no root `game/` source.
+Evidence: Tomba! 1 owners live only under `titles/tomba1/` and import no root `game/` source; both link into `tomba2_port`, and `tomba_title_link_isolation` finds no external name both trees define from their own sources (its fixture pair must report one).
 
 ### S013 — Tomba! 1 exposes widescreen only, no unrelated enhancement modes
 
@@ -158,4 +159,4 @@ Gap: Headless REPL `bugreport` at pad frame 2400 saved the presented shot, the P
 
 ### S026 — Tomba runs through psxport's multi-title host and in-window picker
 
-Gap: Tomba! 2 is catalogued and boots, warps and returns to the picker headlessly; its panel holds the in-game attract-demo field after the 900-step pre-roll, not `OP.FMV` (the opening movie is Demo's blocking `fmv.play`). Tomba! 1 is not catalogued: its product aborts on the guest task fault at 0x800E7D5C (S010, issue 0008). The REPL-driven tools `tools/gate.py`, `tools/oracle_tomba2.py` and `tools/title_prompts.py` still assume the removed stdin REPL and are stale.
+Gap: Both titles are catalogued; headless, both panels reach `demo` and hold it to the end of the run (`tomba_picker_both_panels_live` asserts the final panel line and fails when a settled panel drops back to `booting`). Tomba! 2 boots, warps and returns to the picker headlessly; its panel holds the in-game attract-demo field after the 900-step pre-roll, not `OP.FMV` (the opening movie is Demo's blocking `fmv.play`). Tomba! 1's panel shows its intro movie; it has no title-owned boot-prefix signal yet, so its publisher card and logo count as its picture until the panel settles. The windowed picker is unrun by an agent. `tools/gate.py` drives the boot stub `SCUS_944.54`; its stdin REPL runs `run N`, but `gate.py boot`'s `newgame` never returns (watchdog-free hang, 240 s), and every gate run fails the exit env audit on `PSXPORT_VK_HEADLESS`, which psxport's `agent_environment` sets and nothing reads. `tools/oracle_tomba2.py` and `tools/title_prompts.py` are unverified against the framework REPL.

@@ -155,7 +155,7 @@ int main() {
 
   game->cd.stream_active = 1;
   game->cd.stream_delivered = 11u;
-  tomba1::serviceStreamHostTurn(&game->core);
+  tomba1::serviceStreamField(game->core);
   if (!check(game->cd.stream_delivered == 11u, "missing callback layout must not deliver a sector")) {
     return 1;
   }
@@ -164,11 +164,37 @@ int main() {
   game->core.mem_w32(runtime.callbackLayout.readyCallbackPointer, 0x80010000u);
   game->cd.stream_active = 0;
   game->cd.stream_delivered = 17u;
-  tomba1::serviceStreamHostTurn(&game->core);
+  tomba1::serviceStreamField(game->core);
   if (!check(game->cd.stream_delivered == 17u, "inactive stream must not deliver a sector")) {
     return 1;
   }
 
-  std::puts("PASS: CdSync, DMA registration, field order, callback layout, and inactive stream contracts hold");
+  // A Pause's INT3/INT2 have no guest consumer here (CdSync is host-served), so the host command path
+  // retires them before they can sit ahead of the next stream's INT1.
+  controller.index = 0;
+  controller.q_head = 0;
+  controller.q_tail = 3;
+  controller.q[0].type = 3u;
+  controller.q[0].len = 1;
+  controller.q[1].type = 2u;
+  controller.q[1].len = 1;
+  controller.q[2].type = 1u;
+  controller.q[2].len = 1;
+  controller.irq_edge = 1u;
+  game->core.r[5] = 0u;
+  tomba1::cdSyncOverride(&game->core);
+  if (!check(game->core.r[2] == 2u && cdc_current_irq_type(&controller) == 1u &&
+                 controller.q_tail - controller.q_head == 1,
+             "CdSync must retire command responses and keep data-ready for the installed callback")) {
+    return 1;
+  }
+  game->core.mem_w32(runtime.callbackLayout.readyCallbackPointer, 0u);
+  tomba1::cdSyncOverride(&game->core);
+  if (!check(cdc_current_irq_type(&controller) == 0u, "CdSync must drop data-ready when no callback is installed")) {
+    return 1;
+  }
+
+  std::puts("PASS: CdSync, DMA registration, field order, callback layout, inactive stream and response "
+            "retirement contracts hold");
   return 0;
 }

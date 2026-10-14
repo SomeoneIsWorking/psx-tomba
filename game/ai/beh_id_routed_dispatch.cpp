@@ -199,10 +199,5 @@ Lret:
 // Wiring for the state-1 common tail above. A00, from the image: of 23 authenticated MODE images only
 // A00 holds a function at 0x80122BF4 (44 words), and the address is inside A00's loaded text range.
 void id_routed_leaves_install() {
-  static bool done = false;
-  if (done) {
-    return;
-  }
-  done = true;
   tomba::native::declareOverlayOverride("A00", 0x80122BF4u, "beh_id_routed_offset_point", beh_id_routed_offset_point);
 }

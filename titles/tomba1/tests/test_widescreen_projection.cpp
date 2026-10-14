@@ -422,7 +422,7 @@ bool verifyLiveAspectChange(Core &core) {
 
 int main() {
   // The GTE control-register file is Beetle's module-global storage, so it must exist before any
-  // CR read or write. main.cpp calls the same initialiser in the product.
+  // CR read or write. TitleSession calls the same initialiser in the product.
   gte_init();
   TestRuntime runtime;
   psxport_install_game(runtime);

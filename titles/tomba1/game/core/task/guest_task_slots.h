@@ -20,12 +20,13 @@ inline constexpr std::uint32_t kTaskTableEnd = 0x801FD950u;
 inline constexpr std::uint32_t kTaskStride = 0x70u;
 inline constexpr std::size_t kTaskSlotCount = 3u;
 
-// The three measured native leaves the guest calls to create, yield, and restart a task.
+// The measured native leaves the guest calls to create, yield, restart and end a task.
 inline constexpr std::uint32_t kTaskStartEntry = 0x80017154u;
 inline constexpr std::uint32_t kTaskYieldEntry = 0x800171D4u;
+inline constexpr std::uint32_t kTaskExitEntry = 0x80017208u;
 inline constexpr std::uint32_t kTaskRestartEntry = 0x800172C4u;
 
-// The record's field offsets, and the two state words the scheduler owns. 2 is "started, runnable"
+// The record's field offsets, and the state words the scheduler owns. 0 is "ended, free"; 2 is "started, runnable"
 // and is what a fresh start and a budget resume both write; 4 is "running right now" and is only true
 // during a dispatch; 1 is "yielded, waiting to be made runnable again"; 3 is "restart requested, the
 // entry is in the record". `kTaskRecordStep` is the guest's OWN field, written only at a yield from
@@ -34,6 +35,7 @@ inline constexpr std::uint32_t kTaskRecordState = 0u;
 inline constexpr std::uint32_t kTaskRecordStep = 2u;
 inline constexpr std::uint32_t kTaskRecordStack = 8u;
 inline constexpr std::uint32_t kTaskRecordEntry = 12u;
+inline constexpr std::uint16_t kTaskStateFree = 0u;
 inline constexpr std::uint16_t kTaskStateWaiting = 1u;
 inline constexpr std::uint16_t kTaskStateRunnable = 2u;
 inline constexpr std::uint16_t kTaskStateRestart = 3u;
@@ -90,6 +92,7 @@ public:
   static void startOverride(Core *core);
   static void yieldOverride(Core *core);
   static void restartOverride(Core *core);
+  static void exitOverride(Core *core);
 
 private:
   struct TaskSlot {
@@ -114,6 +117,7 @@ private:
 
   void yieldTask(Core &core);
   void restartTask(Core &core);
+  void exitTask(Core &core);
 
   // The one budget exit path: records the resume, re-arms the slot for the next field, and either
   // returns (progress) or reports and stops (no progress). Kept beside `runTaskSlot` rather than
@@ -125,12 +129,12 @@ private:
   bool restartRequested_ = false;
   std::size_t activeSlot_ = tasks_.size();
 
-  // The reachability guard the native leaves share, and the only thing the creation scope below
-  // touches: those leaves exist to catch a task transition raised from somewhere the scheduler is
-  // not driving, so the state they check is the scheduler's alone to set.
+  // The native leaves reach this Core's slots through its `Context`; this is their guard against a
+  // task transition raised while the scheduler is not driving, and only the scheduler and the
+  // creation scope below set it.
   friend class GuestTaskCreationScope;
 
-  static GuestTaskSlots *active_;
+  bool reachable_ = false;
 };
 
 // The boot prefix creates the first task records, so the slot owner has to be reachable while that

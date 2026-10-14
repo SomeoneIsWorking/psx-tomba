@@ -396,10 +396,5 @@ void ov_allocRecordForSelector(Core *c) {
 } // namespace
 
 void startup_overrides_install() {
-  static bool done = false;
-  if (done) {
-    return;
-  }
-  done = true;
   tomba::native::declareOverride(0x8008913Cu, "ov_allocRecordForSelector", ov_allocRecordForSelector);
 }

@@ -1,5 +1,6 @@
 #include "guest_task_slots.h"
 
+#include "context.h"
 #include "core.h"
 #include "execution_control.h"
 #include "execution_exit.h"
@@ -70,16 +71,12 @@ void GuestTaskSlots::reportGuestExit(Core &core,
   }
 }
 
-GuestTaskSlots *GuestTaskSlots::active_ = nullptr;
-
 GuestTaskCreationScope::GuestTaskCreationScope(GuestTaskSlots &slots) : slots_(&slots) {
-  slots_->active_ = slots_;
+  slots_->reachable_ = true;
 }
 
 GuestTaskCreationScope::~GuestTaskCreationScope() {
-  if (slots_ != nullptr) {
-    slots_->active_ = nullptr;
-  }
+  slots_->reachable_ = false;
 }
 
 psx::cpu::ExecutionResult dispatchGuestTaskUntilExit(Core &core, std::uint32_t address) {
@@ -137,12 +134,12 @@ void GuestTaskSlots::runTaskSlot(Core &core, std::size_t slot, std::uint16_t sta
     core.mem_w16(record + kTaskRecordState, kTaskStateRunning);
     restartRequested_ = false;
     activeSlot_ = slot;
-    active_ = this;
+    reachable_ = true;
     static_cast<R3000 &>(core) = task.context;
     const psx::cpu::ExecutionResult result = dispatchGuestTaskUntilExit(core, task.resumeAddress);
     task.context = static_cast<R3000 &>(core);
     static_cast<R3000 &>(core) = loopContext;
-    active_ = nullptr;
+    reachable_ = false;
     activeSlot_ = tasks_.size();
 
     if (restartRequested_) {
@@ -233,11 +230,12 @@ bool GuestTaskSlots::resumeAcrossField(Core &core, std::size_t slot, const psx::
 }
 
 void GuestTaskSlots::startOverride(Core *core) {
-  if (!active_ || !core) {
+  GuestTaskSlots *slots = core != nullptr ? &context(*core).tasks : nullptr;
+  if (slots == nullptr || !slots->reachable_) {
     lucent::error("tomba1-frame", "guest task start reached outside the native frame owner");
     std::abort();
   }
-  active_->createTask(*core, core->r[4], core->r[5]);
+  slots->createTask(*core, core->r[4], core->r[5]);
 }
 
 void GuestTaskSlots::runScheduledTasks(Core &core) {
@@ -286,20 +284,44 @@ void GuestTaskSlots::restartTask(Core &core) {
   psx::cpu::requestExecutionExit(core, psx::cpu::ExecutionExitReason::CooperativeYield);
 }
 
+// The guest ends a task by freeing its record, closing its thread and switching to the main thread,
+// so the task never runs again until a new start.
+void GuestTaskSlots::exitTask(Core &core) {
+  const std::uint32_t record = core.mem_r32(kCurrentTask);
+  if (!validTaskRecord(record) || activeSlot_ >= tasks_.size() || record != taskRecordAddress(activeSlot_)) {
+    lucent::error("tomba1-frame", "task exit has no active measured task");
+    std::abort();
+  }
+  core.mem_w16(record + kTaskRecordState, kTaskStateFree);
+  tasks_[activeSlot_] = TaskSlot{};
+  psx::cpu::requestExecutionExit(core, psx::cpu::ExecutionExitReason::CooperativeYield);
+}
+
 void GuestTaskSlots::yieldOverride(Core *core) {
-  if (!active_ || !core) {
+  GuestTaskSlots *slots = core != nullptr ? &context(*core).tasks : nullptr;
+  if (slots == nullptr || !slots->reachable_) {
     lucent::error("tomba1-frame", "guest yield reached outside the native frame owner");
     std::abort();
   }
-  active_->yieldTask(*core);
+  slots->yieldTask(*core);
 }
 
 void GuestTaskSlots::restartOverride(Core *core) {
-  if (!active_ || !core) {
+  GuestTaskSlots *slots = core != nullptr ? &context(*core).tasks : nullptr;
+  if (slots == nullptr || !slots->reachable_) {
     lucent::error("tomba1-frame", "guest task restart reached outside the native frame owner");
     std::abort();
   }
-  active_->restartTask(*core);
+  slots->restartTask(*core);
+}
+
+void GuestTaskSlots::exitOverride(Core *core) {
+  GuestTaskSlots *slots = core != nullptr ? &context(*core).tasks : nullptr;
+  if (slots == nullptr || !slots->reachable_) {
+    lucent::error("tomba1-frame", "guest task exit reached outside the native frame owner");
+    std::abort();
+  }
+  slots->exitTask(*core);
 }
 
 } // namespace tomba1

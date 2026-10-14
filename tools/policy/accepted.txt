@@ -1,17 +1,6 @@
 # re-harness cpp_policy sites this repository has not yet moved to an owner. The list only shrinks:
 # a site that no longer occurs fails the gate until its line is deleted.
 
-# Hand-written mains still outside the framework main; each goes when its title moves to psxport_add_product.
-titles/tomba1/game/core/entry/main.cpp:entry point:main
-
-# Framework steps a title no longer spells out (TitleSession and ProductHost compose them). Tomba! 1's
-# main goes when it joins the catalog (M5).
-titles/tomba1/game/core/entry/main.cpp:retired name:gte_bind
-titles/tomba1/game/core/entry/main.cpp:retired name:load_exe
-titles/tomba1/game/core/entry/main.cpp:retired name:mdec_bind
-titles/tomba1/game/core/entry/main.cpp:retired name:spu_bind
-titles/tomba1/game/core/entry/main.cpp:retired name:watchdog_init
-
 # Functions in the global namespace.
 game/ai/beh_a06_multi_actor.cpp:global-namespace function:beh_a06_multi_actor
 game/ai/beh_a06_script_fades.cpp:global-namespace function:beh_a06_fade_flash_ramp_80139728
@@ -394,7 +383,6 @@ game/core/overrides/register_overrides.cpp:extern declaration:id_routed_leaves_i
 game/core/overrides/register_overrides.cpp:extern declaration:startup_overrides_install
 
 # Function-local statics.
-game/ai/beh_id_routed_dispatch.cpp:block-scope static:done
 game/ai/release_trigger_motion.cpp:block-scope static:TBL
 game/audio/audio_dispatch.cpp:block-scope static:TABLE_PTRS
 game/audio/music_coord.cpp:block-scope static:kSpills
@@ -437,7 +425,6 @@ game/core/engine/engine_task_machine.cpp:block-scope static:jal_ra
 game/core/engine/engine_task_machine.cpp:block-scope static:kSpills
 game/core/frame/frame_diagnostics.cpp:block-scope static:stateChannel
 game/core/overrides/native_override_catalog.cpp:block-scope static:value
-game/input/pad_edge_fence.cpp:block-scope static:done
 game/object/behavior_dispatch.cpp:block-scope static:s_forced
 game/object/behavior_dispatch.cpp:block-scope static:s_init
 game/player/actor_interaction.cpp:block-scope static:kSpills
@@ -450,28 +437,14 @@ game/player/collision.cpp:block-scope static:s_v
 game/render/cull.cpp:block-scope static:s_inc
 game/render/cull.cpp:block-scope static:s_lf
 game/render/hud_gauge_emitter.cpp:block-scope static:kSpills
-game/render/objlist_walk.cpp:block-scope static:done
 game/render/overlay_ground_gt3gt4.cpp:block-scope static:n
 game/render/overlay_gt3gt4.cpp:block-scope static:n
-game/render/overlay_type_dispatch.cpp:block-scope static:done
-game/render/perobj_billboard.cpp:block-scope static:done
-game/render/perobj_dispatch.cpp:block-scope static:done
 game/render/render_frame.cpp:block-scope static:n
-game/render/render_walk_dispatch.cpp:block-scope static:done
-game/render/wide_re_gpu_dma_queue.cpp:block-scope static:done
-game/render/wide_re_gpu_loadimage_streamer.cpp:block-scope static:done
-game/render/wide_re_gpu_putdrawenv.cpp:block-scope static:done
-game/render/wide_re_libgpu_leaves.cpp:block-scope static:done
 game/render/widescreen_margin_quad.cpp:block-scope static:kRgbWordOff
 game/render/widescreen_margin_quad.cpp:block-scope static:kSpills
 game/render/widescreen_margin_quad.cpp:block-scope static:kUvWordOff
 game/scene/demo.cpp:block-scope static:w
 game/scene/script_interp.cpp:block-scope static:kSpills
 game/scene/script_interp_entry.cpp:block-scope static:kSpills
-game/scene/startup.cpp:block-scope static:done
-game/ui/font.cpp:block-scope static:done
-game/ui/options_page.cpp:block-scope static:done
-game/ui/panel.cpp:block-scope static:done
 game/world/pool.cpp:block-scope static:pools
 game/world/spawn.cpp:block-scope static:P
-titles/tomba1/game/core/entry/main.cpp:block-scope static:runtime

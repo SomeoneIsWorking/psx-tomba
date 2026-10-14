@@ -1,6 +1,7 @@
-# Tomba PC ports, built on the shared psxport Lightrec runtime. The repository-level game/** tree
-# belongs only to Tomba! 2. Tomba! 1 is a separate engine under titles/tomba1/** and may consume
-# psxport, but it must never compile or include Tomba! 2 game code.
+# The Tomba PC product, built on the shared psxport Lightrec runtime: one tomba2_port binary whose
+# catalog holds Tomba! 1 and Tomba! 2. The repository-level game/** tree belongs only to Tomba! 2.
+# Tomba! 1 is a separate engine under titles/tomba1/** and may consume psxport, but it must never
+# compile or include Tomba! 2 game code; only the catalog names both.
 cmake_minimum_required(VERSION 3.21)
 project(tomba2engine CXX C)
 
@@ -48,12 +49,12 @@ add_subdirectory(${PSXPORT_DIR}/vendor/beetle-psx/deps/libchdr ${CMAKE_BINARY_DI
 # The framework static library (psxport) — builds from external/psxport via PSXPORT_ROOT (self-locating).
 include(${PSXPORT_DIR}/cmake/psxport.cmake)
 
+# Tomba! 1's runtime library, which the product's catalog links.
+include(titles/tomba1/cmake/tomba1_runtime.cmake)
+
 # The game binary (tomba2_port): title-native game/** linked to the shared runtime. Guest code is
 # read from authenticated user assets and translated at runtime; no emitted guest source is built.
 include(cmake/tomba2_port.cmake)
-
-# Tomba! 1 remains an isolated runtime product while its representative-gameplay evidence is open.
-include(titles/tomba1/cmake/tomba1_port.cmake)
 
 if(BUILD_TESTING)
   # Real-title evidence is local-only: CI has no licensed overlay images.
@@ -141,6 +142,64 @@ if(BUILD_TESTING)
   foreach(mode IN ITEMS skip forced headless)
     add_test(NAME tomba_movie_policy_${mode} COMMAND test_title_host_owners ${mode})
   endforeach()
+
+  # One binary links both title trees, so no external name may be defined by both from their own
+  # sources. The fixture pair proves the check reports a collision it must see.
+  find_program(TOMBA_GNU_NM NAMES nm gnm)
+  # Definition locations come from line information, which a Release build would not carry.
+  foreach(title_target IN ITEMS tomba1_runtime tomba2_port)
+    target_compile_options(${title_target} PRIVATE $<$<CXX_COMPILER_ID:GNU,Clang>:-g>)
+  endforeach()
+  file(GENERATE OUTPUT "${CMAKE_BINARY_DIR}/link_isolation/tomba1.objects"
+       CONTENT "$<JOIN:$<TARGET_OBJECTS:tomba1_runtime>,\n>\n")
+  file(GENERATE OUTPUT "${CMAKE_BINARY_DIR}/link_isolation/tomba2.objects"
+       CONTENT "$<JOIN:$<TARGET_OBJECTS:tomba2_port>,\n>\n")
+  add_test(NAME tomba_title_link_isolation
+           COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/title_link_isolation.py"
+                   --nm "${TOMBA_GNU_NM}"
+                   --first "${CMAKE_BINARY_DIR}/link_isolation/tomba1.objects"
+                   --first-root "${CMAKE_SOURCE_DIR}/titles/tomba1"
+                   --second "${CMAKE_BINARY_DIR}/link_isolation/tomba2.objects"
+                   --second-root "${CMAKE_SOURCE_DIR}/game")
+  add_library(link_isolation_first OBJECT tests/link_isolation/first/shared_name.cpp)
+  add_library(link_isolation_second OBJECT tests/link_isolation/second/shared_name.cpp)
+  file(GENERATE OUTPUT "${CMAKE_BINARY_DIR}/link_isolation/first.objects"
+       CONTENT "$<JOIN:$<TARGET_OBJECTS:link_isolation_first>,\n>\n")
+  file(GENERATE OUTPUT "${CMAKE_BINARY_DIR}/link_isolation/second.objects"
+       CONTENT "$<JOIN:$<TARGET_OBJECTS:link_isolation_second>,\n>\n")
+  add_test(NAME tomba_title_link_isolation_detects_collision
+           COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/title_link_isolation.py"
+                   --nm "${TOMBA_GNU_NM}"
+                   --first "${CMAKE_BINARY_DIR}/link_isolation/first.objects"
+                   --first-root "${CMAKE_SOURCE_DIR}/tests/link_isolation/first"
+                   --second "${CMAKE_BINARY_DIR}/link_isolation/second.objects"
+                   --second-root "${CMAKE_SOURCE_DIR}/tests/link_isolation/second")
+  set_tests_properties(tomba_title_link_isolation_detects_collision PROPERTIES
+                       PASS_REGULAR_EXPRESSION "collision: link_fixture::sharedName\\(\\)")
+  add_library(link_isolation_no_lines OBJECT tests/link_isolation/first/shared_name.cpp)
+  target_compile_options(link_isolation_no_lines PRIVATE $<$<CXX_COMPILER_ID:GNU,Clang>:-g0>)
+  file(GENERATE OUTPUT "${CMAKE_BINARY_DIR}/link_isolation/no_lines.objects"
+       CONTENT "$<JOIN:$<TARGET_OBJECTS:link_isolation_no_lines>,\n>\n")
+  add_test(NAME tomba_title_link_isolation_refuses_objects_without_lines
+           COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/title_link_isolation.py"
+                   --nm "${TOMBA_GNU_NM}"
+                   --first "${CMAKE_BINARY_DIR}/link_isolation/no_lines.objects"
+                   --first-root "${CMAKE_SOURCE_DIR}/tests/link_isolation/first"
+                   --second "${CMAKE_BINARY_DIR}/link_isolation/second.objects"
+                   --second-root "${CMAKE_SOURCE_DIR}/tests/link_isolation/second")
+  set_tests_properties(tomba_title_link_isolation_refuses_objects_without_lines PROPERTIES
+                       PASS_REGULAR_EXPRESSION "carries no line information")
+
+  # The shipped picker with both titles live at the end of the run, not merely once. Local-only: it
+  # needs the provisioned discs, and skips where neither title is provisioned (CI).
+  add_test(NAME tomba_picker_both_panels_live COMMAND tomba2_port WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
+  set_tests_properties(tomba_picker_both_panels_live PROPERTIES
+                       ENVIRONMENT "PSXPORT_DEBUG=picker;PSXPORT_NATIVE_FRAMES=1500;PSXPORT_NOAUDIO=1;PSXPORT_ASSET_DIR=${PSXPORT_DIR}"
+                       PASS_REGULAR_EXPRESSION "with no choice; panels: \\[0\\]\\*tomba1 demo \\[1\\] tomba2 demo"
+                       SKIP_REGULAR_EXPRESSION "no provisioned title"
+                       # A settled panel that drops back to booting has lost its picture.
+                       FAIL_REGULAR_EXPRESSION "\\[watchdog\\] FAULT;tomba1 demo.*tomba1 booting;tomba2 demo.*tomba2 booting"
+                       TIMEOUT 300)
 
   add_executable(test_gpu_timeout_dispatch
       tests/test_gpu_timeout_dispatch.cpp game/core/entry/game_config.cpp)

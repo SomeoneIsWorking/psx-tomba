@@ -1,13 +1,16 @@
 #include "cd_native_startup.h"
 
 #include "cd_control.h"
+#include "cd_ready_delivery.h"
 #include "cdc_state.h"
 #include "core.h"
 #include "game.h"
 
+#include <array>
 #include <cstdint>
 #include <cstdlib>
 #include <lucent/log.h>
+#include <span>
 
 namespace tomba1 {
 namespace {
@@ -29,6 +32,26 @@ constexpr std::uint32_t kCommandCallback = 0x80096300u;
 constexpr std::uint32_t kSyncHandler = 0x800646F4u;
 constexpr std::uint32_t kReadyHandler = 0x8006471Cu;
 constexpr std::uint32_t kCommandHandler = 0x80064744u;
+constexpr std::uint8_t kCdcIrqDataReady = 1u;
+constexpr std::uint8_t kCdcIrqComplete = 2u;
+constexpr std::uint8_t kCdcIrqAcknowledge = 3u;
+
+// libcd's interrupt handler, which this port replaces with host-served CdControl/CdSync, consumes
+// every command response (INT3/INT2) and drops a data-ready (INT1) no ready callback receives. Those
+// responses have no other consumer here, so the host command path retires the ones already queued.
+void retireUnownedResponses(Core &core) {
+  CdcState &controller = core.game->cdc;
+  cdc_drive_service(&controller);
+  for (;;) {
+    const std::uint8_t type = cdc_current_irq_type(&controller);
+    const bool commandResponse = type == kCdcIrqComplete || type == kCdcIrqAcknowledge;
+    const bool unclaimedData = type == kCdcIrqDataReady && core.mem_r32(kCdReadyCallbackPointer) == 0u;
+    if (!commandResponse && !unclaimedData) {
+      return;
+    }
+    psx::cd::acknowledgeCurrentCdResponse(core, std::span<std::uint8_t>{});
+  }
+}
 
 } // namespace
 
@@ -49,26 +72,29 @@ void initializeSynchronousCd(Core &core, unsigned int resultAddress) {
 }
 
 void cdControlOverride(Core *core) {
-  if (!core) {
+  if (!core || !core->game) {
     std::abort();
   }
   cd_control_sync(core);
+  retireUnownedResponses(*core);
 }
 
 void cdControlFOverride(Core *core) {
-  if (!core) {
+  if (!core || !core->game) {
     std::abort();
   }
   // CdControlF has no result-buffer argument. The shared controller owner consumes the CdControl
   // ABI, so make that absent third argument explicit rather than forwarding a stale caller register.
   core->r[6] = 0u;
   cd_control_sync(core);
+  retireUnownedResponses(*core);
 }
 
 void cdSyncOverride(Core *core) {
-  if (!core) {
+  if (!core || !core->game) {
     std::abort();
   }
+  retireUnownedResponses(*core);
   const std::uint32_t result = core->r[5];
   if (result != 0u) {
     for (std::uint32_t offset = 0; offset < 8u; ++offset) {
@@ -82,15 +108,11 @@ void cdReadyOverride(Core *core) {
   if (!core || !core->game) {
     std::abort();
   }
-
   CdcState &controller = core->game->cdc;
-  const int previousBank = controller.index;
   cdc_drive_service(&controller);
-  cdc_write(&controller, 0u, 1u);
-  const std::uint32_t reason = cdc_read(&controller, 3u) & 7u;
   lucent::debug("tomba1-cdready",
                 "reason={} queue={}->{} read={} first={} data={}/{} lba={}",
-                reason,
+                cdc_current_irq_type(&controller),
                 controller.q_head,
                 controller.q_tail,
                 controller.reading,
@@ -98,27 +120,14 @@ void cdReadyOverride(Core *core) {
                 controller.data_rd,
                 controller.data_n,
                 controller.loc_lba);
-  if (reason == 0u) {
-    cdc_write(&controller, 0u, static_cast<std::uint8_t>(previousBank));
-    core->r[2] = 0u;
-    return;
-  }
-
+  std::array<std::uint8_t, 8> response{};
+  core->r[2] = psx::cd::acknowledgeCurrentCdResponse(*core, response);
   const std::uint32_t result = core->r[5];
-  if (result != 0u) {
-    for (std::uint32_t offset = 0; offset < 8u; ++offset) {
-      core->mem_w8(result + offset, static_cast<std::uint8_t>(cdc_read(&controller, 1u)));
+  if (core->r[2] != 0u && result != 0u) {
+    for (std::uint32_t offset = 0; offset < response.size(); ++offset) {
+      core->mem_w8(result + offset, response[offset]);
     }
   }
-
-  // The title host turn invokes CdReadyCallback directly, replacing the guest IRQ path. Consume
-  // the current controller edge and its already-latched I_STAT bit before acknowledging it. If the
-  // ACK exposes another queued response, cdc_write raises a fresh edge and leaves it intact.
-  controller.irq_edge = 0u;
-  core->game->hle.i_stat &= ~(1u << 2u);
-  cdc_write(&controller, 3u, static_cast<std::uint8_t>(reason));
-  cdc_write(&controller, 0u, static_cast<std::uint8_t>(previousBank));
-  core->r[2] = reason;
 }
 
 } // namespace tomba1

@@ -6,10 +6,14 @@ address ownership is the last section, [Guest address index](#guest-address-inde
 
 ```text
 CMakeLists.txt
-├── cmake/tomba2_port.cmake              Tomba! 2 product composition
-│   └── game/                            Tomba! 2 native title owners
-├── titles/tomba1/cmake/tomba1_port.cmake
+├── titles/tomba1/cmake/tomba1_runtime.cmake  Tomba! 1 runtime library (tomba1_runtime)
 │   └── titles/tomba1/game/              Tomba! 1 native title owners
+├── cmake/tomba2_port.cmake              the product (tomba2_port): Tomba! 2 owners + tomba1_runtime
+│   └── game/                            Tomba! 2 native title owners
+├── tools/run.py                         the launcher (run.sh → bootstrap.py)
+├── tools/gate.py                        agent headless gate over the built product
+├── tools/tomba2_provision.py            maintainer evidence images (MAIN.EXE, overlays)
+├── tools/title_link_isolation.py        refuses an external name both title trees define
 └── external/psxport/                    shared Lightrec executor and PSX platform
 ```
 
@@ -54,7 +58,7 @@ where their bodies live.
 | `LibapiIntr` (`hle/libapi_intr.{h,cpp}`) | libapi interrupt-mask primitives; mirrors the host VBlank count to the guest word at the title frame boundary. |
 | `Asset` / `Str` (`assets/`) | LZ decompress, texture-group unpack, CPU→VRAM upload, the stage preload chain; and the resident native string leaves, registered image-aware. |
 | `tomba::native::declareOverride` / `declareOverlayOverride` / `bindResident` / `activateOverlay` / `activateModeOverlay` / `activateAreaSlotOverlay` / `retireOverlay` / `loadAreaSlotFile` (`overrides/native_override_catalog.*`) | The one native-override declaration catalog; a declaration is keyed by image identity plus guest address, never by address alone. |
-| `TombaCatalog`, `createCatalog` (`entry/tomba_catalog.{h,cpp}`) | The product's catalog: one entry, Tomba! 2, selected by the disc's boot executable SCUS_944.54 under `scratch/bin`. A catalog of one has no picker. Tomba! 1 is not catalogued (its own binary still runs it). |
+| `TombaCatalog`, `createCatalog` (`entry/tomba_catalog.{h,cpp}`) | The product's catalog: index 0 Tomba! 1 (`tomba1::identity()`, `tomba1::Tomba1Runtime`), index 1 Tomba! 2 (the disc's boot executable SCUS_944.54); the host's picker shows one panel each. The only place both title trees are named. |
 | `tomba::title::bootStubIdentity()` / `mainExecutableIdentity()` (`entry/tomba_identity.{h,cpp}`) | The two executables' size, SHA-256, PS-X EXE header and disc facts (`PSXPORT_TOMBA2_DISC`, their paths on the disc), built from the compile definitions `cmake/tomba2_port.cmake` reads out of `config/tomba2-images.json`. |
 | `tomba::loadMainExecutable` (`entry/main_handoff.{h,cpp}`) | The stub-to-MAIN.EXE handoff: reads `MAIN.EXE` (`mainExecutableIdentity().discExecutablePath`) from the disc, authenticates it against the manifest identity, loads it and sets the entry registers. |
 | `BootCards` (`frame/boot_cards.{h,cpp}`) | The SCEA card and the LOGO movie that precede the first game frame, stepped one frame per `stepFrame` so the picker never blocks. |

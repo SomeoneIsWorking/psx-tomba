@@ -678,11 +678,6 @@ void ov_gpuDmaSend(Core *c) {
 } // namespace
 
 void gpu_dma_queue_install() {
-  static bool done = false;
-  if (done) {
-    return;
-  }
-  done = true;
   // 0x80082D04 (GpuDmaQueueEnqueue) — WIRED 2026-07-10. History: isolation testing (SBS-full,
   // PSXPORT_THUNK_FORCE_GEN bisection) first found and fixed a real bug (GPU_QSTAT_ACTIVE must be
   // written UNCONDITIONALLY every call — a MIPS branch-delay-slot store the draft had wrongly gated

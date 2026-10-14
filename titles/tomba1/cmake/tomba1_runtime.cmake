@@ -1,5 +1,5 @@
-# Tomba! 1 runtime product and evidence CMake fragment. Identity, provisioning, isolation, and
-# binary-backed comparison tools remain available.
+# Tomba! 1's runtime library, linked into the Tomba product (TombaCatalog), its tests and its
+# identity check.
 
 get_filename_component(TOMBA1_ROOT "${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUTE)
 set(TOMBA1_EXECUTABLE
@@ -21,34 +21,47 @@ add_custom_target(tomba1_scaffold DEPENDS psxport)
 add_library(
   tomba1_runtime STATIC
   "${TOMBA1_ROOT}/game/core/boot/cd_native_startup.cpp"
-  "${TOMBA1_ROOT}/game/core/entry/context.cpp"
-  "${TOMBA1_ROOT}/game/core/frame/frame_driver.cpp"
+  "${TOMBA1_ROOT}/game/core/state/context.cpp"
+  "${TOMBA1_ROOT}/game/core/frame/tomba1_frame_driver.cpp"
   "${TOMBA1_ROOT}/game/core/task/guest_task_slots.cpp"
   "${TOMBA1_ROOT}/game/core/boot/native_boot.cpp"
   "${TOMBA1_ROOT}/game/core/frame/stream_field_turn.cpp"
   "${TOMBA1_ROOT}/game/core/boot/sync_native.cpp"
   "${TOMBA1_ROOT}/game/core/entry/tomba1_runtime.cpp"
+  "${TOMBA1_ROOT}/game/core/entry/tomba1_identity.cpp"
   "${TOMBA1_ROOT}/game/render/widescreen_projection.cpp")
 set_target_properties(tomba1_runtime PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON)
-# One include root per CONCEPT directory, so every owner and every test keeps naming its sibling
-# header bare. `game/render` is Tomba! 1's rendering owner and stays beside the core concepts.
-target_include_directories(
-  tomba1_runtime
-  PUBLIC "${TOMBA1_ROOT}/game/core/entry"
-         "${TOMBA1_ROOT}/game/core/frame"
-         "${TOMBA1_ROOT}/game/core/boot"
-         "${TOMBA1_ROOT}/game/core/task"
-         "${TOMBA1_ROOT}/game/render")
+# The catalog sees only entry/ (Tomba1Runtime, the identity); every other concept directory is
+# private to the library and to Tomba! 1's own tests.
+set(TOMBA1_PRIVATE_INCLUDE_DIRS
+    "${TOMBA1_ROOT}/game/core/state"
+    "${TOMBA1_ROOT}/game/core/frame"
+    "${TOMBA1_ROOT}/game/core/boot"
+    "${TOMBA1_ROOT}/game/core/task"
+    "${TOMBA1_ROOT}/game/render")
+target_include_directories(tomba1_runtime PUBLIC "${TOMBA1_ROOT}/game/core/entry"
+                                          PRIVATE ${TOMBA1_PRIVATE_INCLUDE_DIRS})
 target_link_libraries(tomba1_runtime PUBLIC psxport)
 
-add_executable(tomba1_port "${TOMBA1_ROOT}/game/core/entry/main.cpp")
-set_target_properties(
-  tomba1_port
-  PROPERTIES
-    CXX_STANDARD 20
-    CXX_STANDARD_REQUIRED ON
-    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
-target_link_libraries(tomba1_port PRIVATE tomba1_runtime)
+# The catalog identity: the executable facts live in executable.json and reach the code only here.
+file(READ "${TOMBA1_ROOT}/executable.json" TOMBA1_MANIFEST)
+string(JSON TOMBA1_TITLE GET "${TOMBA1_MANIFEST}" title)
+string(JSON TOMBA1_EXECUTABLE_NAME GET "${TOMBA1_MANIFEST}" disc_executable)
+string(JSON TOMBA1_FILE_SIZE GET "${TOMBA1_MANIFEST}" file_size)
+string(JSON TOMBA1_SHA256 GET "${TOMBA1_MANIFEST}" sha256)
+set(TOMBA1_IDENTITY_DEFINITIONS
+  "TOMBA1_TITLE=\"${TOMBA1_TITLE}\""
+  "TOMBA1_EXECUTABLE_NAME=\"${TOMBA1_EXECUTABLE_NAME}\""
+  "TOMBA1_FILE_SIZE=${TOMBA1_FILE_SIZE}u"
+  "TOMBA1_SHA256=\"${TOMBA1_SHA256}\"")
+foreach(fact IN ITEMS entry global_pointer text_address text_size stack_address stack_size)
+  string(JSON value GET "${TOMBA1_MANIFEST}" ps_exe "${fact}")
+  string(TOUPPER "${fact}" fact_upper)
+  list(APPEND TOMBA1_IDENTITY_DEFINITIONS "TOMBA1_${fact_upper}=${value}u")
+endforeach()
+set_source_files_properties(
+  "${TOMBA1_ROOT}/game/core/entry/tomba1_identity.cpp"
+  PROPERTIES COMPILE_DEFINITIONS "${TOMBA1_IDENTITY_DEFINITIONS}")
 
 if(BUILD_TESTING)
   add_executable(
@@ -57,6 +70,7 @@ if(BUILD_TESTING)
   set_target_properties(
     tomba1_stream_field_turn_test PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON)
   target_link_libraries(tomba1_stream_field_turn_test PRIVATE tomba1_runtime)
+  target_include_directories(tomba1_stream_field_turn_test PRIVATE ${TOMBA1_PRIVATE_INCLUDE_DIRS})
   add_test(NAME tomba1_stream_field_turn COMMAND tomba1_stream_field_turn_test)
 
   add_executable(
@@ -65,6 +79,7 @@ if(BUILD_TESTING)
   set_target_properties(
     tomba1_widescreen_projection_test PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON)
   target_link_libraries(tomba1_widescreen_projection_test PRIVATE tomba1_runtime)
+  target_include_directories(tomba1_widescreen_projection_test PRIVATE ${TOMBA1_PRIVATE_INCLUDE_DIRS})
   add_test(NAME tomba1_widescreen_projection COMMAND tomba1_widescreen_projection_test)
 
   # The bounded multi-field resume, and the guest spin it exists to refuse (docs/issues/0007). Both
@@ -78,6 +93,7 @@ if(BUILD_TESTING)
   set_target_properties(
     tomba1_guest_task_budget_resume_test PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON)
   target_link_libraries(tomba1_guest_task_budget_resume_test PRIVATE tomba1_runtime)
+  target_include_directories(tomba1_guest_task_budget_resume_test PRIVATE ${TOMBA1_PRIVATE_INCLUDE_DIRS})
   add_test(NAME tomba1_guest_task_budget_resume COMMAND tomba1_guest_task_budget_resume_test)
 endif()
 

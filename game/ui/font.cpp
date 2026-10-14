@@ -906,11 +906,6 @@ void Font::registerStateRenders(Core &core) {
 }
 
 void Font::registerOverrides() {
-  static bool done = false;
-  if (done) {
-    return;
-  }
-  done = true;
   tomba::native::declareOverride(0x80079374u, "ov_drawText", ov_drawText);
   tomba::native::declareOverride(0x80079324u, "ov_drawTextSmall", ov_drawTextSmall); // 8x8 sibling of drawText
   // A text draw is the object of its string (a3); each glyph names its byte offset in it.

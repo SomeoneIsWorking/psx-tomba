@@ -2,7 +2,7 @@
 
 #include "execution_exit.h"
 #include "game_runtime.h"
-#include "widescreen_projection.h"
+#include "guest_widescreen_projection.h"
 
 #include <cstdint>
 #include <memory>
@@ -22,6 +22,7 @@ public:
   const PlatformHlePlan *platformHlePlan() const override;
   const GuestPadBufferLayout *guestPadBufferLayout() const override;
   const GuestCdStreamCallbackLayout *guestCdStreamCallbackLayout() const override;
+  void stockCdReadLanded(Core &core, const psx::cd::StockReadLanding &landing) override;
   RenderCapabilities renderCapabilities() const override;
   bool guestVramIsPicture(const Game &game) const override;
   const GuestWidescreenProjection *guestWidescreenProjection() const override;

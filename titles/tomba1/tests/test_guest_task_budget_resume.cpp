@@ -42,6 +42,7 @@
 // against the guest's own work count, and the interpreter-fallback counter against zero, so a
 // scheduler that dispatched nothing — or that quietly interpreted everything — cannot satisfy the
 // rest of this file.
+#include "context.h"
 #include "core.h"
 #include "game.h"
 #include "game_runtime.h"
@@ -141,6 +142,8 @@ constexpr std::uint32_t kCountdownEntryCell = 0x80017800u;
 constexpr std::uint32_t kCountdownCell = 0x80017804u;
 constexpr std::uint32_t kSpinCountCell = 0x80017808u;
 constexpr std::uint32_t kSpinArmCell = 0x8001780Cu;
+constexpr std::uint32_t kExitEntry = 0x80017600u;
+constexpr std::uint32_t kExitEntryCell = 0x80017810u;
 
 // A stack the guests never touch. `runTaskSlot` reads the record's stack word for `$sp`, and the
 // synthetic bodies keep every value in registers and in the cells above.
@@ -218,12 +221,33 @@ void writeSpinGuest(Core &core, std::uint32_t countdown) {
   core.mem_w32(spin + 0x04u, kNop);
 }
 
+// THE EXIT GUEST — the movie task's end (0x8001F1C0 state 3): count the entry, end the task through
+// the measured exit leaf, then yield as the guest loop does. An exit that returns reaches that yield.
+void writeExitGuest(Core &core) {
+  const std::uint32_t base = kExitEntry;
+  core.mem_w32(base + 0x00u, encodeLui(kT0, static_cast<std::uint16_t>(kExitEntryCell >> 16u)));
+  core.mem_w32(base + 0x04u, encodeOri(kT0, kT0, static_cast<std::uint16_t>(kExitEntryCell & 0xFFFFu)));
+  core.mem_w32(base + 0x08u, encodeLw(kT1, kT0, 0));
+  core.mem_w32(base + 0x0Cu, kNop);
+  core.mem_w32(base + 0x10u, encodeAddiu(kT1, kT1, 1));
+  core.mem_w32(base + 0x14u, encodeSw(kT1, kT0, 0));
+  core.mem_w32(base + 0x18u, encodeJal(tomba1::kTaskExitEntry));
+  core.mem_w32(base + 0x1Cu, kNop);
+  core.mem_w32(base + 0x20u, encodeJal(tomba1::kTaskYieldEntry));
+  core.mem_w32(base + 0x24u, kNop);
+  core.mem_w32(base + 0x28u, encodeJ(base));
+  core.mem_w32(base + 0x2Cu, kNop);
+}
+
+// The product's per-Core Context, because the task leaves reach this Core's slots through it.
 class Runtime final : public GameRuntime {
 public:
-  void *createContext(Core &) override {
-    return nullptr;
+  void *createContext(Core &core) override {
+    return new tomba1::Context(core);
   }
-  void destroyContext(void *) override {}
+  void destroyContext(void *context) override {
+    delete static_cast<tomba1::Context *>(context);
+  }
   void registerOverrides(Game &) override {}
   void bootInit(Core &) override {}
   RenderCapabilities renderCapabilities() const override {
@@ -249,7 +273,9 @@ bool installTaskLeaves(Core &core) {
                                           tomba1::GuestTaskSlots::yieldOverride}) &&
          core.nativeDispatcher().install({{*image, tomba1::kTaskRestartEntry},
                                           "GuestTaskSlots::restartOverride",
-                                          tomba1::GuestTaskSlots::restartOverride});
+                                          tomba1::GuestTaskSlots::restartOverride}) &&
+         core.nativeDispatcher().install(
+             {{*image, tomba1::kTaskExitEntry}, "GuestTaskSlots::exitOverride", tomba1::GuestTaskSlots::exitOverride});
 }
 
 int failed = 0;
@@ -300,7 +326,7 @@ std::vector<FieldReport> parseFieldLog(const std::string &text) {
 // reports how many fields the call needed, so the spin case is sized from measured work rather than
 // from a guess about how many loop iterations fit in a field.
 int measureFiniteCall(Core &core) {
-  tomba1::GuestTaskSlots tasks;
+  tomba1::GuestTaskSlots &tasks = tomba1::context(core).tasks;
   writeCountdownGuest(core);
   core.mem_w32(tomba1::taskRecordAddress(0) + tomba1::kTaskRecordStack, kTaskStack);
 
@@ -360,6 +386,21 @@ int measureFiniteCall(Core &core) {
   return firstCallFields;
 }
 
+// An ended task frees its record and is never dispatched again until a new start.
+void checkTaskExit(Core &core) {
+  tomba1::GuestTaskSlots &tasks = tomba1::context(core).tasks;
+  writeExitGuest(core);
+  const std::uint32_t record = tomba1::taskRecordAddress(1);
+  core.mem_w32(record + tomba1::kTaskRecordStack, kTaskStack);
+  tasks.createTask(core, 1, kExitEntry);
+  for (int field = 0; field < 3; ++field) {
+    tasks.runScheduledTasks(core);
+    check(core.mem_r16(record + tomba1::kTaskRecordState) == tomba1::kTaskStateFree,
+          "an ended task leaves its record free, not waiting");
+  }
+  check(core.mem_r32(kExitEntryCell) == 1u, "an ended task is dispatched exactly once");
+}
+
 } // namespace
 
 int main() {
@@ -372,6 +413,7 @@ int main() {
   check(installTaskLeaves(core), "the measured task leaves bind to the activated test image");
 
   const int finiteFields = measureFiniteCall(core);
+  checkTaskExit(core);
 
   // The bound's own arithmetic, asserted rather than restated (docs/issues/0007): 32 is about four
   // times the longest MEASURED call — the seven-field glyph decompress — and far below the ~2,000
@@ -418,7 +460,8 @@ int main() {
     writeSpinGuest(core, spinCountdown);
     core.mem_w32(tomba1::taskRecordAddress(0) + tomba1::kTaskRecordStack, kTaskStack);
 
-    tomba1::GuestTaskSlots tasks;
+    tomba1::GuestTaskSlots &tasks = tomba1::context(core).tasks;
+    tasks = tomba1::GuestTaskSlots{};
     tasks.createTask(core, 0, kSpinEntry);
     const std::uint32_t record = tomba1::taskRecordAddress(0);
     char line[64];

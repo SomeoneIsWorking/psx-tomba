@@ -232,11 +232,6 @@ static void libgpuSetDrawMode(Core *c);    // SetDrawMode — defined below, wir
 static void libgpuDmaStatusReset(Core *c); // GPU-DMA status-block reset — ditto
 
 void gpu_libgpu_leaves_install() {
-  static bool done = false;
-  if (done) {
-    return;
-  }
-  done = true;
   tomba::native::declareOverride(0x80080F6Cu, "ov_drawSync", ov_drawSync);
   tomba::native::declareOverride(0x80081458u, "ov_clearOTagR", ov_clearOTagR);
   tomba::native::declareOverride(0x80083DE0u, "libgpuSetDrawMode", libgpuSetDrawMode);

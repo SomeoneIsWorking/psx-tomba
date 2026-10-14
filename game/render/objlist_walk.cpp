@@ -609,11 +609,6 @@ void ov_objListWalk4(Core *c) {
 // core B (the pure original guest instructions oracle) always runs the real guest body while core A / standalone
 // runs these native methods — see perobj_dispatch.cpp's identical banner for the full rationale.
 void objlist_walk_install() {
-  static bool done = false;
-  if (done) {
-    return;
-  }
-  done = true;
   tomba::native::declareOverride(0x8003BB50u, "ov_objListWalk1", ov_objListWalk1);
   tomba::native::declareOverride(0x8003BCF4u, "ov_objListWalk2", ov_objListWalk2);
   tomba::native::declareOverride(0x8003BF00u, "ov_objListWalk3", ov_objListWalk3);

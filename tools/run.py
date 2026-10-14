@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
-"""Build and launch the Tomba! 2 native PC port."""
+"""Build and launch the Tomba! and Tomba! 2 native PC product."""
 
 from __future__ import annotations
 
 import hashlib
 import os
 import platform
-import re
 import runpy
 import shutil
 import subprocess
@@ -97,8 +96,9 @@ def say(message: str) -> None:
 
 def print_usage() -> None:
     print(
-        "Usage: ./run.sh tomba2 [--resume [recording.pad]] [disc.chd]\n"
-        "Build and launch the Tomba! 2 native PC product.\n\n"
+        "Usage: ./run.sh [--resume [recording.pad]]\n"
+        "Build and launch the Tomba! and Tomba! 2 native PC product (in-window title picker).\n"
+        "Each title's disc comes from PSXPORT_TOMBA1_DISC / PSXPORT_TOMBA2_DISC (environment or .env).\n\n"
         "Options:\n"
         "  -h, --help  Show this help and exit"
     )
@@ -241,14 +241,13 @@ def processor_count() -> int:
     return os.cpu_count() or 4
 
 
-def player_build_dirs(root: Path, cc: str, cxx: str) -> tuple[Path, Path]:
-    """Return isolated player-only build trees for the selected toolchain."""
+def player_build_dir(root: Path, cc: str, cxx: str) -> Path:
+    """Return the isolated player-only build tree for the selected toolchain."""
     identity = hashlib.sha256(f"{cc}\0{cxx}".encode()).hexdigest()[:12]
-    base = root / "build/player" / identity
-    return base / "framework", base / "game"
+    return root / "build/player" / identity / "game"
 
 
-def parse_arguments(arguments: Sequence[str]) -> tuple[str | None, list[str]]:
+def parse_arguments(arguments: Sequence[str]) -> str | None:
     remaining = list(arguments)
     resume: str | None = None
     if remaining and remaining[0] == "--resume":
@@ -261,7 +260,9 @@ def parse_arguments(arguments: Sequence[str]) -> tuple[str | None, list[str]]:
             resume = remaining.pop(0)
         else:
             resume = ""
-    return resume, remaining
+    if remaining:
+        raise LauncherError(f"unexpected arguments {' '.join(remaining)}; see ./run.sh --help")
+    return resume
 
 
 def resolve_resume(requested: str | None, root: Path, env: dict[str, str]) -> None:
@@ -289,35 +290,6 @@ def resolve_resume(requested: str | None, root: Path, env: dict[str, str]) -> No
     frames = check_path.stat().st_size // 2
     say(f"resume: {display} ({frames} pad frames) — fast-forwarding, then it is yours")
     env["PSXPORT_PAD_RESUME"] = display
-
-
-def env_file_value(path: Path, key: str) -> str:
-    if not path.is_file():
-        return ""
-    pattern = re.compile(rf"^\s*{re.escape(key)}\s*=\s*(.*)$")
-    for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
-        match = pattern.match(line)
-        if match:
-            return match.group(1)
-    return ""
-
-
-def resolve_disc(argument: str | None, root: Path, env: dict[str, str]) -> str:
-    disc = argument or env.get("PSXPORT_TOMBA2_DISC", "")
-    if not disc:
-        disc = env_file_value(root / ".env", "PSXPORT_TOMBA2_DISC")
-    if not disc:
-        disc = env_file_value(root / ".env", "PSXPORT_DISC")
-    if not disc:
-        drops = sorted(root.glob("*.chd"))
-        disc = f"./{drops[0].name}" if drops else ""
-    path = Path(disc)
-    if not disc or not (path if path.is_absolute() else root / path).is_file():
-        raise LauncherError(
-            "no disc image — pass it as ./run.sh <disc.chd>, set PSXPORT_TOMBA2_DISC, "
-            "or drop a *.chd here"
-        )
-    return disc
 
 
 def framework_status(psxport: Path, root: Path, explicit: bool) -> str:
@@ -381,62 +353,7 @@ def sync_framework(root: Path, env: dict[str, str]) -> Path:
     return psxport
 
 
-def configure_and_build(
-    root: Path,
-    psxport: Path,
-    build_dir: Path,
-    cc: str,
-    cxx: str,
-    jobs: int,
-    env: dict[str, str],
-) -> Path:
-    say("building libchdr + discdump (CMake)…")
-    run_checked(
-        [
-            "cmake",
-            "-S",
-            str(psxport),
-            "-B",
-            str(build_dir),
-            "-DCMAKE_BUILD_TYPE=Release",
-            "-DBUILD_TESTING=OFF",
-            f"-DCMAKE_C_COMPILER={cc}",
-            f"-DCMAKE_CXX_COMPILER={cxx}",
-            f"-DPython3_EXECUTABLE={sys.executable}",
-        ],
-        root=root,
-        error="psxport cmake configure failed",
-        env=env,
-        quiet=True,
-    )
-    run_checked(
-        [
-            "cmake",
-            "--build",
-            str(build_dir),
-            "-j",
-            str(jobs),
-            "--target",
-            "discdump",
-        ],
-        root=root,
-        error="discdump build failed",
-        env=env,
-        quiet=True,
-    )
-    discdump = build_dir / "tools/discdump"
-    check_discdump = discdump if discdump.is_absolute() else root / discdump
-    if not check_discdump.is_file():
-        discdump = Path(f"{discdump}.exe")
-        check_discdump = discdump if discdump.is_absolute() else root / discdump
-    if not os.access(check_discdump, os.X_OK):
-        raise LauncherError("discdump build failed")
-    return discdump
-
-
-def provision_and_build_game(
-    disc: str,
-    discdump: Path,
+def build_game(
     psxport: Path,
     build_dir: Path,
     cc: str,
@@ -445,23 +362,6 @@ def provision_and_build_game(
     root: Path,
     env: dict[str, str],
 ) -> None:
-    boot_stub = Path("scratch/bin/tomba2/SCUS_944.54")
-    (root / "scratch/bin").mkdir(parents=True, exist_ok=True)
-    run_checked(
-        [
-            sys.executable,
-            "tools/tomba2_provision.py",
-            disc,
-            "--discdump",
-            str(discdump),
-        ],
-        root=root,
-        error="Tomba! 2 runtime-image provisioning failed",
-        env=env,
-    )
-    if not (root / boot_stub).is_file():
-        raise LauncherError("Tomba! 2 provisioner did not produce the boot executable SCUS_944.54")
-
     say(f"building the native port (CMake -j{jobs})…")
     psxport_absolute = (
         psxport.resolve() if psxport.is_absolute() else (root / psxport).resolve()
@@ -512,20 +412,12 @@ def main(arguments: Sequence[str] | None = None, *, root: Path = ROOT) -> int:
         cxx = env.get("CXX", "c++")
         require_native_dependencies(root, cc, cxx)
 
+        requested_resume = parse_arguments(args)
         psxport = sync_framework(root, env)
-        requested_resume, remaining = parse_arguments(args)
         resolve_resume(requested_resume, root, env)
-        disc = resolve_disc(remaining[0] if remaining else None, root, env)
-        say(f"disc: {disc}")
 
-        jobs = processor_count()
-        framework_build, game_build = player_build_dirs(root, cc, cxx)
-        discdump = configure_and_build(
-            root, psxport, framework_build, cc, cxx, jobs, env
-        )
-        provision_and_build_game(
-            disc, discdump, psxport, game_build, cc, cxx, jobs, root, env
-        )
+        game_build = player_build_dir(root, cc, cxx)
+        build_game(psxport, game_build, cc, cxx, processor_count(), root, env)
 
         say("launching Tomba (title selector)…")
         policy_root = psxport if psxport.is_absolute() else root / psxport
@@ -534,7 +426,6 @@ def main(arguments: Sequence[str] | None = None, *, root: Path = ROOT) -> int:
         env["PSXPORT_ASSET_DIR"] = env.get("PSXPORT_ASSET_DIR") or str(psxport)
         env["PSXPORT_DEBUG_SERVER"] = env.get("PSXPORT_DEBUG_SERVER") or "1"
         env["PSXPORT_NO_TERRAIN"] = env.get("PSXPORT_NO_TERRAIN") or "0"
-        env["PSXPORT_TOMBA2_DISC"] = disc
         executable = game_build / "bin" / (
             "tomba2_port.exe" if platform.system() == "Windows" else "tomba2_port"
         )

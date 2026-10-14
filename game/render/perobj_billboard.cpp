@@ -669,11 +669,6 @@ void ov_billboardEmit(Core *c) {
 } // namespace
 
 void perobj_billboard_install() {
-  static bool done = false;
-  if (done) {
-    return;
-  }
-  done = true;
   // tomba::native::declareOverride (runtime/psx/override_registry.h) installs into the ONE
   // process-global override registry, which runs original guest instructions on the oracle leg (core B) and the
   // native handler everywhere else — NOT a raw tomba::native::declareOverride, since these are engine/game

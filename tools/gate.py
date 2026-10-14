@@ -3,7 +3,7 @@
 
 WHY THIS EXISTS (USER, 2026-08-11: "I don't know why you are running run.sh, that is for me to play,
 you should have your own tools"). `run.sh` is the user's end-to-end WINDOWED play launcher: it re-syncs
-submodules, re-extracts the boot executable, rebuilds, and launches. An agent invoking it competes with
+the framework, rebuilds, and launches. An agent invoking it competes with
 the user's session for the shared tree, and its submodule re-sync can silently revert in-progress
 framework work to the recorded pin — after which every measurement describes a different framework than
 the agent thinks (`external/psxport/docs/workspace/PROTOCOL.md` records that incident). So agents drive
@@ -52,12 +52,11 @@ sys.path.insert(0, os.path.join(PSXPORT, 'tools'))
 # property of THIS repository's layout, so it is owned here.
 CANONICAL_VERIFY_BUILD = os.path.join(REPO, 'build', 'ci')
 
-from run import resolve_disc  # noqa: E402
-
 # The product this gate drives is the canonical maintainer build (the same tree verify_ci.py
 # builds); the player build under build/player/<toolchain> belongs to run.sh.
 BIN = os.path.join(CANONICAL_VERIFY_BUILD, 'bin', 'tomba2_port')
-EXE = os.path.join(REPO, 'scratch', 'bin', 'tomba2', 'MAIN.EXE')
+# The boot stub the catalog selects Tomba! 2 by; the product host extracts it from the disc.
+EXE = os.path.join(REPO, 'scratch', 'bin', 'tomba2', 'SCUS_944.54')
 LOGDIR = os.path.join(REPO, 'scratch', 'logs')
 
 # The enhancement configuration every agent run of this port is gated under. It is passed to
@@ -100,6 +99,25 @@ ENV_AUDIT_RE = re.compile(r'env audit AT EXIT[^\n]*')
 AUDIT_UNKNOWN_RE = re.compile(r'env audit AT EXIT[^\n]*?(\d+) UNKNOWN')
 
 
+class DiscMissing(RuntimeError):
+    """No Tomba! 2 disc is named for an oracle or gate run."""
+
+
+def tomba2_disc(env: dict) -> str:
+    """The Tomba! 2 disc the product resolves: the environment, then the repository .env."""
+    disc = env.get('PSXPORT_TOMBA2_DISC', '')
+    dotenv = Path(REPO) / '.env'
+    if not disc and dotenv.is_file():
+        for line in dotenv.read_text(encoding='utf-8', errors='replace').splitlines():
+            key, separator, value = line.strip().partition('=')
+            if separator and key.strip() == 'PSXPORT_TOMBA2_DISC':
+                disc = value.strip()
+                break
+    if not disc or not Path(disc).is_file():
+        raise DiscMissing('no Tomba! 2 disc: set PSXPORT_TOMBA2_DISC in the environment or .env')
+    return disc
+
+
 def refuse(msg: str) -> int:
     print(f"GATE REFUSED: {msg}", file=sys.stderr)
     return 2
@@ -110,7 +128,7 @@ def native_environment(watchdog: int, debug: str = '', extra_env: dict | None = 
     """The one headless REPL launch environment for the built tomba2_port binary.
 
     The launch-environment policy (psxport tools/port/launch_environment.py) owns the
-    headless/silent/unpaced knobs; the disc and asset directory follow run.py's resolution.
+    headless/silent/unpaced knobs; the disc follows the product's own environment/.env lookup.
     Every agent driver of the product (this gate, tools/oracle_compare.py) builds its
     environment here so they cannot drift apart.
 
@@ -121,7 +139,7 @@ def native_environment(watchdog: int, debug: str = '', extra_env: dict | None = 
     from port.launch_environment import agent_environment
     env = agent_environment(dict(os.environ), settings or SHIPPING_SETTINGS)
     env['PSXPORT_ASSET_DIR'] = env.get('PSXPORT_ASSET_DIR') or PSXPORT
-    env['PSXPORT_TOMBA2_DISC'] = resolve_disc(None, Path(REPO), env)
+    env['PSXPORT_TOMBA2_DISC'] = tomba2_disc(env)
     env['PSXPORT_REPL'] = '1'
     env['PSXPORT_WATCHDOG'] = str(watchdog)
     if debug:
@@ -138,10 +156,13 @@ def run_gate(script: str, frames_hint: int, debug: str, watchdog: int,
                       f"cmake --build build --target tomba2_port -j$(nproc). Do not read this as a pass.")
     if not os.path.isfile(EXE):
         return refuse(f"{EXE} does not exist — NOTHING WAS RUN. The boot executable is extracted from "
-                      f"the disc; it is not this tool's job to extract it (that is run.sh's, and run.sh "
-                      f"belongs to the user). Extract it once, then re-run this gate.")
+                      f"the disc by the product host on a zero-argument run of {BIN}; run it once, "
+                      f"then re-run this gate.")
 
-    env = native_environment(watchdog, debug, extra_env, settings)
+    try:
+        env = native_environment(watchdog, debug, extra_env, settings)
+    except DiscMissing as exc:
+        return refuse(f"{exc} — NOTHING WAS RUN.")
 
     os.makedirs(LOGDIR, exist_ok=True)
     stamp = time.strftime('%Y%m%d-%H%M%S')

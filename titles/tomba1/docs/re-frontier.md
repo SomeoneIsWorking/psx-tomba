@@ -16,8 +16,8 @@ executable-grounded startup and CD facts while introducing the shared Lightrec p
 ### T1-01 — Provision the selected disc reproducibly
 - status: re-verified
 - deps: T1-00
-- evidence: C002/I002. `tools/provision.py` resolves explicit argument, `PSXPORT_TOMBA1_DISC`, `.env`, then exactly one root CHD; requires exactly one `SYSTEM.CNF` boot declaration naming root `SCUS_942.36`; and publishes only after 15/15 executable agreement. Positive and negative cases distinguish agreement from missing, ambiguous, malformed, wrong-target, and altered input.
-- where: `tools/provision.py`; user-supplied disc; untracked runtime input
+- evidence: C002/I002. The host's `executable_provisioner` reads `SCUS_942.36` from the `PSXPORT_TOMBA1_DISC` disc and publishes it to `scratch/bin/tomba1/` only when size and SHA-256 match `tomba1::identity()`.
+- where: `game/core/entry/tomba1_identity.cpp`; psxport `runtime/psx/host/executable_provisioner.cpp`; user-supplied disc; untracked runtime input
 - gap: None for the selected USA disc.
 
 ### T1-02 — Recover CRT0 and startup semantics
@@ -49,11 +49,11 @@ executable-grounded startup and CD facts while introducing the shared Lightrec p
 - gap: Run the authenticated executable to `0x8006B70C`, report 35/35 fields and nonzero translated blocks, then prove the forced mismatch and too-short refusal still fire.
 
 ### T1-06 — Route title overrides and cross the current CD/movie frontier
-- status: todo
+- status: partial
 - deps: T1-05
-- evidence: Pre-migration execution reached visible SCEA and Whoopee Camp frames, loaded `OPTSUB00` at `0x800E7388`, and advanced beyond LBA 58739. Public/internal `CdSync` are `0x800648C8`/`0x80065470`; the current fatal VSync return address is `0x800654A4`. DMA registration `0x80067E84` installs callback `0x80066D80`.
+- evidence: Pre-migration execution reached visible SCEA and Whoopee Camp frames, loaded `OPTSUB00` at `0x800E7388`, and advanced beyond LBA 58739. Public/internal `CdSync` are `0x800648C8`/`0x80065470`; the current fatal VSync return address is `0x800654A4`. DMA registration `0x80067E84` installs callback `0x80066D80`. Through Lightrec the product now plays the publisher card, the Whoopee Camp logo and both opening movies (issue 0008 resolution). Load-list walker `0x80021D70`: type `0xF0` lands code at `0x800E7388`, type `0xF8` data at `0x80097FA8`. Movie task `0x8001F1C0`: state 3 calls `StUnSetStream` `0x80066D28` (`CdReadyCallback(0)` `0x80064920`), `0x80066CC8`, `CdControlB(Pause)` `0x80064B9C`, then task exit `0x80017208` (record state 0, `CloseTh`, `ChangeTh(0xFF000000)`). `StCdInterrupt` body `0x800670D0` calls `CdReady(1)` and starts DMA3 through `0x80067A74`, which spins on CD status `0x1F801800` bit 6. libetc `VSync(-1)` returns `0x800974D4`.
 - where: title-native owners in `game/core/`; shared image-aware override/original-call dispatcher and Lightrec executor
-- gap: Exercise all six engine-neutral native overrides and scoped original calls through the shipping dispatcher, cross issue 0006 without weakening the VSync trap, preserve the recorded CD/DMA/movie behavior, then reach the title screen and demonstrate input.
+- gap: After the opening movies the intro movie (`16:34:22`) replays with no input and the title screen is not reached; find what the attract loop waits for. Then demonstrate input.
 
 ### T1-07 — Prove representative interactive gameplay
 - status: todo
@@ -65,7 +65,7 @@ executable-grounded startup and CD facts while introducing the shared Lightrec p
 ### T1-08 — Remove the Tomba! 1 guest-source path
 - status: re-verified
 - deps: T1-03
-- evidence: The emitted guest source, generator, emission-only seeds, offline registry/build inputs, and address-based tests are absent. The title provisioner publishes only authenticated executable bytes.
+- evidence: The emitted guest source, generator, emission-only seeds, offline registry/build inputs, and address-based tests are absent. The host publishes only authenticated executable bytes.
 - where: absent by design; enforced by title composition and launcher boundaries
 - gap: None for removal. Fresh native/Lightrec build and launch evidence belongs to T1-04 through T1-07.
 

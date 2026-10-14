@@ -4,13 +4,15 @@
 #include "context.h"
 #include "core.h"
 #include "dynarec_capabilities.h"
-#include "frame_driver.h"
 #include "game.h"
 #include "guest_cd_stream_callback_layout.h"
+#include "guest_code_module.h"
 #include "guest_task_slots.h"
 #include "native_boot.h"
 #include "native_dispatch.h"
 #include "sync_native.h"
+#include "tomba1_frame_driver.h"
+#include "widescreen_projection.h"
 
 #include <cstdlib>
 #include <lucent/log.h>
@@ -20,7 +22,7 @@ static_assert(PSXPORT_HAS_DYNAREC_RUNTIME == 1, "Tomba! 1 requires psxport's Lig
 namespace tomba1 {
 
 const GuestProgramImage Tomba1Runtime::programImage_{
-    .bss = {0x0009AFB0u, 0x000A3348u},
+    .bss = {0x8009AFB0u, 0x800A3348u},
     .stackTopWordAddress = 0x80076E38u,
     .stackReserveWordAddress = 0x80076E3Cu,
     .heapBase = 0x800A3348u,
@@ -38,6 +40,10 @@ const GuestPadBufferLayout Tomba1Runtime::padBufferLayout_{
     .slot0Buffer = 0x8009EB58u,
     .slot1Buffer = 0x8009EB7Au,
 };
+
+// Where the load-list walker 0x80021D70 places a type-0xF0 entry: the code module resident code
+// calls into (jal 0x800E7D5C from 0x80019A7C and 0x80019A94).
+constexpr std::uint32_t kCodeModuleBase = 0x800E7388u;
 
 const GuestCdStreamCallbackLayout kCdStreamCallbackLayout{
     .readyCallbackPointer = kCdReadyCallbackPointer,
@@ -64,6 +70,7 @@ void Tomba1Runtime::registerOverrides(Game &game) {
       install(kTaskStartEntry, "GuestTaskSlots::startOverride", GuestTaskSlots::startOverride) &&
       install(kTaskYieldEntry, "GuestTaskSlots::yieldOverride", GuestTaskSlots::yieldOverride) &&
       install(kTaskRestartEntry, "GuestTaskSlots::restartOverride", GuestTaskSlots::restartOverride) &&
+      install(kTaskExitEntry, "GuestTaskSlots::exitOverride", GuestTaskSlots::exitOverride) &&
       install(0x80061480u, "gpuTimeoutBeginOverride", gpuTimeoutBeginOverride) &&
       install(0x800614B4u, "gpuTimeoutExpiredOverride", gpuTimeoutExpiredOverride) &&
       install(kDmaCallbackEntry, "dmaCallbackOverride", dmaCallbackOverride) &&
@@ -74,12 +81,20 @@ void Tomba1Runtime::registerOverrides(Game &game) {
   }
 }
 
+void Tomba1Runtime::stockCdReadLanded(Core &core, const psx::cd::StockReadLanding &landing) {
+  if (landing.destination == kCodeModuleBase) {
+    psx::code_module::publishStockReadLanding(core, landing);
+  }
+}
+
 void Tomba1Runtime::bootInit(Core &core) {
+  // The prefix creates the first task records, so the slots are reachable for it and no longer.
+  const GuestTaskCreationScope creation(context(core).tasks);
   runNativeBootPrefix(core);
 }
 
 std::unique_ptr<FrameDriver> Tomba1Runtime::createFrameDriver(Game &game) {
-  return std::make_unique<Tomba1FrameDriver>(game, *this);
+  return std::make_unique<Tomba1FrameDriver>(game);
 }
 
 const GuestProgramImage *Tomba1Runtime::guestProgramImage() const {

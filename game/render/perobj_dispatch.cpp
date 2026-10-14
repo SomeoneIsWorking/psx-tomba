@@ -354,11 +354,6 @@ void ov_perModeDispatch(Core *c) {
 // overlay_gt3gt4.cpp, overlay_ground_gt3gt4.cpp, quad_rtpt_submit.cpp) — B now always runs the real guest 0x8003CDD8/
 // guest 0x8003F698 bodies, closing the leak at its source.
 void perobj_dispatch_install() {
-  static bool done = false;
-  if (done) {
-    return;
-  }
-  done = true;
   tomba::native::declareOverride(
       0x8003CDD8u, "ov_cmdListDispatch", ov_cmdListDispatch, psx::present::Producer{psx::present::Arg::A0});
   tomba::native::declareOverride(0x8003F698u, "ov_perModeDispatch", ov_perModeDispatch);

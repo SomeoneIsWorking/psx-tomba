@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Extract the exact Tomba! 2 runtime images from a user-supplied disc."""
+"""Extract the Tomba! 2 evidence images (MAIN.EXE, the area overlays) for maintainer tools.
+
+The product host extracts what it boots; the authentic tests and RE read this set."""
 
 from __future__ import annotations
 

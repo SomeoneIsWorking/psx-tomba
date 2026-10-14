@@ -23,11 +23,12 @@ gameplay through Lightrec.
 ## Title boundary
 
 - Tomba! 1 source lives below `titles/tomba1/game/` and must not compile or include root `game/`.
-- `game/core/entry/main.cpp` composes owners only. Runtime behavior belongs in `game/core/`; widescreen
-  projection and layout belong in `game/render/`.
-- Disc images and extracted executables remain untracked. `tools/provision.py` resolves explicit
-  argument, `PSXPORT_TOMBA1_DISC`, `.env`, then exactly one repository-root CHD, and publishes only
-  after `SYSTEM.CNF` plus all tracked executable-identity facts agree.
+- The title builds as the `tomba1_runtime` library, linked into the one `tomba2_port` product, whose
+  `TombaCatalog` is the only code that names both titles. `game/core/entry/` holds the identity and
+  the `GameRuntime`; runtime behavior belongs in `game/core/`; widescreen projection and layout belong
+  in `game/render/`.
+- Disc images and extracted executables remain untracked. The host extracts `SCUS_942.36` from the
+  `PSXPORT_TOMBA1_DISC` disc and publishes it only after it matches `tomba1::identity()`.
 - Preserve the recorded 35-field CRT0 contract and current CD/movie/title facts in
   `docs/re-frontier.md`; do not recreate them through address-based inspection.
 - Never reuse a Tomba! 2 guest address, overlay assumption, hook table, renderer policy, or

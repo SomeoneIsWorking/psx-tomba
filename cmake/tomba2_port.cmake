@@ -250,8 +250,9 @@ set(GAME_SRC
   game/render/overlay_type_dispatch.cpp
   game/render/objlist_walk.cpp)
 
-# Entry is the framework main over TombaCatalog.
-psxport_add_product(tomba2_port CATALOG tomba::createCatalog HEADER entry/tomba_catalog.h SOURCES ${GAME_SRC})
+# Entry is the framework main over TombaCatalog, which holds Tomba! 1 and Tomba! 2.
+psxport_add_product(tomba2_port CATALOG tomba::createCatalog HEADER entry/tomba_catalog.h SOURCES ${GAME_SRC}
+  LIBRARIES tomba1_runtime)
 
 # The catalog identity: the boot stub and MAIN.EXE facts live in one manifest and reach the code only here.
 file(READ "${CMAKE_SOURCE_DIR}/config/tomba2-images.json" TOMBA2_IMAGES_JSON)

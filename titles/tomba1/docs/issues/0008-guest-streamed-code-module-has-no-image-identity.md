@@ -1,14 +1,35 @@
 ---
 id: 8
 title: The guest streams its own code module, and nothing publishes an image identity for it
-status: open
+status: resolved
 symptom: After boot, guest task 0 faults with "ambiguous code-image identity" at 0x800E7D5C
 state_items: S004
 tags: tomba1,image-identity,module-load,cd,executor-boundary
 created: 2026-09-29
-updated: 2026-09-29
+updated: 2026-10-14
 framework_owner: psxport — `runtime/psx/cd_override.cpp` (`cd_read_stock_sync`) and the absence of a title-facing module-residency seam
 ---
+
+## Resolution (2026-10-14)
+
+The framework now owns streamed-module residency (`psx::code_module::publishStockReadLanding`, which
+publishes the identity and invalidates). The title's part is choosing which landing is code: the
+load-list walker `0x80021D70` places type-`0xF0` entries at `0x800E7388` and type-`0xF8` data at
+`0x80097FA8`, so `Tomba1Runtime::stockCdReadLanded` publishes only `0x800E7388`.
+
+Five further boundaries stood between that fault and a running movie, each fixed at its owner:
+
+| boundary | cause | fix |
+|---|---|---|
+| crt0 audit disagreed on BSS | `programImage_.bss` was physical | KSEG `[0x8009AFB0,0x800A3348)`; the native boot no longer repeats the framework's crt0 |
+| `VSync(-1)` abort at `0x80067C30` | no libetc field counter declared | `vsyncQueryCounterAddress = 0x800974D4` (bumped by `0x8006865C`) |
+| CD stream never pumped | the host turn was registered at 59.94 Hz but the driver delivers fields, so it was never due | the frame driver calls `serviceStreamField` once per delivered field |
+| spin at `0x80065C90` | `CdControlB` `0x80064B9C` (movie task, `CdRead`) ran the guest's own `CdSync` wait | bound to `cdControlOverride` |
+| movie task Paused every field after its movie | task exit `0x80017208` (state 0, `CloseTh`, `ChangeTh(main)`) returned into the task, which then yielded | `GuestTaskSlots::exitOverride` frees the record and ends the dispatch |
+| second movie's ring stayed empty (`0x8001EFE8`) | the Pause's INT3/INT2 and a stale INT1 sat ahead of the new stream's INT1, and `pumpStream` delivers only an INT1 at the head | the host-served `CdControl`/`CdControlF`/`CdSync` (`cd_native_startup.cpp`), standing in for libcd's handler, acknowledge the queued command responses and any INT1 while no ready callback is installed, through psxport's `psx::cd::acknowledgeCurrentCdResponse` |
+
+Tests: `tomba1_guest_task_budget_resume` (task exit) and `tomba1_stream_field_turn` (response
+retirement at CdSync) fail without the fixes.
 
 ## Symptom
 

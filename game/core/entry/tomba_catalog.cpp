@@ -1,6 +1,7 @@
 #include "entry/tomba_catalog.h"
 
 #include "entry/tomba_identity.h"
+#include "tomba1_identity.h"
 
 #include <array>
 #include <cstdlib>
@@ -9,7 +10,10 @@
 namespace tomba {
 namespace {
 
-const std::array<psx::host::TitleIdentity, 1> kIdentities{title::bootStubIdentity()};
+constexpr std::size_t kTomba1 = 0;
+constexpr std::size_t kTomba2 = 1;
+
+const std::array<psx::host::TitleIdentity, 2> kIdentities{tomba1::identity(), title::bootStubIdentity()};
 
 } // namespace
 
@@ -25,12 +29,16 @@ std::span<const psx::host::TitleIdentity> TombaCatalog::titles() const {
   return kIdentities;
 }
 
-TombaRuntime &TombaCatalog::runtime(std::size_t index) const {
-  if (index >= kIdentities.size()) {
+GameRuntime &TombaCatalog::runtime(std::size_t index) const {
+  switch (index) {
+  case kTomba1:
+    return tomba1_;
+  case kTomba2:
+    return tomba2_;
+  default:
     lucent::error("tomba-catalog", "no runtime for catalog index {}", index);
     std::abort();
   }
-  return runtime_;
 }
 
 std::unique_ptr<psx::host::TitleCatalog> createCatalog() {

@@ -278,10 +278,5 @@ void ov_renderWalk(Core *c) {
 } // namespace
 
 void render_walk_dispatch_install() {
-  static bool done = false;
-  if (done) {
-    return;
-  }
-  done = true;
   tomba::native::declareOverride(0x8003C048u, "ov_renderWalk", ov_renderWalk);
 }
