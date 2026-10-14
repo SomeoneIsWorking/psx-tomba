@@ -13,7 +13,6 @@ CMakeLists.txt
 ├── tools/run.py                         the launcher (run.sh → bootstrap.py)
 ├── tools/gate.py                        agent headless gate over the built product
 ├── tools/tomba2_provision.py            maintainer evidence images (MAIN.EXE, overlays)
-├── tools/title_link_isolation.py        refuses an external name both title trees define
 └── external/psxport/                    shared Lightrec executor and PSX platform
 ```
 

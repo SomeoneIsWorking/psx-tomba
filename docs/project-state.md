@@ -103,7 +103,7 @@ Missing capability: `titles/tomba1/game/render/widescreen_projection.cpp` exists
 
 ### S012 — Tomba! 1 and Tomba! 2 game-engine implementations are isolated
 
-Evidence: Tomba! 1 owners live only under `titles/tomba1/` and import no root `game/` source; both link into `tomba2_port`, and `tomba_title_link_isolation` finds no external name both trees define from their own sources (its fixture pair must report one).
+Evidence: Tomba! 1 owners live only under `titles/tomba1/` and import no root `game/` source; both link into `tomba2_port`, and `tomba_title_link_isolation` finds no external name both trees define from their own sources (psxport's `title_link_isolation` fixture pair must report one).
 
 ### S013 — Tomba! 1 exposes widescreen only, no unrelated enhancement modes
 

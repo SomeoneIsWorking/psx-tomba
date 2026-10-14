@@ -144,51 +144,10 @@ if(BUILD_TESTING)
   endforeach()
 
   # One binary links both title trees, so no external name may be defined by both from their own
-  # sources. The fixture pair proves the check reports a collision it must see.
-  find_program(TOMBA_GNU_NM NAMES nm gnm)
-  # Definition locations come from line information, which a Release build would not carry.
-  foreach(title_target IN ITEMS tomba1_runtime tomba2_port)
-    target_compile_options(${title_target} PRIVATE $<$<CXX_COMPILER_ID:GNU,Clang>:-g>)
-  endforeach()
-  file(GENERATE OUTPUT "${CMAKE_BINARY_DIR}/link_isolation/tomba1.objects"
-       CONTENT "$<JOIN:$<TARGET_OBJECTS:tomba1_runtime>,\n>\n")
-  file(GENERATE OUTPUT "${CMAKE_BINARY_DIR}/link_isolation/tomba2.objects"
-       CONTENT "$<JOIN:$<TARGET_OBJECTS:tomba2_port>,\n>\n")
-  add_test(NAME tomba_title_link_isolation
-           COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/title_link_isolation.py"
-                   --nm "${TOMBA_GNU_NM}"
-                   --first "${CMAKE_BINARY_DIR}/link_isolation/tomba1.objects"
-                   --first-root "${CMAKE_SOURCE_DIR}/titles/tomba1"
-                   --second "${CMAKE_BINARY_DIR}/link_isolation/tomba2.objects"
-                   --second-root "${CMAKE_SOURCE_DIR}/game")
-  add_library(link_isolation_first OBJECT tests/link_isolation/first/shared_name.cpp)
-  add_library(link_isolation_second OBJECT tests/link_isolation/second/shared_name.cpp)
-  file(GENERATE OUTPUT "${CMAKE_BINARY_DIR}/link_isolation/first.objects"
-       CONTENT "$<JOIN:$<TARGET_OBJECTS:link_isolation_first>,\n>\n")
-  file(GENERATE OUTPUT "${CMAKE_BINARY_DIR}/link_isolation/second.objects"
-       CONTENT "$<JOIN:$<TARGET_OBJECTS:link_isolation_second>,\n>\n")
-  add_test(NAME tomba_title_link_isolation_detects_collision
-           COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/title_link_isolation.py"
-                   --nm "${TOMBA_GNU_NM}"
-                   --first "${CMAKE_BINARY_DIR}/link_isolation/first.objects"
-                   --first-root "${CMAKE_SOURCE_DIR}/tests/link_isolation/first"
-                   --second "${CMAKE_BINARY_DIR}/link_isolation/second.objects"
-                   --second-root "${CMAKE_SOURCE_DIR}/tests/link_isolation/second")
-  set_tests_properties(tomba_title_link_isolation_detects_collision PROPERTIES
-                       PASS_REGULAR_EXPRESSION "collision: link_fixture::sharedName\\(\\)")
-  add_library(link_isolation_no_lines OBJECT tests/link_isolation/first/shared_name.cpp)
-  target_compile_options(link_isolation_no_lines PRIVATE $<$<CXX_COMPILER_ID:GNU,Clang>:-g0>)
-  file(GENERATE OUTPUT "${CMAKE_BINARY_DIR}/link_isolation/no_lines.objects"
-       CONTENT "$<JOIN:$<TARGET_OBJECTS:link_isolation_no_lines>,\n>\n")
-  add_test(NAME tomba_title_link_isolation_refuses_objects_without_lines
-           COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/title_link_isolation.py"
-                   --nm "${TOMBA_GNU_NM}"
-                   --first "${CMAKE_BINARY_DIR}/link_isolation/no_lines.objects"
-                   --first-root "${CMAKE_SOURCE_DIR}/tests/link_isolation/first"
-                   --second "${CMAKE_BINARY_DIR}/link_isolation/second.objects"
-                   --second-root "${CMAKE_SOURCE_DIR}/tests/link_isolation/second")
-  set_tests_properties(tomba_title_link_isolation_refuses_objects_without_lines PROPERTIES
-                       PASS_REGULAR_EXPRESSION "carries no line information")
+  # sources.
+  psxport_add_title_link_isolation_test(tomba_title_link_isolation
+    FIRST tomba1_runtime FIRST_ROOT "${CMAKE_SOURCE_DIR}/titles/tomba1"
+    SECOND tomba2_port SECOND_ROOT "${CMAKE_SOURCE_DIR}/game")
 
   # The shipped picker with both titles live at the end of the run, not merely once. Local-only: it
   # needs the provisioned discs, and skips where neither title is provisioned (CI).
