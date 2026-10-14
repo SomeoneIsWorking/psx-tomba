@@ -17,6 +17,10 @@ std::string_view TombaCatalog::productName() const {
   return "Tomba!";
 }
 
+std::filesystem::path TombaCatalog::provisioningRoot() const {
+  return "scratch/bin";
+}
+
 std::span<const psx::host::TitleIdentity> TombaCatalog::titles() const {
   return kIdentities;
 }
@@ -27,6 +31,10 @@ TombaRuntime &TombaCatalog::runtime(std::size_t index) const {
     std::abort();
   }
   return runtime_;
+}
+
+std::unique_ptr<psx::host::TitleCatalog> createCatalog() {
+  return std::make_unique<TombaCatalog>();
 }
 
 } // namespace tomba

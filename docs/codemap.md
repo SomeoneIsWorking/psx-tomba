@@ -31,7 +31,7 @@ where their bodies live.
 
 | Subdirectory | Owns |
 |---|---|
-| `entry/` | Process entry and the title's own facts: `main` (composes `psx::host::ProductHost`), `TombaCatalog`, the boot-stub and MAIN.EXE identities, the MAIN.EXE handoff, `TombaRuntime`, the `TombaCtx` aggregate, the measured `GameConfig` table, and the `GameHooks` table. |
+| `entry/` | The title's own facts; entry is the framework main (`psxport_add_product` over `createCatalog`). `TombaCatalog`, the boot-stub and MAIN.EXE identities, the MAIN.EXE handoff, `TombaRuntime`, the `TombaCtx` aggregate, the measured `GameConfig` table, and the `GameHooks` table. |
 | `engine/` | The stage driver `Engine` and its seven parts: field run, frame ticks, task machine, object leaves, state dispatch, scene frame, and the `TaskSm` lens. |
 | `frame/` | The per-frame turn: `TombaFrameDriver`'s transaction, the publisher cards (`BootCards`), the movie policy, the frame-rate decision (`FrameCadence`), and the after-frame probes (`FrameDiagnostics`). |
 | `overrides/` | The one native-override declaration catalog and registration, plus the guest call conventions (`guest_jal`, `guest_resume`). |
@@ -54,7 +54,7 @@ where their bodies live.
 | `LibapiIntr` (`hle/libapi_intr.{h,cpp}`) | libapi interrupt-mask primitives; mirrors the host VBlank count to the guest word at the title frame boundary. |
 | `Asset` / `Str` (`assets/`) | LZ decompress, texture-group unpack, CPU→VRAM upload, the stage preload chain; and the resident native string leaves, registered image-aware. |
 | `tomba::native::declareOverride` / `declareOverlayOverride` / `bindResident` / `activateOverlay` / `activateModeOverlay` / `activateAreaSlotOverlay` / `retireOverlay` / `loadAreaSlotFile` (`overrides/native_override_catalog.*`) | The one native-override declaration catalog; a declaration is keyed by image identity plus guest address, never by address alone. |
-| `TombaCatalog` (`entry/tomba_catalog.{h,cpp}`) | The multi-title host's catalog: one entry, Tomba! 2, selected by the disc's boot executable SCUS_944.54. Tomba! 1 is not catalogued (its own binary still runs it). |
+| `TombaCatalog`, `createCatalog` (`entry/tomba_catalog.{h,cpp}`) | The product's catalog: one entry, Tomba! 2, selected by the disc's boot executable SCUS_944.54 under `scratch/bin`. A catalog of one has no picker. Tomba! 1 is not catalogued (its own binary still runs it). |
 | `tomba::title::bootStubIdentity()` / `mainExecutableIdentity()` (`entry/tomba_identity.{h,cpp}`) | The two executables' size, SHA-256 and PS-X EXE header facts, built from the compile definitions `cmake/tomba2_port.cmake` reads out of `config/tomba2-images.json`. |
 | `tomba::loadMainExecutable` (`entry/main_handoff.{h,cpp}`) | The stub-to-MAIN.EXE handoff: reads `\MAIN.EXE;1` from the disc, authenticates it against the manifest identity, loads it and sets the entry registers. |
 | `BootCards` (`frame/boot_cards.{h,cpp}`) | The SCEA card and the LOGO movie that precede the first game frame, stepped one frame per `stepFrame` so the picker never blocks. |

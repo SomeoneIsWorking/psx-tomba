@@ -26,8 +26,9 @@ read [`../AGENTS.md`](../AGENTS.md) and [`external/psxport/AGENTS.md`](external/
 
 ## How the product starts
 
-`game/core/entry/main.cpp` composes `psx::host::ProductHost` over `TombaCatalog`. Zero arguments open the
-picker; one executable argument runs that title. The catalog entry carries the disc's boot executable
+The entry is the framework main (`psxport_add_product`), running `psx::host::ProductHost` over
+`TombaCatalog`. The catalog has one title, so zero arguments boot `scratch/bin/<slug>/SCUS_944.54` with no
+picker; one executable argument runs that executable. The catalog entry carries the disc's boot executable
 SCUS_944.54; `TombaRuntime::registerOverrides` loads and authenticates `MAIN.EXE` from the disc
 (`entry/main_handoff.cpp`) before the host's crt0 audit. The SCEA card and LOGO movie are stepped frames
 (`frame/boot_cards.cpp`). The dev `warp`, `items` and `flag` commands arrive through `TombaRuntime::controlCommand`.

@@ -42,7 +42,6 @@ set(GAME_SRC
   game/core/entry/game_ctx.cpp
   game/core/entry/game_hooks.cpp
   game/core/entry/tomba_runtime.cpp
-  game/core/entry/main.cpp          # process entry point: the multi-title host over the catalog
   game/core/entry/main_handoff.cpp
   game/core/entry/tomba_catalog.cpp
   game/core/entry/tomba_identity.cpp
@@ -251,7 +250,8 @@ set(GAME_SRC
   game/render/overlay_type_dispatch.cpp
   game/render/objlist_walk.cpp)
 
-add_executable(tomba2_port ${GAME_SRC})
+# Entry is the framework main over TombaCatalog.
+psxport_add_product(tomba2_port CATALOG tomba::createCatalog HEADER entry/tomba_catalog.h SOURCES ${GAME_SRC})
 
 # The catalog identity: the boot stub and MAIN.EXE facts live in one manifest and reach the code only here.
 file(READ "${CMAKE_SOURCE_DIR}/config/tomba2-images.json" TOMBA2_IMAGES_JSON)
@@ -291,10 +291,6 @@ target_include_directories(tomba2_port PRIVATE
 
 target_compile_options(tomba2_port PRIVATE -w -O2 -g
   ${SDL3_CFLAGS_OTHER} ${FREETYPE_CFLAGS_OTHER})
-
-# The framework library carries all system/vendored link deps + compile defs as PUBLIC, so linking it
-# is all the game exe needs.
-target_link_libraries(tomba2_port PRIVATE psxport)
 
 if(BUILD_TESTING)
   foreach(TOMBA2_HELP_ARGUMENT IN ITEMS -h --help)
