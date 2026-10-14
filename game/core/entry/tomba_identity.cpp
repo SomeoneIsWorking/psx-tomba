@@ -3,7 +3,9 @@
 namespace tomba::title {
 namespace {
 
-// Every value comes from config/tomba2-images.json through the CMake definitions.
+constexpr const char *kDiscEnvVar = "PSXPORT_TOMBA2_DISC";
+
+// Every image value comes from config/tomba2-images.json through the CMake definitions.
 constexpr psx::host::TitleIdentity kBootStub{
     .displayName = TOMBA2_TITLE_LABEL,
     .serial = TOMBA2_BOOT_NAME,
@@ -16,6 +18,8 @@ constexpr psx::host::TitleIdentity kBootStub{
     .textSize = TOMBA2_BOOT_TEXT_SIZE,
     .stackAddress = TOMBA2_BOOT_STACK_ADDRESS,
     .stackOffset = TOMBA2_BOOT_STACK_OFFSET,
+    .discEnvVar = kDiscEnvVar,
+    .discExecutablePath = TOMBA2_BOOT_NAME,
 };
 
 constexpr psx::host::TitleIdentity kMainExecutable{
@@ -30,6 +34,8 @@ constexpr psx::host::TitleIdentity kMainExecutable{
     .textSize = TOMBA2_MAIN_TEXT_SIZE,
     .stackAddress = TOMBA2_MAIN_STACK_ADDRESS,
     .stackOffset = TOMBA2_MAIN_STACK_OFFSET,
+    .discEnvVar = kDiscEnvVar,
+    .discExecutablePath = TOMBA2_MAIN_NAME,
 };
 
 } // namespace

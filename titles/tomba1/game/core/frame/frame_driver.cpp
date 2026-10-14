@@ -6,6 +6,7 @@
 #include "execution_exit.h"
 #include "game.h"
 #include "guest_call.h"
+#include "logic_frame.h"
 #include "tomba1_runtime.h"
 
 #include <cstdlib>
@@ -61,10 +62,8 @@ void Tomba1FrameDriver::stepFrame(Core &core, std::uint32_t frame) {
     std::abort();
   }
 
-  game_.timing.logicFrame = frame;
   game_.timing.frameTick();
-  core.rsub.otAttr.beginLogicFrame(frame);
-  game_.pad.serviceFrame();
+  psx::frame::LogicFrame::begin(game_, frame);
 
   if (!booted_) {
     // The boot prefix is guest code that creates the first task records, so the task owner is

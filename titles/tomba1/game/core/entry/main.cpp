@@ -4,9 +4,11 @@
 #include "frame_loop_shell.h"
 #include "game.h"
 #include "hw_bind.h"
+#include "machine.h"
 #include "psx_exe_image.h"
 #include "run_budget.h"
 #include "stream_field_turn.h"
+#include "title_catalog.h"
 #include "tomba1_runtime.h"
 
 #include <cstdio>
@@ -14,6 +16,7 @@
 #include <filesystem>
 #include <lucent/log.h>
 #include <memory>
+#include <string>
 #include <string_view>
 
 extern "C" {
@@ -24,8 +27,14 @@ void watchdog_init();
 
 namespace {
 
-constexpr const char *kDefaultExecutable = "scratch/bin/tomba1/SCUS_942.36";
-constexpr const char *kDiscEnvironmentKey = "PSXPORT_TOMBA1_DISC";
+constexpr psx::host::TitleIdentity kTitleIdentity{
+    .displayName = "Tomba!",
+    .serial = "SCUS_942.36",
+    .slug = "tomba1",
+    .discEnvVar = "PSXPORT_TOMBA1_DISC",
+    .discExecutablePath = "SCUS_942.36",
+};
+constexpr const char *kProvisioningRoot = "scratch/bin";
 
 bool isHelpRequest(int argc, char **argv) {
   return argc == 2 && (std::string_view(argv[1]) == "-h" || std::string_view(argv[1]) == "--help");
@@ -50,15 +59,16 @@ int main(int argc, char **argv) {
     lucent::error("boot", "tomba1_port takes no executable override; provision the verified Tomba! USA disc");
     return 2;
   }
-  if (!std::filesystem::is_regular_file(kDefaultExecutable)) {
-    lucent::error("boot", "{} is absent; run titles/tomba1/tools/provision.py first", kDefaultExecutable);
+  const std::string executable = kTitleIdentity.defaultExecutable(kProvisioningRoot).string();
+  if (!std::filesystem::is_regular_file(executable)) {
+    lucent::error("boot", "{} is absent; run titles/tomba1/tools/provision.py first", executable);
     return 2;
   }
-  if (!cfg_str(kDiscEnvironmentKey)) {
+  if (!cfg_str(kTitleIdentity.discEnvVar)) {
     lucent::error("boot",
                   "{} is unset; select the verified Tomba! USA disc explicitly (generic PSXPORT_DISC and drop-in "
                   "fallbacks are refused)",
-                  kDiscEnvironmentKey);
+                  kTitleIdentity.discEnvVar);
     return 2;
   }
 
@@ -66,11 +76,11 @@ int main(int argc, char **argv) {
   psxport_install_game(runtime);
 
   auto game = std::make_unique<Game>();
-  game->disc.env_key = kDiscEnvironmentKey;
+  psx::Machine{*game}.insertDisc(kTitleIdentity);
   Core *core = &game->core;
   tomba1::registerStreamFieldTurn(*core);
   watchdog_init();
-  load_exe(kDefaultExecutable, core);
+  load_exe(executable.c_str(), core);
   gte_init();
   mdec_init();
   spu_init();
@@ -86,10 +96,7 @@ int main(int argc, char **argv) {
 
   psx::frame::FrameLoopShell shell;
   shell.prepareProduct(*game);
-  // The product's control channel, always open on loopback. This title composes its own frame loop
-  // rather than entering the framework's `native_boot` spine, so the channel has to be attached here:
-  // without it a headless run has no way to be driven or captured at a chosen game state, which is
-  // what a matched 4:3/wide comparison needs. The env var only moves the port.
+  // The control channel, always open on loopback; this title owns its loop, so it attaches it here.
   game->dbg_server.start(core);
   // 0 means "until quit"; RunBudget decides, a live client included.
   const auto frameCap = static_cast<std::uint32_t>(psx::host::RunBudget::fromConfig().cap());

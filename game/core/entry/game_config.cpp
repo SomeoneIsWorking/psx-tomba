@@ -53,11 +53,6 @@ static const GameConfig g_tomba_config = {
     .recMainLo = 0x00010000u,
     .recMainHi = 0x000BE800u,
 
-    // Name of the environment variable / .env key that points at THIS game's disc image. The disc
-    // resolver in disc.c used to hardcode this string; it now reads it from here, so a second consumer
-    // can set its own key instead of silently booting with no media.
-    .discEnvVar = "PSXPORT_TOMBA2_DISC",
-
     // --- per-frame OT / packet-pool dance (native_boot.cpp native_step_frame) ---
     .otRegionBase = 0x800e80a8u,
     .otRegionStride = 0x00002070u,

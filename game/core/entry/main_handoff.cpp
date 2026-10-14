@@ -11,6 +11,7 @@
 #include <cstdlib>
 #include <lucent/log.h>
 #include <span>
+#include <string>
 #include <vector>
 
 namespace tomba {
@@ -18,7 +19,7 @@ namespace tomba {
 void loadMainExecutable(Game &game) {
   const psx::host::TitleIdentity &identity = title::mainExecutableIdentity();
   std::vector<std::uint8_t> bytes;
-  if (!psx::cd::readDiscFile(game.disc, "\\MAIN.EXE;1", bytes)) {
+  if (!psx::cd::readDiscFile(game.disc, std::string(identity.discExecutablePath).c_str(), bytes)) {
     lucent::error("tomba-handoff", "MAIN.EXE is not readable from the disc");
     std::abort();
   }
