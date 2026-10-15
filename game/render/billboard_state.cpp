@@ -44,10 +44,8 @@ class BillboardRender final : public psx::present::StateProducer {
 public:
   explicit BillboardRender(Core &core) : core_(core) {}
 
-  void render(std::span<const std::byte> from,
-              std::span<const std::byte> to,
-              float t,
-              psx::present::PrimitiveSink &sink) const override {
+  void render(const psx::present::StateInterval &states, psx::present::PrimitiveSink &sink) const override {
+    const auto [from, to, t] = states;
     const Saved later(to);
     std::vector<std::uint32_t> corners(later.particles);
     psx::present::GteControl control = later.header.control;

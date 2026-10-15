@@ -19,10 +19,7 @@ class ListStateProducer : public psx::present::StateProducer {
 public:
   explicit ListStateProducer(Core &core) : core_(core) {}
 
-  void render(std::span<const std::byte> from,
-              std::span<const std::byte> to,
-              float t,
-              psx::present::PrimitiveSink &sink) const final;
+  void render(const psx::present::StateInterval &states, psx::present::PrimitiveSink &sink) const final;
 
 protected:
   Core &core() const {

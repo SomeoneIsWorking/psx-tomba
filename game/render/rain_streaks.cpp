@@ -89,10 +89,8 @@ std::uint32_t packXy(std::int16_t x, std::int16_t y) {
 
 class StreakStateProducer final : public psx::present::StateProducer {
 public:
-  void render(std::span<const std::byte> from,
-              std::span<const std::byte> to,
-              float t,
-              psx::present::PrimitiveSink &sink) const override {
+  void render(const psx::present::StateInterval &states, psx::present::PrimitiveSink &sink) const override {
+    const auto [from, to, t] = states;
     StreakState later;
     StreakState earlier;
     std::memcpy(&later, to.data(), sizeof(later));

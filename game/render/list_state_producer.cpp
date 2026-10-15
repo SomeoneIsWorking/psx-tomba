@@ -88,10 +88,8 @@ private:
 
 } // namespace
 
-void ListStateProducer::render(std::span<const std::byte> from,
-                               std::span<const std::byte> to,
-                               float t,
-                               psx::present::PrimitiveSink &sink) const {
+void ListStateProducer::render(const psx::present::StateInterval &states, psx::present::PrimitiveSink &sink) const {
+  const auto [from, to, t] = states;
   const ListJob job(to);
   const ListJobHeader &header = job.header();
   psx::present::GteControl control = header.control;

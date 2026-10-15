@@ -46,10 +46,8 @@ std::int32_t high(std::uint32_t pair) {
 
 class AnchoredRender final : public psx::present::StateProducer {
 public:
-  void render(std::span<const std::byte> from,
-              std::span<const std::byte> to,
-              float t,
-              psx::present::PrimitiveSink &sink) const override {
+  void render(const psx::present::StateInterval &states, psx::present::PrimitiveSink &sink) const override {
+    const auto [from, to, t] = states;
     const Saved later(to);
     std::uint32_t anchor = later.header.anchor;
     if (from.data() != to.data()) {

@@ -68,10 +68,8 @@ std::uint32_t lerpColor(std::uint32_t from, std::uint32_t to, float t) {
 // The fill at t: its colour moves, its span and blend are the later frame's.
 class FadeRender final : public psx::present::StateProducer {
 public:
-  void render(std::span<const std::byte> from,
-              std::span<const std::byte> to,
-              float t,
-              psx::present::PrimitiveSink &sink) const override {
+  void render(const psx::present::StateInterval &states, psx::present::PrimitiveSink &sink) const override {
+    const auto [from, to, t] = states;
     const auto later = psx::present::stateAs<Saved>(to);
     const auto earlier = from.data() == to.data() ? later : psx::present::stateAs<Saved>(from);
     const std::uint32_t color =
