@@ -56,18 +56,18 @@ const char *const kAreaNames[AREA_COUNT] = {
 
 namespace tomba {
 
-int TombaDevWarp::areaCount() const {
+int DevAreas::areaCount() const {
   return AREA_COUNT;
 }
 
-const char *TombaDevWarp::areaName(int area) const {
+const char *DevAreas::areaName(int area) const {
   if (area < 0 || area >= AREA_COUNT) {
     return "";
   }
   return kAreaNames[area];
 }
 
-bool TombaDevWarp::warpAllowed() const {
+bool DevAreas::warpAllowed() const {
   return DevGate::inGameStage(core_);
 }
 

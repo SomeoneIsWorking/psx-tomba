@@ -27,7 +27,7 @@
 //   0x1F800160 (lh  scratchpad, state-1 cull gate; signed < 0x4651 => cull)
 
 #include "core.h"
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "guest_abi.h" // GuestFrame — mirror the guest stack frame (CLAUDE.md)
 #include "guest_call.h"
 #include "object/actor.h"  // Actor::boundsCull (FUN_8007778C native)

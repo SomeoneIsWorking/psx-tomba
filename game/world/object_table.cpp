@@ -3,7 +3,7 @@
 #include "object_table.h"
 #include "core.h"
 #include "core/engine/engine.h" // eng(c).animation etc (not needed here but consistent)
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "game.h"
 #include "guest_call.h"
 #include <lucent/log.h>
@@ -161,14 +161,14 @@ void ObjectTable::dispatch() {
     }
   };
 
-  int s_v = tombaSession(c).verification.on("disp26c88verify");
+  int s_v = sessionOf(c).verification.on("disp26c88verify");
   if (!s_v) {
     body();
     return;
   }
 
-  uint8_t *ram0 = tombaSession(c).verification.ram0();
-  uint8_t *ramN = tombaSession(c).verification.ramN();
+  uint8_t *ram0 = sessionOf(c).verification.ram0();
+  uint8_t *ramN = sessionOf(c).verification.ramN();
   uint8_t spad0[0x400], spadN[0x400];
   uint32_t regs0[32];
   memcpy(regs0, c->r, sizeof regs0);
@@ -199,7 +199,7 @@ void ObjectTable::dispatch() {
       break;
     }
   }
-  tomba::VerificationCounter &chk = tombaSession(c).verification.objectTable;
+  tomba::VerificationCounter &chk = sessionOf(c).verification.objectTable;
   long &ng = chk.nMatch, &nb = chk.nMismatch;
   if (ro >= 0 || so >= 0) {
     if (nb++ < 40) {

@@ -1,16 +1,15 @@
-#include "entry/tomba_runtime.h"
+#include "entry/runtime.h"
 
-#include "cd/tomba_cd.h"
+#include "cd/engine_cd.h"
 #include "core.h"
 #include "crt0_boot.h"
 #include "debug/dev_args.h"
 #include "debug/repl_commands.h"
 #include "engine/engine.h"
 #include "entry/main_handoff.h"
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "frame/frame_driver.h"
 #include "game.h"
-#include "game_tomba2.h"
 #include "guest_call.h"
 #include "lit_model_emitter.h"
 #include "overlay_ground_gt3gt4.h"
@@ -23,8 +22,9 @@
 #include "render/guest_ordering_table.h"
 #include "render/packed_mesh.h"
 #include "render/screen_fade.h"
+#include "resident_natives.h"
+#include "sched/scheduler.h"
 #include "sched/task_slot_layout.h"
-#include "sched/tomba_scheduler.h"
 #include "sway_model_emitter.h"
 #include "tile_grid_layer.h"
 #include "ui/font.h"
@@ -86,29 +86,28 @@ void cdReady(Core *core) {
 }
 
 void callGuest(Core &core, std::uint32_t address) {
-  psx::cpu::dispatchGuestToReturn0(
-      core, address, psx::cpu::ExecutionBudget::currentTurn(core), "TombaRuntime::bootInit");
+  psx::cpu::dispatchGuestToReturn0(core, address, psx::cpu::ExecutionBudget::currentTurn(core), "Runtime::bootInit");
 }
 
 void callGuest(Core &core, std::uint32_t address, std::uint32_t a0) {
   psx::cpu::dispatchGuestToReturn1(
-      core, address, a0, psx::cpu::ExecutionBudget::currentTurn(core), "TombaRuntime::bootInit");
+      core, address, a0, psx::cpu::ExecutionBudget::currentTurn(core), "Runtime::bootInit");
 }
 
 } // namespace
 
-TombaRuntime::TombaRuntime()
+Runtime::Runtime()
     : vsync_(0x80085900u, 0), libcd_({.command = 0x8008AC34u, .sync = 0x8008A6ECu}, {}, 0), libgpu_(kStockLibgpu),
       libgte_({.setGeomOffset = 0x800846D0u, .setGeomScreen = 0x800846F0u}),
       pad_({.slot0Buffer = 0x800BF4F8u, .slot1Buffer = 0x800BF51Au, .slotPointerTable = 0x0000AEC8u}) {}
 
-void TombaRuntime::startProgram(Core &core) {
+void Runtime::startProgram(Core &core) {
   psx::game::Crt0Boot{kCrt0}.run(core);
   bootInit(core);
 }
 
-void TombaRuntime::registerOverrides(Game &game) {
-  native::NativeOverrideCatalog &natives = tombaSession(&game.core).nativeOverrides;
+void Runtime::registerOverrides(Game &game) {
+  native::NativeOverrideCatalog &natives = sessionOf(&game.core).nativeOverrides;
   // The host loaded the boot stub; its only job is the hand-off to MAIN.EXE.
   loadMainExecutable(game);
   vsync_.bind(game);
@@ -120,13 +119,13 @@ void TombaRuntime::registerOverrides(Game &game) {
   game.platform_hle.bindStock(kCdDataSync, PlatformHle::completeImmediately);
   game.platform_hle.bindStock(kCdInitHandshake, PlatformHle::completeImmediately);
   game.platform_hle.bindStock(kCdReady, cdReady);
-  games_tomba2_init(natives);
+  installResidentNatives(natives);
   card_overrides_init(&game);
   register_engine_overrides(game, natives);
-  TombaCd::declareOverrides(natives);
-  natives.declare(kChangeThread, "TombaScheduler::yield", changeThread);
+  EngineCd::declareOverrides(natives);
+  natives.declare(kChangeThread, "Scheduler::yield", changeThread);
   bindLoadedResident(game.core);
-  psx::present::StateProducerTable &renders = tombaSession(&game.core).stateProducers;
+  psx::present::StateProducerTable &renders = sessionOf(&game.core).stateProducers;
   tomba::render::UnlitModelEmitter::registerStateRenders(renders, game.core);
   OverlayGt3Gt4::registerStateRenders(renders, game.core);
   tomba::render::SwayModelEmitter::registerStateRenders(renders, game.core);
@@ -142,52 +141,52 @@ void TombaRuntime::registerOverrides(Game &game) {
 }
 
 // Only immediately after the resident load; an overlay supplies its own image declarations.
-void TombaRuntime::bindLoadedResident(Core &core) {
+void Runtime::bindLoadedResident(Core &core) {
   const auto resident = core.currentImageIdentity(kGameMain);
   if (!resident) {
     lucent::error("tomba-native", "resident load did not establish the MAIN.EXE image");
     std::abort();
   }
-  tombaSession(&core).nativeOverrides.bindResident(core, *resident, kResidentText);
+  sessionOf(&core).nativeOverrides.bindResident(core, *resident, kResidentText);
 }
 
-std::unique_ptr<psx::game::TitleSessionState> TombaRuntime::createSession(Game &game) {
-  return std::make_unique<TombaSession>(game.core);
+std::unique_ptr<psx::game::TitleSessionState> Runtime::createSession(Game &game) {
+  return std::make_unique<Session>(game.core);
 }
 
-std::unique_ptr<psx::game::FrameDriver> TombaRuntime::createFrameDriver(Game &game) {
-  return std::make_unique<TombaFrameDriver>(game);
+std::unique_ptr<psx::game::FrameDriver> Runtime::createFrameDriver(Game &game) {
+  return std::make_unique<FrameDriver>(game);
 }
 
-void TombaRuntime::deliverPad(Core &core, const psx::input::PadDelivery &delivery) {
+void Runtime::deliverPad(Core &core, const psx::input::PadDelivery &delivery) {
   pad_.deliver(core, delivery);
 }
 
-std::optional<psx::gpu::PacketPoolExtent> TombaRuntime::packetPool(Core &core) const {
+std::optional<psx::gpu::PacketPoolExtent> Runtime::packetPool(Core &core) const {
   return kPacketPool.extent(core);
 }
 
-bool TombaRuntime::interpolates() const {
+bool Runtime::interpolates() const {
   return true;
 }
 
-const psx::present::StateProducer *TombaRuntime::stateProducer(Core &core, std::uint32_t producer) const {
-  return tombaSession(&core).stateProducers.find(producer);
+const psx::present::StateProducer *Runtime::stateProducer(Core &core, std::uint32_t producer) const {
+  return sessionOf(&core).stateProducers.find(producer);
 }
 
-bool TombaRuntime::sealedFrameIsCut(Core &core) const {
+bool Runtime::sealedFrameIsCut(Core &core) const {
   return eng(&core).frameCut().isCut();
 }
 
-int TombaRuntime::displayHeight() const {
+int Runtime::displayHeight() const {
   return kDisplayLines;
 }
 
-const GuestWidescreenProjection *TombaRuntime::guestWidescreenProjection() const {
+const GuestWidescreenProjection *Runtime::guestWidescreenProjection() const {
   return &aspectPolicy_;
 }
 
-RenderCapabilities TombaRuntime::renderCapabilities() const {
+RenderCapabilities Runtime::renderCapabilities() const {
   // The picture is the guest's GP0 output, replayed from the frame record; there is no native renderer.
   return RenderCapabilities{
       .defaultPath = RenderPath::Record,
@@ -195,11 +194,11 @@ RenderCapabilities TombaRuntime::renderCapabilities() const {
   };
 }
 
-bool TombaRuntime::guestVramIsPicture(const Game &) const {
+bool Runtime::guestVramIsPicture(const Game &) const {
   return true;
 }
 
-void TombaRuntime::bootInit(Core &core) {
+void Runtime::bootInit(Core &core) {
   Core *c = &core;
   lucent::info("native_boot", "FUN_80050b08: running init prefix");
 
@@ -207,7 +206,7 @@ void TombaRuntime::bootInit(Core &core) {
   callGuest(core, 0x80089788u);
   callGuest(core, 0x80085B20u);
   // The guest CdInit busy-waits on a controller-reset IRQ; every disc read here is synchronous.
-  tombaSession(c).cd.hleInit();
+  sessionOf(c).cd.hleInit();
   callGuest(core, 0x80080BF0u, 3);
   callGuest(core, 0x80080D64u, 0);
   callGuest(core, 0x80080ED4u, 1);
@@ -230,7 +229,7 @@ void TombaRuntime::bootInit(Core &core) {
                                    0,
                                    0x800499E8u,
                                    psx::cpu::ExecutionBudget::currentTurn(core),
-                                   "TombaRuntime::bootInit"); // task 0 at FUN_800499E8
+                                   "Runtime::bootInit"); // task 0 at FUN_800499E8
   lucent::info("native_boot", "init prefix complete");
 
   // FUN_80051E60 would set the current task; task0Bootstrap needs it to name slot 0.
@@ -243,12 +242,12 @@ void TombaRuntime::bootInit(Core &core) {
                c->mem_r32(sched::kStageStartEntry),
                c->mem_r16(sched::kTaskTableBase + sched::kTaskState),
                c->mem_r32(sched::kTaskTableBase + sched::kTaskEntry));
-  TombaFrameDriver::enterLoop(core);
+  FrameDriver::enterLoop(core);
 }
 
-bool TombaRuntime::titleCommand(Core &core, const psx::game::TitleCommandLine &input, std::FILE *reply) {
+bool Runtime::titleCommand(Core &core, const psx::game::TitleCommandLine &input, std::FILE *reply) {
   const auto [command, line] = input;
-  auto *driver = dynamic_cast<TombaFrameDriver *>(core.game->frameDriver.get());
+  auto *driver = dynamic_cast<FrameDriver *>(core.game->frameDriver.get());
   if (driver == nullptr) {
     lucent::error("tomba-native", "{} arrived with no Tomba! 2 frame driver", command);
     std::abort();
@@ -281,20 +280,20 @@ bool TombaRuntime::titleCommand(Core &core, const psx::game::TitleCommandLine &i
   return handled;
 }
 
-psx::game::TitleAudio *TombaRuntime::audio(Core &core) const {
-  return &tombaSession(&core).audio;
+psx::game::TitleAudio *Runtime::audio(Core &core) const {
+  return &sessionOf(&core).audio;
 }
 
-psx::game::TitleDevWarp *TombaRuntime::devWarp(Core &core) const {
-  return &tombaSession(&core).devWarp;
+psx::game::TitleDevWarp *Runtime::devWarp(Core &core) const {
+  return &sessionOf(&core).devWarp;
 }
 
 // Tomba's position from the scratchpad camera target, and the stage task 0 runs.
-psx::state::NativeStatePort *TombaRuntime::nativeState(Core &core) const {
-  return &tombaSession(&core).cdState;
+psx::state::NativeStatePort *Runtime::nativeState(Core &core) const {
+  return &sessionOf(&core).cdState;
 }
 
-std::string TombaRuntime::worldReadout(Core &core) const {
+std::string Runtime::worldReadout(Core &core) const {
   char text[96];
   std::snprintf(text,
                 sizeof text,
@@ -306,7 +305,7 @@ std::string TombaRuntime::worldReadout(Core &core) const {
   return text;
 }
 
-const psx::game::HostIdentity *TombaRuntime::hostIdentity() const {
+const psx::game::HostIdentity *Runtime::hostIdentity() const {
   return &kHostIdentity;
 }
 

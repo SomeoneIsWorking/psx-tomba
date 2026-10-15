@@ -1,11 +1,11 @@
 // game/math/mathlib.cpp — PC-native MATH/PRNG leaf primitives.
 // The platform PRNG (rand LCG), the trig LUT lookups (sin/cos/quadrant), and the bitmap bit-test —
 // pure leaf functions over guest tables/state, hot in the per-frame transform/anim math. Extracted
-// verbatim from game_tomba2.cpp (one behavior, byte-identical) into its own module for PC-game code
+// verbatim from resident_natives.cpp (one behavior, byte-identical) into its own module for PC-game code
 // structure. Diagnostic A/B gates (randverify / trigverify / bitverify) are REPL channels, unchanged.
 #include "mathlib.h"
 #include "core.h"
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "game.h"
 #include "guest_call.h"
 #include <lucent/log.h>
@@ -27,7 +27,7 @@ namespace tomba {
 
 uint32_t Bit::test7EC(int32_t idx, uint32_t sel) {
   Core *c = this->core;
-  int v = tombaSession(c).verification.on("bitverify");
+  int v = sessionOf(c).verification.on("bitverify");
   int q = (idx >= 0) ? idx : (idx + 7);
   int a2 = q >> 3;          // idx/8 toward zero
   int a3 = idx - (a2 << 3); // idx%8
@@ -38,7 +38,7 @@ uint32_t Bit::test7EC(int32_t idx, uint32_t sel) {
     c->r[4] = (uint32_t)idx;
     c->r[5] = sel; // taxi-in for the still-taxi verify super-call
     psx::cpu::callOriginalToReturn(*c, 0x8004D7ECu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
-    tomba::VerificationCounter &chk = tombaSession(c).verification.bit;
+    tomba::VerificationCounter &chk = sessionOf(c).verification.bit;
     long &ng = chk.nMatch, &nb = chk.nMismatch;
     if ((uint32_t)c->r[2] != mine) {
       if (nb++ < 20) {
@@ -57,7 +57,7 @@ uint32_t Bit::test7EC(int32_t idx, uint32_t sel) {
 // Shares the `bitverify` gate with test7EC.
 uint32_t Bit::test868(int32_t idx) {
   Core *c = this->core;
-  int v = tombaSession(c).verification.on("bitverify");
+  int v = sessionOf(c).verification.on("bitverify");
   int q = (idx >= 0) ? idx : (idx + 7);
   int a2 = q >> 3;                     // idx/8 toward zero
   int a3 = idx - (a2 << 3);            // idx%8
@@ -67,7 +67,7 @@ uint32_t Bit::test868(int32_t idx) {
   if (v) {
     c->r[4] = (uint32_t)idx; // taxi-in for the still-taxi verify super-call
     psx::cpu::callOriginalToReturn(*c, 0x8004D868u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
-    tomba::VerificationCounter &chk = tombaSession(c).verification.bit868;
+    tomba::VerificationCounter &chk = sessionOf(c).verification.bit868;
     long &ng = chk.nMatch, &nb = chk.nMismatch;
     if ((uint32_t)c->r[2] != mine) {
       if (nb++ < 20) {

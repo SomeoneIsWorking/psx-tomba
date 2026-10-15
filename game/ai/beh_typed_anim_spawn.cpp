@@ -24,7 +24,7 @@
 
 #include "core.h"
 #include "core/overrides/guest_jal.h"
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "graphics_bind.h" // ov_obj_set_geom
 #include "inventory.h"     // class Inventory — inv(c).giveAndFlag (FUN_8004D4C4)
 #include "spawn.h"         // class Spawn (eng(c).spawn.despawn / dispatch / spawnAndInit)

@@ -1,11 +1,11 @@
-#include "entry/tomba_identity.h"
+#include "entry/identity.h"
 
 namespace tomba::title {
 namespace {
 
 constexpr const char *kDiscEnvVar = "PSXPORT_TOMBA2_DISC";
 
-// Every image value comes from config/tomba2-images.json through the CMake definitions.
+// Every image value comes from config/images.json through the CMake definitions.
 constexpr psx::host::TitleIdentity kBootStub{
     .displayName = TOMBA2_TITLE_LABEL,
     .serial = TOMBA2_BOOT_NAME,

@@ -15,7 +15,7 @@
 #include "core/engine/task_sm.h"         // TaskSm — the typed lens over the task record, owned in one header
 #include "core/overrides/guest_jal.h"    // tomba::guest::dispatchJalToReturn — the guest call convention
 #include "core/overrides/guest_resume.h" // requestGuestContinuation
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "game.h" // Game — the per-Core product the Engine drives
 #include "guest_abi.h"
 #include "guest_call.h"

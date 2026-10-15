@@ -2,7 +2,7 @@
 
 #include "core.h"
 #include "debug/dev_args.h"
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 
 #include <string_view>
 

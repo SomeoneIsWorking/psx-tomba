@@ -50,11 +50,11 @@ add_subdirectory(${PSXPORT_DIR}/vendor/beetle-psx/deps/libchdr ${CMAKE_BINARY_DI
 include(${PSXPORT_DIR}/cmake/psxport.cmake)
 
 # Tomba! 1's runtime library, which the product's catalog links.
-include(titles/tomba1/cmake/tomba1_runtime.cmake)
+include(titles/tomba1/cmake/runtime.cmake)
 
 # The game binary (tomba2_port): title-native game/** linked to the shared runtime. Guest code is
 # read from authenticated user assets and translated at runtime; no emitted guest source is built.
-include(cmake/tomba2_port.cmake)
+include(cmake/port.cmake)
 
 if(BUILD_TESTING)
   # Real-title evidence is local-only: CI has no licensed overlay images.
@@ -139,8 +139,8 @@ if(BUILD_TESTING)
 
   add_executable(test_title_host_owners
       tests/test_title_host_owners.cpp
-      game/core/entry/tomba_identity.cpp
-      game/core/entry/tomba_settings.cpp)
+      game/core/entry/identity.cpp
+      game/core/entry/settings.cpp)
   target_include_directories(test_title_host_owners PRIVATE game game/core)
   target_compile_definitions(test_title_host_owners PRIVATE ${TOMBA2_IDENTITY_DEFINITIONS})
   target_link_libraries(test_title_host_owners PRIVATE psxport psxport_test_support)

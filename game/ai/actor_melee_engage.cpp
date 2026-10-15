@@ -19,7 +19,7 @@
 #include "actor_melee_engage.h"
 #include "core.h"
 #include "core/overrides/native_override_catalog.h"
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "game.h"
 #include "guest_call.h"
 #include "math/trig.h"
@@ -325,7 +325,7 @@ void ActorMeleeEngage::doItFramed() {
 // inside ov_a00_shard_1.c itself (lines ~4262/5255) — i.e. calls through the recorded binary evidence's OWN
 // per-overlay image-qualified runtime dispatcher table, never through typed runtime address dispatch. Installing
 // without a setter would be invisible to that call shape, so `tomba::native::declareOverride` is passed A00
-// tomba::native::declareOverride as the setter, same pattern as game/core/sched/tomba_scheduler.cpp /
+// tomba::native::declareOverride as the setter, same pattern as game/core/sched/scheduler.cpp /
 // game/object/actor_sm_reward.cpp.
 // ---------------------------------------------------------------------------------------------
 namespace {

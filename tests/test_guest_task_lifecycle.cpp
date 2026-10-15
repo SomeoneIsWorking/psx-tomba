@@ -1,7 +1,7 @@
-// Guest tasks on TombaScheduler's coroutine stanza: budget suspension, authored state, native yield.
-#include "core/entry/tomba_runtime.h"
+// Guest tasks on Scheduler's coroutine stanza: budget suspension, authored state, native yield.
+#include "core/entry/runtime.h"
+#include "core/sched/scheduler.h"
 #include "core/sched/task_slot_layout.h"
-#include "core/sched/tomba_scheduler.h"
 #include "execution_control.h"
 #include "game.h"
 #include "image_identity.h"
@@ -14,9 +14,9 @@
 
 namespace {
 
+using tomba::sched::Scheduler;
 using tomba::sched::taskScheduler;
 using tomba::sched::taskSlotBase;
-using tomba::sched::TombaScheduler;
 
 struct CooperativeObservation {
   int cooperativeCalls = 0;
@@ -62,7 +62,7 @@ private:
 
 void checkCooperativeNativeYield(Game &game, Checks &checks) {
   Core &core = game.core;
-  TombaScheduler &scheduler = taskScheduler(core);
+  Scheduler &scheduler = taskScheduler(core);
   constexpr std::uint32_t entry = 0x80013000u;
   constexpr std::uint32_t callback = entry + 64u;
   constexpr int slot = 1;
@@ -104,7 +104,7 @@ void checkCooperativeNativeYield(Game &game, Checks &checks) {
 
 void checkGuestTaskBudgetLifetime(Game &game, Checks &checks) {
   Core &core = game.core;
-  TombaScheduler &scheduler = taskScheduler(core);
+  Scheduler &scheduler = taskScheduler(core);
   constexpr std::uint32_t entry = 0x80011000u;
   constexpr std::uint32_t completedCount = 0x80012000u;
   constexpr std::uint32_t iterations = 1'000'000u;
@@ -197,7 +197,7 @@ void checkGuestTaskBudgetLifetime(Game &game, Checks &checks) {
 
 void checkGuestAuthoredTaskState(Game &game, Checks &checks) {
   Core &core = game.core;
-  TombaScheduler &scheduler = taskScheduler(core);
+  Scheduler &scheduler = taskScheduler(core);
   constexpr std::uint32_t entry = 0x80015000u;
   constexpr std::uint32_t completed = 0x80016000u;
   constexpr int slot = 1;
@@ -270,7 +270,7 @@ void checkGuestAuthoredTaskState(Game &game, Checks &checks) {
 } // namespace
 
 int main(int argc, char **argv) {
-  tomba::TombaRuntime runtime;
+  tomba::Runtime runtime;
   auto game = std::make_unique<Game>(runtime, psx::config::Config{});
   Core &core = game->core;
   if (argc == 2 && std::string_view(argv[1]) == "--terminal-fault") {

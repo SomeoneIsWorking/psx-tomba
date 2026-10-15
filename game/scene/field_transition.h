@@ -2,7 +2,7 @@
 // transition state machine (guest FUN_80108A60 dispatcher + its 4 FUN_80107xxx workers).
 //
 // PROPER OOP: one instance per Core, embedded as `Core::engine::fieldTransition`. Back-pointer
-// wired once by the TombaSession constructor (entry/tomba_session.cpp). Callers reach it through the
+// wired once by the Session constructor (entry/session.cpp). Callers reach it through the
 // object graph:
 //
 //     eng(c).fieldTransition.step();          // per-frame entry, was Engine::fieldTransition()

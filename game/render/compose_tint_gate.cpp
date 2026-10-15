@@ -25,7 +25,7 @@
 // selects lives inside FUN_8003F07C, which is not ported yet, so it is forwarded rather than named.
 #include "core.h"
 #include "core/overrides/native_override_catalog.h"
-#include "entry/tomba_session.h" // rend(c) — the Render instance
+#include "entry/session.h" // rend(c) — the Render instance
 #include "guest_call.h"
 #include "guest_ordering_table.h"
 #include "render.h"

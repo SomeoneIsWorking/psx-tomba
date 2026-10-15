@@ -22,7 +22,7 @@
 //
 // WHAT IT DOES, in game terms: once per vertical blank it bumps the libetc VSync tick counter the
 // whole game paces off (0x800ABDE0 — the very counter libetc's VSync(mode) returns, and the one
-// TombaFrameDriver mirrors after the host field tick) and then runs every VSyncCallback the game has installed, by
+// FrameDriver mirrors after the host field tick) and then runs every VSyncCallback the game has installed, by
 // walking libapi's 8-slot function-pointer table at 0x800ABDC0 and calling each non-null entry.
 // It is the "chain" half of the VSyncCallback API: register a callback -> it lands in a table slot
 // -> this handler is what actually calls it, every frame.
@@ -55,7 +55,7 @@
 // native body runs in exactly the same place with exactly the same reachability. Nothing here
 // needs replacing; it needs porting.
 //
-// TRAP, worth stating: the counter at 0x800ABDE0 has TWO writers in this port. TombaFrameDriver
+// TRAP, worth stating: the counter at 0x800ABDE0 has TWO writers in this port. FrameDriver
 // STORES the host count there once per native frame, while this handler READ-MODIFY-WRITES it
 // (+1). That interleaving is pre-existing substrate behaviour and the port reproduces it exactly —
 // do not "fix" it here; a change would be a guest-state divergence, not a cleanup.

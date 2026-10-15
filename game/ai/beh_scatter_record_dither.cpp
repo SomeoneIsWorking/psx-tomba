@@ -28,7 +28,7 @@
 
 #include "collision.h" // Collision::listScan (FUN_80031780)
 #include "core.h"
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "guest_abi.h"   // GuestFrame — mirror the guest stack frame (CLAUDE.md)
 #include "render/cull.h" // Cull::coneCull2b278 (FUN_8002B278)
 #include "rng.h"         // class Rng (via rngOf(c).next())

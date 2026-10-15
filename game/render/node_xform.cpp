@@ -18,7 +18,7 @@
 #include "core.h"
 #include "core/overrides/guest_jal.h" // GuestFrame/GuestReg/guest_fn — ABI vocabulary (2026-07-14 readability pass)
 #include "core/overrides/native_override_catalog.h"
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "game.h"
 #include "gte_math.h" // Math::rotmat, Math::matMul (static)
 #include "guest_abi.h"

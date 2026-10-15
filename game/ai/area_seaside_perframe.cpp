@@ -38,7 +38,7 @@
 #include "behaviors.h"
 #include "core.h"
 #include "core/engine/engine.h"
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "guest_call.h"
 #include "player/actor_tomba.h" // eng(c).actorTomba.interactWalk (FUN_80022760)
 #include <lucent/log.h>

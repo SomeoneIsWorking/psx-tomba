@@ -16,7 +16,7 @@
 // own quota byte through the same single store FUN_80050a0c makes, and advances the guest's
 // dwell counter once per consumed display field. THIS PRODUCT NEVER EXECUTES THE GATE: psxport
 // calls GameRuntime::startProgram, which runs FUN_80050b08's init prefix and then hands iteration to
-// TombaFrameDriver, and 0x80050CC8 is a label inside that body rather than a function entry, so
+// FrameDriver, and 0x80050CC8 is a label inside that body rather than a function entry, so
 // it is not a legal override key in the first place. What the port can own is the gate's state,
 // and that is what FrameCadence owns. Nothing here simulates an interrupt: the per-field work
 // (libsnd sequencer tick + the SPU's 1/60 s advance) runs once per field this logic frame spans,
@@ -26,7 +26,7 @@
 // callback the port never raises, that store was unreachable by anything — the counter is now
 // counted, which ends each logic frame at the same value for a stated reason.
 
-#include "game_tomba2.h"
+#include "resident_natives.h"
 #include "animation.h"            // PC-native per-object animation-VM subsystem
 #include "audio/libsnd_globals.h" // kSeqTickFn — the tick slot the wrapper below dispatches
 #include "collision.h"            // PC-native collision-grid subsystem
@@ -36,7 +36,7 @@
 #include "core/engine/engine.h" // class Engine — this file defines Engine::frameUpdate / Engine::drawOTag
 #include "core/overrides/native_override_catalog.h"
 #include "cull.h" // PC-native visibility cull / LOD subsystem
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "game.h"
 #include "guest_call.h"
 #include "mathlib.h"         // PC-native math/PRNG leaf primitives (rand, trig LUTs, bit-test)
@@ -76,9 +76,9 @@
 #include "audio/libsnd_globals.h" // kSeqTickFn — the tick slot the wrapper below dispatches
 #include <lucent/log.h>
 
-// Per-frame engine tick. Called DIRECTLY (a plain C call) from TombaFrameDriver —
+// Per-frame engine tick. Called DIRECTLY (a plain C call) from FrameDriver —
 // this is the PC-driven game loop's update/audio body. It runs the still-PSX per-frame update leaf and
-// per-vblank audio, then returns. TombaFrameDriver owns the one presentation fence and the rest of the
+// per-vblank audio, then returns. FrameDriver owns the one presentation fence and the rest of the
 // measured frame transaction. NOT an override anymore; not static so the driver can call it top-down.
 namespace tomba {
 
@@ -86,12 +86,12 @@ void Engine::frameUpdate() {
   Core *c = this->core;
   devTeleportApply(); // dev `tp X Y Z`, before the frame's state update. HERE and not in a stage/
                       // camera body because this is the ONE per-frame body every exec path runs
-                      // (TombaFrameDriver calls it directly), so the teleport no longer depends on
+                      // (FrameDriver calls it directly), so the teleport no longer depends on
                       // which camera mode, stage or exec leg the run happens to be in — see
                       // engine.h's mCamTpPending banner for what that dependency measured.
   // Phase::PadFence brackets exactly the one call below. It was once named LOGIC and described as
   // "all guest interpreter work + render submit", which stopped being true when 0x800788AC became
-  // natively owned (Engine::padEdgeFence) and the per-frame game work moved to TombaScheduler, which
+  // natively owned (Engine::padEdgeFence) and the per-frame game work moved to Scheduler, which
   // Phase::GameLogic brackets. A ~0.00 ms phase called LOGIC reads as "the game is free".
   c->game->perf.phaseBegin(GpuPerf::Phase::PadFence);
   psx::cpu::dispatchGuestToReturn0(*c,
@@ -139,7 +139,7 @@ void Engine::frameUpdate() {
 }
 
 // DrawOTag (libgpu FUN_80081560): the guest's ordering table goes to the GPU device as GP0.
-void Engine::drawOTag(uint32_t otHead) { // called directly from TombaFrameDriver; not an override
+void Engine::drawOTag(uint32_t otHead) { // called directly from FrameDriver; not an override
   Core *c = this->core;
   lucent::debug("drawotag", "f{} drawOTag otHead={:08X}", c->game->gpu.s_frame, otHead);
   gpu_dma2_linked_list(c, otHead);
@@ -167,12 +167,12 @@ void gpu_loadimage_streamer_install(native::NativeOverrideCatalog &natives);
 void gpu_putdrawenv_install(native::NativeOverrideCatalog &natives);
 void pad_edge_fence_install(native::NativeOverrideCatalog &natives);
 
-void games_tomba2_init(native::NativeOverrideCatalog &natives) {
+void installResidentNatives(native::NativeOverrideCatalog &natives) {
   // ONE behavior = the PC game. The native engine path is registered UNCONDITIONALLY — no FAITHFUL master
   // switch, no per-override *_RECOMP / NO_* opt-outs (those were faithful-first A/B scaffolding; the user
   // directive is no gating + drive toward removing the interpreter entirely, so they are retired). Every
   // override below IS the behavior; the user verifies it via ./run.sh.
-  // Hand-written native C++ for the boot→first-cutscene path (game_tomba2.cpp).
+  // Hand-written native C++ for the boot→first-cutscene path (resident_natives.cpp).
   // (games_native_path_init removed: native_misc.cpp was dead reference scaffolding — later-288)
   // OVERRIDE SYSTEM REMOVED (2026-06-22): the whole `_register()` scaffolding block used to install
   // tomba::native::declareOverride() entries. The override table is gone; the per-subsystem register functions

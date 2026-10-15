@@ -32,7 +32,7 @@ culled primitive does not shift its neighbours and two commands drawing one shar
 
 A state producer saves what it drew at each frame (`core.frameStates.save` under the object's scope) and has a
 `render(from, to, t)` the composer runs for the object between two frames (psxport `presentation.md`, Frame
-model). Each owner's `registerStateRenders` installs it in `TombaSession::stateProducers` from `TombaRuntime::registerOverrides`, keyed by the producer address.
+model). Each owner's `registerStateRenders` installs it in `tomba::Session::stateProducers` from `tomba::Runtime::registerOverrides`, keyed by the producer address.
 Tomba's frame cuts stay `tomba::FrameCut`.
 
 | Producer | Object | Saved state | Render |
@@ -41,7 +41,7 @@ Tomba's frame cuts stay `tomba::FrameCut`.
 | 0x80115598, 0x8010C26C, 0x801142EC, 0x801141B0, 0x80116B9C, 0x80116778 `TileGridLayer` | the grid node | a `ListJob`: the node bytes with the two scroll words as wrapped inputs (modulus the map's pixel width and height) | the grid walk over host memory at the scroll moved the short way round the map; its draw mode packet gives the sprites their texture page |
 | 0x80116904 `RainStreaks` | one drop, by trail slot | the OT slot and bucket and the two screen points of its streak | the two points move by t; the line is decoded from the same words and takes the DR_TPAGE's blend mode |
 | 0x80078CA8 `Font::glyphEmit` | one glyph, by character address | `AnchoredPackets` (`render/anchored_packets.h`): the OT slot, the anchor, each packet's bucket and command words | the anchor moves by t and every vertex with it; the string's texture page is the constant glyphEmit passes to SetDrawMode |
-| 0x8007E9C8 `ScreenFade::draw` | one call: its call site, n-th in the logic frame (`CallSiteObjects`, `render/call_site_objects.h`, held by `TombaSession::callSites`) | the OT slot and bucket, colour, span and blend page | the colour moves by t when the blend is unchanged |
+| 0x8007E9C8 `ScreenFade::draw` | one call: its call site, n-th in the logic frame (`CallSiteObjects`, `render/call_site_objects.h`, held by `tomba::Session::callSites`) | the OT slot and bucket, colour, span and blend page | the colour moves by t when the blend is unchanged |
 | 0x8007E1B8 `UiSprite::quads`, 0x8007E6DC `UiSprite::compose` | one call, by call site as above (the DEMO menu 0x80106824 and every 2D sprite reach these) | `AnchoredPackets` from the placement word; compose adds the definition's texture page | the anchor moves by t |
 | 0x8003C8F4 `Render::billboardEmit` (reached from 0x8003C2D4 and the other three composers) | the node's render record life (`RenderRecordPool::object`) | `BillboardState`: GTE CR0-7 and per drawn particle its corners, bucket and packet | the transform and corners move by t, then RTPT/RTPS project again |
 | 0x80027768 `PackedMesh::write` | the call, as an emitter (`EmitterObject`); 0x8002AB5C `DropShadow::draw` opens the shadow's record life around it | a `ListJob`: the records, the IR0 cue word and the GTE control | `ListStateProducer` over the mesh body |

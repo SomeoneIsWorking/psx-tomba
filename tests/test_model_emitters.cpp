@@ -27,7 +27,7 @@
 
 namespace {
 
-// What the product keeps in TombaSession::stateProducers.
+// What the product keeps in Session::stateProducers.
 psx::present::StateProducerTable stateProducers;
 
 using psx::present::RecordKey;

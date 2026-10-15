@@ -44,7 +44,7 @@
 #include "spawn.h"
 #include "core.h"
 #include "core/overrides/native_override_catalog.h"
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "game.h"
 #include "guest_call.h"
 #include <lucent/log.h>
@@ -307,14 +307,14 @@ static const PoolDesc DESPAWN_POOL[5] = {
 };
 void Spawn::despawn(uint32_t node) {
   Core *c = this->core;
-  int s_v = tombaSession(c).verification.on("despawnverify");
+  int s_v = sessionOf(c).verification.on("despawnverify");
   uint8_t *ram0 = nullptr;
   uint8_t *ramN = nullptr;
   uint8_t spad0[0x400], spadN[0x400];
   uint32_t regs0[32];
   if (s_v) {
-    ram0 = tombaSession(c).verification.ram0();
-    ramN = tombaSession(c).verification.ramN();
+    ram0 = sessionOf(c).verification.ram0();
+    ramN = sessionOf(c).verification.ramN();
     memcpy(regs0, c->r, sizeof regs0);
     memcpy(ram0, c->ram, 0x200000);
     memcpy(spad0, c->scratch, 0x400);
@@ -407,7 +407,7 @@ void Spawn::despawn(uint32_t node) {
       break;
     }
   }
-  tomba::VerificationCounter &chk = tombaSession(c).verification.despawn;
+  tomba::VerificationCounter &chk = sessionOf(c).verification.despawn;
   long &ng = chk.nMatch, &nb = chk.nMismatch;
   if (ro >= 0 || so >= 0) {
     if (nb++ < 40) {
@@ -430,8 +430,8 @@ uint32_t Spawn::spawnAndInit(const SpawnAndInitArgs &args) { // FUN_8003116C
   c->r[4] = a0;
   c->r[5] = posSrc;
   c->r[6] = a2;
-  tombaSession(c).verification.run(
-      &Spawn::spawnAndInitBody, 0x8003116Cu, "spawninitverify", tombaSession(c).verification.on("spawninitverify"));
+  sessionOf(c).verification.run(
+      &Spawn::spawnAndInitBody, 0x8003116Cu, "spawninitverify", sessionOf(c).verification.on("spawninitverify"));
   return c->r[2];
 }
 
@@ -793,8 +793,8 @@ uint32_t Spawn::sceneEntity(const SceneEntityArgs &args) {
   Core *c = this->core;
   c->r[4] = sceneId;
   c->r[5] = subtype;
-  tombaSession(c).verification.run(
-      &Spawn::sceneEntityBody, 0x8007E110u, "sceneentityverify", tombaSession(c).verification.on("sceneentityverify"));
+  sessionOf(c).verification.run(
+      &Spawn::sceneEntityBody, 0x8007E110u, "sceneentityverify", sessionOf(c).verification.on("sceneentityverify"));
   return c->r[2];
 }
 
@@ -883,10 +883,10 @@ uint32_t Spawn::spawnOverlayVariant(const SpawnOverlayVariantArgs &args) {
   Core *c = this->core;
   c->r[4] = recordIndex;
   c->r[5] = (uint32_t)(int32_t)variant;
-  tombaSession(c).verification.run(&Spawn::spawnOverlayVariantBody,
-                                   0x8007E038u,
-                                   "spawnoverlayverify",
-                                   tombaSession(c).verification.on("spawnoverlayverify"));
+  sessionOf(c).verification.run(&Spawn::spawnOverlayVariantBody,
+                                0x8007E038u,
+                                "spawnoverlayverify",
+                                sessionOf(c).verification.on("spawnoverlayverify"));
   return c->r[2];
 }
 

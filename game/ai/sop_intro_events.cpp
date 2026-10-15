@@ -28,7 +28,7 @@
 #include "core.h"
 #include "core/engine/engine.h" // eng(c).spawn / eng(c).placement / eng(c).script
 #include "core/overrides/native_override_catalog.h"
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "game.h"
 #include "guest_call.h"
 #include "render/render.h"   // rend(c)->mNodeXform.buildWithOffset (FUN_800518FC)

@@ -25,7 +25,7 @@
 
 #include "core.h"
 #include "core/engine/engine.h" // eng(c).script / eng(c).spawn
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "guest_abi.h" // GuestFrame — mirror the guest stack frame (CLAUDE.md)
 #include "guest_call.h"
 #include "object/actor.h"  // Actor::boundsCull (FUN_8007778C, native)

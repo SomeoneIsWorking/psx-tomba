@@ -10,7 +10,7 @@
 #include "audio/sfx.h"
 #include "core.h"
 #include "core/overrides/native_override_catalog.h"
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "guest_call.h"
 
 namespace tomba {

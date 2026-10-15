@@ -18,7 +18,7 @@
 // the camera alt-mode orchestrators).
 
 #include "core.h"
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "graphics_bind.h" // ov_obj_record_init — native graphics-bind (game/world)
 #include "guest_abi.h"     // GuestFrame — mirror the guest stack frame (CLAUDE.md)
 #include "guest_call.h"

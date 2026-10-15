@@ -25,7 +25,7 @@
 // 0x84 for the sign/plaque family (types 0x0E/0x0F/0x39), 0x85 for everything else it accepts.
 #include "core.h"
 #include "core/overrides/native_override_catalog.h"
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "game.h"
 #include "object/actor.h"
 #include <cstdint>

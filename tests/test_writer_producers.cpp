@@ -1,7 +1,7 @@
 // The issue-0033 writers through the shipping overrides and composeFrame: at t = 1 the composed frame is the
 // one the guest drew, at t = 0.5 it is the frame drawn halfway between the two saved states.
 #include "compose_check.h"
-#include "core/entry/tomba_runtime.h"
+#include "core/entry/runtime.h"
 #include "core/overrides/native_override_catalog.h"
 #include "game.h"
 #include "gte_registers.h"
@@ -231,7 +231,7 @@ void testDropShadow(Core &core, ComposeHarness &harness) {
 }
 
 int runTests() {
-  tomba::TombaRuntime runtime;
+  tomba::Runtime runtime;
   auto game = std::make_unique<Game>(runtime, psx::config::Config{});
   Core &core = game->core;
   game->mods.aspect = ASPECT_4_3;

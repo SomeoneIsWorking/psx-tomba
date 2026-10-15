@@ -8,7 +8,7 @@
 #include "core.h"
 #include "core/overrides/guest_jal.h"
 #include "core/overrides/native_override_catalog.h"
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "game.h"
 #include "guest_abi.h"
 #include "guest_call.h"

@@ -3,7 +3,7 @@
 // leaves (FUN_8001CF2C / FUN_8001D2A8 / FUN_80074B44 / FUN_80074E48) stay substrate.
 //
 // FUN_8001CF2C re-confirmed 2026-07-08 (Ghidra decomp, scratch/decomp/cf2c_cluster.c):
-//   FUN_80052010(2)          -> already native: TombaScheduler::forceClose(2)
+//   FUN_80052010(2)          -> already native: Scheduler::forceClose(2)
 //   DAT_800be0e4 = 0         -> settle-flag clear (guest RAM write, mechanical)
 //   FUN_8001cf00(0)          -> already native: Cd::toSpuMix(0)
 //   do { } while(!FUN_80089e1c(9,0,0))
@@ -20,7 +20,7 @@
 #include "core.h"
 #include "core/engine/engine.h"
 #include "core/overrides/native_override_catalog.h"
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "guest_call.h"
 
 // Byte-exact ready-frame ports below install by guest address into the ONE override registry so

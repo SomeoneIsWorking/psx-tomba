@@ -25,7 +25,7 @@
 //   0x800BF870 (base; +0x177 -> 0x800BF9E7, +0x178 -> 0x800BF9E8 bit-set tables in despawn tail)
 
 #include "core.h"
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "graphics_bind.h" // ov_obj_set_geom
 #include "guest_abi.h"     // GuestFrame — mirror the guest stack frame (CLAUDE.md)
 #include "guest_call.h"

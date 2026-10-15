@@ -99,7 +99,7 @@ public:
   // what it does.
   //
   // CONSUMED BY Engine::devTeleportApply, called from Engine::frameUpdate — the
-  // ONE update/audio body TombaFrameDriver calls on every exec path — NOT from a
+  // ONE update/audio body FrameDriver calls on every exec path — NOT from a
   // camera method. It used to be consumed inside CutsceneCamera::trackXZ, which
   // only runs in the follow-camera mode: MEASURED 2026-08-06, `tp` fired in
   // area 0 (1 `[tp] Tomba ->` line) and NEVER FIRED in areas 13/14/20 (0 lines
@@ -269,10 +269,10 @@ public:
   // substrate 0x8010810C. Was ov_game_submit_810c in engine.cpp.
   void submitPage810c();
 
-  // frameUpdate: TombaFrameDriver's update/audio phase. Runs the still-PSX per-frame update leaf,
+  // frameUpdate: FrameDriver's update/audio phase. Runs the still-PSX per-frame update leaf,
   // then owns the per-vblank audio (sequencer tick + SPU field advance) and returns. Presentation,
-  // pacing, scheduler, and render submission remain TombaFrameDriver responsibilities. Was the free
-  // function `ov_frame_update` in game_tomba2.cpp.
+  // pacing, scheduler, and render submission remain FrameDriver responsibilities. Was the free
+  // function `ov_frame_update` in resident_natives.cpp.
   void frameUpdate();
 
   // padEdgeFence: FUN_800788AC — the per-frame INPUT-EDGE FENCE
@@ -287,7 +287,7 @@ public:
   void allocRecordForSelector(); // FUN_8008913C — record[0]/record[1] of the
                                  // 0x80102500 array
 
-  // drawOTag (libgpu FUN_80081560): walks the guest OT into the GPU device. Called by TombaFrameDriver.
+  // drawOTag (libgpu FUN_80081560): walks the guest OT into the GPU device. Called by FrameDriver.
   void drawOTag(uint32_t otHead);
   // While a bug report takes this frame, hand its ordering table to the report's PSX render.
   void captureBugReportReference(uint32_t otHead);

@@ -1,11 +1,9 @@
 // Tomba2Engine — native types mirroring Tomba! 2's own engine structures.
 //
-// These mirror the real in-RAM layout of the game's engine objects so the native engine
-// (engine_tomba2.c, being lifted from the guest MIPS) can read/write the SAME RAM as the
-// not-yet-lifted guest instruction path during the incremental transition. Field offsets are RE'd in
-// docs/engine_re.md — VERIFY there before trusting any field. PSX RAM is little-endian.
-#ifndef TOMBA2_TYPES_H
-#define TOMBA2_TYPES_H
+// These mirror the in-RAM layout of the game's engine objects so native code and the guest
+// instruction path share the same RAM. PSX RAM is little-endian.
+#ifndef ENGINE_TYPES_H
+#define ENGINE_TYPES_H
 #include <stdint.h>
 
 // ---- the drawable entity (object) ----------------------------------------------------
@@ -50,4 +48,4 @@ inline constexpr int T2OBJ_MODEL_PTR = 0x38;   // ptr to model data
 #define T2_TASK_STRIDE 0x38u      // bytes per task slot
 #define T2_TASK_END 0x801FE14Fu   // last byte walked (~6 slots)
 
-#endif // TOMBA2_TYPES_H
+#endif // ENGINE_TYPES_H

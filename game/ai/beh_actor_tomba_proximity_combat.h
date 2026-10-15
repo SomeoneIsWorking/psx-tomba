@@ -3,7 +3,7 @@
 //
 // STATUS: VERIFIED (line-by-line vs authenticated executable/overlay evidence ground truth — body logic had NO bugs;
 // the one real bug was a missing guest-stack frame, fixed) + WIRED via the shared override registry
-// (RegisterBehActorTombaProximityCombatOverride, called from TombaRuntime::registerOverrides through
+// (RegisterBehActorTombaProximityCombatOverride, called from Runtime::registerOverrides through
 // register_engine_overrides(),
 // `tomba::native::declareOverride`). Reached ONLY via typed runtime address dispatch (an indirect function-pointer
 // table read from a per-object "think" slot) — no static `guest 0x800527C8(c)` call site exists in any generated shard

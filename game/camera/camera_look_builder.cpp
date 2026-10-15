@@ -5,7 +5,7 @@
 
 #include "camera/camera_guest_math.h"
 #include "camera/cutscene_camera.h"
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "guest_call.h"
 #include "trig.h"
 

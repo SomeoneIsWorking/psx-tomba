@@ -254,7 +254,7 @@ public:
   }
 };
 
-// The three measured task leaves, bound on this Core exactly as `Tomba1Runtime::registerOverrides`
+// The three measured task leaves, bound on this Core exactly as `Runtime::registerOverrides`
 // binds them in the product. The yield leaf is the one the guests actually call.
 bool installTaskLeaves(Core &core) {
   const auto image = core.imageCatalog().resolve(tomba1::kTaskYieldEntry);

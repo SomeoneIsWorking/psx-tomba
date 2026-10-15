@@ -22,7 +22,7 @@
 // equivalence proven by A/B 2 MB RAM+scratchpad dump diff on replays/bugs/bucket-softlock.pad.
 
 #include "core.h"
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "graphics_bind.h" // GraphicsBind::setGeom / recordInit / renderUpdate
 #include "guest_abi.h"     // GuestFrame — mirror the guest stack frame (CLAUDE.md)
 #include "guest_call.h"

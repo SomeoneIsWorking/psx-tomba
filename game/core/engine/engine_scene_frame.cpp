@@ -15,7 +15,7 @@
 #include "core/engine/task_sm.h"         // TaskSm — the typed lens over the task record, owned in one header
 #include "core/overrides/guest_jal.h"    // tomba::guest::dispatchJalToReturn — the guest call convention
 #include "core/overrides/guest_resume.h" // requestGuestContinuation
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "game.h" // Game — the per-Core product the Engine drives
 #include "guest_call.h"
 #include "level_load.h"
@@ -98,7 +98,7 @@ void Engine::sceneRenderListBuilder() {
 // 0x80026c88 now run as the NATIVE ov_objwalk / ov_disp_26c88 (direct C calls —
 // the previously-orphan bodies wired into the live field frame); the remaining
 // callees stay typed runtime address dispatch leaves until owned in turn. NOT yield-free
-// (0x8003F9A8 render orchestrator + other callees can TombaScheduler::yield) — the
+// (0x8003F9A8 render orchestrator + other callees can Scheduler::yield) — the
 // earlier "yield-free (transitive jal scan)" claim here was wrong; the fork
 // below is a plain call, proven by SBS full, not strict replay check (mv_tdd.log
 // 2026-07-08: 0x80108B0C FAILED 10+ diffs — a double-run/rewind artifact, not a
@@ -111,7 +111,7 @@ void Engine::sceneRenderListBuilder() {
 // substrate render orchestrator executing underneath (Render::frame), its guest
 // writes ARE faithful state — rewinding them would diverge from B. DEV TELEPORT
 // (`tp X Y Z`) — write Tomba's master position, once. Called from
-// Engine::frameUpdate (game_tomba2.cpp), the one per-frame body
+// Engine::frameUpdate (resident_natives.cpp), the one per-frame body
 // native_step_frame runs on EVERY exec path.
 //
 // It is not CutsceneCamera's, because the camera is the WRONG owner: trackXZ

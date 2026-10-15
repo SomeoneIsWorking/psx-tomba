@@ -13,7 +13,7 @@
 //   * `debug subswapverify`          — A/Bs stepSwapWaiter vs psx::cpu::callOriginal(0x80073328).
 #include "scene_transition.h"
 #include "core.h"
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "game.h"
 #include "guest_call.h"
 #include <lucent/log.h>
@@ -57,14 +57,14 @@ void SceneTransition::areaMaskTrigger(uint8_t area, uint8_t sub) {
     }
   };
 
-  int s_v = tombaSession(c).verification.on("scene_transitionverify");
+  int s_v = sessionOf(c).verification.on("scene_transitionverify");
   if (!s_v) {
     impl(area, sub);
     return;
   }
 
-  uint8_t *ram0 = tombaSession(c).verification.ram0();
-  uint8_t *ramN = tombaSession(c).verification.ramN();
+  uint8_t *ram0 = sessionOf(c).verification.ram0();
+  uint8_t *ramN = sessionOf(c).verification.ramN();
   uint8_t spad0[0x400], spadN[0x400];
   uint32_t regs0[32];
   memcpy(regs0, c->r, sizeof regs0);
@@ -97,7 +97,7 @@ void SceneTransition::areaMaskTrigger(uint8_t area, uint8_t sub) {
       break;
     }
   }
-  tomba::VerificationCounter &chk = tombaSession(c).verification.sceneTransition;
+  tomba::VerificationCounter &chk = sessionOf(c).verification.sceneTransition;
   long &ng = chk.nMatch, &nb = chk.nMismatch;
   if (ro >= 0 || so >= 0) {
     if (nb++ < 40) {
@@ -332,13 +332,13 @@ int SceneTransition::stepSwapWaiter(uint32_t node) {
     return 0;
   };
 
-  int s_v = tombaSession(c).verification.on("subswapverify");
+  int s_v = sessionOf(c).verification.on("subswapverify");
   if (!s_v) {
     return impl(node);
   }
 
-  uint8_t *ram0 = tombaSession(c).verification.ram0();
-  uint8_t *ramN = tombaSession(c).verification.ramN();
+  uint8_t *ram0 = sessionOf(c).verification.ram0();
+  uint8_t *ramN = sessionOf(c).verification.ramN();
   uint8_t spad0[0x400], spadN[0x400];
   uint32_t regs0[32];
   memcpy(regs0, c->r, sizeof regs0);
@@ -371,7 +371,7 @@ int SceneTransition::stepSwapWaiter(uint32_t node) {
       break;
     }
   }
-  tomba::VerificationCounter &chk = tombaSession(c).verification.substateSwap;
+  tomba::VerificationCounter &chk = sessionOf(c).verification.substateSwap;
   long &ng = chk.nMatch, &nb = chk.nMismatch;
   if (ro >= 0 || so >= 0 || rv_n != rv_s) {
     if (nb++ < 40) {

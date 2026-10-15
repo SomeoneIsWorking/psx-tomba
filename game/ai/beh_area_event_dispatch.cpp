@@ -22,7 +22,7 @@
 // behavior gate (below) compares only RAM+scratchpad — matching the sibling objbeh gates.
 
 #include "core.h"
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "guest_abi.h" // GuestFrame — mirror the guest stack frame (CLAUDE.md)
 #include "guest_call.h"
 #include "render/render.h" // Core::mRender (NodeXform)

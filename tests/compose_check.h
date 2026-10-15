@@ -3,7 +3,7 @@
 #pragma once
 
 #include "core.h"
-#include "core/entry/tomba_session.h"
+#include "core/entry/session.h"
 #include "frame_composer.h"
 #include "render/guest_ordering_table.h"
 #include "state_producer.h"
@@ -34,7 +34,7 @@ public:
     core_.mem_w32(render::OrderingTable::kBasePointer, ot_);
     clearOrderingTable(core_, ot_);
     render::PacketPool(core_).setCursor(pool_);
-    tombaSession(&core_).callSites.beginFrame();
+    sessionOf(&core_).callSites.beginFrame();
     core_.frameStates.clear();
     draw();
     psx::present::FrameRecord shown = submittedFrame(core_, ot_);

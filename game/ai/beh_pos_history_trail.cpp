@@ -35,7 +35,7 @@
 // byte-exact A/B gate (full RAM+scratchpad vs original guest-body call) is the safety net.
 
 #include "core.h"
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "guest_abi.h" // GuestFrame — mirror the guest stack frame (CLAUDE.md)
 #include "spawn.h"     // class Spawn (eng(c).spawn.despawn / dispatch / spawnAndInit)
 #include <stdio.h>

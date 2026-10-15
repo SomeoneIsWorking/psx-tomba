@@ -51,7 +51,7 @@
 #include "audio/sfx.h" // eng(c).sfx.trigger (FUN_80074590, native)
 #include "core.h"
 #include "core/engine/engine.h" // eng(c).spawn
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "guest_call.h"
 #include "math/trig.h" // Trig::ratan2 / Trig::angleCmp (FUN_80085690 / FUN_80077768, native)
 #include "spawn.h"     // eng(c).spawn.despawn (FUN_8007A624, native)

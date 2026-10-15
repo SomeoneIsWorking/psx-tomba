@@ -1,15 +1,15 @@
-// tomba_cd_state.h — Tomba! 2's save-state section: the area music TombaCd holds back for a dialog.
+// engine_cd_state.h — Tomba! 2's save-state section: the area music EngineCd holds back for a dialog.
 #pragma once
 
 #include "machine_state.h"
 
 namespace tomba {
 
-class TombaCd;
+class EngineCd;
 
-class TombaCdState final : public psx::state::NativeStatePort {
+class EngineCdState final : public psx::state::NativeStatePort {
 public:
-  explicit TombaCdState(TombaCd &cd) : cd_(cd) {}
+  explicit EngineCdState(EngineCd &cd) : cd_(cd) {}
 
   [[nodiscard]] const char *sectionName() const override {
     return "tomba2.cd";
@@ -21,7 +21,7 @@ public:
   bool load(psx::state::BlobReader &in, std::string &error) override;
 
 private:
-  TombaCd &cd_;
+  EngineCd &cd_;
 };
 
 } // namespace tomba

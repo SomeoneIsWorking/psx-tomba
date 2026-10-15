@@ -1,10 +1,10 @@
 // synchronous_task_wait.cpp — FUN_80044BD4 as a synchronous wait: the spawned slot-1 task runs to
 // completion before the caller continues.
-#include "sched/tomba_scheduler.h"
+#include "sched/scheduler.h"
 
 #include "core.h"
 #include "coro.h"
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "execution_control.h"
 #include "game.h"
 #include "native_dispatch.h"
@@ -22,7 +22,7 @@ constexpr int kPumpLimit = 4096;
 
 } // namespace
 
-SyncWaitCompletion TombaScheduler::completeSyncWait(std::uint32_t taskBase, std::uint32_t flag) {
+SyncWaitCompletion Scheduler::completeSyncWait(std::uint32_t taskBase, std::uint32_t flag) {
   SyncWaitCompletion result{};
   if (flag != 1) {
     result.stamp = static_cast<std::uint16_t>(rngOf(&core_).next()); // FUN_8009A450
@@ -33,7 +33,7 @@ SyncWaitCompletion TombaScheduler::completeSyncWait(std::uint32_t taskBase, std:
   return result;
 }
 
-void TombaScheduler::runSyncSlot(int slot) {
+void Scheduler::runSyncSlot(int slot) {
   Core &core = core_;
   const std::uint32_t base = taskSlotBase(slot);
   const std::uint32_t entry = core.mem_r32(base + kTaskEntry);
@@ -97,7 +97,7 @@ void TombaScheduler::runSyncSlot(int slot) {
 
 // Frame: sp-=40; the caller's live s0..s3 and ra spill at +16..+32, then fn/flag/p2/p3 live in
 // s2/s3/s1/s0 so nested callee spills hold the guest's values.
-void TombaScheduler::spawnAndWait(const SpawnAndWaitArgs &args) {
+void Scheduler::spawnAndWait(const SpawnAndWaitArgs &args) {
   auto [fn, p2, p3, flag] = args;
   Core &core = core_;
   core.r[29] -= 40;

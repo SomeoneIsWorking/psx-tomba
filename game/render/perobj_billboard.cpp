@@ -66,7 +66,7 @@
 #include "billboard_state.h"
 #include "core.h"
 #include "core/overrides/native_override_catalog.h"
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "game.h"
 #include "guest_call.h"
 #include "guest_ordering_table.h"

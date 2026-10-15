@@ -9,7 +9,7 @@
 #include "melee_proximity.h"
 #include "core.h"
 #include "core/overrides/native_override_catalog.h"
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "game.h"
 #include "guest_call.h"
 #include "math/trig.h"
@@ -94,7 +94,7 @@ void MeleeProximity::isAtApproachAnchorFramed() { // guest-ABI twin, mirrors gue
 // shard_1.c/shard_5.c — calls through the recorded binary evidence's OWN global image-qualified runtime dispatcher
 // table, never through typed runtime address dispatch. Installing without a setter would be invisible to that call
 // shape, so `tomba::native::declareOverride` is passed tomba::native::declareOverride as the setter, same pattern as
-// game/core/sched/tomba_scheduler.cpp / game/object/actor_sm_reward.cpp.
+// game/core/sched/scheduler.cpp / game/object/actor_sm_reward.cpp.
 // ---------------------------------------------------------------------------------------------
 namespace {
 void ov_meleeProximity(Core *c) {

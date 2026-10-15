@@ -8,8 +8,7 @@
 // (each `beh_*.cpp` behavior file exposes a `beh_*(Core*)` entry that's registered in the
 // table). Owns the dispatcher entry point every field walk / transition machine uses to hand off
 // one object's per-frame tick — the walker sets the current-object bookkeeping and picks native-
-// vs-substrate. Was the free functions `dispatch_obj_method` / `dispatch_native_behavior` /
-// `behavior_native_name` in engine_tomba2.cpp.
+// vs-substrate.
 //
 // The 50-entry behavior table is a file-local `static const` array in behavior_dispatch.cpp — read
 // by every method here. Class doesn't need per-instance storage for it (same registry for every

@@ -2,7 +2,7 @@
 #include "graphics_bind.h"
 #include "core.h"
 #include "core/overrides/native_override_catalog.h"
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "game.h"
 #include "gte_math.h" // Math::rotmat — libgte RotMatrix (native, static)
 #include "guest_call.h"
@@ -12,7 +12,7 @@
 #include <string.h>
 
 // (The native scene-data record this subsystem will fill per visible entity is the real
-// SceneObject in game/render/scene_data.h, now in scope via entry/tomba_session.h → render.h. The former
+// SceneObject in game/render/scene_data.h, now in scope via entry/session.h → render.h. The former
 // local placeholder struct here was dead and is removed.)
 
 // ====================================================================================================
@@ -70,18 +70,18 @@ void GraphicsBind::recordAlloc() {
                 __builtin_return_address(0),
                 (int)c->mem_r16s(0x800ED098u),
                 c->mem_r32(0x801fe00c));
-  tombaSession(c).verification.run(
+  sessionOf(c).verification.run(
       [](Core *core) {
         return eng(core).graphicsBind.records.allocate(*core);
       },
       0x8007AAE8u,
       "recallocverify",
-      tombaSession(c).verification.on("recallocverify"));
+      sessionOf(c).verification.on("recallocverify"));
 }
 void GraphicsBind::recordInit() {
   Core *c = core;
-  tombaSession(c).verification.run(
-      &GraphicsBind::recordInitBody, 0x80051B70u, "recinitverify", tombaSession(c).verification.on("recinitverify"));
+  sessionOf(c).verification.run(
+      &GraphicsBind::recordInitBody, 0x80051B70u, "recinitverify", sessionOf(c).verification.on("recinitverify"));
 }
 
 // FUN_80051B04 — two-level scene-data-table pointer resolve. Pure address arithmetic, no branches.
@@ -138,8 +138,8 @@ uint32_t GraphicsBind::renderUpdateBody(Core *c) {
 }
 void GraphicsBind::renderUpdate() {
   Core *c = core;
-  tombaSession(c).verification.run(
-      &GraphicsBind::renderUpdateBody, 0x800517F8u, "rendupdverify", tombaSession(c).verification.on("rendupdverify"));
+  sessionOf(c).verification.run(
+      &GraphicsBind::renderUpdateBody, 0x800517F8u, "rendupdverify", sessionOf(c).verification.on("rendupdverify"));
 }
 
 // FUN_80077B38 — set an object's GEOMETRY-BLOCK pointer from a table. RE'd from disas 0x80077B38 (leaf):
@@ -154,8 +154,8 @@ uint32_t GraphicsBind::setGeomBody(Core *c) {
 }
 void GraphicsBind::setGeom() {
   Core *c = core;
-  tombaSession(c).verification.run(
-      &GraphicsBind::setGeomBody, 0x80077B38u, "setgeomverify", tombaSession(c).verification.on("setgeomverify"));
+  sessionOf(c).verification.run(
+      &GraphicsBind::setGeomBody, 0x80077B38u, "setgeomverify", sessionOf(c).verification.on("setgeomverify"));
 }
 
 // FUN_8006CBD0 — copy a 6-halfword TRANSFORM BLOCK from a1 into the scratchpad camera/transform block
@@ -175,8 +175,8 @@ uint32_t GraphicsBind::setXformBlkBody(Core *c) {
 }
 void GraphicsBind::setXformBlk() {
   Core *c = core;
-  tombaSession(c).verification.run(
-      &GraphicsBind::setXformBlkBody, 0x8006CBD0u, "setxblkverify", tombaSession(c).verification.on("setxblkverify"));
+  sessionOf(c).verification.run(
+      &GraphicsBind::setXformBlkBody, 0x8006CBD0u, "setxblkverify", sessionOf(c).verification.on("setxblkverify"));
 }
 
 // FUN_8004BD64 — per-object POSITION-COMPOSE + render-state refresh. RE'd from disas 0x8004BD64
@@ -218,10 +218,8 @@ uint32_t GraphicsBind::posComposeBody(Core *c) {
 }
 void GraphicsBind::posCompose() {
   Core *c = core;
-  tombaSession(c).verification.run(&GraphicsBind::posComposeBody,
-                                   0x8004BD64u,
-                                   "poscomposeverify",
-                                   tombaSession(c).verification.on("poscomposeverify"));
+  sessionOf(c).verification.run(
+      &GraphicsBind::posComposeBody, 0x8004BD64u, "poscomposeverify", sessionOf(c).verification.on("poscomposeverify"));
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════════════════════

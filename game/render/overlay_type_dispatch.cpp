@@ -36,7 +36,7 @@
 //   - epilogue (L_8003D22C): restore r31 from sp+16, sp += 24, return.
 #include "core.h"
 #include "core/overrides/native_override_catalog.h"
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "game.h"
 #include "guest_call.h"
 #include "render.h"

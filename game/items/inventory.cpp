@@ -41,7 +41,7 @@
 // top-of-RAM stack window [sp-0x800, sp) — far above all game data.
 #include "inventory.h"
 #include "core.h"
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "game.h"
 #include "guest_call.h"
 #include "inventory_layout.h"
@@ -127,8 +127,8 @@ void Inventory::addBody(Core *c) {
 // dispatch the PSX event sink (0x8004ED0C->0x8004FA38), whose own below-sp frame differs harmlessly across
 // the twice-run passes, so the wrapper gate excludes the top-of-RAM stack window [sp-0x800, sp).
 void Inventory::abGate(Core *c, uint32_t addr, void (*native)(Core *), int exclude_stack, const char *nm) {
-  uint8_t *ram0 = tombaSession(c).verification.ram0();
-  uint8_t *ramN = tombaSession(c).verification.ramN();
+  uint8_t *ram0 = sessionOf(c).verification.ram0();
+  uint8_t *ramN = sessionOf(c).verification.ramN();
   uint8_t spad0[0x400], spadN[0x400];
   uint32_t regs0[32];
   memcpy(regs0, c->r, sizeof regs0);
@@ -163,7 +163,7 @@ void Inventory::abGate(Core *c, uint32_t addr, void (*native)(Core *), int exclu
       break;
     }
   }
-  tomba::VerificationCounter &chk = tombaSession(c).verification.inventory;
+  tomba::VerificationCounter &chk = sessionOf(c).verification.inventory;
   long &ng = chk.nMatch, &nb = chk.nMismatch;
   if (ro >= 0 || so >= 0) { // these fns return void; v0 is dead, don't gate on it
     if (nb++ < 40) {
@@ -186,7 +186,7 @@ void Inventory::abGate(Core *c, uint32_t addr, void (*native)(Core *), int exclu
 }
 
 void Inventory::addEntry(Core *c) { // FUN_8004D338
-  if (tombaSession(c).verification.on("invverify") && !inv(c).inGate) {
+  if (sessionOf(c).verification.on("invverify") && !inv(c).inGate) {
     abGate(c, 0x8004D338u, &Inventory::addBody, 0, "invverify");
     return;
   }
@@ -203,7 +203,7 @@ void Inventory::giveAndFlagBody(Core *c) {
   psx::cpu::dispatchGuestToReturn0(*c, 0x8004ED0Cu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
 }
 void Inventory::giveAndFlagEntry(Core *c) { // FUN_8004D4C4
-  if (tombaSession(c).verification.on("invverify") && !inv(c).inGate) {
+  if (sessionOf(c).verification.on("invverify") && !inv(c).inGate) {
     abGate(c, 0x8004D4C4u, &Inventory::giveAndFlagBody, 1, "invverify");
     return;
   }
@@ -215,7 +215,7 @@ void Inventory::giveBody(Core *c) {
   addNative(c, c->r[4], c->r[5]);
 }
 void Inventory::giveEntry(Core *c) { // FUN_8004D4F4
-  if (tombaSession(c).verification.on("invverify") && !inv(c).inGate) {
+  if (sessionOf(c).verification.on("invverify") && !inv(c).inGate) {
     abGate(c, 0x8004D4F4u, &Inventory::giveBody, 1, "invverify");
     return;
   }

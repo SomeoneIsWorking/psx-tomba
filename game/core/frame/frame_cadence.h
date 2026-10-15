@@ -80,7 +80,7 @@
 // contract (psxport/AGENTS.md, "An override key names a function entry that guest code reaches
 // by jal/jalr") makes it ineligible as an override key, and the enclosing FUN_80050B08 is
 // itself never dispatched by this product: psxport's title session calls GameRuntime::startProgram,
-// which runs FUN_80050b08's INIT PREFIX and then hands iteration to TombaFrameDriver. So the
+// which runs FUN_80050b08's INIT PREFIX and then hands iteration to FrameDriver. So the
 // gate's instructions do not execute here, and declaring an override for them would declare
 // something with no reachability. What the port can own, and does, is the gate's STATE: the two
 // guest fields the comparison reads, advanced through the guest's own mechanism.
@@ -95,12 +95,12 @@ namespace tomba {
 // One concept: how many display fields one Tomba! 2 logic frame spans, and the gate's own
 // comparison against the guest's dwell counter. It OWNS the decision and it REPORTS on the guest's
 // halfword; it does not write that halfword except for the per-frame reset the guest itself makes.
-// Composed into the frame transaction by TombaFrameDriver and consulted by Engine's per-field work,
+// Composed into the frame transaction by FrameDriver and consulted by Engine's per-field work,
 // so the decision has exactly one home.
 class FrameCadence {
 public:
   // Back-pointer, wired once where every other Engine-owned subsystem is wired
-  // (the TombaSession constructor), so no call has to thread a Core through.
+  // (the Session constructor), so no call has to thread a Core through.
   Core *core = nullptr;
 
   // ---- measured guest facts (see the banner; each is read off MAIN.EXE) -------------------

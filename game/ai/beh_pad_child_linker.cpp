@@ -34,7 +34,7 @@
 // PC calls PC directly for both (no typed runtime address dispatch indirection) now that they're native.
 
 #include "core.h"
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "graphics_bind.h" // ov_record_alloc_g (FUN_8007AAE8)
 #include "guest_abi.h"     // GuestFrame — mirror the guest stack frame (CLAUDE.md)
 #include "guest_call.h"

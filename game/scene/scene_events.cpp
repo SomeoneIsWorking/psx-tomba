@@ -8,7 +8,7 @@
 #include "core.h"
 #include "core/engine/engine.h"
 #include "core/overrides/native_override_catalog.h"
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "game.h"
 #include "guest_abi.h" // GuestFrame — mirror the guest stack frame (CLAUDE.md)
 #include "scene/scene_flags.h"
@@ -117,10 +117,8 @@ uint32_t SceneEvents::armBody(Core *c) {
 int32_t SceneEvents::arm(uint8_t eventId) {
   Core *c = this->core;
   c->r[4] = eventId;
-  tombaSession(c).verification.run(&SceneEvents::armBody,
-                                   0x80040B48u,
-                                   "sceneeventsarmverify",
-                                   tombaSession(c).verification.on("sceneeventsarmverify"));
+  sessionOf(c).verification.run(
+      &SceneEvents::armBody, 0x80040B48u, "sceneeventsarmverify", sessionOf(c).verification.on("sceneeventsarmverify"));
   return (int32_t)c->r[2];
 }
 

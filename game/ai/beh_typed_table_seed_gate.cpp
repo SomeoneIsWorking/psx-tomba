@@ -71,7 +71,7 @@
 // channel "typed_table_seed_gateverify".
 
 #include "core.h"
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "graphics_bind.h" // GraphicsBind::recordInit / renderUpdate
 #include "guest_abi.h"     // GuestFrame — mirror the guest stack frame (CLAUDE.md)
 #include "guest_call.h"

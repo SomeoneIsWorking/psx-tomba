@@ -401,7 +401,7 @@ calls it. A row whose handler is file-local names the file that declares the ove
 | 0x80081218 | LIVE | `Asset::uploadImage` | game/core/assets/asset.cpp |  | DO NOT REGISTER 0x80081218 IN THE OVERRIDE REGISTRY. It surfaces near … |
 | 0x80081458 | LIVE | `Render::clearOTagR` | game/render/wide_re_libgpu_leaves.cpp |  | guest 0x80081458 (0x80081458) — ClearOTagR(OT, entries). VERIFIED & WI… |
 | 0x80081458 | LIVE | `ov_clearOTagR` | game/render/wide_re_libgpu_leaves.cpp |  |  |
-| 0x80081560 | LIVE | `Engine::drawOTag` | game/game_tomba2.cpp |  | Native ownership of DrawOTag (libgpu FUN_80081560, the per-frame draw … |
+| 0x80081560 | LIVE | `Engine::drawOTag` | game/resident_natives.cpp |  | Native ownership of DrawOTag (libgpu FUN_80081560, the per-frame draw … |
 | 0x800815D0 | LIVE | `nativePutDrawEnv` | game/render/wide_re_gpu_putdrawenv.cpp |  | nativePutDrawEnv (0x800815D0) — libgpu PutDrawEnv(drawEnvPtr). DRAFT. … |
 | 0x80081CF8 | LIVE | `buildDrawAreaRect` | game/render/hud_gauge_emitter.cpp |  |  |
 | 0x80081CF8 | LIVE | `emitDrawAreaAndLink` | game/render/hud_gauge_emitter.cpp |  | Emit the DR_AREA packet built from the sp+rectOff rect into the packet… |
@@ -737,7 +737,7 @@ calls it. A row whose handler is file-local names the file that declares the ove
 | 0x801467BC | LIVE | `OverlayGt3Gt4::gt4` | game/render/overlay_gt3gt4.cpp |  | POLY_GT4 (gouraud-textured quad) emit, GTE-driven, guest-writing. |
 | 0x80182000 | LIVE | `preload_build_vram` | game/core/assets/asset.cpp | 0x80075448 | cel/sprite VRAM build, synchronous. FUN_800753ac is itself an async CD… |
 
-## Stock library bindings (`TombaRuntime::registerOverrides`)
+## Stock library bindings (`tomba::Runtime::registerOverrides`)
 
 psxport stock classes and `PlatformHle::bindStock` own these; the guest body never runs.
 
@@ -756,4 +756,4 @@ psxport stock classes and `PlatformHle::bindStock` own these; the guest body nev
 | 0x8008B4B8 | `PlatformHle::completeImmediately` (CdDataSync) |
 | 0x8009CAEC | `PlatformHle::completeImmediately` (DecDCTinSync) |
 | 0x8009CB80 | `PlatformHle::completeImmediately` (DecDCToutSync) |
-| 0x80080880 | `TombaScheduler::yield` (ChangeThread; a native override) |
+| 0x80080880 | `tomba::sched::Scheduler::yield` (ChangeThread; a native override) |

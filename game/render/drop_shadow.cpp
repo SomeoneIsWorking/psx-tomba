@@ -3,7 +3,7 @@
 
 #include "core.h"
 #include "core/overrides/native_override_catalog.h"
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "gte_registers.h"
 #include "guest_abi.h"
 #include "obj_model_view.h"

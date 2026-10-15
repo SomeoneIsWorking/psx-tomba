@@ -1,6 +1,6 @@
 // The catalog identities and the launch settings, through the shipping owners.
-#include "entry/tomba_identity.h"
-#include "entry/tomba_settings.h"
+#include "entry/identity.h"
+#include "entry/settings.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -36,16 +36,16 @@ int main(int argc, char **argv) {
   // A CVar binds its environment on first read, so each environment is its own process.
   const std::string mode = argc > 1 ? argv[1] : "";
   if (mode == "defaults") {
-    const tomba::TombaSettings settings = tomba::TombaSettings::fromCVars();
+    const tomba::Settings settings = tomba::Settings::fromCVars();
     check(!settings.skipMovies && !settings.autoSkip, "movies play and nothing is driven by default");
   } else if (mode == "set") {
     setenv("PSXPORT_NO_FMV", "1", 1);
     setenv("PSXPORT_AUTO_SKIP", "1", 1);
-    const tomba::TombaSettings settings = tomba::TombaSettings::fromCVars();
+    const tomba::Settings settings = tomba::Settings::fromCVars();
     check(settings.skipMovies && settings.autoSkip, "NO_FMV and AUTO_SKIP read as set");
   } else if (mode == "off") {
     setenv("PSXPORT_NO_FMV", "0", 1);
-    const tomba::TombaSettings settings = tomba::TombaSettings::fromCVars();
+    const tomba::Settings settings = tomba::Settings::fromCVars();
     check(!settings.skipMovies, "NO_FMV=0 plays movies");
   }
 

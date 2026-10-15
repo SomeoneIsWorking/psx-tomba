@@ -37,8 +37,8 @@ resident text range; only the two resident-load lifecycle points acquire that
 token. It cannot adopt another active image merely because an address matches.
 
 This preserves the boot reload contract but uses a synthetic resident image.
-Launch-time image authentication is now owned by `tools/tomba2_provision.py` and
-`config/tomba2-images.json`, described below. An image-generation token still
+Launch-time image authentication is now owned by `tools/provision.py` and
+`config/images.json`, described below. An image-generation token still
 establishes residency rather than authenticity at the runtime loading boundary.
 The title now owns an image-scoped MODE overlay lifecycle: both faithful and normal area loaders
 activate the authenticated A00–A0L image after loading its fixed MODE slot, retire the previous
@@ -149,7 +149,7 @@ The provisioner previously accepted any same-size executable or overlay and skip
 extraction when a cache file existed. A valid cache could therefore hide selection
 of an unrelated disc, while later streaming still used that disc.
 
-`config/tomba2-images.json` owns the 30 supported runtime-image sizes and SHA-256
+`config/images.json` owns the 30 supported runtime-image sizes and SHA-256
 fingerprints. Provisioning extracts the selected disc's complete set into private
 staging, authenticates every image, then publishes validated files with atomic
 per-file replacement. Publication is not an all-files transaction: every previously

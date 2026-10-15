@@ -9,12 +9,12 @@
 // CD reads the area-music start fires immediately (during the dialog gap), so the loop overlaps
 // the dialog tone — the audible bug. Mod: while a dialog tone is the current song, keep the
 // looping ingame music suppressed and remembered; resume it once the dialog ends. One-shot voice
-// clips are unaffected (they ARE the dialog audio). The deferred clip is TombaCd::deferredMusic().
+// clips are unaffected (they ARE the dialog audio). The deferred clip is EngineCd::deferredMusic().
 #include "music_coord.h"
 #include "core.h"
 #include "core/overrides/guest_jal.h" // GuestFrame — voiceMixTick mirrors FUN_80075824's 32-byte frame
 #include "core/overrides/native_override_catalog.h"
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "game.h"
 #include "guest_abi.h"
 #include "xa_state.h"
@@ -282,18 +282,18 @@ void MusicCoord::tick() {
                   dialogToneActive(),
                   a,
                   l,
-                  tombaSession(c).cd.deferredMusic().pending);
+                  sessionOf(c).cd.deferredMusic().pending);
     mPrev = s;
     mPa = a;
     mPl = l;
   }
   if (dialogToneActive()) {
     if (xa_stream_is_looping(&c->game->xa)) {
-      tombaSession(c).cd.stopClip(); // dialog up: silence ingame music (kept pending)
+      sessionOf(c).cd.stopClip(); // dialog up: silence ingame music (kept pending)
     }
-  } else if (tombaSession(c).cd.deferredMusic().pending && !xa_stream_is_active(&c->game->xa)) {
-    TombaCd &cd = tombaSession(c).cd;
-    const TombaCd::DeferredMusic &music = cd.deferredMusic();
+  } else if (sessionOf(c).cd.deferredMusic().pending && !xa_stream_is_active(&c->game->xa)) {
+    EngineCd &cd = sessionOf(c).cd;
+    const EngineCd::DeferredMusic &music = cd.deferredMusic();
     cd.playClip({.channel = music.channel, .start = music.start, .end = music.end, .loop = true});
     musicFadeIn(); // resumed music fades in from 0 (no voice now)
   }

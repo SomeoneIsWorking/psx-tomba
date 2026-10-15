@@ -3,8 +3,8 @@
 // mesh's render at t = 1 draws the packets it wrote; billboardEmit's state composes through composeFrame.
 #include "authenticated_image.h"
 #include "compose_check.h"
-#include "core/entry/tomba_runtime.h"
-#include "core/entry/tomba_session.h"
+#include "core/entry/runtime.h"
+#include "core/entry/session.h"
 #include "game.h"
 #include "gte_registers.h"
 #include "guest_snapshot.h"
@@ -334,7 +334,7 @@ int runTests(int argc, char **argv) {
   if (!exe) {
     return 2;
   }
-  tomba::TombaRuntime runtime;
+  tomba::Runtime runtime;
   auto game = std::make_unique<Game>(runtime, psx::config::Config{});
   Core &core = game->core;
   game->mods.aspect = ASPECT_4_3;

@@ -5,8 +5,8 @@
 // vabOff from the container's VAB offset table. `game->native_music.play()` drives the shared
 // synth from those offsets.
 #include "music_list.h"
-#include "entry/tomba_session.h" // tombaSession(core).native_music — the sibling player on the game aggregate
-#include "game.h"                // core->game->disc — the native disc backend lives on the framework Game
+#include "entry/session.h" // sessionOf(core).native_music — the sibling player on the game aggregate
+#include "game.h"          // core->game->disc — the native disc backend lives on the framework Game
 #include "native_music.h"
 
 #include <cstdint>
@@ -116,7 +116,7 @@ int MusicList::play(int i) {
     lucent::info("music_list", "song {}: seq not found", i);
     return -1;
   }
-  if (tombaSession(core).native_music.play({.data = mBuf, .seqOff = so, .vabOff = vo})) {
+  if (sessionOf(core).native_music.play({.data = mBuf, .seqOff = so, .vabOff = vo})) {
     lucent::error("music_list", "song {}: play failed", i);
     return -1;
   }
@@ -161,7 +161,7 @@ int MusicList::playArea(const uint8_t *bundle, long bundle_len, int song) {
     return -1;
   }
   memcpy(nb, bundle, need);
-  tombaSession(core).native_music.stop();
+  sessionOf(core).native_music.stop();
   free(mArea);
   mArea = nb;
   mAreaLen = need;
@@ -170,7 +170,7 @@ int MusicList::playArea(const uint8_t *bundle, long bundle_len, int song) {
     lucent::info("music_list", "area song {}: seq not found", song);
     return -1;
   }
-  if (tombaSession(core).native_music.play({.data = mArea, .seqOff = so, .vabOff = AREA_VAB_OFF})) {
+  if (sessionOf(core).native_music.play({.data = mArea, .seqOff = so, .vabOff = AREA_VAB_OFF})) {
     lucent::error("music_list", "area song {}: play failed", song);
     return -1;
   }
@@ -181,13 +181,13 @@ int MusicList::playArea(const uint8_t *bundle, long bundle_len, int song) {
 
 void MusicList::stop() {
   if (core) {
-    tombaSession(core).native_music.stop();
+    sessionOf(core).native_music.stop();
   }
   mNow = -1;
 }
 
 int MusicList::nowPlaying() {
-  if (mNow >= 0 && core && !tombaSession(core).native_music.active()) {
+  if (mNow >= 0 && core && !sessionOf(core).native_music.active()) {
     mNow = -1;
   }
   return mNow;

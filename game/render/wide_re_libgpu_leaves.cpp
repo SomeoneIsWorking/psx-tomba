@@ -46,7 +46,7 @@
 //     FIFO streamer) — still MAPPED only, see the new file's header.
 #include "core.h"
 #include "core/overrides/native_override_catalog.h"
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "guest_call.h"
 #include "libgpu_draw_mode.h"
 #include "render.h"

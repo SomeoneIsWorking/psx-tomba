@@ -20,7 +20,7 @@
 // checks `node[+8]` BEFORE loading the transform at all, so an empty node costs nothing.
 #include "core.h"
 #include "core/overrides/native_override_catalog.h"
-#include "entry/tomba_session.h" // eng()
+#include "entry/session.h" // eng()
 #include "guest_call.h"
 #include "guest_ordering_table.h"
 #include "render.h"

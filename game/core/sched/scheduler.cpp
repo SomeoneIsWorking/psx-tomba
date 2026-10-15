@@ -1,10 +1,10 @@
-// tomba_scheduler.cpp — the per-frame slot pass, the native stage stanzas and the task primitives.
-#include "sched/tomba_scheduler.h"
+// scheduler.cpp — the per-frame slot pass, the native stage stanzas and the task primitives.
+#include "sched/scheduler.h"
 
-#include "cd/tomba_cd.h"
+#include "cd/engine_cd.h"
 #include "core.h"
 #include "coro.h"
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "game.h"
 #include "guest_call.h"
 #include "sched/task_slot_layout.h"
@@ -31,31 +31,31 @@ void callGuest(Core &core, std::uint32_t address, const char *owner) {
 
 } // namespace
 
-TombaScheduler::TombaScheduler(Game &game, TombaCd &cd) : game_(game), core_(game.core), cd_(cd) {}
+Scheduler::Scheduler(Game &game, EngineCd &cd) : game_(game), core_(game.core), cd_(cd) {}
 
-TombaScheduler::~TombaScheduler() = default;
+Scheduler::~Scheduler() = default;
 
-TombaScheduler &taskScheduler(Core &core) {
-  return tombaSession(&core).scheduler;
+Scheduler &taskScheduler(Core &core) {
+  return sessionOf(&core).scheduler;
 }
 
-bool TombaScheduler::isNativeEntry(std::uint32_t entry) {
+bool Scheduler::isNativeEntry(std::uint32_t entry) {
   return entry == kStageDemoEntry || entry == kStageGameEntry || entry == kStageStartEntry ||
          entry == kSopAreaLoadEntry;
 }
 
-bool TombaScheduler::fresh(int slot, std::uint32_t state) const {
+bool Scheduler::fresh(int slot, std::uint32_t state) const {
   return state == static_cast<std::uint32_t>(TaskState::Restart) ||
          (state == static_cast<std::uint32_t>(TaskState::Runnable) && !taskStarted_[slot]);
 }
 
-void TombaScheduler::startFresh(int slot, std::uint32_t base, const R3000 &loop) {
+void Scheduler::startFresh(int slot, std::uint32_t base, const R3000 &loop) {
   taskCtx_[slot] = loop;
   taskCtx_[slot].r[29] = core_.mem_r32(base + kTaskStack);
   taskCtx_[slot].r[31] = kFreshTaskReturn;
 }
 
-void TombaScheduler::enterTask(const EnterTaskArgs &args) {
+void Scheduler::enterTask(const EnterTaskArgs &args) {
   auto [slot, base] = args;
   core_.mem_w16(base + kTaskState, static_cast<std::uint16_t>(TaskState::Running));
   core_.mem_w32(kCurrentTaskPointer, base);
@@ -63,13 +63,13 @@ void TombaScheduler::enterTask(const EnterTaskArgs &args) {
   static_cast<R3000 &>(core_) = taskCtx_[slot];
 }
 
-void TombaScheduler::dropCoroutine(int slot) {
+void Scheduler::dropCoroutine(int slot) {
   coro_[slot].reset(); // ~Coro cancels a parked fiber
 }
 
 // FUN_80080880. FUN_80051F80 (yield), FUN_80051FB4 (end) and FUN_80052078 (stage swap) set the
 // task state and then call it.
-void TombaScheduler::yield(Core &core) {
+void Scheduler::yield(Core &core) {
   if (!inStage_) {
     core.r[2] = core.r[4];
     return;
@@ -94,7 +94,7 @@ void TombaScheduler::yield(Core &core) {
 }
 
 // FUN_80051F80. Frame: sp-=24, ra at +16.
-void TombaScheduler::yieldPrim(std::uint16_t mode) {
+void Scheduler::yieldPrim(std::uint16_t mode) {
   Core &c = core_;
   c.r[29] -= 24;
   const std::uint32_t task = c.mem_r32(kCurrentTaskPointer);
@@ -111,7 +111,7 @@ void TombaScheduler::yieldPrim(std::uint16_t mode) {
 }
 
 // FUN_80051F14. Frame: sp-=24, s0 at +16, ra at +20.
-void TombaScheduler::spawnPrim(const SpawnPrimArgs &args) {
+void Scheduler::spawnPrim(const SpawnPrimArgs &args) {
   auto [slot, entry] = args;
   Core &c = core_;
   c.r[29] -= 24;
@@ -125,22 +125,22 @@ void TombaScheduler::spawnPrim(const SpawnPrimArgs &args) {
   c.mem_w16(base + kTaskState, static_cast<std::uint16_t>(TaskState::Runnable));
   c.r[31] = 0x80051F54u;
   c.mem_w8(base + kTaskSwitchFlag, 0);
-  callGuest(c, kEnterCriticalSection, "TombaScheduler::spawnPrim");
+  callGuest(c, kEnterCriticalSection, "Scheduler::spawnPrim");
   c.r[4] = c.mem_r32(base + kTaskEntry);
   c.r[5] = c.mem_r32(base + kTaskStack);
   c.r[6] = c.mem_r32(base + kTaskGp);
   c.r[31] = 0x80051F68u;
-  callGuest(c, kOpenThread, "TombaScheduler::spawnPrim");
+  callGuest(c, kOpenThread, "Scheduler::spawnPrim");
   c.r[31] = 0x80051F70u;
   c.mem_w32(base + kTaskHandle, c.r[2]);
-  callGuest(c, kExitCriticalSection, "TombaScheduler::spawnPrim");
+  callGuest(c, kExitCriticalSection, "Scheduler::spawnPrim");
   c.r[31] = c.mem_r32(c.r[29] + 20);
   c.r[16] = c.mem_r32(c.r[29] + 16);
   c.r[29] += 24;
 }
 
 // FUN_80052010. Frame: sp-=24, s0 at +16, ra at +20, spilled even on the closed early-out.
-void TombaScheduler::forceClose(std::uint32_t slot) {
+void Scheduler::forceClose(std::uint32_t slot) {
   Core &c = core_;
   c.r[29] -= 24;
   const std::uint32_t base = taskSlotBase(static_cast<int>(slot));
@@ -152,12 +152,12 @@ void TombaScheduler::forceClose(std::uint32_t slot) {
     c.mem_w8(base + kTaskRunFlag, 0);
     c.r[31] = 0x80052054u;
     c.mem_w8(base + kTaskSwitchFlag, 0);
-    callGuest(c, kEnterCriticalSection, "TombaScheduler::forceClose");
+    callGuest(c, kEnterCriticalSection, "Scheduler::forceClose");
     c.r[4] = c.mem_r32(base + kTaskHandle);
     c.r[31] = 0x80052060u;
-    callGuest(c, kCloseThread, "TombaScheduler::forceClose");
+    callGuest(c, kCloseThread, "Scheduler::forceClose");
     c.r[31] = 0x80052068u;
-    callGuest(c, kExitCriticalSection, "TombaScheduler::forceClose");
+    callGuest(c, kExitCriticalSection, "Scheduler::forceClose");
   }
   c.r[31] = c.mem_r32(c.r[29] + 20);
   c.r[16] = c.mem_r32(c.r[29] + 16);
@@ -165,7 +165,7 @@ void TombaScheduler::forceClose(std::uint32_t slot) {
 }
 
 // FUN_80051FB4. Frame: sp-=24, s0 at +16, ra at +20; does not return on a task.
-void TombaScheduler::selfClose() {
+void Scheduler::selfClose() {
   Core &c = core_;
   c.r[29] -= 24;
   c.mem_w32(c.r[29] + 16, c.r[16]);
@@ -176,12 +176,12 @@ void TombaScheduler::selfClose() {
   c.mem_w16(task + kTaskState, static_cast<std::uint16_t>(TaskState::Ended));
   c.r[31] = 0x80051FDCu;
   c.mem_w8(task + kTaskSwitchFlag, 0);
-  callGuest(c, kEnterCriticalSection, "TombaScheduler::selfClose");
+  callGuest(c, kEnterCriticalSection, "Scheduler::selfClose");
   c.r[4] = c.mem_r32(task + kTaskHandle);
   c.r[31] = 0x80051FF0u;
-  callGuest(c, kCloseThread, "TombaScheduler::selfClose");
+  callGuest(c, kCloseThread, "Scheduler::selfClose");
   c.r[31] = 0x80051FF8u;
-  callGuest(c, kExitCriticalSection, "TombaScheduler::selfClose");
+  callGuest(c, kExitCriticalSection, "Scheduler::selfClose");
   c.r[4] = kBiosThreadHandle;
   c.r[31] = 0x80052000u;
   yield(c);
@@ -190,7 +190,7 @@ void TombaScheduler::selfClose() {
   c.r[29] += 24;
 }
 
-void TombaScheduler::spawn(const SpawnArgs &args) {
+void Scheduler::spawn(const SpawnArgs &args) {
   auto [slot, entry] = args;
   const std::uint32_t base = taskSlotBase(slot);
   core_.mem_w32(base + kTaskEntry, entry);
@@ -201,8 +201,7 @@ void TombaScheduler::spawn(const SpawnArgs &args) {
 }
 
 // DEMO: fresh runs stageMain then frame(); resume runs frame(). An entry rewrite drops ownership.
-TombaScheduler::Stanza
-TombaScheduler::runDemoStanza(int slot, std::uint32_t base, std::uint32_t state, const R3000 &loop) {
+Scheduler::Stanza Scheduler::runDemoStanza(int slot, std::uint32_t base, std::uint32_t state, const R3000 &loop) {
   const bool demoFresh = fresh(slot, state) && core_.mem_r32(base + kTaskEntry) == kStageDemoEntry;
   if (!demoFresh &&
       !(demoNative_[slot] && state == static_cast<std::uint32_t>(TaskState::Runnable) && taskStarted_[slot])) {
@@ -237,8 +236,8 @@ TombaScheduler::runDemoStanza(int slot, std::uint32_t base, std::uint32_t state,
 }
 
 // SOP area-load: fresh only; every leaf is a synchronous CD read, so it ends in one call.
-TombaScheduler::Stanza
-TombaScheduler::runSopAreaLoadStanza(int slot, std::uint32_t base, std::uint32_t state, const R3000 &loop) {
+Scheduler::Stanza
+Scheduler::runSopAreaLoadStanza(int slot, std::uint32_t base, std::uint32_t state, const R3000 &loop) {
   if (!fresh(slot, state) || core_.mem_r32(base + kTaskEntry) != kSopAreaLoadEntry) {
     return Stanza::NotMine;
   }
@@ -258,8 +257,7 @@ TombaScheduler::runSopAreaLoadStanza(int slot, std::uint32_t base, std::uint32_t
 
 // GAME: fresh runs stagePrologue + frame(); resume runs frame(). frame() returning 0 hands the task to
 // the guest loop top, which the dispatch stanza re-enters each frame.
-TombaScheduler::Stanza
-TombaScheduler::runGameStanza(int slot, std::uint32_t base, std::uint32_t state, const R3000 &loop) {
+Scheduler::Stanza Scheduler::runGameStanza(int slot, std::uint32_t base, std::uint32_t state, const R3000 &loop) {
   const bool gameFresh = fresh(slot, state) && core_.mem_r32(base + kTaskEntry) == kStageGameEntry;
   if (!gameFresh &&
       !(gameNative_[slot] && state == static_cast<std::uint32_t>(TaskState::Runnable) && taskStarted_[slot])) {
@@ -306,7 +304,7 @@ TombaScheduler::runGameStanza(int slot, std::uint32_t base, std::uint32_t state,
   return Stanza::Handled;
 }
 
-void TombaScheduler::stepSlot(int slot, const R3000 &loop) {
+void Scheduler::stepSlot(int slot, const R3000 &loop) {
   const std::uint32_t base = taskSlotBase(slot);
   // Slot 2 is the XA voice task; while the native clip player owns it, its state mirrors the clip.
   if (slot == 2 && cd_.holdsVoiceSlot()) {
@@ -340,7 +338,7 @@ void TombaScheduler::stepSlot(int slot, const R3000 &loop) {
   runDispatchStanza(slot, base, state, loop);
 }
 
-void TombaScheduler::step() {
+void Scheduler::step() {
   const R3000 loop = core_; // registers only; RAM is shared
   for (int slot = 0; slot < kTaskSlotCount; ++slot) {
     stepSlot(slot, loop);
@@ -349,7 +347,7 @@ void TombaScheduler::step() {
 }
 
 // FUN_800506D0: a leaf over the three slots; a sleeping slot's countdown reaching zero re-arms it.
-void TombaScheduler::tickSleepCountdown() {
+void Scheduler::tickSleepCountdown() {
   for (int slot = 0; slot < kTaskSlotCount; ++slot) {
     const std::uint32_t base = taskSlotBase(slot);
     if (core_.mem_r16(base + kTaskState) != static_cast<std::uint16_t>(TaskState::Yielded)) {

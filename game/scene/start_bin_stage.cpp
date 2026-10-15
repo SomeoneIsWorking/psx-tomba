@@ -6,8 +6,8 @@
 #include "core/assets/asset.h"
 #include "game.h"
 #include "guest_call.h"
+#include "sched/scheduler.h"
 #include "sched/task_slot_layout.h"
-#include "sched/tomba_scheduler.h"
 #include <lucent/log.h>
 
 namespace tomba {

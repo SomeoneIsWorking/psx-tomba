@@ -48,7 +48,7 @@ input, and passes representative gameplay.
 ## Preserved execution facts
 
 Tomba! 2's `game/core/frame/frame_driver.*` is the sole per-frame transaction owner.
-`TombaRuntime::bootInit` is finite. One `TombaFrameDriver::stepFrame` composes title-aware input,
+`tomba::Runtime::bootInit` is finite. One `tomba::FrameDriver::stepFrame` composes title-aware input,
 timing/event delivery, game tasks, native rendering, diagnostics, and exactly one presentation fence.
 Guest VSync at `0x80085900` is fatal; a successful guest wait/query or timeout is never pacing.
 

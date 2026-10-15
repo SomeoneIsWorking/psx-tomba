@@ -24,7 +24,7 @@ gameplay through Lightrec.
 
 - Tomba! 1 source lives below `titles/tomba1/game/` and must not compile or include root `game/`.
 - The title builds as the `tomba1_runtime` library, linked into the one `tomba2_port` product, whose
-  `TombaCatalog` is the only code that names both titles. `game/core/entry/` holds the identity and
+  `tomba::Catalog` is the only code that names both titles. `game/core/entry/` holds the identity and
   the `GameRuntime`; runtime behavior belongs in `game/core/`; widescreen projection and layout belong
   in `game/render/`.
 - Disc images and extracted executables remain untracked. The host extracts `SCUS_942.36` from the

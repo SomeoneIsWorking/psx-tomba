@@ -15,7 +15,7 @@ framework_owner: psxport — `runtime/psx/cd/stock_libcd.cpp` (`StockLibcd`) and
 The framework now owns streamed-module residency (`psx::code_module::publishStockReadLanding`, which
 publishes the identity and invalidates). The title's part is choosing which landing is code: the
 load-list walker `0x80021D70` places type-`0xF0` entries at `0x800E7388` and type-`0xF8` data at
-`0x80097FA8`, so `Tomba1Runtime::stockCdReadLanded` publishes only `0x800E7388`.
+`0x80097FA8`, so `tomba1::Runtime::stockCdReadLanded` publishes only `0x800E7388`.
 
 Five further boundaries stood between that fault and a running movie, each fixed at its owner:
 

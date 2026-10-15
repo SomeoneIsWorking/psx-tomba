@@ -1,4 +1,4 @@
-# cmake/tomba2_port.cmake — compose the native Tomba! 2 owners around psxport's Lightrec runtime.
+# cmake/port.cmake — compose the native Tomba! 2 owners around psxport's Lightrec runtime.
 
 option(PSXPORT_BUILD_PORT "Build the Tomba!2 native port binary (tomba2_port)" ON)
 
@@ -20,12 +20,12 @@ endif()
 
 # ---- game source list (game/* only — the framework moved to cmake/psxport.cmake) --------------
 set(GAME_SRC
-  game/game_tomba2.cpp
+  game/resident_natives.cpp
   game/cd/libcd_dir_cache.cpp
   game/cd/libcd_native.cpp
   game/cd/engine_cd_loader.cpp
-  game/cd/tomba_cd.cpp
-  game/cd/tomba_cd_state.cpp
+  game/cd/engine_cd.cpp
+  game/cd/engine_cd_state.cpp
   game/core/assets/asset.cpp
   game/core/debug/auto_drive.cpp
   game/core/debug/dev_args.cpp
@@ -40,15 +40,15 @@ set(GAME_SRC
   game/core/frame/frame_driver.cpp
   game/core/hle/libapi_intr.cpp
   game/core/overrides/native_override_catalog.cpp
-  game/core/entry/tomba_session.cpp
-  game/core/entry/tomba_settings.cpp
-  game/core/sched/tomba_scheduler.cpp
+  game/core/entry/session.cpp
+  game/core/entry/settings.cpp
+  game/core/sched/scheduler.cpp
   game/core/sched/guest_task_stanzas.cpp
   game/core/sched/synchronous_task_wait.cpp
-  game/core/entry/tomba_runtime.cpp
+  game/core/entry/runtime.cpp
   game/core/entry/main_handoff.cpp
-  game/core/entry/tomba_catalog.cpp
-  game/core/entry/tomba_identity.cpp
+  game/core/entry/catalog.cpp
+  game/core/entry/identity.cpp
   game/core/debug/dev_areas.cpp
   game/core/debug/repl_commands.cpp
   game/core/overrides/register_overrides.cpp
@@ -68,7 +68,7 @@ set(GAME_SRC
   game/scene/script_interp_entry.cpp
   game/scene/script_opcode.cpp
   game/audio/sfx.cpp
-  game/audio/tomba_audio.cpp
+  game/audio/audio.cpp
   game/audio/audio_dispatch.cpp
   game/audio/sequencer.cpp
   game/audio/sequencer_channel_flags.cpp
@@ -264,12 +264,12 @@ add_library(tomba2_game OBJECT ${GAME_SRC})
 target_link_libraries(tomba2_game PUBLIC psxport tomba1_runtime)
 add_dependencies(tomba2_game gen_gpu_shaders)
 
-# Entry is the framework main over TombaCatalog, which holds Tomba! 1 and Tomba! 2.
-psxport_add_product(tomba2_port CATALOG tomba::createCatalog HEADER entry/tomba_catalog.h
+# Entry is the framework main over tomba::Catalog, which holds Tomba! 1 and Tomba! 2.
+psxport_add_product(tomba2_port CATALOG tomba::createCatalog HEADER entry/catalog.h
   SOURCES $<TARGET_OBJECTS:tomba2_game> LIBRARIES tomba1_runtime)
 
 # The catalog identity: the boot stub and MAIN.EXE facts live in one manifest and reach the code only here.
-file(READ "${CMAKE_SOURCE_DIR}/config/tomba2-images.json" TOMBA2_IMAGES_JSON)
+file(READ "${CMAKE_SOURCE_DIR}/config/images.json" TOMBA2_IMAGES_JSON)
 string(JSON TOMBA2_TITLE_LABEL GET "${TOMBA2_IMAGES_JSON}" title)
 string(JSON TOMBA2_BOOT_NAME GET "${TOMBA2_IMAGES_JSON}" boot)
 set(TOMBA2_IDENTITY_DEFINITIONS

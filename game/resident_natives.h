@@ -7,6 +7,6 @@ class NativeOverrideCatalog;
 
 namespace tomba {
 
-void games_tomba2_init(native::NativeOverrideCatalog &natives);
+void installResidentNatives(native::NativeOverrideCatalog &natives);
 
 } // namespace tomba

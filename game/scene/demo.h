@@ -32,14 +32,14 @@ public:
   Core *core = nullptr;
 
   // Wire s3SubMachine (0x80106AC4) into the override registry
-  // (tomba::native::declareOverride) — called from TombaRuntime::registerOverrides through
+  // (tomba::native::declareOverride) — called from Runtime::registerOverrides through
   // register_engine_overrides(). §9-verified 2026-07-10 (docs/
   // fleet-workflow.md §9): re-checked instruction-by-instruction against
   // authenticated executable/overlay evidence; only defect found was the missing
   // guest-stack-frame mirror (now fixed in demo.cpp).
   static void registerOverrides(native::NativeOverrideCatalog &natives);
 
-  // Called by TombaScheduler's DEMO stanza.
+  // Called by Scheduler's DEMO stanza.
   void stageMain(); // one-time prologue + s0 (formerly ov_demo_stage_main)
   void frame();     // one per-frame substate dispatch + tail (formerly ov_demo_frame)
 

@@ -9,7 +9,7 @@
 // WIRED (2026-07-10 verify pass, docs/fleet-workflow.md §9): PutDrawEnv + the 4 leaf builders are
 // re-diffed line-by-line against authenticated executable/overlay evidence (one bug found+fixed, see BUG FIX comment
 // inside nativePutDrawEnv) and installed via gpu_putdrawenv_install() -> tomba::native::declareOverride
-// (game_tomba2.cpp). guest 0x80081FB0 stays MAPPED-not-drafted/substrate as documented below; PutDrawEnv
+// (resident_natives.cpp). guest 0x80081FB0 stays MAPPED-not-drafted/substrate as documented below; PutDrawEnv
 // reaches it via typed runtime address dispatch, which is correct with or without a future draft of it.
 //
 // ------------------------------------------------------------------------------------------------

@@ -7,9 +7,9 @@ class Core;
 
 namespace tomba {
 
-class TombaDevWarp final : public psx::game::TitleDevWarp {
+class DevAreas final : public psx::game::TitleDevWarp {
 public:
-  explicit TombaDevWarp(Core &core) : core_(core) {}
+  explicit DevAreas(Core &core) : core_(core) {}
 
   int areaCount() const override;
   // "" for an area with no sourced name; the selector shows "Area N".

@@ -8,24 +8,24 @@ function owners in `docs/guest-addresses.md`, producers in `docs/producers.md`, 
 
 | owner | path | owns |
 |---|---|---|
-| `TombaCatalog`, `createCatalog` | `game/core/entry/tomba_catalog.h` | The product catalog: index 0 Tomba! 1, index 1 Tomba! 2, one picker panel each; the only place both title trees are named |
-| `bootStubIdentity`, `mainExecutableIdentity` | `game/core/entry/tomba_identity.h` | SCUS_944.54 and MAIN.EXE size, SHA-256, PS-X EXE header and disc paths, from `config/tomba2-images.json` |
+| `tomba::Catalog`, `createCatalog` | `game/core/entry/catalog.h` | The product catalog: index 0 Tomba! 1, index 1 Tomba! 2, one picker panel each; the only place both title trees are named |
+| `bootStubIdentity`, `mainExecutableIdentity` | `game/core/entry/identity.h` | SCUS_944.54 and MAIN.EXE size, SHA-256, PS-X EXE header and disc paths, from `config/images.json` |
 | `loadMainExecutable` | `game/core/entry/main_handoff.h` | The stub-to-MAIN.EXE handoff: read from the disc, authenticate, load, set the entry registers |
-| `TombaRuntime` | `game/core/entry/tomba_runtime.h` | The `GameRuntime`: CRT0 and `bootInit`, stock library bindings and overrides, session, frame driver, scheduler, pad delivery, packet pool, producers, frame cuts, widescreen, commands, audio, dev warp, world readout |
-| `TombaSession` | `game/core/entry/tomba_session.h` | Per-Game title state: `Engine`, render, CD and its save-state port, scheduler, audio, dev warp, override catalog, state producers, call sites; the `eng()`/`rend()`/`fade()` accessors |
-| `TombaSettings` | `game/core/entry/tomba_settings.h` | `PSXPORT_NO_FMV`, `PSXPORT_AUTO_SKIP`, read once from the CVar registry |
+| `tomba::Runtime` | `game/core/entry/runtime.h` | The `GameRuntime`: CRT0 and `bootInit`, stock library bindings and overrides, session, frame driver, scheduler, pad delivery, packet pool, producers, frame cuts, widescreen, commands, audio, dev warp, world readout |
+| `tomba::Session` | `game/core/entry/session.h` | Per-Game title state: `Engine`, render, CD and its save-state port, scheduler, audio, dev warp, override catalog, state producers, call sites; the `eng()`/`rend()`/`fade()` accessors |
+| `tomba::Settings` | `game/core/entry/settings.h` | `PSXPORT_NO_FMV`, `PSXPORT_AUTO_SKIP`, read once from the CVar registry |
 | `Engine`, `StepReturn` | `game/core/engine/` | The stage driver: field run, frame ticks, task machine, object leaves, state dispatch, scene frame |
-| `TombaFrameDriver` | `game/core/frame/frame_driver.h` | One pass of the retail main loop FUN_80050B08 per frame and exactly one presentation fence (`docs/re/frame-loop.md`) |
+| `tomba::FrameDriver` | `game/core/frame/frame_driver.h` | One pass of the retail main loop FUN_80050B08 per frame and exactly one presentation fence (`docs/re/frame-loop.md`) |
 | `BootCards` | `game/core/frame/boot_cards.h` | The SCEA card and LOGO movie before the first game frame, one step per `stepFrame` |
 | `FrameCadence` | `game/core/frame/frame_cadence.h` | The frame-rate decision, published into the guest's quota byte |
 | `FrameCut` | `game/core/frame/frame_cut.h` | Whether a sealed record is a cut (stage, area, sub-scene, SOP shot, camera re-place) |
 | `FrameDiagnostics` | `game/core/frame/frame_diagnostics.h` | Per-frame title probes reported after the frame |
-| `TombaScheduler` | `game/core/sched/` | The guest task machine FUN_80051E60: three-slot table, yield/spawn/close, stage stanzas, synchronous task wait |
+| `tomba::sched::Scheduler` | `game/core/sched/` | The guest task machine FUN_80051E60: three-slot table, yield/spawn/close, stage stanzas, synchronous task wait |
 | `NativeOverrideCatalog`, `registerOverrides` | `game/core/overrides/` | Every native-override declaration, keyed by image identity and address; the guest call conventions (`guest_jal.h`, `guest_resume.h`) |
-| `games_tomba2_init`, `Engine::frameUpdate`, `Engine::drawOTag` | `game/game_tomba2.h` | Natives outside any subsystem's registration; the per-VBlank update and the OT draw |
-| guest structure types | `game/tomba2_types.h` | Native mirrors of the engine's in-RAM structures |
+| `installResidentNatives`, `Engine::frameUpdate`, `Engine::drawOTag` | `game/resident_natives.h` | Natives outside any subsystem's registration; the per-VBlank update and the OT draw |
+| guest structure types | `game/engine_types.h` | Native mirrors of the engine's in-RAM structures |
 | `DevControl`, `DevWarp`, `DevItems`, `DevFlags`, `DevGate` | `game/core/debug/dev_*` | `warp`, `items`, `flag`: parsed between frames, applied by the frame driver at a frame boundary |
-| `TombaDevWarp` | `game/core/debug/dev_areas.h` | The picker's warp list (`TitleDevWarp`) |
+| `tomba::DevAreas` | `game/core/debug/dev_areas.h` | The picker's warp list (`TitleDevWarp`) |
 | `replCommand` | `game/core/debug/repl_commands.h` | The remaining title control-channel commands |
 | `AutoDrive` | `game/core/debug/auto_drive.h` | `PSXPORT_AUTO_SKIP`: the front end driven into GAME free-roam at frame boundaries |
 | `VerificationCounters` | `game/core/debug/verification_counters.h` | Title verification tallies on the diagnostics channel |
@@ -45,12 +45,12 @@ function owners in `docs/guest-addresses.md`, producers in `docs/producers.md`, 
 | `Sequencer` | `game/audio/sequencer*.cpp` | libsnd's per-VBlank sequencer and its channel leaves |
 | `Sfx`, `AudioDispatch`, `MusicCoord`, `MusicList` | `game/audio/` | Sound effects, field audio dispatch, music coordination, Sound Test and area BGM |
 | `NativeMusic` | `game/audio/native_music.h`, `game/audio/native_audio.h` | The real-time SEP/VAB music player mixed into the SPU sink |
-| `TombaAudio` | `game/audio/tomba_audio.h` | The `TitleAudio`: mixes `NativeMusic`, names the song, plays a Sound Test entry |
+| `tomba::Audio` | `game/audio/audio.h` | The `TitleAudio`: mixes `NativeMusic`, names the song, plays a Sound Test entry |
 | `CutsceneCamera`, `LookAngleBuilder` | `game/camera/` | The cutscene/free camera, its look builder, mode table and guest math |
 | `LibcdDirCache`, `LibcdNative` | `game/cd/libcd_dir_cache.h`, `game/cd/libcd_native.h` | libcd's guest directory cache from host ISO9660 sectors; the file-table build |
 | `EngineCdLoader` | `game/cd/engine_cd_loader.h` | The engine's disc loaders FUN_8008C1EC, FUN_8001DB8C, FUN_8001D940, FUN_8001DC40 |
-| `TombaCd` | `game/cd/tomba_cd.h` | The CD chokepoint overrides: streaming CdControl FUN_8001CE90, voice play/stop, deferred area music, slot-2 voice clips, CdInit callbacks |
-| `TombaCdState` | `game/cd/tomba_cd_state.h` | The `nativeState` port: deferred area music in the machine save state (section `tomba2.cd`) |
+| `tomba::EngineCd` | `game/cd/engine_cd.h` | The CD chokepoint overrides: streaming CdControl FUN_8001CE90, voice play/stop, deferred area music, slot-2 voice clips, CdInit callbacks |
+| `tomba::EngineCdState` | `game/cd/engine_cd_state.h` | The `nativeState` port: deferred area music in the machine save state (section `tomba2.cd`) |
 | `Inventory`, `ItemGrant` | `game/items/` | Item collection and the give-and-flag the debug `items` command uses |
 | `Math`, `Mtx`, `Trig`, `Rng`, `Bit` | `game/math/` | The GTE transform cluster, libgte matrix and trig leaves, the LFSR, flag bits |
 | `Font`, `Panel`, `UiSprite`, `OptionsPage`, `SaveMenu`, `DialogTextStream` | `game/ui/` | Guest-time UI ports: glyphs, panels, 2D sprite writers, options, save menu, dialog stream |
@@ -67,20 +67,20 @@ function owners in `docs/guest-addresses.md`, producers in `docs/producers.md`, 
 | widescreen | `game/render/wide_window.h`, `game/render/margin_render.h`, `game/render/widescreen_margin_quad.h`, `game/render/wide_re_*.cpp` | The draw window and margin width, margin re-include, margin quads, retained-width libgpu leaves |
 | packet emitters | `game/render/fx_sprite_*`, `game/render/tile_grid_layer.h`, `game/render/sop_ground.h`, `game/render/rain_streaks.h`, `game/render/*walk*`, `game/render/perobj_*` | One port per remaining guest draw family |
 | Tomba! 1 | `titles/tomba1/` | The second title, isolated from `game/`; `titles/tomba1/docs/codemap.md` |
-| build | `CMakeLists.txt`, `cmake/tomba2_port.cmake`, `titles/tomba1/cmake/` | `tomba2_port` (both titles), `tomba2_game`, `tomba1_runtime`, the tests and policy gate |
+| build | `CMakeLists.txt`, `cmake/port.cmake`, `titles/tomba1/cmake/` | `tomba2_port` (both titles), `tomba2_game`, `tomba1_runtime`, the tests and policy gate |
 | tests | `tests/` | Unit tests through shipping seams; `test_authentic_*` compare natives against MAIN.EXE and overlays |
-| launcher, provisioning | `tools/run.py`, `tools/tomba2_provision.py`, `tools/psxport_fetch.py` | The zero-argument launch, evidence images, the `external/psxport` link |
-| agent tools | `tools/gate.py`, `tools/verify_ci.py`, `tools/oracle_compare.py`, `tools/oracle_tomba2.py`, `tools/picture_oracle.py`, `tools/title_prompts.py` | Headless gate, CI verify, oracle comparison, picture checks, title prompts |
+| launcher, provisioning | `tools/run.py`, `tools/provision.py`, `tools/psxport_fetch.py` | The zero-argument launch, evidence images, the `external/psxport` link |
+| agent tools | `tools/gate.py`, `tools/verify_ci.py`, `tools/oracle_compare.py`, `tools/oracle_title.py`, `tools/picture_oracle.py`, `tools/title_prompts.py` | Headless gate, CI verify, oracle comparison, picture checks, title prompts |
 
 ## Where new work goes
 
 - A Tomba! 2 guest function replaced natively → the `game/` subsystem that owns it, declared through
   `NativeOverrideCatalog`, with its row in `docs/guest-addresses.md`.
-- A producer or state render → `game/render/` or `game/ui/`, registered in `TombaRuntime::registerOverrides`
+- A producer or state render → `game/render/` or `game/ui/`, registered in `tomba::Runtime::registerOverrides`
   and listed in `docs/producers.md`.
 - Per-frame order, input, timing or the presentation fence → `game/core/frame/frame_driver.cpp`.
 - Guest task scheduling → `game/core/sched/`.
 - A developer command → `game/core/debug/`, applied at a frame boundary.
-- Per-Game title state → `TombaSession`.
+- Per-Game title state → `tomba::Session`.
 - Anything Tomba! 1 → `titles/tomba1/`, never a Tomba! 2 owner.
 - Anything every title shares → psxport, not here.

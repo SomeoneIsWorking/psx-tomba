@@ -8,7 +8,7 @@
 #include "camera/camera_look_builder.h"
 #include "camera/camera_mode.h"
 #include "core/overrides/native_override_catalog.h"
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "game.h"      // c->game->verify — the shared A/B verify scaffold (camverify)
 #include "guest_abi.h" // GuestFrame — the guest stack frame contract, spelled once
 #include "guest_call.h"
@@ -987,8 +987,8 @@ void CutsceneCamera::init() { // FUN_8006EA7C (first-frame field reset + render-
 // evidence, shard_4.c and shard_6.c also call directly (MAIN calling its own resident code — the recorded guest call
 // graph contains that as a plain C call, bypassing typed runtime address dispatch entirely and consulting the recorded
 // binary evidence's OWN image-qualified runtime dispatcher table instead). So pushMode needs the dual-wire
-// (tomba::native::declareOverride setter passed to install(), same pattern as TombaScheduler's primitives in
-// game/core/sched/tomba_scheduler.cpp); the other 4 only need the typed runtime address dispatch-only registration
+// (tomba::native::declareOverride setter passed to install(), same pattern as Scheduler's primitives in
+// game/core/sched/scheduler.cpp); the other 4 only need the typed runtime address dispatch-only registration
 // (setter omitted).
 
 static void eov_resetFollowAccum(Core *c) {

@@ -12,9 +12,9 @@
 // entity walker called by `ov_field_frame_x` (the sm[0x4a]==5 mid-transition frame variant).
 // Walks the two entity lists (heads T2_OBJLIST_HEAD_1 then T2_OBJLIST_HEAD_2, re-read after
 // list 1 in case a handler mutated it), clears each node's per-frame render flag, and — gated
-// on `node[0x28] & 0x80` — dispatches each object's handler via dispatch_obj_method (native beh
-// if owned, substrate otherwise). Owning this here routes every mid-transition beh dispatch
-// through dispatch_native_behavior, so the sub-scene swap state machine
+// on `node[0x28] & 0x80` — dispatches each object's handler via BehaviorDispatch::dispatchObj (native
+// beh if owned, substrate otherwise). Owning this here routes every mid-transition beh dispatch
+// through BehaviorDispatch::dispatchNative, so the sub-scene swap state machine
 // (`SceneTransition::stepSwapWaiter`) runs under native code during the transition.
 #pragma once
 #include <cstdint>

@@ -9,7 +9,7 @@
 #include "core.h"
 #include "core/engine/engine.h"
 #include "core/overrides/native_override_catalog.h"
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "guest_call.h"
 #include <lucent/log.h>
 #include <stdio.h>
@@ -263,7 +263,7 @@ void Collision::listScan(uint32_t obj) {
                                    psx::cpu::ExecutionBudget::currentTurn(*c),
                                    __func__); // memory untouched above -> oracle writes
     uint32_t r52 = c->mem_r32(a0 + 52), r56 = c->mem_r32(a0 + 56);
-    tomba::VerificationCounter &chk = tombaSession(c).verification.listScan;
+    tomba::VerificationCounter &chk = sessionOf(c).verification.listScan;
     long &ng = chk.nMatch, &nb = chk.nMismatch;
     if (r52 != n52 || r56 != n56) {
       if (nb++ < 20) {
@@ -299,7 +299,7 @@ void Collision::gridSetup(uint32_t layer) {
   uint32_t dc = rec + (uint32_t)c->mem_r16(rec + 18) * 2;
   if (verify) {
     psx::cpu::callOriginalToReturn(*c, 0x80049968u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
-    tomba::VerificationCounter &chk = tombaSession(c).verification.gridSetup;
+    tomba::VerificationCounter &chk = sessionOf(c).verification.gridSetup;
     long &ng = chk.nMatch, &nb = chk.nMismatch;
     uint32_t o_cc = c->mem_r32(0x1F8001CCu), o_d0 = c->mem_r32(0x1F8001D0u), o_d4 = c->mem_r32(0x1F8001D4u),
              o_d8 = c->mem_r32(0x1F8001D8u), o_dc = c->mem_r32(0x1F8001DCu);
@@ -504,7 +504,7 @@ int Collision::gridQuery() {
       break;
     }
   }
-  tomba::VerificationCounter &chk = tombaSession(c).verification.gridQuery;
+  tomba::VerificationCounter &chk = sessionOf(c).verification.gridQuery;
   long &ng = chk.nMatch, &nb = chk.nMismatch;
   if (firstoff >= 0 || mine != oracle) {
     if (nb++ < 30) {
@@ -567,8 +567,8 @@ int Collision::gridResolve(uint32_t obj) {
   // and rolled back, then the guest instruction path runs and we diff. The dispatched callees (incl. the deep
   // FUN_8004798C tree) run in BOTH passes; FUN_800498C8's own 32-byte stack frame [sp-32, sp) is dead
   // below sp on return (gen saves regs there; native never touches the guest stack) -> excluded.
-  uint8_t *ram0 = tombaSession(c).verification.ram0();
-  uint8_t *ramN = tombaSession(c).verification.ramN();
+  uint8_t *ram0 = sessionOf(c).verification.ram0();
+  uint8_t *ramN = sessionOf(c).verification.ramN();
   uint8_t spad0[0x400], spadN[0x400];
   uint32_t regs0[32];
   memcpy(regs0, c->r, sizeof regs0);
@@ -597,7 +597,7 @@ int Collision::gridResolve(uint32_t obj) {
       break;
     }
   }
-  tomba::VerificationCounter &chk = tombaSession(c).verification.gridResolve;
+  tomba::VerificationCounter &chk = sessionOf(c).verification.gridResolve;
   long &ng = chk.nMatch, &nb = chk.nMismatch;
   if (ro >= 0 || so >= 0 || v0_n != v0_o) {
     if (nb++ < 40) {
@@ -714,8 +714,8 @@ void Collision::gridStep(uint32_t obj) {
     grid_step_4798c(c, obj);
     return;
   }
-  uint8_t *ram0 = tombaSession(c).verification.ram0();
-  uint8_t *ramN = tombaSession(c).verification.ramN();
+  uint8_t *ram0 = sessionOf(c).verification.ram0();
+  uint8_t *ramN = sessionOf(c).verification.ramN();
   uint8_t spad0[0x400], spadN[0x400];
   uint32_t regs0[32];
   memcpy(regs0, c->r, sizeof regs0);
@@ -743,7 +743,7 @@ void Collision::gridStep(uint32_t obj) {
       break;
     }
   }
-  tomba::VerificationCounter &chk = tombaSession(c).verification.gridStep;
+  tomba::VerificationCounter &chk = sessionOf(c).verification.gridStep;
   long &ng = chk.nMatch, &nb = chk.nMismatch;
   if (ro >= 0 || so >= 0) {
     if (nb++ < 40) {

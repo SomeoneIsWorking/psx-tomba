@@ -27,7 +27,7 @@
 // RAM+scratchpad A/B vs original guest-body call).
 
 #include "core.h"
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "guest_abi.h" // GuestFrame — mirror the guest stack frame (CLAUDE.md)
 #include "guest_call.h"
 #include "object/actor.h" // Actor::boundsCull (FUN_8007778C native)

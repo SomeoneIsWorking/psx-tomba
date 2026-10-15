@@ -12,9 +12,9 @@
 
 namespace tomba1 {
 
-class Tomba1Runtime final : public psx::game::GameRuntime {
+class Runtime final : public psx::game::GameRuntime {
 public:
-  Tomba1Runtime();
+  Runtime();
 
   void startProgram(Core &core) override;
   void registerOverrides(Game &game) override;

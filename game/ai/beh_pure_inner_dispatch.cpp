@@ -16,7 +16,7 @@
 
 #include "core.h"
 #include "core/overrides/guest_jal.h"
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "guest_abi.h"
 #include "object/actor.h" // Actor::boundsCull (FUN_8007778C — thin wrapper native)
 #include "spawn.h"        // class Spawn (eng(c).spawn.despawn / dispatch / spawnAndInit)

@@ -26,7 +26,7 @@
 
 #include "core.h"
 #include "core/overrides/guest_jal.h"
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "guest_abi.h"
 #include "render/cull.h" // Cull::enqueueQueueA (FUN_80077E7C)
 #include "spawn.h"       // class Spawn (eng(c).spawn.despawn / dispatch / spawnAndInit)

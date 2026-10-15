@@ -40,10 +40,10 @@
 #include "core/assets/asset.h" // class Asset — preloadTexgroup (static, area-load sync)
 #include "core/overrides/guest_resume.h"
 #include "core/overrides/native_override_catalog.h"
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "game.h"
 #include "guest_call.h"
-#include "sched/tomba_scheduler.h"
+#include "sched/scheduler.h"
 #include "world/placement.h" // ov_place_objects (FUN_80072A78)
 #include "world/pool.h"      // ov_pool_init_run (FUN_8007B18C) + siblings
 #include <lucent/log.h>
@@ -620,7 +620,7 @@ static uint32_t demo_menu_machine(Core *c) {
   // self-contained native .STR player (native_fmv.cpp — already plays LOGO/OP at boot), then replicate
   // state 7's teardown and return nonzero so s1 advances to s2 (the front-end/title proper).
   if (s4a >= 4) {
-    if (!tombaSession(c).settings.skipMovies) {
+    if (!sessionOf(c).settings.skipMovies) {
       c->game->fmv.play("MOVIE/OP.STR");
     }
     // state 7 (0x80107280) teardown, faithful — the CdControlB(CdlPause) busy-loop becomes a native no-op
@@ -661,7 +661,7 @@ void Demo::s0PreYield() {
   {
     uint32_t tab = 0x800be118u + 2u * 8u;
     tomba::EngineCdLoader(*c).dc40Sync({.dest = 0x80108f9cu, .lba = c->mem_r32(tab), .size = c->mem_r32(tab + 4)});
-    tombaSession(c).nativeOverrides.activateModeOverlay(*c, eng(c).activeModeOverlay, 2u);
+    sessionOf(c).nativeOverrides.activateModeOverlay(*c, eng(c).activeModeOverlay, 2u);
   }
   c->mem_w8(0x801fe0deu, 2);
   c->mem_w8(0x801fe0ddu, 0);

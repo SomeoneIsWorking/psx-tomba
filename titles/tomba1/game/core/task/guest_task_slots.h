@@ -13,7 +13,7 @@ namespace tomba1 {
 
 // THE GUEST'S OWN TASK TABLE, in the addresses the title uses. These are facts about the executable,
 // so they are named here — where the scheduler that reads and writes them lives — rather than spelled
-// inside its bodies. `Tomba1Runtime` binds the three native leaves below, and the budget-resume
+// inside its bodies. `Runtime` binds the three native leaves below, and the budget-resume
 // regression test drives the same records, so all four owners read one set of addresses.
 inline constexpr std::uint32_t kTaskTableBegin = 0x801FD800u;
 inline constexpr std::uint32_t kTaskTableEnd = 0x801FD950u;

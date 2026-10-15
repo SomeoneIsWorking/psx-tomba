@@ -2,8 +2,8 @@
 
 #include "core.h"
 #include "debug/dev_control.h"
-#include "entry/tomba_runtime.h"
-#include "entry/tomba_session.h"
+#include "entry/runtime.h"
+#include "entry/session.h"
 #include "game.h"
 #include "guest_call.h"
 #include "hle/libapi_intr.h"
@@ -81,9 +81,9 @@ void finishPass(Core &core) {
 
 } // namespace
 
-TombaFrameDriver::TombaFrameDriver(Game &game) : game_(&game) {}
+FrameDriver::FrameDriver(Game &game) : game_(&game) {}
 
-void TombaFrameDriver::enterLoop(Core &core) {
+void FrameDriver::enterLoop(Core &core) {
   for (uint32_t buffer = 0; buffer < 2u; ++buffer) {
     const uint32_t base = kDisplayBufferBase + buffer * kDisplayBufferStride;
     core.otTables.name(kOtTable, base, kOtEntries, sizeof(uint32_t), psx::gpu::OtWalk::HighToLow);
@@ -95,9 +95,9 @@ void TombaFrameDriver::enterLoop(Core &core) {
   clearOrderingTable(core, env);
 }
 
-void TombaFrameDriver::stepFrame(Core &core, uint32_t frame) {
+void FrameDriver::stepFrame(Core &core, uint32_t frame) {
   if (!core.game || core.game != game_) {
-    lucent::error("tomba-frame", "TombaFrameDriver used with a different or unbound Game");
+    lucent::error("tomba-frame", "FrameDriver used with a different or unbound Game");
     std::abort();
   }
 
@@ -107,7 +107,7 @@ void TombaFrameDriver::stepFrame(Core &core, uint32_t frame) {
   }
 
   Game &game = *game_;
-  TombaSession &session = tombaSession(&core);
+  Session &session = sessionOf(&core);
 
   autoDrive_.beforeFrame(core, frame);
   game.timing.logicFrame = frame;

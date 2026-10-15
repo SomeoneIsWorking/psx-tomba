@@ -46,7 +46,7 @@
 //   - epilogue: restore r31/r19/r18/r17/r16 from their spill slots, sp += 112, return.
 #include "core.h"
 #include "core/overrides/native_override_catalog.h"
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "game.h"
 #include "guest_call.h"
 #include "render.h"

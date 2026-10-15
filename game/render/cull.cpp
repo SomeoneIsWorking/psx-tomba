@@ -2,7 +2,7 @@
 #include "cull.h"
 #include "core.h"
 #include "core/overrides/native_override_catalog.h"
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "game.h"
 #include "render.h"     // rend(c)->margin (widescreen margin collect)
 #include <lucent/log.h> // `cullpush` push-time submission census (kanban #77)

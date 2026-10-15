@@ -1,12 +1,12 @@
-// repl_commands.cpp — Tomba! 2's developer commands, reached through TombaRuntime::titleCommand.
+// repl_commands.cpp — Tomba! 2's developer commands, reached through Runtime::titleCommand.
 #include "debug/repl_commands.h"
 
 #include "audio/music_list.h" // class MusicList — `musictest`
 #include "core.h"
 #include "debug/dev_args.h"
-#include "engine/engine.h"       // game-owned entity lists + behavior registry for `ents`
-#include "entry/tomba_session.h" // inv(c) Inventory + tombaSession(c).music_list MusicList
-#include "guest_call.h" // rc0/rc1/rc3 — typed runtime address dispatch of the Tomba BGM / libsnd-seq guest leaves
+#include "engine/engine.h" // game-owned entity lists + behavior registry for `ents`
+#include "entry/session.h" // inv(c) Inventory + sessionOf(c).music_list MusicList
+#include "guest_call.h"    // rc0/rc1/rc3 — typed runtime address dispatch of the Tomba BGM / libsnd-seq guest leaves
 #include <cstdint>
 #include <lucent/log.h>
 #include <string_view>
@@ -150,7 +150,7 @@ bool replCommand(Core &core, const char *line) {
   // musictest <n> — play catalogued music track <n> through the NATIVE audio engine (sound test).
   // 'musictest stop' (or n<0) stops. Bypasses the broken libsnd path entirely (engine/audio/).
   if (cmd == "musictest") {
-    MusicList &ml = tombaSession(c).music_list; // music_list moved off Game onto the game-side TombaSession
+    MusicList &ml = sessionOf(c).music_list; // music_list moved off Game onto the game-side Session
     if (words.size() >= 2 && words[1] == "stop") {
       ml.stop();
       lucent::info("repl", "musictest stop");

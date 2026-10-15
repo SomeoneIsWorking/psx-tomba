@@ -1,4 +1,4 @@
-#include "entry/tomba_settings.h"
+#include "entry/settings.h"
 
 #include "config_var.h"
 
@@ -16,8 +16,8 @@ psx::config::BoolVar cvAutoSkip("PSXPORT_AUTO_SKIP",
 
 } // namespace
 
-TombaSettings TombaSettings::fromCVars() {
-  TombaSettings settings;
+Settings Settings::fromCVars() {
+  Settings settings;
   settings.skipMovies = cvNoFmv.get();
   settings.autoSkip = cvAutoSkip.get();
   return settings;

@@ -36,7 +36,7 @@
 
 namespace {
 
-// What the product keeps in TombaSession::stateProducers.
+// What the product keeps in Session::stateProducers.
 psx::present::StateProducerTable stateProducers;
 
 constexpr std::uint32_t kModeSlot = 0x80108F9Cu;

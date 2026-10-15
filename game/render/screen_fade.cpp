@@ -5,7 +5,7 @@
 #include "core.h"
 #include "core/overrides/guest_jal.h"
 #include "core/overrides/native_override_catalog.h"
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "gp0_primitive_decode.h"
 #include "guest_abi.h"
 #include "guest_call.h"
@@ -40,7 +40,7 @@ constexpr std::uint32_t kAdditiveTpage = 0x20u;
 // Each call is an object of its own: the fade a call site draws, n-th in its frame.
 void drawEntry(Core *core) {
   const psx::present::EmissionScope::Guard object(
-      core->emission, ScreenFade::kLeaf, tombaSession(core).callSites.object(core->r[31]), 0);
+      core->emission, ScreenFade::kLeaf, sessionOf(core).callSites.object(core->r[31]), 0);
   ScreenFade::draw(*core, tomba::wide_window::drawWindow(core));
 }
 

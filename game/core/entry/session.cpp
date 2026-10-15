@@ -1,9 +1,9 @@
-// tomba_session.cpp — wires each owner's back-pointer to the session's Core.
-#include "entry/tomba_session.h"
+// session.cpp — wires each owner's back-pointer to the session's Core.
+#include "entry/session.h"
 
 namespace tomba {
 
-TombaSession::TombaSession(Core &core)
+Session::Session(Core &core)
     : render(std::make_unique<Render>()), cd(core), scheduler(*core.game, cd), audio(native_music, music_list),
       devWarp(core) {
   Core *c = &core;

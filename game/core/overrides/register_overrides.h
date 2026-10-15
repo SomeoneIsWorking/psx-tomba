@@ -2,7 +2,7 @@
 
 class Game;
 
-// Collect title-native declarations; TombaRuntime binds them to a Core's resident image separately.
+// Collect title-native declarations; Runtime binds them to a Core's resident image separately.
 namespace tomba::native {
 class NativeOverrideCatalog;
 } // namespace tomba::native

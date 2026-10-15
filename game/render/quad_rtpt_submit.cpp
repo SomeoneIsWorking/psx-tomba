@@ -21,7 +21,7 @@
 #include "quad_rtpt_submit.h"
 #include "core.h"
 #include "core/overrides/native_override_catalog.h"
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "game.h"
 #include "guest_ordering_table.h"
 #include "horizontal_visibility_cull.h"

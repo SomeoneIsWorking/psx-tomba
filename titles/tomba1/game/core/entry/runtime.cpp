@@ -1,9 +1,10 @@
-#include "tomba1_runtime.h"
+#include "runtime.h"
 
 #include "cd_native_startup.h"
 #include "context.h"
 #include "core.h"
 #include "crt0_boot.h"
+#include "frame_driver.h"
 #include "game.h"
 #include "guest_code_module.h"
 #include "guest_task_slots.h"
@@ -11,7 +12,6 @@
 #include "native_dispatch.h"
 #include "platform_hle.h"
 #include "sync_native.h"
-#include "tomba1_frame_driver.h"
 
 #include <cstdlib>
 #include <lucent/log.h>
@@ -39,20 +39,20 @@ constexpr std::uint32_t kCodeModuleBase = 0x800E7388u;
 
 } // namespace
 
-Tomba1Runtime::Tomba1Runtime()
+Runtime::Runtime()
     : vsync_(kVSyncEntry, kVSyncQueryCounter),
       libcd_({.read = kCdRead, .readSync = kCdReadSync}, {}, kCdReadyCallbackPointer),
       libgte_({.setGeomOffset = kSetGeomOffset, .setGeomScreen = kSetGeomScreen}),
       pad_({.slot0Buffer = 0x8009EB58u, .slot1Buffer = 0x8009EB7Au}) {}
 
-void Tomba1Runtime::startProgram(Core &core) {
+void Runtime::startProgram(Core &core) {
   psx::game::Crt0Boot{kCrt0}.run(core);
   // The prefix creates the first task records, so the slots are reachable for it and no longer.
   const GuestTaskCreationScope creation(context(core).tasks);
   runNativeBootPrefix(core);
 }
 
-void Tomba1Runtime::registerOverrides(Game &game) {
+void Runtime::registerOverrides(Game &game) {
   vsync_.bind(game);
   libcd_.bind(game);
   libgte_.bind(game);
@@ -79,34 +79,34 @@ void Tomba1Runtime::registerOverrides(Game &game) {
   }
 }
 
-std::unique_ptr<psx::game::TitleSessionState> Tomba1Runtime::createSession(Game &game) {
+std::unique_ptr<psx::game::TitleSessionState> Runtime::createSession(Game &game) {
   return std::make_unique<Context>(game.core);
 }
 
-void Tomba1Runtime::deliverPad(Core &core, const psx::input::PadDelivery &delivery) {
+void Runtime::deliverPad(Core &core, const psx::input::PadDelivery &delivery) {
   pad_.deliver(core, delivery);
 }
 
-void Tomba1Runtime::stockCdReadLanded(Core &core, const psx::cd::StockReadLanding &landing) {
+void Runtime::stockCdReadLanded(Core &core, const psx::cd::StockReadLanding &landing) {
   if (landing.destination == kCodeModuleBase) {
     psx::code_module::publishStockReadLanding(core, landing);
   }
 }
 
-std::unique_ptr<psx::game::FrameDriver> Tomba1Runtime::createFrameDriver(Game &game) {
-  return std::make_unique<Tomba1FrameDriver>(game);
+std::unique_ptr<psx::game::FrameDriver> Runtime::createFrameDriver(Game &game) {
+  return std::make_unique<FrameDriver>(game);
 }
 
-RenderCapabilities Tomba1Runtime::renderCapabilities() const {
+RenderCapabilities Runtime::renderCapabilities() const {
   // The picture is the guest's GP0 output replayed from the frame record; native 60 fps, no in-betweens.
   return RenderCapabilities{.defaultPath = RenderPath::Record, .nativeRenderPath = false};
 }
 
-bool Tomba1Runtime::guestVramIsPicture(const Game &) const {
+bool Runtime::guestVramIsPicture(const Game &) const {
   return true;
 }
 
-const GuestWidescreenProjection *Tomba1Runtime::guestWidescreenProjection() const {
+const GuestWidescreenProjection *Runtime::guestWidescreenProjection() const {
   return &widescreenPolicy_;
 }
 

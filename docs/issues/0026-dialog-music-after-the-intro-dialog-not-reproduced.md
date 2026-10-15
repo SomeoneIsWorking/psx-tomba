@@ -17,7 +17,7 @@ Status: open. The warp half of the report is fixed (below); the newgame half has
 - Every area transition stops the song in `FieldTransition::main` state 4 (`FUN_80074E48`).
 
 `MusicCoord::dialogToneActive` (`game/audio/music_coord.cpp`) reads songs 4..7 as "dialog up". While
-one of them is current, MusicCoord and `TombaCd`'s voice play FUN_8001D2A8 (`game/cd/tomba_cd.cpp`)
+one of them is current, MusicCoord and `tomba::EngineCd`'s voice play FUN_8001D2A8 (`game/cd/engine_cd.cpp`)
 hold back the looping XA area music. So a dialog song that is never stopped also silences the area.
 
 ## Fixed: cold warp out of a dialog

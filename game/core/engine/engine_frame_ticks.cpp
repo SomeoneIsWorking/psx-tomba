@@ -15,7 +15,7 @@
 #include "core/engine/task_sm.h"         // TaskSm — the typed lens over the task record, owned in one header
 #include "core/overrides/guest_jal.h"    // tomba::guest::dispatchJalToReturn — the guest call convention
 #include "core/overrides/guest_resume.h" // requestGuestContinuation
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "game.h" // Game — the per-Core product the Engine drives
 #include "guest_call.h"
 #include "level_load.h"
@@ -64,7 +64,7 @@ void Engine::postRenderTick() {
 void Engine::frameStartTick() {
   Core *c = core;
   // dispatch (d) reaches dynamically-loaded overlay handlers
-  // (0x8010F63C/0x80109024/0x80112220/ 0x8010F654) that can TombaScheduler::yield;
+  // (0x8010F63C/0x80109024/0x80112220/ 0x8010F654) that can Scheduler::yield;
   // strict replay check's synchronous strictCheck only supports yield-free mirrors
   // (strictCheck aborts while inCheck), so this fork is a plain call, proven by
   // SBS full (core A vs core B), not strict replay check.
@@ -146,7 +146,7 @@ void Engine::frameStartTick() {
 // they never match). Called from the overlay-load scan (submit.cpp); registered
 // AUTO so it is flushed when GAME.BIN unloads and another overlay reuses the
 // base (mirrors the M3 scan).
-#include "sched/tomba_scheduler.h"
+#include "sched/scheduler.h"
 #include <lucent/log.h>
 
 // --- PC-native task-0 bootstrap: own the START.BIN resolve + stage-0 overlay
@@ -174,7 +174,7 @@ void Engine::startStage(uint32_t stage) {
   Core *c = core;
   uint32_t task = c->mem_r32(0x1f800138); // current task (= task 0, 0x801fe000)
   tomba::stage::loadOverlay(
-      tombaSession(c).nativeOverrides, *c, {.active = activeStageOverlay, .taskFields = task + 0xc, .stage = stage});
+      sessionOf(c).nativeOverrides, *c, {.active = activeStageOverlay, .taskFields = task + 0xc, .stage = stage});
   c->mem_w16(task, 3); // task state = 3 (active)
   c->mem_w8(task + 0x6f, 0);
   psx::cpu::dispatchGuestToReturn0(

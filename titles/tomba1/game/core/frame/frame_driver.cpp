@@ -1,4 +1,4 @@
-#include "tomba1_frame_driver.h"
+#include "frame_driver.h"
 
 #include "context.h"
 #include "core.h"
@@ -26,9 +26,9 @@ constexpr std::uint32_t kTickTaskSleeps = 0x800173B0u;
 
 } // namespace
 
-Tomba1FrameDriver::Tomba1FrameDriver(Game &game) : game_(game) {}
+FrameDriver::FrameDriver(Game &game) : game_(game) {}
 
-void Tomba1FrameDriver::finishMainIteration(Core &core, std::uint32_t fields) {
+void FrameDriver::finishMainIteration(Core &core, std::uint32_t fields) {
   if (core.mem_r16(kDrawSyncBeforeVblank) != 0u) {
     psx::cpu::dispatchGuestToReturn1(core, kDrawSync, 0u, psx::cpu::ExecutionBudget::currentTurn(core), __func__);
   }
@@ -52,7 +52,7 @@ void Tomba1FrameDriver::finishMainIteration(Core &core, std::uint32_t fields) {
   }
 }
 
-void Tomba1FrameDriver::stepFrame(Core &core, std::uint32_t frame) {
+void FrameDriver::stepFrame(Core &core, std::uint32_t frame) {
   if (core.game != &game_ || frame != completedFrames_ + 1u) {
     lucent::error("tomba1-frame",
                   "invalid frame request: game-bound={} requested={} completed={}",

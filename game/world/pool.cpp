@@ -9,7 +9,7 @@
 #include "pool.h"
 #include "core.h"
 #include "core/overrides/guest_jal.h"
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "mtx.h"       // class Mtx — libgte helpers (identity)
 #include "placement.h" // Placement::spawnWithParent (FUN_80072DDC)
 #include <stdint.h>

@@ -1,7 +1,7 @@
 // Array8Dispatch::tick — see array8_dispatch.h. Faithful port of guest FUN_80026368.
 #include "array8_dispatch.h"
 #include "core.h"
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "game.h"
 
 namespace tomba {

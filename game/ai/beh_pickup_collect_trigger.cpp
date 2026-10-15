@@ -21,7 +21,7 @@
 
 #include "bg_scene_transition_sm.h" // BgSceneTransitionSm::readyForProgress (FUN_80042728 native)
 #include "core.h"
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "graphics_bind.h" // ov_obj_record_init — native graphics-bind (game/world)
 #include "guest_call.h"
 #include "object/actor.h" // Actor::boundsCull (FUN_8007778C native)

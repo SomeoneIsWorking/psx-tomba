@@ -23,9 +23,9 @@
 
 #include "core.h"
 #include "core/overrides/native_override_catalog.h"
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "guest_call.h"
-#include "sched/tomba_scheduler.h"
+#include "sched/scheduler.h"
 
 #include "game.h"
 #include "sop.h"
@@ -92,7 +92,7 @@ void Sop::areaLoad() {
   // *0x800ef47c - *0x800ef478)
   uint32_t l2 = c->mem_r32(0x800ef478u); // (0x801091bc)
   c->r[4] = 0x8018a000u;
-  tombaSession(c).nativeOverrides.retireOverlay(*c, eng(c).activeAreaOverlay);
+  sessionOf(c).nativeOverrides.retireOverlay(*c, eng(c).activeAreaOverlay);
   c->r[5] = c->mem_r32(0x800be0f8u) + (l2 >> 11);
   c->r[6] = c->mem_r32(0x800ef47cu) - l2;
   psx::cpu::dispatchGuestToReturn0(*c, 0x8001dc40u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
@@ -198,7 +198,7 @@ void Sop::transitionAreaLoad() {
   psx::cpu::callGuestNow(*c, __func__, 0x80045080u, 0x80108f9cu, (uint32_t)((s6e + 3) & 0xff));
   // FUN_80045080 has now populated the fixed MODE slot with the selected A00..A0L code image.
   // Publish that exact byte range before any overlay function pointer can be dispatched.
-  tombaSession(c).nativeOverrides.activateModeOverlay(*c, eng(c).activeModeOverlay, static_cast<uint32_t>(s6e) + 3u);
+  sessionOf(c).nativeOverrides.activateModeOverlay(*c, eng(c).activeModeOverlay, static_cast<uint32_t>(s6e) + 3u);
   // FUN_8007566c(*0x800bf870, *0x1f80022c)   — area BGM/asset trigger
   psx::cpu::callGuestNow(*c, __func__, 0x8007566cu, c->mem_r8(0x800bf870u), c->mem_r32(0x1f80022cu));
   eng(c).asset.loadTexgroup(); // 0x80044F58 — native (sync texgroup load)
@@ -207,12 +207,12 @@ void Sop::transitionAreaLoad() {
   //   *0x800a3ec8 = *0x800ef480>>11    (the area-asset overlay DMA load)
   uint32_t l = c->mem_r32(0x800ef480u);
   c->mem_w32(0x800a3ec8u, l >> 11);
-  tombaSession(c).nativeOverrides.retireOverlay(*c, eng(c).activeAreaOverlay);
+  sessionOf(c).nativeOverrides.retireOverlay(*c, eng(c).activeAreaOverlay);
   psx::cpu::callGuestNow(
       *c, __func__, 0x8001dc40u, 0x8018a000u, c->mem_r32(0x800be100u) + (l >> 11), c->mem_r32(0x800ef484u) - l);
   // if (*0x800bf89c == 2) FUN_80045558(0)
   if (c->mem_r8(0x800bf89cu) == 2) {
-    tombaSession(c).nativeOverrides.loadAreaSlotFile(*c, eng(c).activeAreaOverlay, 0u); // = FUN_80045558(0): OPN
+    sessionOf(c).nativeOverrides.loadAreaSlotFile(*c, eng(c).activeAreaOverlay, 0u); // = FUN_80045558(0): OPN
   }
   // FUN_80045258((*0x800bf89e & 0xf)<<1, 47)   — collision grid
   eng(c).asset.loadDescriptorChunk({.descIdx = (uint32_t)((c->mem_r16(0x800bf89eu) & 0xf) << 1), .slot = 47});

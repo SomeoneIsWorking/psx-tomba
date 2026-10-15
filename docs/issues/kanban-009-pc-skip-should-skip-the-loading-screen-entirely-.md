@@ -47,7 +47,7 @@ caller's own display field:
 | load | native owner | wait | presented during it |
 |---|---|---|---|
 | boot preloads + START.BIN file table | `StartBinStage` | none (synchronous; logs "completed synchronously") | the logo FMV |
-| attract item launch (`Demo` s7 phase0) | `Demo` phase0 native load + `TombaScheduler::completeSyncWait(flag=2)` | none | the attract world fading in (f463+) |
+| attract item launch (`Demo` s7 phase0) | `Demo` phase0 native load + `tomba::sched::Scheduler::completeSyncWait(flag=2)` | none | the attract world fading in (f463+) |
 | GAME prologue → first area | `Engine::submode1Case0Native` → `Sop::transitionAreaLoad` | none (1 display field, f1426) | the authored transition |
 | in-field / door area transition | `FieldTransition::areaLoadBd4` → `Sop::transitionAreaLoad` | none (1 display field) | the authored transition |
 | dev warp | `DevWarp` raises the pending request; `FieldTransition::areaLoadBd4` → `Sop::transitionAreaLoad` | none (1 display field) | the destination area |
@@ -62,7 +62,7 @@ the attract launch window f457..f461, where the screen presents nothing at all.
 
 `game/ui/loading_text.cpp` / `.h` are deleted, and the caller-less `Engine::submode1Faithful` — the
 last writer of the guest multi-tick cadence — is removed. Nothing else: the native owner that WAS
-tried for `FUN_80044BD4` itself (`TombaScheduler::spawnAndWait` declared as the override) was reverted.
+tried for `FUN_80044BD4` itself (`tomba::sched::Scheduler::spawnAndWait` declared as the override) was reverted.
 
 **Why no override.** A/B with it installed and commented out, over two 2000-frame runs and a 10-area
 cold-warp run, was byte-identical apart from the declaration counters (`declarations=251 installed=197`

@@ -1,10 +1,10 @@
-// class NativeMusic — in-game REAL-TIME native music player, on TombaSession.
+// class NativeMusic — in-game REAL-TIME native music player, on Session.
 //
 // Drives the shared synth core (native_audio.c) live: play() binds a SEP sequence + VAB at explicit
 // byte offsets into a caller-owned data buffer; render() pulls stereo @44100 chunks each audio frame
-// (mixed into the SPU sink by TombaAudio::mixFrame). Silent when nothing is playing.
+// (mixed into the SPU sink by Audio::mixFrame). Silent when nothing is playing.
 //
-// One per Core (tombaSession(c).native_music). In SBS with two Cores each has its own — only the Core whose
+// One per Core (sessionOf(c).native_music). In SBS with two Cores each has its own — only the Core whose
 // Game drives audio (SpuAudio's mState==1) actually mixes anything audible. Self-contained: no
 // back-pointer needed (operates purely on its caller-supplied buffers + the shared synth core).
 #ifndef NATIVE_MUSIC_H

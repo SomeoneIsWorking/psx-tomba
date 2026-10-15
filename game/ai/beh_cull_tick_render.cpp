@@ -25,7 +25,7 @@
 
 #include "core.h"
 #include "core/overrides/guest_jal.h" // GuestFrame — mirror the guest stack frame (CLAUDE.md)
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "graphics_bind.h" // ov_obj_record_init
 #include "guest_abi.h"
 #include "object/actor.h" // Actor::boundsCull (FUN_8007778C native)

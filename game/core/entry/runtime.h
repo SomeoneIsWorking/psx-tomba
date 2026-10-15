@@ -18,9 +18,9 @@ inline constexpr psx::hle::StockLibgpu::Entries kStockLibgpu{.drawSync = 0x80080
                                                              .timeoutFlagWord = 0x800A5AE0u};
 
 // Process-lifetime owner of Tomba! 2's framework-facing behavior.
-class TombaRuntime final : public psx::game::GameRuntime {
+class Runtime final : public psx::game::GameRuntime {
 public:
-  TombaRuntime();
+  Runtime();
 
   void startProgram(Core &core) override;
   void registerOverrides(Game &game) override;

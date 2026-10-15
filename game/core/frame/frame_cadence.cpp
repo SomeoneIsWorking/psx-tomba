@@ -10,7 +10,7 @@ namespace tomba {
 Core &FrameCadence::host() const {
   if (core == nullptr) {
     // Every other Engine-owned subsystem fails the same way when its back-pointer is missing
-    // (see entry/tomba_session.cpp). Silently skipping the publish would leave the guest's quota byte
+    // (see entry/session.cpp). Silently skipping the publish would leave the guest's quota byte
     // holding whatever boot left there, which is exactly the invisible pacing fault this class
     // exists to prevent.
     lucent::error("frame-cadence", "used before its Core back-pointer was wired");

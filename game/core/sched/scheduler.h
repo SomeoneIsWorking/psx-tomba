@@ -1,4 +1,4 @@
-// tomba_scheduler.h — Tomba! 2's cooperative task scheduler (FUN_80051E60) and its primitives.
+// scheduler.h — Tomba! 2's cooperative task scheduler (FUN_80051E60) and its primitives.
 #pragma once
 
 #include "core.h"
@@ -12,7 +12,7 @@ class Coro;
 class Game;
 
 namespace tomba {
-class TombaCd;
+class EngineCd;
 } // namespace tomba
 
 namespace tomba::sched {
@@ -25,13 +25,13 @@ struct SyncWaitCompletion {
 // One pass per frame over the three task slots. DEMO, GAME, START and SOP area-load run as native
 // stage bodies; every other task runs its guest body on a Coro fiber. A task context is the R3000
 // register file only: guest RAM is shared by every task.
-class TombaScheduler {
+class Scheduler {
 public:
   // `cd` holds slot 2 while a native XA clip plays.
-  TombaScheduler(Game &game, TombaCd &cd);
-  ~TombaScheduler();
-  TombaScheduler(const TombaScheduler &) = delete;
-  TombaScheduler &operator=(const TombaScheduler &) = delete;
+  Scheduler(Game &game, EngineCd &cd);
+  ~Scheduler();
+  Scheduler(const Scheduler &) = delete;
+  Scheduler &operator=(const Scheduler &) = delete;
 
   void step();
   // FUN_80080880 ChangeThread: parks the running task; outside a task it returns the handle in v0.
@@ -104,7 +104,7 @@ private:
 
   Game &game_;
   Core &core_;
-  TombaCd &cd_;
+  EngineCd &cd_;
   std::jmp_buf yieldJmp_{};
   std::array<R3000, 3> taskCtx_{};
   std::array<std::unique_ptr<Coro>, 3> coro_;
@@ -121,6 +121,6 @@ private:
 };
 
 // The scheduler of the Game `core` belongs to.
-TombaScheduler &taskScheduler(Core &core);
+Scheduler &taskScheduler(Core &core);
 
 } // namespace tomba::sched

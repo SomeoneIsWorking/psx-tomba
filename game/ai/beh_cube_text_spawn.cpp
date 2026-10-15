@@ -25,7 +25,7 @@
 // path doesn't. Byte-exact A/B gate (full RAM+scratchpad vs original guest-body call) is the safety net.
 
 #include "core.h"
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "graphics_bind.h" // ov_obj_render_update (FUN_800517F8)
 #include "guest_abi.h"     // GuestFrame — mirror the guest stack frame (CLAUDE.md)
 #include "guest_call.h"

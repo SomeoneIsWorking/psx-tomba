@@ -20,7 +20,7 @@
 #include "core.h"
 #include "core/engine/engine.h"
 #include "core/overrides/native_override_catalog.h"
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "game.h"
 #include "guest_abi.h" // GuestFrame — mirror the guest stack frame (CLAUDE.md)
 #include "guest_call.h"
@@ -547,7 +547,7 @@ void ReleaseTriggerMotion::circleOrbitMotion(uint32_t obj) {
 
 // ---------------------------------------------------------------------------------------------
 // Override registry wiring — guest ABI trampolines (a0 in r4, a1 in r5), same idiom as
-// TombaScheduler::registerOverrides (game/core/sched/tomba_scheduler.cpp).
+// Scheduler::registerOverrides (game/core/sched/scheduler.cpp).
 // ---------------------------------------------------------------------------------------------
 static void eov_hoverBobCycle(Core *c) {
   eng(c).releaseTriggerMotion.hoverBobCycle(c->r[4]);

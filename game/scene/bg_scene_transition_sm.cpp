@@ -30,7 +30,7 @@
 #include "core.h"
 #include "core/engine/engine.h"
 #include "core/overrides/native_override_catalog.h"
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "game.h"
 #include "guest_call.h"
 #include "render/screen_fade.h" // class ScreenFade — the single fade driver
@@ -220,13 +220,13 @@ void BgSceneTransitionSm::body(Core *c) {
 }
 
 void BgSceneTransitionSm::verifyBody(Core *c) {
-  int s_v = tombaSession(c).verification.on("bgscenesmverify");
+  int s_v = sessionOf(c).verification.on("bgscenesmverify");
   if (!s_v) {
     body(c);
     return;
   }
-  uint8_t *ram0 = tombaSession(c).verification.ram0();
-  uint8_t *ramN = tombaSession(c).verification.ramN();
+  uint8_t *ram0 = sessionOf(c).verification.ram0();
+  uint8_t *ramN = sessionOf(c).verification.ramN();
   uint8_t spad0[0x400], spadN[0x400];
   uint32_t regs0[32];
   memcpy(regs0, c->r, sizeof regs0);
@@ -255,7 +255,7 @@ void BgSceneTransitionSm::verifyBody(Core *c) {
       break;
     }
   }
-  tomba::VerificationCounter &chk = tombaSession(c).verification.backgroundScene;
+  tomba::VerificationCounter &chk = sessionOf(c).verification.backgroundScene;
   long &ng = chk.nMatch, &nb = chk.nMismatch;
   if (ro >= 0 || so >= 0) {
     if (nb++ < 40) {

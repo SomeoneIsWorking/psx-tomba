@@ -21,7 +21,7 @@
 // including the guest frame descent + s0/s1/s2/ra stack spill and jal-site r31 — those 16 bytes
 // of guest stack are observable under SBS strict compare and the disp26c88verify dead-stack
 // exclusion does NOT apply to this path. dispatchFaithful() is yield-free (its sole native
-// handler, handler27254, and the LEAF_POOL_RETURN leaf it may call, never TombaScheduler::yield), so
+// handler, handler27254, and the LEAF_POOL_RETURN leaf it may call, never Scheduler::yield), so
 // strict replay check is safe to arm here.
 #pragma once
 #include <cstdint>

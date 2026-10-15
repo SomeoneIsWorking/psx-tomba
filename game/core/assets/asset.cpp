@@ -7,11 +7,11 @@
 #include "assets/asset.h"
 #include "cd/engine_cd_loader.h"
 #include "core.h"
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "game.h"       // c->game->hle.deliverEvent — Hle subsystem lives on Game
 #include "guest_call.h" // rc1-4 guest-call helpers (used by the preload chain below)
 #include "overrides/native_override_catalog.h"
-#include "sched/tomba_scheduler.h"
+#include "sched/scheduler.h"
 #include <lucent/log.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -234,7 +234,7 @@ void Asset::loadTexgroup() {
   c->r[16] = HDR;                                                             // s0 = header base (live for spills)
   uint32_t h0 = c->mem_r32(HDR + 0), h1 = c->mem_r32(HDR + 4);
   c->r[4] = 0x8018A000u;
-  tombaSession(c).nativeOverrides.retireOverlay(*c, eng(c).activeAreaOverlay);
+  sessionOf(c).nativeOverrides.retireOverlay(*c, eng(c).activeAreaOverlay);
   c->r[5] = c->mem_r32(0x800BE0F8u) + (h0 >> 11);
   c->r[6] = h1 - h0;
   c->r[31] = 0x80045008u;
@@ -312,7 +312,7 @@ void Asset::preloadTexgroup(const PreloadTexgroupArgs &args) {
   }
   tomba::EngineCdLoader(*c).loadFile(0x800EF478u, hdr_sector, 2048); // 1. 2KB header
   uint32_t h0 = c->mem_r32(0x800EF478u), h1 = c->mem_r32(0x800EF47Cu);
-  tombaSession(c).nativeOverrides.retireOverlay(*c, eng(c).activeAreaOverlay);
+  sessionOf(c).nativeOverrides.retireOverlay(*c, eng(c).activeAreaOverlay);
   tomba::EngineCdLoader(*c).loadFile(
       0x8018A000u, c->mem_r32(0x800BE0F8u) + (h0 >> 11), h1 - h0); // 2. compressed archive
   unpackGroup({.tablePtr = 0x8018A000u, .anchorEnd = 0x1FD000u});  // 3. decompress + VRAM upload (native)
@@ -442,7 +442,7 @@ void Asset::loadDescriptorChunk(const LoadDescriptorChunkArgs &args) { // FUN_80
 // native owner also publishes the loaded code image, which the guest page code that calls this
 // leaf (the pause-menu card page, then the CRD slot browser at 0x8018FA88) cannot do itself.
 static void ov_loadAreaSlotFile(Core *c) {
-  c->r[2] = tombaSession(c).nativeOverrides.loadAreaSlotFile(*c, eng(c).activeAreaOverlay, c->r[4] & 0xFFu);
+  c->r[2] = sessionOf(c).nativeOverrides.loadAreaSlotFile(*c, eng(c).activeAreaOverlay, c->r[4] & 0xFFu);
 }
 
 void Asset::registerOverrides(native::NativeOverrideCatalog &natives) {

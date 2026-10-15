@@ -11,10 +11,10 @@ namespace tomba1 {
 // The finite per-frame transaction: the frame's own bookkeeping, one pass over the scheduled guest
 // tasks (this Core's `GuestTaskSlots`), and per requested display field the VBlank event, the audio
 // advance and the disc stream, then one presentation fence. The boot prefix is
-// `Tomba1Runtime::startProgram`'s, before the first frame.
-class Tomba1FrameDriver final : public psx::game::FrameDriver {
+// `Runtime::startProgram`'s, before the first frame.
+class FrameDriver final : public psx::game::FrameDriver {
 public:
-  explicit Tomba1FrameDriver(Game &game);
+  explicit FrameDriver(Game &game);
 
   void stepFrame(Core &core, std::uint32_t frame) override;
 

@@ -1,10 +1,10 @@
 // guest_task_stanzas.cpp — tasks with no native stage body: guest bodies on a Coro fiber, and the
 // dispatch stanza for the native stage entries' guest continuations.
-#include "sched/tomba_scheduler.h"
+#include "sched/scheduler.h"
 
 #include "core.h"
 #include "coro.h"
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "execution_control.h"
 #include "game.h"
 #include "lightrec_executor.h"
@@ -40,7 +40,7 @@ bool executeGuestTaskTurn(Core &core, std::uint32_t &resumePc, std::uint32_t ret
 } // namespace
 
 // Runs on the slot's fiber. Only a guest return or an authored cancellation ends the task.
-void TombaScheduler::runGuestTask(const RunGuestTaskArgs &args) {
+void Scheduler::runGuestTask(const RunGuestTaskArgs &args) {
   auto [slot, base, entry] = args;
   const std::uint32_t returnAddress = core_.r[31];
   std::uint32_t resumePc = entry;
@@ -59,8 +59,7 @@ void TombaScheduler::runGuestTask(const RunGuestTaskArgs &args) {
   }
 }
 
-TombaScheduler::Stanza
-TombaScheduler::runCoroutineStanza(int slot, std::uint32_t base, std::uint32_t state, const R3000 &loop) {
+Scheduler::Stanza Scheduler::runCoroutineStanza(int slot, std::uint32_t base, std::uint32_t state, const R3000 &loop) {
   if (isNativeEntry(core_.mem_r32(base + kTaskEntry))) {
     return Stanza::NotMine;
   }
@@ -107,7 +106,7 @@ TombaScheduler::runCoroutineStanza(int slot, std::uint32_t base, std::uint32_t s
 // A native stage entry the stage stanzas did not take. A fresh GAME runs stageMain and continues in
 // the guest at its redirect; a fresh START runs startBinStage and ends the tick. GAME's cooperative
 // fallback re-enters the loop top with its callee-saved registers and sp at the 0x20 prologue frame.
-void TombaScheduler::runDispatchStanza(int slot, std::uint32_t base, std::uint32_t state, const R3000 &loop) {
+void Scheduler::runDispatchStanza(int slot, std::uint32_t base, std::uint32_t state, const R3000 &loop) {
   std::uint32_t resumePc = 0;
   bool isFresh = false;
   if (fresh(slot, state)) {
@@ -158,7 +157,7 @@ void TombaScheduler::runDispatchStanza(int slot, std::uint32_t base, std::uint32
       }
     }
     const auto result = psx::cpu::dispatchGuest(
-        core_, start, psx::cpu::ExecutionBudget::currentTurn(core_), "TombaScheduler::runDispatchStanza");
+        core_, start, psx::cpu::ExecutionBudget::currentTurn(core_), "Scheduler::runDispatchStanza");
     if (result.returned()) {
       core_.mem_w16(base + kTaskState, static_cast<std::uint16_t>(TaskState::Ended));
       taskStarted_[slot] = false;

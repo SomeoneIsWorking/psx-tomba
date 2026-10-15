@@ -8,7 +8,7 @@ class Core;
 
 namespace tomba1 {
 
-// Created with each Game (Tomba1Runtime::createSession); every per-game native owner lives here.
+// Created with each Game (Runtime::createSession); every per-game native owner lives here.
 class Context final : public psx::game::TitleSessionState {
 public:
   explicit Context(Core &core);

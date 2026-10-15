@@ -34,7 +34,7 @@
 #include "core.h"
 #include "core/engine/engine.h"
 #include "core/overrides/native_override_catalog.h"
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "guest_call.h"
 
 #define CUR_PREV_BASE 0x800ECF54u   // +0 = cur (u16), +2 = prev (u16)

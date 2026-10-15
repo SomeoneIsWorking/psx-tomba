@@ -27,7 +27,7 @@
 
 #include "core.h"
 #include "core/overrides/guest_jal.h"
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "guest_abi.h"
 #include "spawn.h" // class Spawn (eng(c).spawn.despawn / dispatch / spawnAndInit)
 #include <stdio.h>

@@ -1,7 +1,7 @@
 #include "debug/auto_drive.h"
 
 #include "core.h"
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "game.h"
 #include "sched/task_slot_layout.h"
 
@@ -23,7 +23,7 @@ void AutoDrive::beforeFrame(Core &core, uint32_t frame) {
   Game &game = *core.game;
 
   if (skipPhase_ == SkipPhase::Uninitialized) {
-    skipPhase_ = tombaSession(&core).settings.autoSkip ? SkipPhase::ReachGame : SkipPhase::Done;
+    skipPhase_ = sessionOf(&core).settings.autoSkip ? SkipPhase::ReachGame : SkipPhase::Done;
     if (skipPhase_ == SkipPhase::ReachGame) {
       lucent::info("autoskip", "armed: drive into GAME free-roam");
     }

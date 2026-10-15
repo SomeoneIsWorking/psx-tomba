@@ -1,15 +1,15 @@
 // ObjectList::walkAll / walkAux — see object_list.h.
 //
-// Faithful ports of guest FUN_8007A904 / FUN_80069B28. Both use the shared `dispatch_obj_method`
-// helper (game/object/engine_tomba2.cpp), the same native-or-substrate handler dispatch used by
+// Faithful ports of guest FUN_8007A904 / FUN_80069B28. Both use BehaviorDispatch::dispatchObj
+// (game/object/behavior_dispatch.h), the same native-or-substrate handler dispatch used by
 // TransitionState3::walkOnce. The `behhist` diagnostic (from the pre-restructure call_handler)
 // is preserved in the main walk since it feeds top-down ownership decisions.
 #include "object_list.h"
 #include "core.h"
-#include "entry/tomba_session.h"
+#include "engine_types.h" // T2_OBJLIST_HEAD_1/2, T2OBJ_HANDLER/NEXT/RENDER_FLAG
+#include "entry/session.h"
 #include "game.h"
-#include "render.h"       // rend(c)->margin.flush
-#include "tomba2_types.h" // T2_OBJLIST_HEAD_1/2, T2OBJ_HANDLER/NEXT/RENDER_FLAG
+#include "render.h" // rend(c)->margin.flush
 #include <lucent/log.h>
 #include <stdint.h>
 #include <stdio.h>

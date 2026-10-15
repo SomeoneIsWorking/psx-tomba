@@ -6,10 +6,10 @@
 #include "field_transition.h"
 
 #include "core.h"
-#include "entry/tomba_session.h" // eng(c) / fade(c)
-#include "guest_call.h"          // psx::cpu::callGuestNow / dispatchGuestToReturn0 / ExecutionBudget
-#include "render/screen_fade.h"  // class ScreenFade — the single fade driver
-#include "sop.h"                 // class Sop — transitionAreaLoad (sync FIELD transition load)
+#include "entry/session.h"      // eng(c) / fade(c)
+#include "guest_call.h"         // psx::cpu::callGuestNow / dispatchGuestToReturn0 / ExecutionBudget
+#include "render/screen_fade.h" // class ScreenFade — the single fade driver
+#include "sop.h"                // class Sop — transitionAreaLoad (sync FIELD transition load)
 
 // ---- NATIVE SUB-SCENE / DOOR TRANSITION (FUN_80108a60 + its 4 workers)
 // ----------------------------- The sm[0x4a]==5 handler is the field's

@@ -4,7 +4,7 @@
 // (GTE registers, scratchpad, packet pool, ordering table) the guest body writes. The picture is the
 // guest's GP0 output on the GPU device; nothing here draws to the host.
 //
-// Owned by Core via a pointer (`Core::mRender`), constructed by TombaSession.
+// Owned by Core via a pointer (`Core::mRender`), constructed by Session.
 #pragma once
 #include "margin_render.h"
 #include "node_xform.h"

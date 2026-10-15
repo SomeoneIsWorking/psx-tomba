@@ -1,7 +1,7 @@
 #include "entry/main_handoff.h"
 
 #include "disc_executable.h"
-#include "entry/tomba_identity.h"
+#include "entry/identity.h"
 #include "game.h"
 
 #include <cstdlib>

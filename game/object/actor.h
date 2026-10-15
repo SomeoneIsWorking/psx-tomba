@@ -17,7 +17,7 @@
 // it). Do NOT define fields speculatively — only when a handler's RE actually resolved the semantic.
 #pragma once
 #include "core.h"
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include <cstdint>
 
 namespace tomba {

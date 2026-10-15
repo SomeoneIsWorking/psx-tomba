@@ -493,8 +493,8 @@ given. Do not port from an uncorrected memory of these functions.
 | `0x1F800000` | MATRIX (only t[] at +20/+24/+28 used) | kComposedTransMat | SCRATCHPAD scratch matrix. ApplyMatrixLV writes camR.offs>>12 into its t[] (0x1F800014/18/1C), the code adds the camera translation there, SetTransMatrix loads CR5-7 from it. Guest scratch only — the native port folds this into cam.T. |
 | `0x1F800080` | s32 | kOtKeyScratch | SCRATCHPAD. Reused twice per mote: first as the landing slot for the RTPS FLAG (CR31) sign test, then for SZ3 and finally the computed OT bucket key (or -1). Same slot the sprite family publishes its OT key to. |
 | `0x1F8000C0` | s16[3] (VX,VY,VZ) | kMoteSvec | SCRATCHPAD staging for the mote's masked coordinate triple; loaded into GTE VXY0/VZ0 as two 32-bit reads at +0 and +4 (the upper half of the second read is stale and ignored). |
-| `0x1F8000D2` | u16 | T2_CAM_POS_X | SCRATCHPAD camera block (0x1F8000D0). High halfword of the 16.16 camera world X; read UNSIGNED. Already named in game/tomba2_types.h. |
-| `0x1F8000D6` | u16 | T2_CAM_POS_Y | High halfword of the 16.16 camera world Y (game/tomba2_types.h). NOTE game/render/cull.cpp's local comments call +6 'Z' and +10 'Y' — the header's X/Y/Z naming is the one that matches the SVECTOR order used here. |
+| `0x1F8000D2` | u16 | T2_CAM_POS_X | SCRATCHPAD camera block (0x1F8000D0). High halfword of the 16.16 camera world X; read UNSIGNED. Already named in game/engine_types.h. |
+| `0x1F8000D6` | u16 | T2_CAM_POS_Y | High halfword of the 16.16 camera world Y (game/engine_types.h). NOTE game/render/cull.cpp's local comments call +6 'Z' and +10 'Y' — the header's X/Y/Z naming is the one that matches the SVECTOR order used here. |
 | `0x1F8000DA` | u16 | T2_CAM_POS_Z | High halfword of the 16.16 camera world Z. |
 | `0x1F8000F8` | MATRIX | kSceneCamMatrix | SCRATCHPAD scene camera view matrix — m[3][3] at +0..+17, t[] at +20/24/28. This is exactly what Fps60::sceneCam / projComposeCamera read. |
 | `0x1F800104 / 0x1F800106 / 0x1F800108` | s16 x3 | kSceneCamFwdRow | = kSceneCamMatrix m[2][0..2], the camera's third rotation ROW (its forward axis in world coords). Halved to bias the wrap cube ~2048 units in front of the camera. Natively = cam.R[2][0..2]. |
@@ -1169,7 +1169,7 @@ With that change, `altSpriteEmit` shrinks to `project → scale → emit` and th
 Every step below compiles standalone and is behaviour-preserving except where stated. Steps 0–5 land **before** any of the six new producers.
 
 **Step 0 — pure additions, zero call-site edits.**
-`game/render/fx_node.h` (new: `FxNode`, `WorldAnchor`, `anchorPacked`/`anchorWide`, `ScreenExtent` §4.6) · `SpriteAnchor::otBucketOf` · `SpriteGate`/`SpriteHit`/`SpriteAnchor::project` · reimplement the existing `otKeyInRange` on top of `otBucketOf`. Add `fx_node.h` to `cmake/tomba2_port.cmake`? — header-only, no source-list change needed. Nothing behaves differently.
+`game/render/fx_node.h` (new: `FxNode`, `WorldAnchor`, `anchorPacked`/`anchorWide`, `ScreenExtent` §4.6) · `SpriteAnchor::otBucketOf` · `SpriteGate`/`SpriteHit`/`SpriteAnchor::project` · reimplement the existing `otKeyInRange` on top of `otBucketOf`. Add `fx_node.h` to `cmake/port.cmake`? — header-only, no source-list change needed. Nothing behaves differently.
 
 **Step 1 — `AltSprite` loses `anchorX`, gains `anchor` + `SpriteGate`.** One file, four sites (`altSpriteEmit` + its three callers), one edit. This is the step that makes the `0x8010C1D8` tail land without `bool anchorPacked`.
 

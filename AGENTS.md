@@ -27,14 +27,14 @@ read [`../AGENTS.md`](../AGENTS.md) and [`external/psxport/AGENTS.md`](external/
 ## How the product starts
 
 The entry is the framework main (`psxport_add_product`), running `psx::host::ProductHost` over
-`TombaCatalog`, which holds Tomba! 1 (index 0, `tomba1::Tomba1Runtime`) and Tomba! 2 (index 1,
-`TombaRuntime`). Zero arguments open the in-window picker over both; one executable argument runs that
+`tomba::Catalog`, which holds Tomba! 1 (index 0, `tomba1::Runtime`) and Tomba! 2 (index 1,
+`tomba::Runtime`). Zero arguments open the in-window picker over both; one executable argument runs that
 executable's title directly. Each entry's executable is extracted from its own disc
 (`PSXPORT_TOMBA1_DISC`, `PSXPORT_TOMBA2_DISC`) into `scratch/bin/<slug>/` by the host; `run.sh` takes no
-disc and provisions nothing. `tools/tomba2_provision.py` extracts only the maintainer evidence set
+disc and provisions nothing. `tools/provision.py` extracts only the maintainer evidence set
 (`MAIN.EXE`, the area overlays) that the authentic tests and RE read. The Tomba! 2 entry
-carries the disc's boot executable SCUS_944.54; `TombaRuntime::registerOverrides` loads and authenticates `MAIN.EXE` from the disc
+carries the disc's boot executable SCUS_944.54; `tomba::Runtime::registerOverrides` loads and authenticates `MAIN.EXE` from the disc
 (`entry/main_handoff.cpp`) before the host's crt0 audit. The SCEA card and LOGO movie are stepped frames
-(`frame/boot_cards.cpp`). The dev `warp`, `items` and `flag` commands arrive through `TombaRuntime::controlCommand`.
+(`frame/boot_cards.cpp`). The dev `warp`, `items` and `flag` commands arrive through `tomba::Runtime::controlCommand`.
 Tomba! 1's runtime is the `tomba1_runtime` library under `titles/tomba1/`, linked into `tomba2_port`; the
 two trees share no code, and `tomba_title_link_isolation` refuses an external name both define.

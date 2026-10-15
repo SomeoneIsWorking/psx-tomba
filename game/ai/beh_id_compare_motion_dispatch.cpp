@@ -31,7 +31,7 @@
 
 #include "animation.h" // Animation::step (FUN_80076D68)
 #include "core.h"
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "guest_abi.h" // GuestFrame — mirror the guest stack frame (CLAUDE.md)
 #include "guest_call.h"
 #include "render/cull.h"   // Cull::cullWrapperFlag2 (FUN_800777FC)

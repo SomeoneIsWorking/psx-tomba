@@ -1,4 +1,4 @@
-#include "tomba1_identity.h"
+#include "identity.h"
 
 namespace tomba1 {
 namespace {

@@ -25,7 +25,7 @@
 #include "ui/ui_sprite.h"
 #include "core.h"
 #include "core/overrides/native_override_catalog.h"
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "guest_call.h"
 #include "render/anchored_packets.h"
 
@@ -97,7 +97,7 @@ namespace {
 
 // Each call is an object of its own: what one call site draws, n-th in its frame.
 template <std::uint32_t Entry, void (*Body)(Core *)> void producerEntry(Core *c) {
-  const psx::present::EmissionScope::Guard object(c->emission, Entry, tombaSession(c).callSites.object(c->r[31]), 0);
+  const psx::present::EmissionScope::Guard object(c->emission, Entry, sessionOf(c).callSites.object(c->r[31]), 0);
   Body(c);
 }
 

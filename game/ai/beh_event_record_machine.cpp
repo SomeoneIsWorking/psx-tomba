@@ -23,7 +23,7 @@
 
 #include "core.h"
 #include "core/overrides/guest_jal.h"
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "graphics_bind.h" // ov_obj_render_update (FUN_800517F8)
 #include "guest_abi.h"
 #include "guest_call.h"

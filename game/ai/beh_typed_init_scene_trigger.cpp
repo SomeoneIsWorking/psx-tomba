@@ -48,7 +48,7 @@
 
 #include "bg_scene_transition_sm.h" // BgSceneTransitionSm::readyForProgress (FUN_80042728 native)
 #include "core.h"
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "graphics_bind.h" // GraphicsBind::recordInit / renderUpdate
 #include "guest_abi.h"     // GuestFrame — mirror the guest stack frame (CLAUDE.md)
 #include "object/actor.h"  // class Actor + named fields

@@ -1,7 +1,7 @@
 // FUN_80044BD4's completion tail: flag != 1 stamps the task with the guest RNG, flag 1 leaves it.
-#include "core/entry/tomba_runtime.h"
+#include "core/entry/runtime.h"
+#include "core/sched/scheduler.h"
 #include "core/sched/task_slot_layout.h"
-#include "core/sched/tomba_scheduler.h"
 #include "game.h"
 #include "math/rng.h"
 #include "testutil.h"
@@ -17,7 +17,7 @@ constexpr std::uint32_t kWaitCounter = 0x1F800198u;
 // Seed 1: 1 * 0x41C64E6D + 0x3039 = 0x41C67EA6, so the stamp is 0x41C6.
 constexpr std::uint16_t kStampFromSeedOne = 0x41C6u;
 
-std::unique_ptr<Game> makeGame(tomba::TombaRuntime &runtime) {
+std::unique_ptr<Game> makeGame(tomba::Runtime &runtime) {
   auto game = std::make_unique<Game>(runtime, psx::config::Config{});
   game->core.mem_w32(tomba::Rng::SEED_ADDR, 1u);
   game->core.mem_w16(kWaitCounter, 0x4567u);
@@ -26,7 +26,7 @@ std::unique_ptr<Game> makeGame(tomba::TombaRuntime &runtime) {
 }
 
 void test_flag_two_stamps_from_the_guest_rng() {
-  tomba::TombaRuntime runtime;
+  tomba::Runtime runtime;
   auto game = makeGame(runtime);
   const auto result = tomba::sched::taskScheduler(game->core).completeSyncWait(kTaskTableBase, 2);
   CHECK(result.stamped);
@@ -37,7 +37,7 @@ void test_flag_two_stamps_from_the_guest_rng() {
 }
 
 void test_flag_one_leaves_task_and_rng() {
-  tomba::TombaRuntime runtime;
+  tomba::Runtime runtime;
   auto game = makeGame(runtime);
   const auto result = tomba::sched::taskScheduler(game->core).completeSyncWait(kTaskTableBase, 1);
   CHECK(!result.stamped);
@@ -47,7 +47,7 @@ void test_flag_one_leaves_task_and_rng() {
 }
 
 void test_flag_three_uses_the_same_completion() {
-  tomba::TombaRuntime runtime;
+  tomba::Runtime runtime;
   auto game = makeGame(runtime);
   const auto result = tomba::sched::taskScheduler(game->core).completeSyncWait(kTaskTableBase, 3);
   CHECK(result.stamped);

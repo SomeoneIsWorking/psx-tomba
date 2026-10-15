@@ -2,7 +2,7 @@
 // leaves. See sop_intro_events.cpp for full RE + §9 re-verify notes per function.
 //
 // Wired via the shared override registry (RegisterSopIntroEventOverrides, called from
-// TombaRuntime::registerOverrides through register_engine_overrides()). sopBeatAdvanceWalk/sopBeatAdvanceNarration
+// Runtime::registerOverrides through register_engine_overrides()). sopBeatAdvanceWalk/sopBeatAdvanceNarration
 // are reached as op-0x3E (call-fnptr) entries of the pilot's cutscene script at 0x8010CA28, via
 // ScriptInterp::callFnptr — whose return value in r[2] is the script stepper's pause/advance code,
 // so the override wrappers MUST set c->r[2] (2026-07-10 prologue-vortex root cause #2; the earlier

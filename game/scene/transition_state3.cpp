@@ -5,8 +5,8 @@
 // substrate table used by the other native walkers (ObjectList / Array8Dispatch).
 #include "transition_state3.h"
 #include "core.h"
-#include "entry/tomba_session.h"
-#include "tomba2_types.h" // T2_OBJLIST_HEAD_1/2, T2OBJ_HANDLER/NEXT/RENDER_FLAG
+#include "engine_types.h" // T2_OBJLIST_HEAD_1/2, T2OBJ_HANDLER/NEXT/RENDER_FLAG
+#include "entry/session.h"
 
 namespace tomba {
 

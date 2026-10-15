@@ -1,8 +1,8 @@
-// Collect Tomba! 2's subsystem-owned native declarations for TombaRuntime.
+// Collect Tomba! 2's subsystem-owned native declarations for Runtime.
 //
 // Subsystem registerOverrides() calls declare handlers in native_override_catalog. Repeating an
 // identical declaration is idempotent; conflicting owners are refused rather than overwritten.
-// TombaRuntime separately binds resident declarations to each Core's explicit resident image token
+// Runtime separately binds resident declarations to each Core's explicit resident image token
 // after loading, including the final boot reload. PSXPort's per-Core dispatcher then selects a native
 // handler or executes the guest body through Lightrec. Declaring an overlay handler does not activate it.
 #include "overrides/register_overrides.h"
@@ -12,7 +12,7 @@
 #include "assembly_companion.h"   // class AssemblyCompanion — assembly companion idle tick (0x80138A64)
 #include "core.h"
 #include "engine/engine.h"
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "game.h"
 #include "mtx.h" // class Mtx — libgte matrix leaves (MR_init identity, 0x80051794)
 #include "overrides/native_override_catalog.h"

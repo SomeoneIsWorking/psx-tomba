@@ -1,10 +1,10 @@
-// tomba_cd.cpp — Tomba! 2's CD chokepoints as resident native overrides.
-#include "cd/tomba_cd.h"
+// engine_cd.cpp — Tomba! 2's CD chokepoints as resident native overrides.
+#include "cd/engine_cd.h"
 
 #include "cd/engine_cd_loader.h"
 
 #include "core.h"
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "game.h"
 #include "guest_call.h"
 #include "overrides/native_override_catalog.h"
@@ -40,8 +40,8 @@ constexpr std::uint32_t kVoiceTaskState = sched::taskSlotBase(2) + sched::kTaskS
 constexpr std::array<std::uint32_t, 4> kCdCallbackSlots{0x800ABFBCu, 0x800ABFC0u, 0x800ABF24u, 0x800ABF28u};
 constexpr std::array<std::uint32_t, 4> kCdCallbacks{0x8009996Cu, 0x80089994u, 0x800899BCu, 0u};
 
-TombaCd &cdOf(Core *core) {
-  return tombaSession(core).cd;
+EngineCd &cdOf(Core *core) {
+  return sessionOf(core).cd;
 }
 
 std::uint8_t bcd(int value) {
@@ -157,17 +157,17 @@ void voiceStop(Core *c) {
 
 } // namespace
 
-void TombaCd::declareOverrides(native::NativeOverrideCatalog &natives) {
-  natives.declare(kCdCmdStream, "TombaCd::commandStream", cdCommandStream);
+void EngineCd::declareOverrides(native::NativeOverrideCatalog &natives) {
+  natives.declare(kCdCmdStream, "EngineCd::commandStream", cdCommandStream);
   natives.declare(kCdReadPrimitive, "EngineCdLoader::readBlocks", cdReadPrimitive);
   natives.declare(kCdFileLoad, "EngineCdLoader::loadFile", cdFileLoad);
   natives.declare(kCdAsyncRead, "EngineCdLoader::asyncRead", cdAsyncRead);
   natives.declare(kCdInlineLoad, "EngineCdLoader::dc40Sync", cdInlineLoad);
-  natives.declare(kVoicePlay, "TombaCd::voicePlay", voicePlay);
-  natives.declare(kVoiceStop, "TombaCd::voiceStop", voiceStop);
+  natives.declare(kVoicePlay, "EngineCd::voicePlay", voicePlay);
+  natives.declare(kVoiceStop, "EngineCd::voiceStop", voiceStop);
 }
 
-void TombaCd::playClip(const Clip &clip) {
+void EngineCd::playClip(const Clip &clip) {
   XaState *xa = &core_.game->xa;
   const bool streaming =
       holdsVoiceSlot_ && xa_stream_is_active(xa) != 0 && clip.channel == clip_.channel && clip.start == clip_.start;
@@ -180,22 +180,22 @@ void TombaCd::playClip(const Clip &clip) {
   toSpuMix(true);
 }
 
-void TombaCd::stopClip() {
+void EngineCd::stopClip() {
   xa_stream_stop(&core_.game->xa);
   holdsVoiceSlot_ = false;
 }
 
-bool TombaCd::clipStreaming() const {
+bool EngineCd::clipStreaming() const {
   return holdsVoiceSlot_ && xa_stream_is_active(&core_.game->xa) != 0;
 }
 
-void TombaCd::toSpuMix(bool on) {
+void EngineCd::toSpuMix(bool on) {
   core_.r[A0] = on ? 1 : 0;
   psx::cpu::dispatchGuestToReturn0(
-      core_, kCdToSpuMix, psx::cpu::ExecutionBudget::currentTurn(core_), "TombaCd::toSpuMix");
+      core_, kCdToSpuMix, psx::cpu::ExecutionBudget::currentTurn(core_), "EngineCd::toSpuMix");
 }
 
-void TombaCd::hleInit() {
+void EngineCd::hleInit() {
   for (std::size_t i = 0; i < kCdCallbackSlots.size(); ++i) {
     core_.mem_w32(kCdCallbackSlots[i], kCdCallbacks[i]);
   }
@@ -203,7 +203,7 @@ void TombaCd::hleInit() {
 }
 
 // tgt/cur/mas: the CD fade (0x800BE222/224/220); 19a/137 gate FUN_80075824's ramp; song 0x800BED80.
-void TombaCd::audioTrace(const char *tag) {
+void EngineCd::audioTrace(const char *tag) {
   if (!traceChannel_) {
     return;
   }

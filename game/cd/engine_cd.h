@@ -1,4 +1,4 @@
-// tomba_cd.h — Tomba! 2's CD overrides and the XA voice/BGM clip state they keep per session.
+// engine_cd.h — Tomba! 2's CD overrides and the XA voice/BGM clip state they keep per session.
 #pragma once
 
 #include <lucent/log.h>
@@ -16,7 +16,7 @@ namespace tomba {
 
 // The engine's own CD glue (FUN_8001Cxxx/FUN_8001Dxxx) and the libcd read primitive it builds on, as
 // resident overrides. No CD interrupt is raised.
-class TombaCd {
+class EngineCd {
 public:
   // An XA clip as FUN_8001D2A8 names it: channel and LBA span; a looping clip is area music.
   struct Clip {
@@ -33,7 +33,7 @@ public:
     std::uint32_t end = 0;
   };
 
-  explicit TombaCd(Core &core) : core_(core) {}
+  explicit EngineCd(Core &core) : core_(core) {}
 
   // Declares the CD overrides in the resident catalog.
   static void declareOverrides(native::NativeOverrideCatalog &natives);

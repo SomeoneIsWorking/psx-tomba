@@ -3,7 +3,7 @@
 
 Two drivers play this title and they must not disagree about the answer:
 
-  * `tools/oracle_tomba2.py` drives the product over the framework REPL, which BLOCKS the game
+  * `tools/oracle_title.py` drives the product over the framework REPL, which BLOCKS the game
     between commands, and feeds the same script to an independent console reference.
   * `tools/live_play.py` drives it over the live debug server while it keeps presenting.
 
@@ -51,7 +51,7 @@ from collections.abc import Iterator
 from pathlib import Path
 
 # ---- guest state, each with the source that owns it ---------------------------------------------
-# The cooperative-task table's slot 0. `game/tomba2_types.h` names the base (T2_TASK_TABLE) and the
+# The cooperative-task table's slot 0. `game/engine_types.h` names the base (T2_TASK_TABLE) and the
 # slot stride; `game/core/debug/auto_drive.cpp` reads the stage entry at +0x0C out of the same slot.
 TASK0 = 0x801FE000
 TASK0_ENTRY = TASK0 + 0x0C

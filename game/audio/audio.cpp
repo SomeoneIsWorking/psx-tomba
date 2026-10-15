@@ -1,5 +1,5 @@
-// tomba_audio.cpp — saturating mix of the native music over one video frame of SPU output.
-#include "audio/tomba_audio.h"
+// audio.cpp — saturating mix of the native music over one video frame of SPU output.
+#include "audio/audio.h"
 
 #include "audio/music_list.h"
 #include "audio/native_music.h"
@@ -15,7 +15,7 @@ constexpr int kMaxFrames = 735 + 64; // the SPU host sink's per-video-frame cap
 
 } // namespace
 
-void TombaAudio::mixFrame(std::int16_t *pcm, int frames) {
+void Audio::mixFrame(std::int16_t *pcm, int frames) {
   if (!music_.active()) {
     return;
   }
@@ -27,12 +27,12 @@ void TombaAudio::mixFrame(std::int16_t *pcm, int frames) {
   }
 }
 
-const char *TombaAudio::nowPlayingName() const {
+const char *Audio::nowPlayingName() const {
   const int track = tracks_.nowPlaying();
   return track >= 0 ? tracks_.name(track) : nullptr;
 }
 
-void TombaAudio::soundTestPlay(int track) {
+void Audio::soundTestPlay(int track) {
   if (track < 0) {
     tracks_.stop();
   } else {

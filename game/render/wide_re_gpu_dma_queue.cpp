@@ -113,7 +113,7 @@
 // cluster's wiring without RE'ing it on its own terms first.
 #include "core.h"
 #include "core/overrides/native_override_catalog.h"
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "guest_call.h"
 #include "render.h"
 #include <stdint.h>
@@ -688,7 +688,7 @@ void gpu_dma_queue_install(native::NativeOverrideCatalog &natives) {
   // INSIDE the then-still-substrate, UNOWNED guest 0x80082734 (the "LoadImage-style FIFO streamer",
   // mapped but not yet drafted at the time). That streamer is now DRAFTED, RE-VERIFIED (see
   // game/render/wide_re_gpu_loadimage_streamer.cpp) and WIRED via tomba::native::declareOverride
-  // (gpu_loadimage_streamer_install(), called immediately below in game_tomba2.cpp's install order).
+  // (gpu_loadimage_streamer_install(), called immediately below in resident_natives.cpp's install order).
   // With the streamer native, the residual is closed: see docs/findings/render.md for the re-run
   // isolation result.
   //

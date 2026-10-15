@@ -17,7 +17,7 @@ executable-grounded startup and CD facts while introducing the shared Lightrec p
 - status: re-verified
 - deps: T1-00
 - evidence: C002/I002. The host's `executable_provisioner` reads `SCUS_942.36` from the `PSXPORT_TOMBA1_DISC` disc and publishes it to `scratch/bin/tomba1/` only when size and SHA-256 match `tomba1::identity()`.
-- where: `game/core/entry/tomba1_identity.cpp`; psxport `runtime/psx/host/executable_provisioner.cpp`; user-supplied disc; untracked runtime input
+- where: `game/core/entry/identity.cpp`; psxport `runtime/psx/host/executable_provisioner.cpp`; user-supplied disc; untracked runtime input
 - gap: None for the selected USA disc.
 
 ### T1-02 — Recover CRT0 and startup semantics

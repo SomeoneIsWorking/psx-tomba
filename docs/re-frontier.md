@@ -18,7 +18,7 @@ Tomba! 2 representative gameplay is complete.
 - status: re-partial
 - deps: T2-00, T2-06
 - evidence: The shipping Lightrec product completes a real-image native startup frame with nonzero translated execution and zero fallback; exact counters and the reached second-frame failure are recorded in project-state S001 and issue 0007. Linked products pass the execution-boundary discriminator.
-- where: shared `external/psxport/` executor; title composition in `cmake/tomba2_port.cmake`
+- where: shared `external/psxport/` executor; title composition in `cmake/port.cmake`
 - gap: Complete authenticated overlay activation and representative gameplay, with measured invalidation and bounded fallback accounting; startup is not conformance. Diagnostic interpreter mode is not a product selector.
 
 ### T2-02 — Prove a resident native override and original call
@@ -89,7 +89,7 @@ Tomba! 2 representative gameplay is complete.
   or the quest cross-reference, so it is a raw fill, not a chain of `FUN_8004D338` calls.
 - The title commands (`game/core/debug/dev_*.cpp`, control channel and Debug tab): `warp <area> [entry]`,
   `items all`, `items <id> [amount]`, `flag get <i>`, `flag set <i> <v>`. Each arms between frames and
-  `TombaFrameDriver::stepFrame` writes it at the frame boundary. The warp has no second path: the old synchronous cold
+  `tomba::FrameDriver::stepFrame` writes it at the frame boundary. The warp has no second path: the old synchronous cold
   load is gone, because the game's own transition reaches every case it covered. Not decoded: FREE POSITION, SYSTEM
   TOOLS and WORLD INFO.
 - Area transitions: `Engine::frame` owns sub-mode `sm[0x4A]` 5 (`FieldTransition::step`), and `submode1Case0Native`

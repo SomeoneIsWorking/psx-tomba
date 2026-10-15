@@ -19,7 +19,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 DEFAULT_OUTPUT = ROOT / "scratch/bin/tomba2"
 DEFAULT_OVERLAYS = ROOT / "scratch/bin/overlays"
 
-MANIFEST = ROOT / "config/tomba2-images.json"
+MANIFEST = ROOT / "config/images.json"
 
 
 class ImageIdentity(NamedTuple):

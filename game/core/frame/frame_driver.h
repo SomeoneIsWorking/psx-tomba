@@ -37,9 +37,9 @@ enum class PresentState : uint8_t {
 };
 
 // One pass of Tomba! 2's retail main loop (FUN_80050B08) per logic frame; the framework repeats it.
-class TombaFrameDriver final : public psx::game::FrameDriver {
+class FrameDriver final : public psx::game::FrameDriver {
 public:
-  explicit TombaFrameDriver(Game &game);
+  explicit FrameDriver(Game &game);
 
   // The loop prologue at 0x80050C50: first packet pool, current buffer, its OT cleared.
   static void enterLoop(Core &core);

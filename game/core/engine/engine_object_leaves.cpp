@@ -15,7 +15,7 @@
 #include "core/engine/task_sm.h"         // TaskSm — the typed lens over the task record, owned in one header
 #include "core/overrides/guest_jal.h"    // tomba::guest::dispatchJalToReturn — the guest call convention
 #include "core/overrides/guest_resume.h" // requestGuestContinuation
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "game.h" // Game — the per-Core product the Engine drives
 #include "guest_abi.h"
 #include "guest_call.h"
@@ -35,7 +35,7 @@ namespace tomba {
 void Engine::fieldFrame() {
   Core *c = core;
   // yields — SBS-gated: fieldFrameFaithful() drives the render orchestrator
-  // (0x8003F9A8) and other callees that can TombaScheduler::yield; strict replay check only
+  // (0x8003F9A8) and other callees that can Scheduler::yield; strict replay check only
   // supports yield-free mirrors (strictCheck aborts on yield-while-inCheck) and
   // a rewind+replay of the substrate body here does not reproduce the same
   // interleaving as the live run, so the compare is bogus (10+ byte diffs at

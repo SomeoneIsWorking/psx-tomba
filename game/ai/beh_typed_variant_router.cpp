@@ -27,7 +27,7 @@
 // A/B gate (full RAM+scratchpad vs original guest-body call) is the safety net.
 
 #include "core.h"
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "graphics_bind.h" // ov_obj_set_geom
 #include "guest_call.h"
 #include "rng.h"   // class Rng (via rngOf(c).next())

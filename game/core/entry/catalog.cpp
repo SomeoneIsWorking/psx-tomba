@@ -1,4 +1,4 @@
-#include "entry/tomba_catalog.h"
+#include "entry/catalog.h"
 
 #include <array>
 #include <cstdlib>
@@ -12,19 +12,19 @@ constexpr std::size_t kTomba2 = 1;
 
 } // namespace
 
-std::string_view TombaCatalog::productName() const {
+std::string_view Catalog::productName() const {
   return "Tomba!";
 }
 
-std::filesystem::path TombaCatalog::provisioningRoot() const {
+std::filesystem::path Catalog::provisioningRoot() const {
   return "scratch/bin";
 }
 
-std::span<const psx::host::TitleIdentity> TombaCatalog::titles() const {
+std::span<const psx::host::TitleIdentity> Catalog::titles() const {
   return identities_;
 }
 
-psx::game::GameRuntime &TombaCatalog::runtime(std::size_t index) const {
+psx::game::GameRuntime &Catalog::runtime(std::size_t index) const {
   switch (index) {
   case kTomba1:
     return tomba1_;
@@ -37,7 +37,7 @@ psx::game::GameRuntime &TombaCatalog::runtime(std::size_t index) const {
 }
 
 std::unique_ptr<psx::host::TitleCatalog> createCatalog() {
-  return std::make_unique<TombaCatalog>();
+  return std::make_unique<Catalog>();
 }
 
 } // namespace tomba

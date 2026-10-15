@@ -7,7 +7,7 @@ full-console reference, at the same title-owned states tools/oracle_compare.py c
 
 tools/oracle_compare.py answers "does the simulation still behave"; it reads guest RAM and cannot
 see a rendering defect. This answers "does it still LOOK like the game", which is the question a
-player is actually asking. The title policy is shared with the RAM comparison (tools/oracle_tomba2.py)
+player is actually asking. The title policy is shared with the RAM comparison (tools/oracle_title.py)
 and the launch environment with every other agent driver (tools/gate.py).
 """
 
@@ -24,7 +24,7 @@ import gate  # noqa: E402  (tools/gate.py owns the product launch environment)
 sys.path.insert(0, os.path.join(gate.PSXPORT, "tools", "oracle"))
 
 import compare  # noqa: E402
-import oracle_tomba2 as title  # noqa: E402
+import oracle_title as title  # noqa: E402
 import picture  # noqa: E402
 
 REPO = Path(gate.REPO)

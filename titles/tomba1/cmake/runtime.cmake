@@ -1,4 +1,4 @@
-# Tomba! 1's runtime library, linked into the Tomba product (TombaCatalog), its tests and its
+# Tomba! 1's runtime library, linked into the Tomba product (tomba::Catalog), its tests and its
 # identity check.
 
 get_filename_component(TOMBA1_ROOT "${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUTE)
@@ -22,22 +22,22 @@ add_library(
   tomba1_runtime STATIC
   "${TOMBA1_ROOT}/game/core/boot/cd_native_startup.cpp"
   "${TOMBA1_ROOT}/game/core/state/context.cpp"
-  "${TOMBA1_ROOT}/game/core/frame/tomba1_frame_driver.cpp"
+  "${TOMBA1_ROOT}/game/core/frame/frame_driver.cpp"
   "${TOMBA1_ROOT}/game/core/task/guest_task_slots.cpp"
   "${TOMBA1_ROOT}/game/core/boot/native_boot.cpp"
   "${TOMBA1_ROOT}/game/core/frame/stream_field_turn.cpp"
   "${TOMBA1_ROOT}/game/core/boot/sync_native.cpp"
-  "${TOMBA1_ROOT}/game/core/entry/tomba1_runtime.cpp"
-  "${TOMBA1_ROOT}/game/core/entry/tomba1_identity.cpp")
+  "${TOMBA1_ROOT}/game/core/entry/runtime.cpp"
+  "${TOMBA1_ROOT}/game/core/entry/identity.cpp")
 set_target_properties(tomba1_runtime PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON)
-# The catalog sees only entry/ (Tomba1Runtime, the identity); every other concept directory is
-# private to the library and to Tomba! 1's own tests.
+# The catalog includes only tomba1/game/core/entry/ (tomba1::Runtime, the identity) through titles/;
+# every other concept directory is private to the library and to Tomba! 1's own tests.
 set(TOMBA1_PRIVATE_INCLUDE_DIRS
     "${TOMBA1_ROOT}/game/core/state"
     "${TOMBA1_ROOT}/game/core/frame"
     "${TOMBA1_ROOT}/game/core/boot"
     "${TOMBA1_ROOT}/game/core/task")
-target_include_directories(tomba1_runtime PUBLIC "${TOMBA1_ROOT}/game/core/entry"
+target_include_directories(tomba1_runtime PUBLIC "${TOMBA1_ROOT}/.."
                                           PRIVATE ${TOMBA1_PRIVATE_INCLUDE_DIRS})
 target_link_libraries(tomba1_runtime PUBLIC psxport)
 
@@ -58,7 +58,7 @@ foreach(fact IN ITEMS entry global_pointer text_address text_size stack_address 
   list(APPEND TOMBA1_IDENTITY_DEFINITIONS "TOMBA1_${fact_upper}=${value}u")
 endforeach()
 set_source_files_properties(
-  "${TOMBA1_ROOT}/game/core/entry/tomba1_identity.cpp"
+  "${TOMBA1_ROOT}/game/core/entry/identity.cpp"
   PROPERTIES COMPILE_DEFINITIONS "${TOMBA1_IDENTITY_DEFINITIONS}")
 
 if(BUILD_TESTING)

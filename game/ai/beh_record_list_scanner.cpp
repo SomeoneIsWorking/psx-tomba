@@ -25,7 +25,7 @@
 // only RAM+scratchpad — matching the sibling objbeh gates.
 
 #include "core.h"
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "guest_abi.h" // GuestFrame — mirror the guest stack frame (CLAUDE.md)
 #include "guest_call.h"
 #include "mathlib.h"     // Bit::test7EC / test868 (FUN_8004D7EC / FUN_8004D868)

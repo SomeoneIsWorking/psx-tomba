@@ -1,7 +1,7 @@
 #include "frame/boot_cards.h"
 
 #include "core.h"
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "frame/frame_cadence.h"
 #include "game.h"
 #include "gpu_vk.h"
@@ -74,7 +74,7 @@ void BootCards::stepMovie(Core &core) {
   Game &game = *core.game;
   if (!movieOpen_) {
     movieOpen_ = true;
-    if (tombaSession(&core).settings.skipMovies || !game.fmv.beginPath(kBootMovie)) {
+    if (sessionOf(&core).settings.skipMovies || !game.fmv.beginPath(kBootMovie)) {
       finish(core);
       return;
     }

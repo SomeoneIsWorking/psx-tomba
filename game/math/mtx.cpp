@@ -1,7 +1,7 @@
 #include "mtx.h"
 #include "core.h"
 #include "core/overrides/native_override_catalog.h"
-#include "entry/tomba_session.h" // mtxOf(c) — the per-Core Mtx instance
+#include "entry/session.h" // mtxOf(c) — the per-Core Mtx instance
 
 namespace tomba {
 

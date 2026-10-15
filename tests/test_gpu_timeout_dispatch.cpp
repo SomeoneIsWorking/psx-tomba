@@ -1,7 +1,7 @@
-#include "cd/tomba_cd.h"
-#include "core/entry/tomba_runtime.h"
+#include "cd/engine_cd.h"
+#include "core/entry/runtime.h"
+#include "core/sched/scheduler.h"
 #include "core/sched/task_slot_layout.h"
-#include "core/sched/tomba_scheduler.h"
 #include "execution_control.h"
 #include "game.h"
 #include "game_runtime.h"
@@ -85,8 +85,8 @@ void checkGpuAfterTaskBudget(Game &game, Checks &checks) {
   core.mem_w32(base + 8u, 0x801ff000u);
   core.mem_w32(base + 12u, entry);
   const R3000 caller = core;
-  tomba::TombaCd cd(core);
-  tomba::sched::TombaScheduler scheduler(game, cd);
+  tomba::EngineCd cd(core);
+  tomba::sched::Scheduler scheduler(game, cd);
   scheduler.stepSlot(slot, caller);
   checks.require(core.lightrecExecutor().counters().executedBlocks > 0 &&
                      core.lightrecExecutor().counters().fallback.calls == 0,

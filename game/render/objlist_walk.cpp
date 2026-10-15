@@ -45,7 +45,7 @@
 //   caller state, so a stale value would reach guest RAM (perobj_dispatch.cpp's CmdListFrame banner).
 #include "core.h"
 #include "core/overrides/native_override_catalog.h"
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "game.h"
 #include "guest_call.h"
 #include "render.h"

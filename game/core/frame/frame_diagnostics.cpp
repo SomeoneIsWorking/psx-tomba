@@ -3,7 +3,7 @@
 #include "audio/libsnd_globals.h" // kSeqTickFn / the tick descriptor's slots
 #include "core.h"
 #include "engine/engine.h"
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "sched/task_slot_layout.h"
 
 #include <lucent/log.h>

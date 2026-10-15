@@ -2,7 +2,7 @@
 #include "area_fade_sequencer.h"
 #include "core.h"
 #include "core/engine/engine.h"
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "guest_call.h"
 #include "render/screen_fade.h"
 

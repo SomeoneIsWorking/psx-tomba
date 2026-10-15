@@ -1,7 +1,7 @@
 // game/world/placement.cpp — PC-native field OBJECT-PLACEMENT subsystem. See placement.h.
 #include "placement.h"
 #include "core.h"
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "game.h"
 #include "guest_call.h"
 #include "spawn.h" // class Spawn (eng(c).spawn.dispatch)
@@ -145,13 +145,13 @@ static void place_objects(Core *c) {
 
 void Placement::placeAreaObjects() {
   Core *c = core;
-  int s_v = tombaSession(c).verification.on("placeverify");
+  int s_v = sessionOf(c).verification.on("placeverify");
   if (!s_v) {
     place_objects(c);
     return;
   }
-  uint8_t *ram0 = tombaSession(c).verification.ram0();
-  uint8_t *ramN = tombaSession(c).verification.ramN();
+  uint8_t *ram0 = sessionOf(c).verification.ram0();
+  uint8_t *ramN = sessionOf(c).verification.ramN();
   uint8_t spad0[0x400], spadN[0x400];
   uint32_t regs0[32];
   memcpy(regs0, c->r, sizeof regs0);
@@ -180,7 +180,7 @@ void Placement::placeAreaObjects() {
       break;
     }
   }
-  tomba::VerificationCounter &chk = tombaSession(c).verification.placement;
+  tomba::VerificationCounter &chk = sessionOf(c).verification.placement;
   long &ng = chk.nMatch, &nb = chk.nMismatch;
   if (ro >= 0 || so >= 0) {
     if (nb++ < 40) {
@@ -212,13 +212,13 @@ static uint32_t spawn_with_parent(Core *c) {
 }
 void Placement::spawnWithParent() {
   Core *c = core;
-  int s_v = tombaSession(c).verification.on("spawnparentverify");
+  int s_v = sessionOf(c).verification.on("spawnparentverify");
   if (!s_v) {
     c->r[2] = spawn_with_parent(c);
     return;
   }
-  uint8_t *ram0 = tombaSession(c).verification.ram0();
-  uint8_t *ramN = tombaSession(c).verification.ramN();
+  uint8_t *ram0 = sessionOf(c).verification.ram0();
+  uint8_t *ramN = sessionOf(c).verification.ramN();
   uint8_t spad0[0x400], spadN[0x400];
   uint32_t regs0[32];
   memcpy(regs0, c->r, sizeof regs0);
@@ -248,7 +248,7 @@ void Placement::spawnWithParent() {
       break;
     }
   }
-  tomba::VerificationCounter &chk = tombaSession(c).verification.spawnParent;
+  tomba::VerificationCounter &chk = sessionOf(c).verification.spawnParent;
   long &ng = chk.nMatch, &nb = chk.nMismatch;
   if (ro >= 0 || so >= 0 || v0_n != v0_o) {
     if (nb++ < 40) {

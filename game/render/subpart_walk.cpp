@@ -21,7 +21,7 @@
 // is large. Collapsing them into one loop bound would change behaviour for any node where they differ.
 #include "core.h"
 #include "core/overrides/native_override_catalog.h"
-#include "entry/tomba_session.h" // eng()
+#include "entry/session.h" // eng()
 #include "game.h"
 #include "guest_call.h"
 #include "guest_ordering_table.h"

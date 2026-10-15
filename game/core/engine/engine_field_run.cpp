@@ -15,7 +15,7 @@
 #include "core/engine/task_sm.h"         // TaskSm — the typed lens over the task record, owned in one header
 #include "core/overrides/guest_jal.h"    // tomba::guest::dispatchJalToReturn — the guest call convention
 #include "core/overrides/guest_resume.h" // requestGuestContinuation
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "game.h" // Game — the per-Core product the Engine drives
 #include "guest_call.h"
 #include "level_load.h"
@@ -26,7 +26,7 @@
 #include "render.h"
 #include "scene/card_load_machine.h" // tomba::scene::stepCardLoadMachine
 #include "scene/start_bin_stage.h"   // class StartBinStage — the task-0 file-table builder
-#include "sched/tomba_scheduler.h"
+#include "sched/scheduler.h"
 #include <cstdint>
 #include <cstdio>
 #include <lucent/log.h>
@@ -275,7 +275,7 @@ void Engine::fieldRunX() {
     c->mem_w16(sm + 0x4e, 1);
     // 0x8006c77c — the per-area transition-ENTER hook (every area's, 0..21).
     // Its cooperative FUN_80044BD4 spawn-and-wait completes on this leg too:
-    // TombaScheduler::spawnAndWait runs the spawned body inline when the waiting
+    // Scheduler::spawnAndWait runs the spawned body inline when the waiting
     // task cannot suspend (kanban #50).
     c->r[31] = 0x80107108u;
     psx::cpu::dispatchGuestToReturn0(*c, 0x8006c77cu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);

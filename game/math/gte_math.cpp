@@ -11,7 +11,7 @@
 #include "gte_math.h" // class Math — static entry surface + ov_* free-fn decls for internal reuse
 #include "core.h"
 #include "core/overrides/native_override_catalog.h"
-#include "entry/tomba_session.h"
+#include "entry/session.h"
 #include "game.h"
 #include "trig.h" // Trig::vecLen — the single home of FUN_80078240's magnitude approximation
 #include <stdio.h>
