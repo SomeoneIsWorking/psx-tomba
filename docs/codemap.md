@@ -69,7 +69,7 @@ function owners in `docs/guest-addresses.md`, producers in `docs/producers.md`, 
 | Tomba! 1 | `titles/tomba1/` | The second title, isolated from `game/`; `titles/tomba1/docs/codemap.md` |
 | build | `CMakeLists.txt`, `cmake/port.cmake`, `titles/tomba1/cmake/` | `tomba2_port` (both titles), `tomba2_game`, `tomba1_runtime`, the tests and policy gate |
 | tests | `tests/` | Unit tests through shipping seams; `test_authentic_*` compare natives against MAIN.EXE and overlays |
-| launcher, provisioning | `tools/run.py`, `tools/provision.py`, `tools/psxport_fetch.py` | The zero-argument launch, evidence images, the `external/psxport` link |
+| launcher, provisioning | `tools/run.py`, `tools/provision.py` | The zero-argument launch, evidence images, the `external/psxport` fetch (`run.py:sync_framework`) |
 | agent tools | `tools/gate.py`, `tools/verify_ci.py`, `tools/oracle_compare.py`, `tools/oracle_title.py`, `tools/picture_oracle.py`, `tools/title_prompts.py` | Headless gate, CI verify, oracle comparison, picture checks, title prompts |
 
 ## Where new work goes

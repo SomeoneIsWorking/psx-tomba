@@ -33,8 +33,6 @@ public:
   bool sealedFrameIsCut(Core &core) const override;
   int displayHeight() const override;
   const GuestWidescreenProjection *guestWidescreenProjection() const override;
-  RenderCapabilities renderCapabilities() const override;
-  bool guestVramIsPicture(const Game &game) const override;
   bool titleCommand(Core &core, const psx::game::TitleCommandLine &input, std::FILE *reply) override;
   psx::game::TitleAudio *audio(Core &core) const override;
   psx::game::TitleDevWarp *devWarp(Core &core) const override;

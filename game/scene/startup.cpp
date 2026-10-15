@@ -100,10 +100,10 @@ void Engine::initDisplay() {
 
   // SetGeomOffset (FUN_800846d0) / SetGeomScreen (FUN_800846f0) through the framework leaves, so the
   // recorded projection copy follows the GTE. The retail centre stands; the Record canvas adds the margins.
-  libgte_set_geom_offset(c, kScreenCentreX, kScreenCentreY);
+  psx::gte::setGeomOffset(*c, kScreenCentreX, kScreenCentreY);
 
   c->mem_w16(0x801003F8, kProjectionPlaneH); // DAT_801003f8 — initCamera reads H back from here
-  libgte_set_geom_screen(c, kProjectionPlaneH);
+  psx::gte::setGeomScreen(*c, kProjectionPlaneH);
   psx::cpu::dispatchGuestToReturn0(*c,
                                    0x80050738u,
                                    psx::cpu::ExecutionBudget::currentTurn(*c),

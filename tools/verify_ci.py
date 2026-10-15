@@ -9,7 +9,7 @@ from collections.abc import Sequence
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-# The framework's own tools live in the checkout tools/psxport_fetch.py resolved. This insertion
+# The framework's own tools live in the checkout psxport's tools/psxport_fetch.py resolved. This insertion
 # precedes the import below and uses the same external/psxport/tools resolution as the rest of this
 # file.
 PSXPORT = (ROOT / "external/psxport").resolve()

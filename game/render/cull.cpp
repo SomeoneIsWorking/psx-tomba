@@ -206,7 +206,7 @@ void Cull::noteQueuePush(uint32_t obj, int queue, bool accepted) {
 
 void Cull::submitLogRoll() {
   Core *c = core;
-  const int f = c->game->gpu.s_frame;
+  const int f = c->game->display.frame();
   if (f == mSubmit.frame) {
     return;
   }

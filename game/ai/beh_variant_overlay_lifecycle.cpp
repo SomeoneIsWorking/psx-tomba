@@ -81,7 +81,7 @@ void beh_variant_overlay_lifecycle(Core *c) {
     int32_t pos = (int32_t)c->mem_r32(nd + 0x50) + (int32_t)(uint32_t)tv;
     c->mem_w32(nd + 0x10, (uint32_t)pos);
     c->mem_w32(nd + 0x14, (uint32_t)pos);
-    psx::cpu::dispatchGuestToReturn2(*c, 0x8007C0D0u, nd, 0, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, 0x8007C0D0u, nd, 0);
     uint8_t n3 = c->mem_r8(nd + 3);
     c->mem_w8(nd + 0x46, 1);
     c->mem_w8(nd + 4, (uint8_t)(c->mem_r8(nd + 4) + 1)); // node[4] += 1  (-> 1)

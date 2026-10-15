@@ -8,7 +8,8 @@
 #include "cd/engine_cd_loader.h"
 #include "core.h"
 #include "entry/session.h"
-#include "game.h"       // c->game->hle.deliverEvent — Hle subsystem lives on Game
+#include "game.h" // c->game->hle.deliverEvent — Hle subsystem lives on Game
+#include "gpu_ports.h"
 #include "guest_call.h" // rc1-4 guest-call helpers (used by the preload chain below)
 #include "overrides/native_override_catalog.h"
 #include "sched/scheduler.h"
@@ -292,7 +293,7 @@ void Asset::uploadImage(const UploadImageArgs &args) {
   for (std::size_t i = 0; i < pixels.size(); i++) {
     pixels[i] = c->mem_r16(src + static_cast<std::uint32_t>(i * 2u));
   }
-  c->gpuDevice.loadImage(x, y, w, h, pixels);
+  psx::gpu::loadImage(*c, {x, y, w, h}, pixels);
 }
 
 // ===== Stage-0/stage-1 area/asset PRELOAD — PC-native + SYNCHRONOUS (moved from native_boot.cpp,
@@ -333,16 +334,10 @@ struct PreloadCelArgs {
 // poll (the "no async" directive) instead of yielding for a DMA that already happened.
 static void preload_cel(Core *c, const PreloadCelArgs &args) {
   auto [out, desc, cbarg] = args;
-  psx::cpu::dispatchGuestToReturn3(
-      *c, 0x80096480u, desc, (uint32_t)-1, cbarg, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
-  int16_t slot = (int16_t)c->r[2]; // FUN_80096480(desc,-1,cbarg)
-  c->mem_w16(out, (uint16_t)slot); // *(u16*)out = allocated slot
-  psx::cpu::dispatchGuestToReturn2(*c,
-                                   0x80096980u,
-                                   cbarg,
-                                   (uint32_t)slot,
-                                   psx::cpu::ExecutionBudget::currentTurn(*c),
-                                   __func__); // FUN_80096980(cbarg, slot): kick upload
+  psx::cpu::callGuestNow(*c, __func__, 0x80096480u, desc, (uint32_t)-1, cbarg);
+  int16_t slot = (int16_t)c->r[2];                                          // FUN_80096480(desc,-1,cbarg)
+  c->mem_w16(out, (uint16_t)slot);                                          // *(u16*)out = allocated slot
+  psx::cpu::callGuestNow(*c, __func__, 0x80096980u, cbarg, (uint32_t)slot); // FUN_80096980(cbarg, slot): kick upload
   // FUN_800753D4 writes `out` a SECOND time with FUN_80096980's RETURN (the real slot handle; -1 when
   // the SPU-DMA kick found no free channel). Dropping this write-back left a stale positive slot id in
   // the cel handle (0x800BED84/0x800BED82) on the failure branch — the sprite/cel registrations then
@@ -355,12 +350,8 @@ static void preload_cel(Core *c, const PreloadCelArgs &args) {
   // the poll and silently skipped a whole VAB bank (proved by the dual-core SPU-DMA diff: 1 transfer vs PSX's
   // 2). Deliver the sound-DMA-complete event first so 0x800993a0 returns immediately (no busy-wait, no yield),
   // then run the sync once. (later: in-game music VAB.)
-  c->game->hle.deliverEvent(0xF0000009u, 0xFFFFFFFFu); // sound/DMA-complete event
-  psx::cpu::dispatchGuestToReturn1(*c,
-                                   0x80096a40u,
-                                   0,
-                                   psx::cpu::ExecutionBudget::currentTurn(*c),
-                                   __func__); // FUN_80096a40(0): upload sync (now non-blocking)
+  c->game->hle.deliverEvent(0xF0000009u, 0xFFFFFFFFu);  // sound/DMA-complete event
+  psx::cpu::callGuestNow(*c, __func__, 0x80096a40u, 0); // FUN_80096a40(0): upload sync (now non-blocking)
 }
 
 // FUN_800754F4 cel/sprite VRAM build, synchronous. FUN_800753ac is itself an async CD read -> use the
@@ -387,14 +378,8 @@ static uint32_t preload_build_vram(Core *c, uint32_t base) {
   };
   uint32_t cell_h = (uint32_t)c->mem_r16s(0x800BED82u);
   for (int i = 0; i < 10; i++) {
-    psx::cpu::dispatchGuestToReturn4(*c,
-                                     0x80075448u,
-                                     (uint32_t)i,
-                                     base + c->mem_r32(s0 + cells[i].off),
-                                     cells[i].sz,
-                                     cell_h,
-                                     psx::cpu::ExecutionBudget::currentTurn(*c),
-                                     __func__);
+    psx::cpu::callGuestNow(
+        *c, __func__, 0x80075448u, (uint32_t)i, base + c->mem_r32(s0 + cells[i].off), cells[i].sz, cell_h);
   }
   return base + 26356; // v0 = base + 0x66f4
 }

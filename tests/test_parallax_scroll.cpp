@@ -44,5 +44,5 @@ int main() {
   RUN(guest_reduce_is_the_identity_inside_the_range);
   RUN(guest_reduce_is_not_a_canonical_wrap);
   RUN(guest_reduce_lands_within_one_modulus_of_the_range);
-  return pt_summary();
+  return psx::test::summary();
 }

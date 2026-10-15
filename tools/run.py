@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import NoReturn
 
 ROOT = Path(__file__).resolve().parents[1]
+FRAMEWORK_FETCH = ["uv", "run", "--no-project", "https://raw.githubusercontent.com/SomeoneIsWorking/psxport/main/tools/psxport_fetch.py", "--auto"]
 CYAN = "\033[1;36m"
 RED = "\033[1;31m"
 RESET = "\033[0m"
@@ -317,13 +318,9 @@ def framework_status(psxport: Path, root: Path, explicit: bool) -> str:
 
 
 def sync_framework(root: Path, env: dict[str, str]) -> Path:
-    run_checked(
-        [sys.executable, "tools/psxport_fetch.py", "--auto"],
-        root=root,
-        error="could not resolve external/psxport",
-        env=env,
-    )
     explicit = bool(env.get("PSXPORT_DIR"))
+    if not explicit and not (root / "external/psxport/cmake/psxport.cmake").is_file():
+        run_checked(FRAMEWORK_FETCH, root=root, error="could not resolve external/psxport", env=env)
     psxport = Path(env.get("PSXPORT_DIR", "external/psxport"))
     check_root = psxport if psxport.is_absolute() else root / psxport
     if not (check_root / "cmake/psxport.cmake").is_file():

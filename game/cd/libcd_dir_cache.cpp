@@ -15,7 +15,7 @@ uint8_t bcd(int v) {
 } // namespace
 
 bool LibcdDirCache::readSectorIntoScratch(uint32_t lba, uint8_t *out) {
-  if (!disc_read_sector(&core_.game->disc, lba, out)) {
+  if (!core_.game->disc.readSector(lba, out)) {
     return false;
   }
   for (uint32_t i = 0; i < kSectorBytes; i++) {

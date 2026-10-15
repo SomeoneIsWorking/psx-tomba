@@ -33,7 +33,7 @@ std::uint32_t readBytes(Core &core, const ReadBytesArgs &args) {
   std::uint32_t sectors = 0;
   done = 0;
   for (; done < bytes; ++sectors) {
-    if (!disc_read_sector(&core.game->disc, lba + sectors, sector.data())) {
+    if (!core.game->disc.readSector(lba + sectors, sector.data())) {
       break;
     }
     const std::uint32_t n = bytes - done < kSectorBytes ? bytes - done : kSectorBytes;
@@ -48,7 +48,7 @@ std::uint32_t readBytes(Core &core, const ReadBytesArgs &args) {
 bool EngineCdLoader::readBlocks(std::uint32_t blocks, std::uint32_t lba, std::uint32_t dest) {
   std::array<std::uint8_t, kSectorBytes> sector{};
   for (std::uint32_t i = 0; i < blocks; ++i) {
-    if (!disc_read_sector(&core_.game->disc, lba + i, sector.data())) {
+    if (!core_.game->disc.readSector(lba + i, sector.data())) {
       return false;
     }
     core_.mem_write(dest + i * kSectorBytes, sector, psx::cpu::ExecutableWriteSource::ModuleLoad);

@@ -345,7 +345,9 @@ constexpr uint32_t kTurnModeOffset = 10u;
 // what makes the surrounding code readable, and dropping a check that cannot fire is a silent
 // behaviour change to anyone who later widens the dividend.
 uint16_t solveStepDivisor(Core *c, int16_t distance, int32_t stepsRequested) {
-  cpu_div(c, static_cast<uint32_t>(static_cast<int32_t>(distance)), static_cast<uint32_t>(stepsRequested));
+  psx::cpu::divide(c,
+                   {.numerator = static_cast<uint32_t>(static_cast<int32_t>(distance)),
+                    .denominator = static_cast<uint32_t>(stepsRequested)});
   if (stepsRequested == 0) {
     psx::cpu::handleBreak(*c, 7168u);
   }
@@ -362,9 +364,9 @@ uint16_t solveStepDivisor(Core *c, int16_t distance, int32_t stepsRequested) {
 // The second division: the whole move in Q12 over the per-call step, giving the per-call decrement
 // of stepsRemaining. Same bounds checks, same reasoning about them being unreachable.
 uint16_t solvePerCallStep(Core *c, uint16_t stepDiv) {
-  cpu_div(c,
-          static_cast<uint32_t>(kWholeMoveQ12),
-          static_cast<uint32_t>(static_cast<int32_t>(static_cast<int16_t>(stepDiv))));
+  psx::cpu::divide(c,
+                   {.numerator = static_cast<uint32_t>(kWholeMoveQ12),
+                    .denominator = static_cast<uint32_t>(static_cast<int32_t>(static_cast<int16_t>(stepDiv)))});
   if (static_cast<int16_t>(stepDiv) == 0) {
     psx::cpu::handleBreak(*c, 7168u);
   }

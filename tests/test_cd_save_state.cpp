@@ -52,5 +52,5 @@ void test_truncated_deferred_music_is_refused() {
 int main() {
   RUN(deferred_area_music_survives_a_save_state);
   RUN(truncated_deferred_music_is_refused);
-  return pt_summary();
+  return psx::test::summary();
 }

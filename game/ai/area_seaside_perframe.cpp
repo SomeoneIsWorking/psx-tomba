@@ -96,7 +96,7 @@ inline void aux_list_walk(Core *c) {
 } // namespace
 
 void Behaviors::areaSeasidePerframe(Core *c) {
-  psx::cpu::dispatchGuestToReturn1(*c, 0x8002288Cu, G, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, 0x8002288Cu, G);
 
   const uint8_t mode = c->mem_r8(G);
   const bool defaultMode = !(mode == 0 || mode == 2 || mode == 6);

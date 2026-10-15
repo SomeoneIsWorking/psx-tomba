@@ -43,7 +43,7 @@
 // (beh_area_transition_machine.cpp, beh_pickup_collect_trigger.cpp) — those leaves are shared with
 // many other still-substrate callers and are each their own future frontier item, NOT part of this
 // cluster. FUN_8003116C (Spawn::spawnAndInitBody) and FUN_80081218 (Asset::uploadImage /
-// GpuState::gpu_native_load_vram) ARE already native via EngineOverride — routed the same way
+// the device VRAM upload) ARE already native via EngineOverride — routed the same way
 // (typed runtime address dispatch to the wired guest address) so the override fires transparently.
 //
 // Ghidra decomp: scratch/decomp/beh_seaside_cluster.c, scratch/decomp/beh_seaside_helpers.c.
@@ -123,7 +123,7 @@ inline int32_t cam_distance(Core *c, uint32_t o) {
 // ===============================================================================================
 // FUN_8013C0BC — "mode arm" sprite-frame cycler. mode==0 resets the countdown; mode!=0 ticks it
 // down and, on expiry, advances a duration/index cursor (with a -1-sentinel loop-back) and blits
-// the next sprite frame via FUN_80081218 (native Asset::uploadImage / GpuState upload — reached
+// the next sprite frame via FUN_80081218 (native Asset::uploadImage — reached
 // here by typed runtime address dispatch to the wired guest address, per the EngineOverride convention).
 // RE'd 1:1 from disas 0x8013c0bc..0x8013c1dc (single active slot; loop bound is `< 1`).
 void modeArm(Core *c, int32_t mode) {

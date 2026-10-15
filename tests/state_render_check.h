@@ -4,6 +4,7 @@
 
 #include "core.h"
 #include "frame_composer.h"
+#include "gpu_ports.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -38,10 +39,10 @@ inline psx::present::FrameRecord submittedFrame(Core &core, std::uint32_t ot) {
   core.mem_w32(kGp0, 0xE3000000u);
   core.mem_w32(kGp0, 0xE4000000u | 1023u | (511u << 10));
   core.mem_w32(kGp0, 0xE5000000u);
-  core.gpuDevice.sealRecord();
+  psx::gpu::sealRecord(core);
   core.mem_w32(kDma2Address, ot + (kOtBuckets - 1u) * 4u);
   core.mem_w32(kDma2Control, kDma2LinkedListToGpu);
-  return core.gpuDevice.sealRecord();
+  return psx::gpu::sealRecord(core);
 }
 
 inline std::vector<psx::present::DrawPrimitive> primitivesOf(const psx::present::FrameRecord &record,

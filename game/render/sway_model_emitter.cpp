@@ -142,7 +142,7 @@ std::int32_t stagedDepth(const psx::present::EmitMemory &memory, int corner) {
 // IR0 = SZ / 4 plus the next scratchpad LCG value's top 10 bits.
 void cueRandom(const psx::present::EmitMemory &memory, const ModelPacket &packet, int corner) {
   Core &core = memory.core();
-  guest_mult(
+  psx::cpu::multiply(
       &core, static_cast<std::int32_t>(memory.mem_r32(kRandomSeed)), static_cast<std::int32_t>(kRandomMultiplier));
   const std::uint32_t seed = core.lo + kRandomIncrement;
   memory.mem_w32(kRandomSeed, seed);

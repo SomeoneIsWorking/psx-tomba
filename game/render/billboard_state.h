@@ -22,7 +22,7 @@ public:
   static constexpr std::uint32_t kPacketWords = 9u;
 
   // Reads the GTE control registers the particles are projected under.
-  BillboardState();
+  explicit BillboardState(const psx::cpu::Gte &gte);
 
   // One drawn particle: its corner vectors, the bucket it links into and its packet's command words.
   void add(std::span<const std::uint32_t, kCornerWords> corners,

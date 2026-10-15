@@ -90,7 +90,7 @@ void FxSpriteSwarm::emitPerParticle(Core *c) {
     const FxSwarmParticle particle{c, c->r[18]};
     if (publish.projectAnchor({.worldXY = particle.worldXY(), .worldZ = particle.worldZ(), .otBias = node.otBias()})) {
       // mult leaves hi/lo guest-visible.
-      guest_mult(c, publish.scaleX(), particle.sizeMul());
+      psx::cpu::multiply(c, publish.scaleX(), particle.sizeMul());
       const int32_t scale = (int32_t)c->lo >> kParticleSizeShift;
 
       c->r[4] = c->r[22];

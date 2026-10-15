@@ -30,7 +30,7 @@ ListJobWriter::ListJobWriter(Core &core, std::uint32_t variant, const ListCall &
     header_.table = slot->table;
     header_.slot = slot->index;
   }
-  header_.control = psx::present::readGteControl();
+  header_.control = psx::present::readGteControl(core.gte());
 }
 
 void ListJobWriter::input(

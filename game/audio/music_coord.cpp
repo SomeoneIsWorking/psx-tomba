@@ -171,10 +171,10 @@ void MusicCoord::voiceMixTick(uint32_t voice_base) {
     } else if (flags & 0x08u) {
       // Table level / 9 — the game divides via the 0x38E38E39 magic multiply (hi/lo visible).
       int32_t level = (int32_t)c->mem_r8(kDialogLevel) * 0x7FFF;
-      guest_mult(c, level, (int32_t)0x38E38E39);
+      psx::cpu::multiply(c, level, (int32_t)0x38E38E39);
       vol = ((int32_t)c->hi >> 1) - (level >> 31);
     } else {
-      vol = (int32_t)(guest_mult(c, voice.baseVol(), 0x7FFF) >> 15);
+      vol = (int32_t)(psx::cpu::multiply(c, voice.baseVol(), 0x7FFF) >> 15);
     }
     voice.setFlags(voice.flags() | 0x3u);
   } else {
@@ -195,7 +195,7 @@ void MusicCoord::voiceMixTick(uint32_t voice_base) {
     }
     voice.setFadeCur(cur);
 
-    vol = (int32_t)(guest_mult(c, voice.baseVol(), cur) >> 15);
+    vol = (int32_t)(psx::cpu::multiply(c, voice.baseVol(), cur) >> 15);
     if (boost != 0) {
       vol = (vol * 5) >> 2;
       if (vol > 0x7FFE) {
@@ -215,7 +215,7 @@ void MusicCoord::voiceMixTick(uint32_t voice_base) {
     // current gain SIGNED for the delta but UNSIGNED for the accumulate — mirrored.
     int32_t g2 = voice.gain2Cur() + (((int32_t)voice.gain2Target() - (int16_t)voice.gain2Cur()) >> 3);
     voice.setGain2Cur(g2);
-    vol = (int32_t)(guest_mult(c, vol, (int16_t)g2) >> 13);
+    vol = (int32_t)(psx::cpu::multiply(c, vol, (int16_t)g2) >> 13);
   }
 
   // Publish: packed volume to both channel halves, pan centered, dirty bits. v0/v1 mirror gen's
@@ -274,7 +274,7 @@ void MusicCoord::tick() {
   // per frame. The remaining `if` is a state-change detector that also advances the detector's own
   // state — not a channel gate (lucent gates itself, and does not evaluate args when `coord` is off).
   uint32_t s = c->mem_r16(kCurrentSongIdx) & 0xFFFF;
-  int a = xa_stream_is_active(&c->game->xa), l = xa_stream_is_looping(&c->game->xa);
+  int a = c->game->xa.isActive(), l = c->game->xa.isLooping();
   if (s != mPrev || a != mPa || l != mPl) {
     lucent::debug("coord",
                   "song={} tone={} xa_active={} loop={} pending={}",
@@ -288,10 +288,10 @@ void MusicCoord::tick() {
     mPl = l;
   }
   if (dialogToneActive()) {
-    if (xa_stream_is_looping(&c->game->xa)) {
+    if (c->game->xa.isLooping()) {
       sessionOf(c).cd.stopClip(); // dialog up: silence ingame music (kept pending)
     }
-  } else if (sessionOf(c).cd.deferredMusic().pending && !xa_stream_is_active(&c->game->xa)) {
+  } else if (sessionOf(c).cd.deferredMusic().pending && !c->game->xa.isActive()) {
     EngineCd &cd = sessionOf(c).cd;
     const EngineCd::DeferredMusic &music = cd.deferredMusic();
     cd.playClip({.channel = music.channel, .start = music.start, .end = music.end, .loop = true});

@@ -25,7 +25,7 @@
 //     callee-saved registers, and O32 lets a callee stash its incoming a0..a3 into the CALLER's
 //     16-byte argument-save area — both would put a stale register value into guest RAM, which SBS
 //     compares. GuestReg<N> proxies give those a name without moving them out of the register file.
-//   * hi/lo go through guest_mult. They are guest-visible state (guest_abi.h §5).
+//   * hi/lo go through psx::cpu::multiply. They are guest-visible state (guest_abi.h §5).
 //   * PURE SCRATCH (r2/r3/r8/r9, and the dead intermediate values of r4/r5 that no call and no
 //     later statement reads) becomes ordinary named C++ locals. Audited 2026-07-30, transitively,
 //     over all five callees and the one real nested call: rcos/sqrtLzc/ratan2/angleCmp descend NO
@@ -39,7 +39,7 @@
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 #include "world/collision_resolve.h"
 #include "core.h"
-#include "core/overrides/guest_jal.h" // GuestFrame / GuestReg / guest_call / guest_mult
+#include "core/overrides/guest_jal.h" // GuestFrame / GuestReg / guest_call / psx::cpu::multiply
 #include "core/overrides/native_override_catalog.h"
 #include "game.h"
 #include "guest_abi.h"
@@ -320,24 +320,24 @@ void CollisionResolve::cylinderResolve(Core *c) {
 
     c->r[4] = (uint32_t)actor.s16(kActorAngle); // a0 = facing angle
     tomba::guest::dispatchJalToReturn(*c, {.target = 0x80083F50u, .returnAddress = kRaSampleCos});
-    guest_mult(c, (int32_t)c->r[2], actor.s16(kActorSampleRadius));
+    psx::cpu::multiply(c, (int32_t)c->r[2], actor.s16(kActorSampleRadius));
     c->r[4] = (uint32_t)actor.s16(kActorAngle); // a0 = facing angle
     sampleOffsetX = (uint32_t)((int32_t)c->lo >> 12);
     tomba::guest::dispatchJalToReturn(*c, {.target = 0x80083E80u, .returnAddress = kRaSampleSin});
-    guest_mult(c, (int32_t)c->r[2], actor.s16(kActorSampleRadius));
+    psx::cpu::multiply(c, (int32_t)c->r[2], actor.s16(kActorSampleRadius));
     const int32_t sinTimesRadius = (int32_t)c->lo;
 
     // World coordinates are stored as u16, so each delta is truncated to 16 bits and sign-extended
     // BEFORE squaring — squaring the raw difference would square a value near 65535 instead of -1.
     const uint32_t dx = actor.u16(kActorX) + sampleOffsetX - anchor.u16(kAnchorX);
-    guest_mult(c, (int16_t)dx, (int16_t)dx);
+    psx::cpu::multiply(c, (int16_t)dx, (int16_t)dx);
     const uint32_t deltaXSq = c->lo;
 
     const uint32_t sampleOffsetZ = (uint32_t)(sinTimesRadius >> 12);
     const uint32_t dz = actor.u16(kActorZ) - sampleOffsetZ - anchor.u16(kAnchorZ);
     c->r[6] = deltaXSq; // gen leaves dx² in a2, and it is still there at the ratan2
                         // call further down — keep it on the register, not in a local
-    guest_mult(c, (int16_t)dz, (int16_t)dz);
+    psx::cpu::multiply(c, (int16_t)dz, (int16_t)dz);
 
     c->mem_w16(c->r[29] + kLocalSampleOffsetX, (uint16_t)sampleOffsetX);
     c->mem_w16(c->r[29] + kLocalDeltaX, (uint16_t)dx);
@@ -351,10 +351,10 @@ void CollisionResolve::cylinderResolve(Core *c) {
     yBias = actor.u16(kActorYBias);
   } else {
     const uint32_t dx = actor.u16(kActorX) - anchor.u16(kAnchorX);
-    guest_mult(c, (int16_t)dx, (int16_t)dx);
+    psx::cpu::multiply(c, (int16_t)dx, (int16_t)dx);
     const uint32_t deltaXSq = c->lo;
     const uint32_t dz = actor.u16(kActorZ) - anchor.u16(kAnchorZ);
-    guest_mult(c, (int16_t)dz, (int16_t)dz);
+    psx::cpu::multiply(c, (int16_t)dz, (int16_t)dz);
 
     yBias = 0u; // no offset was applied, so nothing to bias the Y test by
     c->mem_w16(c->r[29] + kLocalSampleOffsetX, 0u);
@@ -435,11 +435,11 @@ void CollisionResolve::cylinderResolve(Core *c) {
 
     c->r[4] = c->mem_r32(scratchpad + kContactAngleSlot); // a0 = contact angle
     tomba::guest::dispatchJalToReturn(*c, {.target = 0x80083F50u, .returnAddress = kRaPushCos});
-    guest_mult(c, (int32_t)c->r[2], contactRadius);
+    psx::cpu::multiply(c, (int32_t)c->r[2], contactRadius);
     c->r[4] = c->mem_r32(scratchpad + kContactAngleSlot); // a0 = contact angle
     contactOffsetX = (uint32_t)((int32_t)c->lo >> 12);
     tomba::guest::dispatchJalToReturn(*c, {.target = 0x80083E80u, .returnAddress = kRaPushSin});
-    guest_mult(c, (int32_t)c->r[2], contactRadius);
+    psx::cpu::multiply(c, (int32_t)c->r[2], contactRadius);
     const uint32_t contactOffsetZ = (uint32_t)((int32_t)c->lo >> 12);
 
     // The facing offset applied on the way in has to come back out of the position written.
@@ -515,10 +515,10 @@ void CollisionResolve::landOnObjectTop(Core *c) {
 
   // gate 2 — XZ cylinder overlap. Same u16 truncate-then-sign-extend as cylinderResolve.
   const uint32_t dx = actor.u16(kActorX) - other.u16(kOtherX);
-  guest_mult(c, (int16_t)dx, (int16_t)dx);
+  psx::cpu::multiply(c, (int16_t)dx, (int16_t)dx);
   const uint32_t deltaXSq = c->lo;
   const uint32_t dz = actor.u16(kActorZ) - other.u16(kOtherZ);
-  guest_mult(c, (int16_t)dz, (int16_t)dz);
+  psx::cpu::multiply(c, (int16_t)dz, (int16_t)dz);
   c->r[4] = deltaXSq + c->lo; // a0 = dx² + dz²
   tomba::guest::dispatchJalToReturn(*c, {.target = 0x80084080u, .returnAddress = kRaLandDist});
   const uint32_t xzDistance = c->r[2] & 0xFFFFu;
@@ -633,10 +633,10 @@ void CollisionResolve::classifyBodyContact(Core *c) {
   // (The same trap the landOnObjectTop banner records; it is the reason both bodies came from
   // binary evidence rather than from anyone re-typing the arithmetic.)
   deltaX = (uint32_t)(int32_t)(int16_t)(actor.u16(kActorX) - other.u16(kOtherX));
-  guest_mult(c, (int32_t)(uint32_t)deltaX, (int32_t)(uint32_t)deltaX);
+  psx::cpu::multiply(c, (int32_t)(uint32_t)deltaX, (int32_t)(uint32_t)deltaX);
   const uint32_t deltaXSq = c->lo;
   deltaZ = (uint32_t)(int32_t)(int16_t)(actor.u16(kActorZ) - other.u16(kOtherZ));
-  guest_mult(c, (int32_t)(uint32_t)deltaZ, (int32_t)(uint32_t)deltaZ);
+  psx::cpu::multiply(c, (int32_t)(uint32_t)deltaZ, (int32_t)(uint32_t)deltaZ);
   c->r[4] = deltaXSq + c->lo; // a0 = dx² + dz²
   tomba::guest::dispatchJalToReturn(*c, {.target = 0x80084080u, .returnAddress = kRaBodyDist});
   xzDistance = c->r[2];
@@ -818,10 +818,10 @@ void CollisionResolve::resolveByContactPolicy(Core *c) {
   // BEFORE squaring — squaring the raw difference would square a value near 65535 instead of -1.
   // (The trap landOnObjectTop's banner records; same records, same hazard.)
   const uint32_t dx = actor.u16(kActorX) - other.u16(kOtherX);
-  guest_mult(c, (int16_t)dx, (int16_t)dx);
+  psx::cpu::multiply(c, (int16_t)dx, (int16_t)dx);
   const uint32_t deltaXSq = c->lo;
   const uint32_t dz = actor.u16(kActorZ) - other.u16(kOtherZ);
-  guest_mult(c, (int16_t)dz, (int16_t)dz);
+  psx::cpu::multiply(c, (int16_t)dz, (int16_t)dz);
   policy = policyArg;
   deltaX = dx;
   deltaZ = dz;
@@ -897,11 +897,11 @@ void CollisionResolve::resolveByContactPolicy(Core *c) {
     GuestReg<16> contactOffsetX(c); // s0 — live across the rsin call
     tomba::guest::dispatchJalToReturn(*c, {.target = 0x80083F50u, .returnAddress = kRaPairPushCos});
     const int32_t contactRadius = actor.s16(kActorHeightLo) + other.s16(kOtherRadius);
-    guest_mult(c, (int32_t)c->r[2], contactRadius);
+    psx::cpu::multiply(c, (int32_t)c->r[2], contactRadius);
     c->r[4] = c->mem_r32(scratchpad + kContactAngleSlot); // a0 = the heading again
     contactOffsetX = (uint32_t)((int32_t)c->lo >> 12);
     tomba::guest::dispatchJalToReturn(*c, {.target = 0x80083E80u, .returnAddress = kRaPairPushSin});
-    guest_mult(c, (int32_t)c->r[2], contactRadius);
+    psx::cpu::multiply(c, (int32_t)c->r[2], contactRadius);
 
     c->mem_w16(actor.base() + kActorX, (uint16_t)(other.u16(kOtherX) + contactOffsetX));
     const uint32_t contactOffsetZ = (uint32_t)((int32_t)c->lo >> 12);

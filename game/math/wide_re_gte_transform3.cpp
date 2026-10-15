@@ -15,7 +15,7 @@
 // Shape (MEDIUM confidence — register-flow is exact, source-struct field ROLES are inferred from
 // operand width/shift patterns only, never confirmed against a live dump):
 //   a0 (r4) = a 5-word (20 B) buffer that is BOTH the input rotation matrix (read at entry, loaded
-//     into GTE CR0-4 via gte_write_ctrl, CR-packed layout matching Math::matMul/rotmat's outPtr
+//     into GTE CR0-4 via Gte::writeControl, CR-packed layout matching Math::matMul/rotmat's outPtr
 //     format) AND the output buffer — its own 5 words get OVERWRITTEN in place with the packed
 //     per-vertex transform results before return (same address used for both reads-at-entry and
 //     writes-at-exit; verified from the guest-visible behavior, not a guess).
@@ -28,7 +28,7 @@
 //     (Word @+4 packs X2 low / Y0 high; word @+8 packs Y1 low / Y2 high — confirmed by two DISTINCT
 //     reads of the SAME source word with different mask/shift per vertex, not two separate fields.)
 //
-// Algorithm: gte_write_ctrl(0..4) load the rotation matrix from a0. Then for each of the 3 vertices,
+// Algorithm: Gte::writeControl(0..4) load the rotation matrix from a0. Then for each of the 3 vertices,
 // write GTE data regs 0/1 (VXY/VZ) from the a1 fields above and run RTPS (GTE command 0x4A486012 — the
 // 6-bit COP2 function code for perspective-transform-single, matching the doc's "GTE ops actually
 // used: RTPS/RTPT"). BEFORE writing each NEXT vertex's data (not after — this is a genuine

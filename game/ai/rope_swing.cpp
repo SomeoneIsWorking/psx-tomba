@@ -160,7 +160,7 @@ void RopeSwing::swingTickAndBendSegments(Core *c) {
   // The bend GROWS with the segment index — the tip travels further than the anchor end.
   const int32_t trim = bendUnit >> kBendTrimShift;
   for (uint32_t i = 0; i < count; i++) {
-    guest_mult(c, bendUnit, (int32_t)(i + 2u));
+    psx::cpu::multiply(c, bendUnit, (int32_t)(i + 2u));
     const RopeSegment seg{c, node.segmentPtr(i)};
     seg.setBendZ((uint16_t)(((int32_t)c->lo >> kSegmentShift) - trim));
     if (!((int32_t)(i + 1u) < (int32_t)node.segmentCount())) {

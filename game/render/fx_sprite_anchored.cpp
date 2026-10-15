@@ -85,7 +85,7 @@ void FxSpriteAnchored::emitByteScale(Core *c) {
   const FxAnchoredNode node{c, c->r[16]};
   FxSpritePublish publish{c};
   // mult leaves hi/lo guest-visible; only LO is shifted.
-  const int64_t product = guest_mult(c, publish.scaleX(), (int32_t)node.scaleByte());
+  const int64_t product = psx::cpu::multiply(c, publish.scaleX(), (int32_t)node.scaleByte());
   const int32_t scale = (int32_t)(uint32_t)product >> kScaleByteShift;
   publish.setDepthCue(fxpublish::kDepthCueOff);
   publish.setScaleX(scale);

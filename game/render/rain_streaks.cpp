@@ -168,9 +168,9 @@ void RainStreaks::draw(Core *c) {
     const auto streakScope = c->emission.instance(trail);
     const auto multiplier = static_cast<std::int32_t>(c->mem_r32(kLcgMultiplier));
     const std::int32_t latticeX = static_cast<std::int32_t>(seed) >> 16;
-    seed = static_cast<std::uint32_t>(guest_mult(c, static_cast<std::int32_t>(seed), multiplier)) + 1u;
+    seed = static_cast<std::uint32_t>(psx::cpu::multiply(c, static_cast<std::int32_t>(seed), multiplier)) + 1u;
     const std::int32_t latticeY = static_cast<std::int32_t>(seed) >> 16;
-    seed = static_cast<std::uint32_t>(guest_mult(c, static_cast<std::int32_t>(seed), multiplier)) + 1u;
+    seed = static_cast<std::uint32_t>(psx::cpu::multiply(c, static_cast<std::int32_t>(seed), multiplier)) + 1u;
     const std::int32_t latticeZ = static_cast<std::int32_t>(seed) >> 16;
     const std::int32_t x = latticeX + offsetX;
     const std::int32_t y = latticeY + offsetY;
@@ -180,7 +180,7 @@ void RainStreaks::draw(Core *c) {
     c->mem_w16(kDropVector + 4u, static_cast<std::uint16_t>(z & kLattice));
     c->gte().writeData(psx::gte::kVxy0, c->mem_r32(kDropVector + 0u));
     c->gte().writeData(psx::gte::kVz0, c->mem_r32(kDropVector + 4u));
-    seed = static_cast<std::uint32_t>(guest_mult(c, static_cast<std::int32_t>(seed), multiplier)) + 1u;
+    seed = static_cast<std::uint32_t>(psx::cpu::multiply(c, static_cast<std::int32_t>(seed), multiplier)) + 1u;
     c->gte().execute(psx::gte::kRtps);
     c->mem_w32(kScratchDepth, c->gte().readControl(psx::gte::kFlag));
     if (static_cast<std::int32_t>(c->mem_r32(kScratchDepth)) < 0) {

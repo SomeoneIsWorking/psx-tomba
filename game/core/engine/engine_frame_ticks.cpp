@@ -193,11 +193,13 @@ void Engine::startStage(uint32_t stage) {
 // boot-init prefix). Was `native_task0_bootstrap`.
 void Engine::task0Bootstrap() {
   Core *c = core;
-  uint32_t lba = 0, size = 0;
-  if (!disc_find_file(&c->game->disc, "\\BIN\\START.BIN", &lba, &size)) {
+  const std::optional<psx::cd::DiscFile> file = c->game->disc.findFile("\\BIN\\START.BIN");
+  if (!file) {
     lucent::error("native_boot", "FATAL: cannot resolve \\BIN\\START.BIN on disc");
     return;
   }
+  const uint32_t lba = file->lba;
+  const uint32_t size = file->size;
   c->mem_w32(tomba::stage::kFileTable, lba);      // 0x800be1e0 = START.BIN LBA
   c->mem_w32(tomba::stage::kFileTable + 4, size); // 0x800be1e4 = START.BIN size
   lucent::info("native_boot", "START.BIN resolved: LBA {}, {} bytes", lba, size);

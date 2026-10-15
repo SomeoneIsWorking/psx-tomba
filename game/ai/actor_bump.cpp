@@ -149,12 +149,12 @@ void ActorBump::respondToContact(Core *c) {
     scratch = kScratchpadBase;
     c->r[4] = c->mem_r32(scratch + kContactAngleSlot);
     tomba::guest::dispatchJalToReturn(*c, {.target = kRcos, .returnAddress = kRaAfterCos});
-    guest_mult(c, (int32_t)c->r[2], actor.reach() + other.reach());
+    psx::cpu::multiply(c, (int32_t)c->r[2], actor.reach() + other.reach());
     c->r[4] = c->mem_r32(scratch + kContactAngleSlot);
     const int32_t offsetX = (int32_t)c->lo >> kTrigShift;
     scratch = (uint32_t)offsetX; // s0 carries it across the rsin call
     tomba::guest::dispatchJalToReturn(*c, {.target = kRsin, .returnAddress = kRaAfterSin});
-    guest_mult(c, (int32_t)c->r[2], actor.reach() + other.reach());
+    psx::cpu::multiply(c, (int32_t)c->r[2], actor.reach() + other.reach());
     actor.setPosX((uint16_t)(other.posX() + (uint32_t)scratch));
     const int32_t offsetZ = (int32_t)c->lo >> kTrigShift;
     actor.setPosZ((uint16_t)(other.posZ() - (uint32_t)offsetZ));

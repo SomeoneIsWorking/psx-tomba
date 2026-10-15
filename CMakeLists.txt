@@ -12,7 +12,7 @@ find_package(Python3 REQUIRED COMPONENTS Interpreter)
 # git submodule any more: it is a relative symlink to the workspace's live framework checkout (local —
 # so a framework edit is live in every port at once), or a clone of psxport main where there is no
 # sibling checkout (fresh machine, CI, or anyone cloning this repo alone).
-# tools/psxport_fetch.py --auto establishes whichever applies, and run.sh calls it. The PATH is
+# psxport's tools/psxport_fetch.py establishes whichever applies; run.sh runs it when the link is missing. The PATH is
 # unchanged, so every reference to external/psxport/... still works.
 #
 # Point it at another framework checkout to build this game against in-progress framework work:
@@ -26,7 +26,7 @@ set(PSXPORT_DIR "${CMAKE_SOURCE_DIR}/external/psxport" CACHE PATH
     "psxport framework source directory (default: the external/psxport submodule)")
 if(NOT EXISTS "${PSXPORT_DIR}/cmake/psxport.cmake")
   message(FATAL_ERROR "PSXPORT_DIR=${PSXPORT_DIR} has no cmake/psxport.cmake — "
-                      "run `python3 tools/psxport_fetch.py --auto`, or point PSXPORT_DIR at a psxport checkout.")
+                      "run ./run.sh once to fetch it, or point PSXPORT_DIR at a psxport checkout.")
 endif()
 message(STATUS "psxport framework: ${PSXPORT_DIR}")
 
@@ -57,69 +57,30 @@ include(titles/tomba1/cmake/runtime.cmake)
 include(cmake/port.cmake)
 
 if(BUILD_TESTING)
+  # The authenticated-image loader the real-image tests share, compiled once.
+  add_library(tomba_authenticated_image OBJECT tests/authenticated_image.cpp)
+  target_link_libraries(tomba_authenticated_image PUBLIC psxport psxport_test_support)
+  target_include_directories(tomba_authenticated_image PUBLIC tests)
+
   # Real-title evidence is local-only: CI has no licensed overlay images.
-  add_executable(test_authentic_overlay_collision
-      tests/test_authentic_overlay_collision.cpp
-      tests/authenticated_image.cpp
-      game/core/overrides/native_override_catalog.cpp
-      game/cd/engine_cd_loader.cpp)
-  target_include_directories(test_authentic_overlay_collision PRIVATE game game/core tests)
-  target_link_libraries(test_authentic_overlay_collision PRIVATE psxport psxport_test_support)
+  add_executable(test_authentic_overlay_collision tests/test_authentic_overlay_collision.cpp)
+  target_link_libraries(test_authentic_overlay_collision PRIVATE tomba2_game tomba1_runtime tomba_authenticated_image psxport_test_support)
 
-  add_executable(test_authentic_resident_override
-      tests/test_authentic_resident_override.cpp
-      tests/authenticated_image.cpp
-      game/core/overrides/native_override_catalog.cpp
-      game/cd/engine_cd_loader.cpp
-      game/core/assets/str.cpp)
-  target_include_directories(test_authentic_resident_override PRIVATE game game/core tests)
-  target_link_libraries(test_authentic_resident_override PRIVATE psxport psxport_test_support)
+  add_executable(test_authentic_resident_override tests/test_authentic_resident_override.cpp)
+  target_link_libraries(test_authentic_resident_override PRIVATE tomba2_game tomba1_runtime tomba_authenticated_image psxport_test_support)
 
-  add_executable(test_long_area_handler
-      tests/test_long_area_handler.cpp
-      tests/authenticated_image.cpp)
-  target_include_directories(test_long_area_handler PRIVATE game game/core tests)
-  target_link_libraries(test_long_area_handler PRIVATE psxport psxport_test_support)
+  add_executable(test_long_area_handler tests/test_long_area_handler.cpp)
+  target_include_directories(test_long_area_handler PRIVATE game game/core)
+  target_link_libraries(test_long_area_handler PRIVATE tomba_authenticated_image psxport psxport_test_support)
 
-  add_executable(test_authentic_screen_fade
-      tests/test_authentic_screen_fade.cpp
-      tests/authenticated_image.cpp
-      game/render/screen_fade.cpp
-      game/render/guest_ordering_table.cpp
-      game/render/wide_window.cpp
-      game/core/overrides/native_override_catalog.cpp
-      game/cd/engine_cd_loader.cpp)
-  target_include_directories(test_authentic_screen_fade PRIVATE ${TOMBA2_GAME_INCLUDES} tests)
-  target_link_libraries(test_authentic_screen_fade PRIVATE psxport psxport_test_support)
+  add_executable(test_authentic_screen_fade tests/test_authentic_screen_fade.cpp)
+  target_link_libraries(test_authentic_screen_fade PRIVATE tomba2_game tomba1_runtime tomba_authenticated_image psxport_test_support)
 
-  add_executable(test_authentic_model_emitters
-      tests/test_authentic_model_emitters.cpp
-      tests/authenticated_image.cpp
-      game/render/model_packet.cpp
-      game/render/list_job.cpp
-      game/render/list_state_producer.cpp
-      game/render/lit_model_emitter.cpp
-      game/render/unlit_model_emitter.cpp
-      game/render/sway_model_emitter.cpp
-      game/render/overlay_gt3gt4.cpp
-      game/render/overlay_ground_gt3gt4.cpp
-      game/render/guest_ordering_table.cpp
-      game/render/horizontal_visibility_cull.cpp
-      game/render/wide_window.cpp
-      game/math/trig.cpp
-      game/core/overrides/native_override_catalog.cpp
-      game/cd/engine_cd_loader.cpp
-      game/scene/level_load.cpp)
-  target_include_directories(test_authentic_model_emitters PRIVATE game game/core game/math game/render game/scene tests)
-  target_link_libraries(test_authentic_model_emitters PRIVATE psxport psxport_test_support)
+  add_executable(test_authentic_model_emitters tests/test_authentic_model_emitters.cpp)
+  target_link_libraries(test_authentic_model_emitters PRIVATE tomba2_game tomba1_runtime tomba_authenticated_image psxport_test_support)
 
-  add_executable(test_native_override_catalog
-      tests/test_native_override_catalog.cpp
-      game/core/overrides/native_override_catalog.cpp
-      game/cd/engine_cd_loader.cpp
-      game/scene/level_load.cpp)
-  target_include_directories(test_native_override_catalog PRIVATE game game/core game/scene)
-  target_link_libraries(test_native_override_catalog PRIVATE psxport psxport_test_support)
+  add_executable(test_native_override_catalog tests/test_native_override_catalog.cpp)
+  target_link_libraries(test_native_override_catalog PRIVATE tomba2_game tomba1_runtime psxport_test_support)
   add_test(NAME tomba_native_override_catalog COMMAND test_native_override_catalog)
 
   # DEATH TEST for the issue-0015 abort. `bindResident` now refuses, by aborting, on any resident-form
@@ -127,23 +88,13 @@ if(BUILD_TESTING)
   # of the product. This covers the decision itself, which no build-time scan can make, and an untested
   # fatal path is one nobody dares change. The test forks and asserts the child died by SIGABRT,
   # because ctest does not invert WILL_FAIL for a signalled child.
-  add_executable(test_native_override_unreachable_abort
-      tests/test_native_override_unreachable_abort.cpp
-      game/core/overrides/native_override_catalog.cpp
-      game/cd/engine_cd_loader.cpp
-      game/scene/level_load.cpp)
-  target_include_directories(test_native_override_unreachable_abort PRIVATE game game/core game/scene)
-  target_link_libraries(test_native_override_unreachable_abort PRIVATE psxport psxport_test_support)
+  add_executable(test_native_override_unreachable_abort tests/test_native_override_unreachable_abort.cpp)
+  target_link_libraries(test_native_override_unreachable_abort PRIVATE tomba2_game tomba1_runtime psxport_test_support)
   add_test(NAME tomba_native_override_unreachable_abort
            COMMAND test_native_override_unreachable_abort)
 
-  add_executable(test_title_host_owners
-      tests/test_title_host_owners.cpp
-      game/core/entry/identity.cpp
-      game/core/entry/settings.cpp)
-  target_include_directories(test_title_host_owners PRIVATE game game/core)
-  target_compile_definitions(test_title_host_owners PRIVATE ${TOMBA2_IDENTITY_DEFINITIONS})
-  target_link_libraries(test_title_host_owners PRIVATE psxport psxport_test_support)
+  add_executable(test_title_host_owners tests/test_title_host_owners.cpp)
+  target_link_libraries(test_title_host_owners PRIVATE tomba2_game tomba1_runtime psxport_test_support)
   add_test(NAME tomba_title_host_owners COMMAND test_title_host_owners)
   foreach(mode IN ITEMS defaults set off)
     add_test(NAME tomba_settings_${mode} COMMAND test_title_host_owners ${mode})
@@ -153,7 +104,7 @@ if(BUILD_TESTING)
   # sources.
   psxport_add_title_link_isolation_test(tomba_title_link_isolation
     FIRST tomba1_runtime FIRST_ROOT "${CMAKE_SOURCE_DIR}/titles/tomba1"
-    SECOND tomba2_port SECOND_ROOT "${CMAKE_SOURCE_DIR}/game")
+    SECOND tomba2_game SECOND_ROOT "${CMAKE_SOURCE_DIR}/game")
 
   # The shipped picker with both titles live at the end of the run, not merely once. Local-only: it
   # needs the provisioned discs, and skips where neither title is provisioned (CI).
@@ -170,36 +121,27 @@ if(BUILD_TESTING)
   foreach(test IN ITEMS gpu_timeout_dispatch synchronous_task_wait guest_task_lifecycle cd_save_state)
     add_executable(test_${test} tests/test_${test}.cpp)
     target_include_directories(test_${test} PRIVATE "${PSXPORT_DIR}/tests")
-    target_link_libraries(test_${test} PRIVATE tomba2_game tomba1_runtime)
+  target_link_libraries(test_${test} PRIVATE tomba2_game tomba1_runtime)
     add_test(NAME tomba_${test} COMMAND test_${test})
   endforeach()
   add_executable(test_writer_producers tests/test_writer_producers.cpp)
   target_include_directories(test_writer_producers PRIVATE tests)
   target_link_libraries(test_writer_producers PRIVATE tomba2_game tomba1_runtime)
   add_test(NAME tomba_writer_producers COMMAND test_writer_producers)
-  add_executable(test_authentic_writers tests/test_authentic_writers.cpp tests/authenticated_image.cpp)
-  target_include_directories(test_authentic_writers PRIVATE tests)
-  target_link_libraries(test_authentic_writers PRIVATE tomba2_game tomba1_runtime)
+  add_executable(test_authentic_writers tests/test_authentic_writers.cpp)
+  target_link_libraries(test_authentic_writers PRIVATE tomba_authenticated_image tomba2_game tomba1_runtime)
   add_test(NAME tomba_guest_task_unsupported_exit
            COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tests/test_guest_task_exit.py"
                    "$<TARGET_FILE:test_guest_task_lifecycle>")
 
-  add_executable(test_libapi_vblank_mirror
-      tests/test_libapi_vblank_mirror.cpp
-      game/core/hle/libapi_intr.cpp
-      game/core/overrides/native_override_catalog.cpp
-      game/cd/engine_cd_loader.cpp)
-  target_include_directories(test_libapi_vblank_mirror PRIVATE game game/core)
-  target_link_libraries(test_libapi_vblank_mirror PRIVATE psxport psxport_test_support)
+  add_executable(test_libapi_vblank_mirror tests/test_libapi_vblank_mirror.cpp)
+  target_link_libraries(test_libapi_vblank_mirror PRIVATE tomba2_game tomba1_runtime psxport_test_support)
   add_test(NAME tomba_libapi_vblank_mirror COMMAND test_libapi_vblank_mirror)
 
   # The frame-cadence owner (game/core/frame/frame_cadence.h). The gate's own `sltu`, the incrementer's
   # read-modify-write, the u16 wrap, and the accounting denominators.
-  add_executable(test_frame_cadence
-      tests/test_frame_cadence.cpp
-      game/core/frame/frame_cadence.cpp)
-  target_include_directories(test_frame_cadence PRIVATE game game/core)
-  target_link_libraries(test_frame_cadence PRIVATE psxport psxport_test_support)
+  add_executable(test_frame_cadence tests/test_frame_cadence.cpp)
+  target_link_libraries(test_frame_cadence PRIVATE tomba2_game tomba1_runtime psxport_test_support)
   add_test(NAME tomba_frame_cadence COMMAND test_frame_cadence)
 
   add_executable(test_parallax_scroll tests/test_parallax_scroll.cpp)
@@ -214,18 +156,8 @@ if(BUILD_TESTING)
   add_test(NAME tomba_horizontal_visibility_cull COMMAND test_horizontal_visibility_cull)
 
   # Cull keeps FUN_8007712C's and FUN_8002B278's own far limits; wider ones overran the packet pool.
-  add_executable(test_cull_far_limits
-      tests/test_cull_far_limits.cpp
-      game/render/cull.cpp
-      game/render/margin_render.cpp
-      game/math/gte_math.cpp
-      game/math/trig.cpp
-      game/core/overrides/native_override_catalog.cpp
-      game/cd/engine_cd_loader.cpp)
-  target_include_directories(test_cull_far_limits PRIVATE
-      game game/ai game/audio game/camera game/cd game/core game/input game/items game/math game/object
-      game/player game/render game/scene game/ui game/world)
-  target_link_libraries(test_cull_far_limits PRIVATE psxport psxport_test_support)
+  add_executable(test_cull_far_limits tests/test_cull_far_limits.cpp)
+  target_link_libraries(test_cull_far_limits PRIVATE tomba2_game tomba1_runtime psxport_test_support)
   add_test(NAME tomba_cull_far_limits COMMAND test_cull_far_limits)
 
   # The camera driver's mode table: the eighteen driver modes, the render-mode prologue that two of
@@ -242,104 +174,48 @@ if(BUILD_TESTING)
   # the fixed guest globals. Each makes a decision the raw accessors left to the reader — a field's
   # width and sign, an opcode's id mask, a name this repository has NOT read out of the image — and
   # each of those can be wrong in a way that still runs, which is what these assertions are for.
-  add_executable(test_script_interp_vocabulary
-      tests/test_script_interp_vocabulary.cpp
-      game/scene/script_opcode.cpp)
-  target_include_directories(test_script_interp_vocabulary PRIVATE game)
-  target_link_libraries(test_script_interp_vocabulary PRIVATE psxport psxport_test_support)
+  add_executable(test_script_interp_vocabulary tests/test_script_interp_vocabulary.cpp)
+  target_link_libraries(test_script_interp_vocabulary PRIVATE tomba2_game tomba1_runtime psxport_test_support)
   add_test(NAME tomba_script_interp_vocabulary COMMAND test_script_interp_vocabulary)
 
-  add_executable(test_producers
-      tests/test_producers.cpp
-      game/core/overrides/native_override_catalog.cpp
-      game/cd/engine_cd_loader.cpp
-      game/scene/level_load.cpp
-      game/render/tile_grid_layer.cpp
-      game/render/libgpu_draw_mode.cpp
-      game/render/list_job.cpp
-      game/render/list_state_producer.cpp
-      game/render/wide_window.cpp
-      game/render/sop_ground.cpp
-      game/render/rain_streaks.cpp
-      game/render/guest_ordering_table.cpp
-      game/ui/font.cpp
-      game/render/anchored_packets.cpp)
-  target_include_directories(test_producers PRIVATE game game/core game/math game/render game/scene tests)
-  target_link_libraries(test_producers PRIVATE psxport psxport_test_support)
+  add_executable(test_producers tests/test_producers.cpp)
+  target_include_directories(test_producers PRIVATE tests)
+  target_link_libraries(test_producers PRIVATE tomba2_game tomba1_runtime psxport_test_support)
   add_test(NAME tomba_producers COMMAND test_producers)
 
-  add_executable(test_ordering_table tests/test_ordering_table.cpp game/render/guest_ordering_table.cpp)
-  target_include_directories(test_ordering_table PRIVATE game game/core game/render tests)
-  target_link_libraries(test_ordering_table PRIVATE psxport psxport_test_support)
+  add_executable(test_ordering_table tests/test_ordering_table.cpp)
+  target_include_directories(test_ordering_table PRIVATE tests)
+  target_link_libraries(test_ordering_table PRIVATE tomba2_game tomba1_runtime psxport_test_support)
   add_test(NAME tomba_ordering_table COMMAND test_ordering_table)
 
-  add_executable(test_letterbox_bars
-      tests/test_letterbox_bars.cpp
-      game/render/letterbox_bars.cpp
-      game/render/guest_ordering_table.cpp
-      game/render/wide_window.cpp
-      game/ui/dialog_backdrop.cpp
-      game/core/overrides/native_override_catalog.cpp
-      game/cd/engine_cd_loader.cpp)
-  target_include_directories(test_letterbox_bars PRIVATE game game/core game/render tests)
-  target_link_libraries(test_letterbox_bars PRIVATE psxport psxport_test_support)
+  add_executable(test_letterbox_bars tests/test_letterbox_bars.cpp)
+  target_include_directories(test_letterbox_bars PRIVATE tests)
+  target_link_libraries(test_letterbox_bars PRIVATE tomba2_game tomba1_runtime psxport_test_support)
   add_test(NAME tomba_letterbox_bars COMMAND test_letterbox_bars)
 
-  add_executable(test_dev_control
-      tests/test_dev_control.cpp
-      game/core/debug/dev_warp.cpp
-      game/core/debug/dev_items.cpp
-      game/core/debug/dev_flags.cpp
-      game/core/debug/dev_args.cpp
-      game/items/item_grant.cpp)
-  target_include_directories(test_dev_control PRIVATE game game/core game/scene tests)
-  target_link_libraries(test_dev_control PRIVATE psxport psxport_test_support)
+  add_executable(test_dev_control tests/test_dev_control.cpp)
+  target_include_directories(test_dev_control PRIVATE tests)
+  target_link_libraries(test_dev_control PRIVATE tomba2_game tomba1_runtime psxport_test_support)
   add_test(NAME tomba_dev_control COMMAND test_dev_control)
 
-  add_executable(test_screen_fade
-      tests/test_screen_fade.cpp
-      game/render/screen_fade.cpp
-      game/render/guest_ordering_table.cpp
-      game/render/wide_window.cpp
-      game/core/overrides/native_override_catalog.cpp
-      game/cd/engine_cd_loader.cpp
-      game/scene/level_load.cpp)
-  target_include_directories(test_screen_fade PRIVATE ${TOMBA2_GAME_INCLUDES} tests)
-  target_link_libraries(test_screen_fade PRIVATE psxport psxport_test_support)
+  add_executable(test_screen_fade tests/test_screen_fade.cpp)
+  target_include_directories(test_screen_fade PRIVATE tests)
+  target_link_libraries(test_screen_fade PRIVATE tomba2_game tomba1_runtime psxport_test_support)
   add_test(NAME tomba_screen_fade COMMAND test_screen_fade)
 
-  add_executable(test_model_emitters
-      tests/test_model_emitters.cpp
-      game/render/model_packet.cpp
-      game/render/list_job.cpp
-      game/render/list_state_producer.cpp
-      game/render/lit_model_emitter.cpp
-      game/render/unlit_model_emitter.cpp
-      game/render/sway_model_emitter.cpp
-      game/render/overlay_gt3gt4.cpp
-      game/render/overlay_ground_gt3gt4.cpp
-      game/render/guest_ordering_table.cpp
-      game/render/horizontal_visibility_cull.cpp
-      game/render/wide_window.cpp
-      game/math/trig.cpp
-      game/core/overrides/native_override_catalog.cpp
-      game/cd/engine_cd_loader.cpp
-      game/scene/level_load.cpp)
-  target_include_directories(test_model_emitters PRIVATE game game/core game/math game/render game/scene tests)
-  target_link_libraries(test_model_emitters PRIVATE psxport psxport_test_support)
+  add_executable(test_model_emitters tests/test_model_emitters.cpp)
+  target_include_directories(test_model_emitters PRIVATE tests)
+  target_link_libraries(test_model_emitters PRIVATE tomba2_game tomba1_runtime psxport_test_support)
   add_test(NAME tomba_model_emitters COMMAND test_model_emitters)
 
-  add_executable(test_render_record_pool tests/test_render_record_pool.cpp game/world/render_record_pool.cpp)
-  target_include_directories(test_render_record_pool PRIVATE game game/core game/world tests)
-  target_link_libraries(test_render_record_pool PRIVATE psxport psxport_test_support)
+  add_executable(test_render_record_pool tests/test_render_record_pool.cpp)
+  target_include_directories(test_render_record_pool PRIVATE tests)
+  target_link_libraries(test_render_record_pool PRIVATE tomba2_game tomba1_runtime psxport_test_support)
   add_test(NAME tomba_render_record_pool COMMAND test_render_record_pool)
 
-  add_executable(test_fx_sprite_publish
-      tests/test_fx_sprite_publish.cpp
-      game/render/fx_sprite_publish.cpp
-      game/render/guest_ordering_table.cpp)
-  target_include_directories(test_fx_sprite_publish PRIVATE game game/core game/math game/render tests)
-  target_link_libraries(test_fx_sprite_publish PRIVATE psxport psxport_test_support)
+  add_executable(test_fx_sprite_publish tests/test_fx_sprite_publish.cpp)
+  target_include_directories(test_fx_sprite_publish PRIVATE tests)
+  target_link_libraries(test_fx_sprite_publish PRIVATE tomba2_game tomba1_runtime psxport_test_support)
   add_test(NAME tomba_fx_sprite_publish COMMAND test_fx_sprite_publish)
 
   # Shrink-only legacy caps, all ratcheted down on 2026-09-28.

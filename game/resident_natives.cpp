@@ -38,6 +38,7 @@
 #include "cull.h" // PC-native visibility cull / LOD subsystem
 #include "entry/session.h"
 #include "game.h"
+#include "gpu_ports.h"
 #include "guest_call.h"
 #include "mathlib.h"         // PC-native math/PRNG leaf primitives (rand, trig LUTs, bit-test)
 #include "ui/font.h"         // Font::registerOverrides — drawText/glyphEmit
@@ -141,17 +142,16 @@ void Engine::frameUpdate() {
 // DrawOTag (libgpu FUN_80081560): the guest's ordering table goes to the GPU device as GP0.
 void Engine::drawOTag(uint32_t otHead) { // called directly from FrameDriver; not an override
   Core *c = this->core;
-  lucent::debug("drawotag", "f{} drawOTag otHead={:08X}", c->game->gpu.s_frame, otHead);
-  gpu_dma2_linked_list(c, otHead);
-  c->game->rq.flush(c);
-  captureBugReportReference(otHead);
+  lucent::debug("drawotag", "f{} drawOTag otHead={:08X}", c->game->display.frame(), otHead);
+  psx::gpu::dma2LinkedList(*c, otHead);
+  captureBugReportReference();
 }
 
 // A B-key bug report is taking this frame: put the PSX render of the same ordering table beside the
 // native picture (psx::debug::BugReportSession). Read-only over the frame just drawn.
-void Engine::captureBugReportReference(uint32_t otHead) {
+void Engine::captureBugReportReference() {
   if (core->game->bugReport.capturingFrame()) {
-    core->game->bugReport.captureReferenceFrame(*core, otHead);
+    core->game->bugReport.captureReferenceFrame(*core);
   }
 }
 

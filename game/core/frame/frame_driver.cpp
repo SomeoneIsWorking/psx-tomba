@@ -32,13 +32,11 @@ uint32_t currentEnv(Core &core) {
 }
 
 void clearOrderingTable(Core &core, uint32_t env) {
-  psx::cpu::dispatchGuestToReturn2(
-      core, kClearOTagR, env, kOtEntries, psx::cpu::ExecutionBudget::currentTurn(core), __func__);
+  psx::cpu::callGuestNow(core, __func__, kClearOTagR, env, kOtEntries);
 }
 
 void putDispEnv(Core &core, uint32_t env) {
-  psx::cpu::dispatchGuestToReturn1(
-      core, kPutDispEnv, env + kDispEnvOffset, psx::cpu::ExecutionBudget::currentTurn(core), __func__);
+  psx::cpu::callGuestNow(core, __func__, kPutDispEnv, env + kDispEnvOffset);
 }
 
 // Flip the parity and point the env pointer at that buffer, as 0x80050C6C does.
@@ -61,8 +59,7 @@ void finishPass(Core &core) {
   switch (static_cast<PresentState>(core.mem_r8(kPresentStateAddress))) {
   case PresentState::Present:
     putDispEnv(core, env);
-    psx::cpu::dispatchGuestToReturn1(
-        core, kPutDrawEnv, env + kDrawEnvOffset, psx::cpu::ExecutionBudget::currentTurn(core), __func__);
+    psx::cpu::callGuestNow(core, __func__, kPutDrawEnv, env + kDrawEnvOffset);
     eng(&core).drawOTag(env + kOtHeadOffset);
     clearOrderingTable(core, flipBuffer(core));
     return;
@@ -146,8 +143,7 @@ void FrameDriver::stepFrame(Core &core, uint32_t frame) {
 
   eng(&core).musicCoord.tick();
   session.cd.audioTrace("coord");
-  psx::cpu::dispatchGuestToReturn1(
-      core, kStockLibgpu.drawSync, 0, psx::cpu::ExecutionBudget::currentTurn(core), __func__);
+  psx::cpu::callGuestNow(core, __func__, kStockLibgpu.drawSync, 0);
   session.scheduler.tickSleepCountdown();
   finishPass(core);
   eng(&core).frameCut().notePassEnded(core);

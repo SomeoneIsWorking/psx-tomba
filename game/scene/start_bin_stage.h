@@ -6,6 +6,8 @@
 // byte-identical), runs the preloads inline and closes task-1's slot as if it had run; it returns
 // with the task at sm[0x48]==3 and the caller owns the stage swap (Engine::startStage(1)).
 #pragma once
+#include "disc.h"
+
 #include <cstdint>
 namespace tomba {
 
@@ -26,8 +28,8 @@ private:
   // Baked 16x1 pixel strip inside START.BIN, uploaded to VRAM(944,256) before the file table.
   static constexpr uint32_t kLoadImageSrc = 0x80106878u;
 
-  // Resolve the guest filename at `name_ptr` through the host ISO9660 reader. Logs a miss.
-  bool resolveViaIso9660(uint32_t name_ptr, uint32_t *lba, uint32_t *size);
+  // The guest filename at `name_ptr` through the host ISO9660 reader; a miss is logged and reads as 0/0.
+  psx::cd::DiscFile resolveViaIso9660(uint32_t name_ptr);
   // Every filename table plus the three XA singletons, written to their guest destinations.
   void resolveFileTablesNative();
   // Stage-0 SM advance + boot texgroup preload with the task-1 slot closed synchronously.

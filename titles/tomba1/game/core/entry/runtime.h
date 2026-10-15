@@ -22,8 +22,6 @@ public:
   std::unique_ptr<psx::game::FrameDriver> createFrameDriver(Game &game) override;
   void deliverPad(Core &core, const psx::input::PadDelivery &delivery) override;
   void stockCdReadLanded(Core &core, const psx::cd::StockReadLanding &landing) override;
-  RenderCapabilities renderCapabilities() const override;
-  bool guestVramIsPicture(const Game &game) const override;
   const GuestWidescreenProjection *guestWidescreenProjection() const override;
 
 private:

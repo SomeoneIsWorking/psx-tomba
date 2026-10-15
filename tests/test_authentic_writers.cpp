@@ -201,11 +201,11 @@ bool testPackedMesh(Core &core, psx::cpu::ImageIdentity image, psx::present::Sta
     randomCamera(core, inputs);
     GuestSnapshot native;
     const GuestSnapshot before = capture(core);
-    const auto control = psx::present::readGteControl();
+    const auto control = psx::present::readGteControl(core.gte());
     const auto guest = psx::cpu::callOriginal(core, {image, tomba::render::PackedMesh::kWriter}, kBudget);
     const GuestSnapshot authentic = capture(core);
     restore(core, before);
-    psx::present::writeGteControl(control);
+    psx::present::writeGteControl(core.gte(), control);
     core.frameStates.clear();
     tomba::render::PackedMesh::write(&core);
     native = capture(core);
@@ -251,12 +251,12 @@ bool testDropShadow(Core &core, psx::cpu::ImageIdentity image) {
     randomCamera(core, inputs);
     core.r[4] = kNode;
     const GuestSnapshot before = capture(core);
-    const auto control = psx::present::readGteControl();
+    const auto control = psx::present::readGteControl(core.gte());
     const auto guest = psx::cpu::callOriginal(core, {image, tomba::render::DropShadow::kDraw}, kBudget);
     GuestSnapshot authentic = capture(core);
-    const auto guestControl = psx::present::readGteControl();
+    const auto guestControl = psx::present::readGteControl(core.gte());
     restore(core, before);
-    psx::present::writeGteControl(control);
+    psx::present::writeGteControl(core.gte(), control);
     tomba::render::DropShadow::draw(core);
     GuestSnapshot native = capture(core);
     const std::size_t dead = (kStack & 0x1FFFFFu) - kDeadStack;
@@ -265,7 +265,7 @@ bool testDropShadow(Core &core, psx::cpu::ImageIdentity image) {
     if (!guest.returned() || authentic.ram != native.ram || authentic.scratch != native.scratch ||
         authentic.r[29] != native.r[29] || authentic.r[16] != native.r[16] || authentic.r[17] != native.r[17] ||
         authentic.r[18] != native.r[18] || authentic.r[19] != native.r[19] ||
-        guestControl != psx::present::readGteControl()) {
+        guestControl != psx::present::readGteControl(core.gte())) {
       fail("drop shadow", run, authentic, native);
       return false;
     }

@@ -19,7 +19,7 @@ using namespace tomba::audio::record;
 
 // 0x80090E40 — the portamento ramp. It increments the +160 counter; once it exceeds the +156
 // limit it clears flags bit4 and snapshots the channel volume into +92/+94. While still ramping it
-// computes delta = (rate(+72) * counter) / limit(+156) - base(+74) through cpu_div (including its
+// computes delta = (rate(+72) * counter) / limit(+156) - base(+74) through psx::cpu::divide(including its
 // division traps), applies it to the +88/+90 pair, clamps both to [0,127] and writes them out
 // through 0x80095530.
 //
@@ -71,7 +71,7 @@ L_80090EC4:
     c->hi = (uint32_t)((uint64_t)_p >> 32);
   }
   c->r[2] = c->lo;
-  cpu_div(c, c->r[2], c->r[3]);
+  psx::cpu::divide(c, {.numerator = c->r[2], .denominator = c->r[3]});
   if (c->r[3] == 0u) {
     psx::cpu::handleBreak(*c, 7168u);
   }
@@ -199,7 +199,7 @@ L_80091010:
 // clears bit6 and finishes. Otherwise it divides the decremented counter by rate(+78) and nudges the
 // envelope value (+148) by +/-1 toward the target (+172) only on an exact division; a non-zero
 // remainder returns immediately. With rate <= 0 it steps by |rate| against +80, clamped so it cannot
-// overshoot. The output level (+84) is then cpu_divu(envelope*10, scale*15), clamped to at least 1,
+// overshoot. The output level (+84) is then psx::cpu::divideUnsigned(envelope*10, scale*15), clamped to at least 1,
 // and bits 6+7 clear when the counter reached 0 or the envelope equals the target.
 //
 // Register-literal for the same reason as channelPitchSlideTick.
@@ -247,7 +247,7 @@ L_800920F8:
       goto L_80092168;
     }
   }
-  cpu_div(c, c->r[2], c->r[4]);
+  psx::cpu::divide(c, {.numerator = c->r[2], .denominator = c->r[4]});
   if (c->r[4] == 0u) {
     psx::cpu::handleBreak(*c, 7168u);
   }
@@ -333,7 +333,7 @@ L_800921B0:
   c->r[2] = c->r[4] << 4;
   c->r[2] = c->r[2] - c->r[4];
   c->r[2] = c->r[2] << 2; // r2 = scale*15
-  cpu_divu(c, c->r[3], c->r[2]);
+  psx::cpu::divideUnsigned(c, {.numerator = c->r[3], .denominator = c->r[2]});
   if (c->r[2] == 0u) {
     psx::cpu::handleBreak(*c, 7168u);
   }

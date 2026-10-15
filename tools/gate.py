@@ -42,7 +42,7 @@ import time
 from pathlib import Path
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-# The framework's own tools live in the checkout tools/psxport_fetch.py resolved. This insertion
+# The framework's own tools live in the checkout psxport's tools/psxport_fetch.py resolved. This insertion
 # precedes the import below and uses the same external/psxport/tools resolution as every other
 # framework import in this file.
 PSXPORT = os.path.join(REPO, 'external', 'psxport')
@@ -211,13 +211,7 @@ def run_gate(script: str, frames_hint: int, debug: str, watchdog: int,
             hits.append((pat, ctx))
             break
 
-    # PSXPORT_REPL is read via the legacy cfg_on() path (native_boot.cpp:299) but is not registered in
-    # config_vars.h, so the startup validator reports it UNKNOWN even though it works. Filtered so a
-    # REAL unknown knob — a flag the caller is relying on that did nothing — is not lost in noise.
-    # Verified rather than assumed: the REPL demonstrably drives the run (a `run N` advances the frame
-    # counter by N past the newgame prologue).
-    KNOWN_FALSE_UNKNOWN = {'PSXPORT_REPL'}
-    unknown = sorted(set(UNKNOWN_KNOB.findall(out)) - KNOWN_FALSE_UNKNOWN)
+    unknown = sorted(set(UNKNOWN_KNOB.findall(out)))
 
     # ---- the report, always with its denominator ------------------------------------------------
     print(f"[gate:{label}] exit={p.returncode} in {dt:.1f}s · {lines} output line(s) · "

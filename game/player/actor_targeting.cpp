@@ -114,10 +114,10 @@ void ActorTargeting::tryAcquireTarget(Core *c) {
   }
 
   deltaX = (uint32_t)(int32_t)(int16_t)(uint16_t)(target.posX() - actor.posX());
-  guest_mult(c, (int32_t)(uint32_t)deltaX, (int32_t)(uint32_t)deltaX);
+  psx::cpu::multiply(c, (int32_t)(uint32_t)deltaX, (int32_t)(uint32_t)deltaX);
   const uint32_t dxSq = c->lo;
   deltaZ = (uint32_t)(int32_t)(int16_t)(uint16_t)(target.posZ() - actor.posZ());
-  guest_mult(c, (int32_t)(uint32_t)deltaZ, (int32_t)(uint32_t)deltaZ);
+  psx::cpu::multiply(c, (int32_t)(uint32_t)deltaZ, (int32_t)(uint32_t)deltaZ);
 
   c->r[4] = dxSq + c->lo;
   tomba::guest::dispatchJalToReturn(*c, {.target = 0x80084080u, .returnAddress = kRaAfterDistance});

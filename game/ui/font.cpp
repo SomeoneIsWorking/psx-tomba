@@ -333,7 +333,7 @@ void reportTextEmit(Core *c, const char *producer, int x, int y) {
   }
   lucent::debug("textemit",
                 "f{} {} at ({},{}) colour {} ra {:08x} str {:08x} = [{}] {}",
-                c->game->gpu.s_frame,
+                c->game->display.frame(),
                 producer,
                 x,
                 y,
@@ -900,7 +900,7 @@ void Font::iconGlyphEmit(Core *c) {
 
   lucent::debug("iconglyph",
                 "f{} iconGlyphEmit at ({},{}) size {} bucket {}: {} token(s), {} glyph(s) emitted, {} missed",
-                c->game->gpu.s_frame,
+                c->game->display.frame(),
                 originX,
                 originY,
                 sizeClass,

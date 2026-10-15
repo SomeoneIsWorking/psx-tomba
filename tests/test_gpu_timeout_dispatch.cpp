@@ -31,12 +31,6 @@ public:
   void registerOverrides(Game &game) override {
     libgpu_.bind(game);
   }
-  RenderCapabilities renderCapabilities() const override {
-    return RenderCapabilities::direct();
-  }
-  bool guestVramIsPicture(const Game &) const override {
-    return false;
-  }
 
   NestedObservation nested;
 

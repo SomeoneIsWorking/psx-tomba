@@ -62,8 +62,8 @@ public:
       }
     }
 
-    const psx::present::GteGuard gte;
-    psx::present::writeGteControl(control);
+    const psx::present::GteGuard gte(core_.gte());
+    psx::present::writeGteControl(core_.gte(), control);
     // The last particle linked heads its bucket, so the walk meets the particles last first.
     for (std::size_t particle = later.header.particles; particle-- > 0;) {
       const std::uint32_t *saved = later.particles.data() + particle * kParticleWords;
@@ -98,7 +98,7 @@ private:
 
 } // namespace
 
-BillboardState::BillboardState() : control_(psx::present::readGteControl()) {}
+BillboardState::BillboardState(const psx::cpu::Gte &gte) : control_(psx::present::readGteControl(gte)) {}
 
 void BillboardState::add(std::span<const std::uint32_t, kCornerWords> corners,
                          std::uint32_t bucket,

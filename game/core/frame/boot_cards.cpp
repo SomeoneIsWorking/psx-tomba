@@ -1,11 +1,11 @@
 #include "frame/boot_cards.h"
 
 #include "core.h"
+#include "display_presenter.h"
 #include "entry/session.h"
 #include "frame/frame_cadence.h"
 #include "game.h"
-#include "gpu_vk.h"
-#include "scea_asset.h"
+#include "scea_splash.h"
 
 #include <lucent/log.h>
 
@@ -43,14 +43,13 @@ void BootCards::step(Core &core) {
   case Phase::Done:
     return;
   }
-  core.game->presentation.commitUnpresented(&core);
+  core.game->presentation.commitUnpresented();
 }
 
 void BootCards::stepScea(Core &core) {
   Game &game = *core.game;
   if (sceaImage_.empty()) {
-    sceaImage_.resize(static_cast<size_t>(SCEA_DISP_W) * SCEA_DISP_H * 4);
-    gpu_scea_decode_rgba(sceaImage_.data());
+    sceaImage_ = psx::platform::decodeSceaSplash();
   }
   // The host turn is ours, so the pad is read here; a held Start skips the card.
   game.pad.pollHostInput();
@@ -58,14 +57,15 @@ void BootCards::stepScea(Core &core) {
   if (skipped) {
     lucent::info("scea", "skipped (Start) at frame {}", sceaFrame_);
   } else {
-    gpu_vk_present_image(
-        &core, sceaImage_.data(), SCEA_DISP_W, SCEA_DISP_H, static_cast<float>(sceaFade(sceaFrame_)) / kFadeFull);
+    core.game->display.presentHostPicture(sceaImage_.data(),
+                                          {psx::platform::kSceaSplashWidth, psx::platform::kSceaSplashHeight},
+                                          static_cast<float>(sceaFade(sceaFrame_)) / kFadeFull);
     // The card frames were measured at the stub's 30 fps rate.
-    game.framePacer.paceSubframeFields(core, FrameCadence::kRetailVblanksPerLogicFrame, 1);
+    game.framePacer.paceSubframeFields(core, {FrameCadence::kRetailVblanksPerLogicFrame, 1});
   }
   if (skipped || ++sceaFrame_ >= kSceaFrames) {
     sceaImage_ = {};
-    gpu_clear_display(&core);
+    game.display.present(psx::present::PresentCompletion::Transition);
     phase_ = Phase::Movie;
   }
 }
@@ -87,7 +87,7 @@ void BootCards::stepMovie(Core &core) {
 }
 
 void BootCards::finish(Core &core) {
-  gpu_clear_display(&core);
+  core.game->display.present(psx::present::PresentCompletion::Transition);
   phase_ = Phase::Done;
 }
 

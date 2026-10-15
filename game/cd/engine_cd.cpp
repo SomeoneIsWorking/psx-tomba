@@ -65,24 +65,24 @@ void cdCommandStream(Core *c) {
                 paramByte(2),
                 paramByte(3),
                 c->r[31]);
-  XaState *xa = &c->game->xa;
+  psx::audio::XaStream *xa = &c->game->xa;
   switch (cmd) {
   case 0x0E: // Setmode
-    xa_stream_setmode(xa, paramByte(0));
-    cdc_set_mode(&c->game->cdc, paramByte(0));
+    xa->setMode(paramByte(0));
+    c->game->cdc.setMode(paramByte(0));
     break;
   case 0x0D: // Setfilter
-    xa_stream_setfilter(xa, paramByte(0), paramByte(1));
-    cdc_set_filter(&c->game->cdc, paramByte(0), paramByte(1));
+    xa->setFilter(paramByte(0), paramByte(1));
+    c->game->cdc.setFilter(paramByte(0), paramByte(1));
     break;
   case 0x02: // Setloc
     if (param) {
-      xa_stream_setloc(xa, paramByte(0), paramByte(1), paramByte(2));
+      xa->setLoc(paramByte(0), paramByte(1), paramByte(2));
     }
     break;
   case 0x06: // ReadN
   case 0x1B: // ReadS
-    xa_stream_start(xa);
+    xa->start();
     break;
   case 0x08: // Stop
   case 0x09: // Pause
@@ -168,11 +168,11 @@ void EngineCd::declareOverrides(native::NativeOverrideCatalog &natives) {
 }
 
 void EngineCd::playClip(const Clip &clip) {
-  XaState *xa = &core_.game->xa;
+  psx::audio::XaStream *xa = &core_.game->xa;
   const bool streaming =
-      holdsVoiceSlot_ && xa_stream_is_active(xa) != 0 && clip.channel == clip_.channel && clip.start == clip_.start;
+      holdsVoiceSlot_ && xa->isActive() != 0 && clip.channel == clip_.channel && clip.start == clip_.start;
   if (!streaming) {
-    xa_stream_play(xa, clip.channel, clip.start, clip.end, clip.loop ? 1 : 0);
+    xa->play(clip.channel, clip.start, clip.end, clip.loop ? 1 : 0);
     clip_ = clip;
   }
   holdsVoiceSlot_ = true;
@@ -181,12 +181,12 @@ void EngineCd::playClip(const Clip &clip) {
 }
 
 void EngineCd::stopClip() {
-  xa_stream_stop(&core_.game->xa);
+  core_.game->xa.stop();
   holdsVoiceSlot_ = false;
 }
 
 bool EngineCd::clipStreaming() const {
-  return holdsVoiceSlot_ && xa_stream_is_active(&core_.game->xa) != 0;
+  return holdsVoiceSlot_ && core_.game->xa.isActive() != 0;
 }
 
 void EngineCd::toSpuMix(bool on) {
@@ -213,8 +213,8 @@ void EngineCd::audioTrace(const char *tag) {
                                static_cast<int>(core_.mem_r8(0x1F80019Au)),
                                static_cast<int>(core_.mem_r8(0x1F800137u)),
                                static_cast<int>(core_.mem_r16(0x800BED80u)),
-                               xa_stream_is_active(&core_.game->xa),
-                               xa_stream_is_looping(&core_.game->xa),
+                               core_.game->xa.isActive(),
+                               core_.game->xa.isLooping(),
                                static_cast<int>(core_.mem_r16(kVoiceTaskState))};
   if (now == traced_) {
     return;

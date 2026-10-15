@@ -30,7 +30,7 @@ FrameDriver::FrameDriver(Game &game) : game_(game) {}
 
 void FrameDriver::finishMainIteration(Core &core, std::uint32_t fields) {
   if (core.mem_r16(kDrawSyncBeforeVblank) != 0u) {
-    psx::cpu::dispatchGuestToReturn1(core, kDrawSync, 0u, psx::cpu::ExecutionBudget::currentTurn(core), __func__);
+    psx::cpu::callGuestNow(core, __func__, kDrawSync, 0u);
   }
 
   for (std::uint32_t field = 0; field < fields; ++field) {
@@ -39,7 +39,7 @@ void FrameDriver::finishMainIteration(Core &core, std::uint32_t fields) {
   }
 
   if (core.mem_r16(kDrawSyncBeforeVblank) == 0u) {
-    psx::cpu::dispatchGuestToReturn1(core, kResetGraph, 1u, psx::cpu::ExecutionBudget::currentTurn(core), __func__);
+    psx::cpu::callGuestNow(core, __func__, kResetGraph, 1u);
   }
 
   const std::uint8_t displayState = core.mem_r8(0x1F8001CCu);

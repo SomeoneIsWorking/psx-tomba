@@ -27,8 +27,6 @@
 #include "guest_ordering_table.h"
 #include "render.h"
 
-// gte_write_ctrl is declared in core.h (uint32_t, uint32_t) — included above
-
 namespace tomba {
 
 namespace {

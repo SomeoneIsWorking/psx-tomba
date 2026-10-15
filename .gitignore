@@ -17,5 +17,5 @@ __pycache__/
 *.pyc
 
 # The framework. Not tracked: either a relative symlink to the workspace's live psxport checkout
-# (local) or a clone of its main (fresh machine, CI). Managed by tools/psxport_fetch.py.
+# (local) or a clone of its main (fresh machine, CI). Made by psxport's tools/psxport_fetch.py.
 /external/psxport

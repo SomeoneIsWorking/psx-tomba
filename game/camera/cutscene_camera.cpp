@@ -395,7 +395,7 @@ void CutsceneCamera::heading() { // FUN_8006DCF4
 
 // ── lookAt (camera basis / view-matrix builder) ──────────────────────────────────────────────────
 static inline int32_t cam_idiv(Core *c, int32_t num, int32_t den) {
-  cpu_div(c, (uint32_t)num, (uint32_t)den);
+  psx::cpu::divide(c, {.numerator = (uint32_t)num, .denominator = (uint32_t)den});
   return (int32_t)c->lo;
 }
 

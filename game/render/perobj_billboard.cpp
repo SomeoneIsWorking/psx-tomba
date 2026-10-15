@@ -500,7 +500,7 @@ void Render::billboardEmit() {
   // The node's particles are one object: its render record's current life.
   const psx::present::EmissionScope::Guard object(
       c->emission, tomba::render::BillboardState::kEmitter, eng(c).graphicsBind.records.object(node), 0);
-  tomba::render::BillboardState drawn;
+  tomba::render::BillboardState drawn(c->gte());
   GuestFrame frame(c, 96); // real guest stack frame: guest 0x8003B220 writes through this as a real
                            // guest address, and callers' own frames must already be allocated
                            // (see GuestFrame's comment) for this base to land on the same bytes

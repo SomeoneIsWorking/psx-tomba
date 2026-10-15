@@ -63,18 +63,20 @@ int MusicList::loadContainer() {
   if (mBuf) {
     return 0;
   }
-  uint32_t lba = 0, size = 0;
-  if (!disc_find_file(&core->game->disc, "\\CD\\TOMBA2.SND", &lba, &size) || size == 0) {
+  const std::optional<psx::cd::DiscFile> file = core->game->disc.findFile("\\CD\\TOMBA2.SND");
+  if (!file || file->size == 0) {
     lucent::error("music_list", "disc_find_file \\CD\\TOMBA2.SND failed");
     return -1;
   }
+  const uint32_t lba = file->lba;
+  const uint32_t size = file->size;
   uint32_t nsec = (size + 2047) / 2048;
   mBuf = (uint8_t *)malloc((size_t)nsec * 2048);
   if (!mBuf) {
     return -1;
   }
   for (uint32_t i = 0; i < nsec; i++) {
-    if (!disc_read_sector(&core->game->disc, lba + i, mBuf + (size_t)i * 2048)) {
+    if (!core->game->disc.readSector(lba + i, mBuf + (size_t)i * 2048)) {
       lucent::error("music_list", "disc read failed at sector {}", i);
       free(mBuf);
       mBuf = nullptr;

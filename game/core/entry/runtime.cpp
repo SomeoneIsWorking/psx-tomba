@@ -90,15 +90,14 @@ void callGuest(Core &core, std::uint32_t address) {
 }
 
 void callGuest(Core &core, std::uint32_t address, std::uint32_t a0) {
-  psx::cpu::dispatchGuestToReturn1(
-      core, address, a0, psx::cpu::ExecutionBudget::currentTurn(core), "Runtime::bootInit");
+  psx::cpu::callGuestNow(core, "Runtime::bootInit", address, a0);
 }
 
 } // namespace
 
 Runtime::Runtime()
-    : vsync_(0x80085900u, 0), libcd_({.command = 0x8008AC34u, .sync = 0x8008A6ECu}, {}, 0), libgpu_(kStockLibgpu),
-      libgte_({.setGeomOffset = 0x800846D0u, .setGeomScreen = 0x800846F0u}),
+    : vsync_({.entry = 0x80085900u}), libcd_({.command = 0x8008AC34u, .sync = 0x8008A6ECu}, {}, 0),
+      libgpu_(kStockLibgpu), libgte_({.setGeomOffset = 0x800846D0u, .setGeomScreen = 0x800846F0u}),
       pad_({.slot0Buffer = 0x800BF4F8u, .slot1Buffer = 0x800BF51Au, .slotPointerTable = 0x0000AEC8u}) {}
 
 void Runtime::startProgram(Core &core) {
@@ -120,7 +119,7 @@ void Runtime::registerOverrides(Game &game) {
   game.platform_hle.bindStock(kCdInitHandshake, PlatformHle::completeImmediately);
   game.platform_hle.bindStock(kCdReady, cdReady);
   installResidentNatives(natives);
-  card_overrides_init(&game);
+  game.memcard.install();
   register_engine_overrides(game, natives);
   EngineCd::declareOverrides(natives);
   natives.declare(kChangeThread, "Scheduler::yield", changeThread);
@@ -186,18 +185,6 @@ const GuestWidescreenProjection *Runtime::guestWidescreenProjection() const {
   return &aspectPolicy_;
 }
 
-RenderCapabilities Runtime::renderCapabilities() const {
-  // The picture is the guest's GP0 output, replayed from the frame record; there is no native renderer.
-  return RenderCapabilities{
-      .defaultPath = RenderPath::Record,
-      .nativeRenderPath = false,
-  };
-}
-
-bool Runtime::guestVramIsPicture(const Game &) const {
-  return true;
-}
-
 void Runtime::bootInit(Core &core) {
   Core *c = &core;
   lucent::info("native_boot", "FUN_80050b08: running init prefix");
@@ -222,14 +209,9 @@ void Runtime::bootInit(Core &core) {
   eng(c).font.init(); // FUN_80075130
   callGuest(core, 0x8009C620u, 0);
   callGuest(core, 0x8001CC00u);
-  eng(c).initSubsystems();      // FUN_800520E0
-  callGuest(core, 0x80051E00u); // scheduler table at 0x801FE000
-  psx::cpu::dispatchGuestToReturn2(core,
-                                   0x80051F14u,
-                                   0,
-                                   0x800499E8u,
-                                   psx::cpu::ExecutionBudget::currentTurn(core),
-                                   "Runtime::bootInit"); // task 0 at FUN_800499E8
+  eng(c).initSubsystems();                                                        // FUN_800520E0
+  callGuest(core, 0x80051E00u);                                                   // scheduler table at 0x801FE000
+  psx::cpu::callGuestNow(core, "Runtime::bootInit", 0x80051F14u, 0, 0x800499E8u); // task 0 at FUN_800499E8
   lucent::info("native_boot", "init prefix complete");
 
   // FUN_80051E60 would set the current task; task0Bootstrap needs it to name slot 0.

@@ -122,7 +122,7 @@ bool replCommand(Core &core, const char *line) {
     return true;
   }
   if (cmd == "bgm" && hasNumber) {
-    psx::cpu::dispatchGuestToReturn1(*c, 0x80074BF8u, a, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, 0x80074BF8u, a);
     lucent::info("repl", "bgm {} (song@800bed80={:04X})", a, c->mem_r16(0x800bed80));
     return true;
   }
@@ -137,13 +137,10 @@ bool replCommand(Core &core, const char *line) {
   // (h,volL,volR)=0x80091F50. handle == the seq access index (0..13).
   if (cmd == "seqsolo" && hasNumber) {
     for (uint32_t i = 0; i < 14; i++) {
-      psx::cpu::dispatchGuestToReturn1(
-          *c, 0x80091AF0u, i, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // SsSeqStop(i) — silence all
+      psx::cpu::callGuestNow(*c, __func__, 0x80091AF0u, i); // SsSeqStop(i) — silence all
     }
-    psx::cpu::dispatchGuestToReturn3(
-        *c, 0x80090560u, a, 1, 0, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // SsSeqPlay(a, mode=1, loop=0)
-    psx::cpu::dispatchGuestToReturn3(
-        *c, 0x80091F50u, a, 127, 127, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // SsSeqSetVol(a, 127, 127)
+    psx::cpu::callGuestNow(*c, __func__, 0x80090560u, a, 1, 0);     // SsSeqPlay(a, mode=1, loop=0)
+    psx::cpu::callGuestNow(*c, __func__, 0x80091F50u, a, 127, 127); // SsSeqSetVol(a, 127, 127)
     lucent::info("repl", "seqsolo {}", a);
     return true;
   }

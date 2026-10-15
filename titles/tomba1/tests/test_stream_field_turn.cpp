@@ -29,13 +29,6 @@ void recordDiscOperation(Core &) {
 
 class TestRuntime final : public psx::test::StubGameRuntime {
 public:
-  RenderCapabilities renderCapabilities() const override {
-    return RenderCapabilities{.defaultPath = RenderPath::Record, .nativeRenderPath = false};
-  }
-
-  bool guestVramIsPicture(const Game &) const override {
-    return true;
-  }
 };
 
 bool check(bool condition, const char *message) {
@@ -99,7 +92,7 @@ int main() {
     return 1;
   }
 
-  CdcState &controller = game->cdc;
+  psx::cd::CdController &controller = game->cdc;
   controller.index = 2;
   controller.q_head = 0;
   controller.q_tail = 1;
@@ -157,14 +150,13 @@ int main() {
   controller.irq_edge = 1u;
   game->core.r[5] = 0u;
   tomba1::cdSyncOverride(&game->core);
-  if (!check(game->core.r[2] == 2u && cdc_current_irq_type(&controller) == 1u &&
-                 controller.q_tail - controller.q_head == 1,
+  if (!check(game->core.r[2] == 2u && controller.currentIrqType() == 1u && controller.q_tail - controller.q_head == 1,
              "CdSync must retire command responses and keep data-ready for the installed callback")) {
     return 1;
   }
   game->core.mem_w32(tomba1::kCdReadyCallbackPointer, 0u);
   tomba1::cdSyncOverride(&game->core);
-  if (!check(cdc_current_irq_type(&controller) == 0u, "CdSync must drop data-ready when no callback is installed")) {
+  if (!check(controller.currentIrqType() == 0u, "CdSync must drop data-ready when no callback is installed")) {
     return 1;
   }
 

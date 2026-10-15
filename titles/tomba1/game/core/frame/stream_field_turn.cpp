@@ -21,8 +21,8 @@ constexpr StreamFieldTurn kStreamFieldTurn{.advanceAudio = advanceStreamAudio, .
 
 void logStreamState(Core &core, const char *phase) {
   const Game &game = *core.game;
-  const CdcState &controller = game.cdc;
-  const XaState &xa = game.xa;
+  const psx::cd::CdController &controller = game.cdc;
+  const psx::audio::XaStream &xa = game.xa;
   const std::uint64_t now = controller.tick_now ? controller.tick_now(controller.tick_context) : 0u;
   lucent::debug("tomba1-stream-field",
                 "{} delivered={} now={} deadline={} armed={} read={} first={} following={} bfrd={} "
@@ -39,7 +39,7 @@ void logStreamState(Core &core, const char *phase) {
                 controller.bfrd,
                 controller.data_rd,
                 controller.data_n,
-                cdc_current_irq_type(&controller),
+                controller.currentIrqType(),
                 controller.q_head,
                 controller.q_tail,
                 controller.loc_lba,
@@ -50,7 +50,7 @@ void logStreamState(Core &core, const char *phase) {
                 xa.pulls,
                 xa.sectors,
                 core.mem_r32(0x8001CA08u),
-                dma_done_owed(core, 3),
+                psx::dma::doneOwed(core, 3),
                 core.mem_r32(0x1F8010F4u),
                 core.pending_work);
 }

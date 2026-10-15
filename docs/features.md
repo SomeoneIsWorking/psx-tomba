@@ -53,11 +53,9 @@ Tomba! 1 (`titles/tomba1/game/`, shortened to `t1/` below).
 
 | hop | title | joins | owner |
 |---|---|---|---|
-| 1 | T2 | psxport F-RENDER.1 | `game/core/entry/runtime.cpp:tomba::Runtime::renderCapabilities` — Record, guest VRAM is the picture |
-| 2 | T2 | psxport F-RENDER.2 | `game/core/entry/runtime.cpp:tomba::Runtime::packetPool` — the guest pool at a fixed base and stride |
-| 3 | T2 | psxport F-RENDER.3 | `game/core/entry/runtime.cpp:tomba::Runtime::displayHeight` — 224 lines |
-| 4 | T2 | title | `game/resident_natives.cpp:Engine::drawOTag` — the guest OT to the GPU device |
-| 5 | T1 | psxport F-RENDER.1 | `t1/core/entry/runtime.cpp:tomba1::Runtime::renderCapabilities` — Record, guest VRAM is the picture |
+| 1 | T2 | psxport F-RENDER.2 | `game/core/entry/runtime.cpp:tomba::Runtime::packetPool` — the guest pool at a fixed base and stride |
+| 2 | T2 | psxport F-RENDER.3 | `game/core/entry/runtime.cpp:tomba::Runtime::displayHeight` — 224 lines |
+| 3 | T2 | title | `game/resident_natives.cpp:Engine::drawOTag` — the guest OT to the GPU device |
 
 ## F-WIDE
 

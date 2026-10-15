@@ -56,7 +56,7 @@ void resetTimedOutGpuQueue(Core &core) {
                 (core.mem_r32(kGpuQueueWriteIndex) - core.mem_r32(kGpuQueueReadIndex)) & 0x3Fu,
                 core.mem_r32(statusAddress));
 
-  psx::cpu::dispatchGuestToReturn1(core, kCriticalSection, 0u, psx::cpu::ExecutionBudget::currentTurn(core), __func__);
+  psx::cpu::callGuestNow(core, __func__, kCriticalSection, 0u);
   core.mem_w32(kGpuTimeoutCriticalState, core.r[2]);
   core.mem_w32(kGpuQueueReadIndex, 0u);
   core.mem_w32(kGpuQueueWriteIndex, 0u);
@@ -64,11 +64,7 @@ void resetTimedOutGpuQueue(Core &core) {
   core.mem_w32(controlAddress, core.mem_r32(controlAddress) | 0x800u);
   core.mem_w32(commandAddress, 0x02000000u);
   core.mem_w32(commandAddress, 0x01000000u);
-  psx::cpu::dispatchGuestToReturn1(core,
-                                   kCriticalSection,
-                                   core.mem_r32(kGpuTimeoutCriticalState),
-                                   psx::cpu::ExecutionBudget::currentTurn(core),
-                                   __func__);
+  psx::cpu::callGuestNow(core, __func__, kCriticalSection, core.mem_r32(kGpuTimeoutCriticalState));
 }
 
 } // namespace

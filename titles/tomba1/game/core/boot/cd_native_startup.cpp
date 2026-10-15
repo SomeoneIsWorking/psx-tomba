@@ -38,10 +38,10 @@ constexpr std::uint8_t kCdcIrqAcknowledge = 3u;
 // every command response (INT3/INT2) and drops a data-ready (INT1) no ready callback receives. Those
 // responses have no other consumer here, so the host command path retires the ones already queued.
 void retireUnownedResponses(Core &core) {
-  CdcState &controller = core.game->cdc;
-  cdc_drive_service(&controller);
+  psx::cd::CdController &controller = core.game->cdc;
+  controller.service();
   for (;;) {
-    const std::uint8_t type = cdc_current_irq_type(&controller);
+    const std::uint8_t type = controller.currentIrqType();
     const bool commandResponse = type == kCdcIrqComplete || type == kCdcIrqAcknowledge;
     const bool unclaimedData = type == kCdcIrqDataReady && core.mem_r32(kCdReadyCallbackPointer) == 0u;
     if (!commandResponse && !unclaimedData) {
@@ -103,11 +103,11 @@ void cdReadyOverride(Core *core) {
   if (!core || !core->game) {
     std::abort();
   }
-  CdcState &controller = core->game->cdc;
-  cdc_drive_service(&controller);
+  psx::cd::CdController &controller = core->game->cdc;
+  controller.service();
   lucent::debug("tomba1-cdready",
                 "reason={} queue={}->{} read={} first={} data={}/{} lba={}",
-                cdc_current_irq_type(&controller),
+                controller.currentIrqType(),
                 controller.q_head,
                 controller.q_tail,
                 controller.reading,

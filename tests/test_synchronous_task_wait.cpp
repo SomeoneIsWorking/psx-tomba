@@ -61,5 +61,5 @@ int main() {
   RUN(flag_two_stamps_from_the_guest_rng);
   RUN(flag_one_leaves_task_and_rng);
   RUN(flag_three_uses_the_same_completion);
-  return pt_summary();
+  return psx::test::summary();
 }

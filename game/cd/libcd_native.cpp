@@ -17,28 +17,21 @@ uint32_t LibcdNative::newMedia() {
 }
 
 uint32_t LibcdNative::cacheFile(uint32_t dir_index) {
-  psx::cpu::dispatchGuestToReturn1(
-      *core, 0x8008BF50u, dir_index, psx::cpu::ExecutionBudget::currentTurn(*core), __func__);
+  psx::cpu::callGuestNow(*core, __func__, 0x8008BF50u, dir_index);
   return core->r[2];
 }
 
 uint32_t LibcdNative::searchFile(const SearchFileArgs &args) {
   auto [out_cdlfile_guest_addr, path_guest_addr, ra] = args;
   core->r[31] = ra; // guest call-site — spilled by CdSearchFile's prologue
-  psx::cpu::dispatchGuestToReturn2(*core,
-                                   0x8008B8F0u,
-                                   out_cdlfile_guest_addr,
-                                   path_guest_addr,
-                                   psx::cpu::ExecutionBudget::currentTurn(*core),
-                                   __func__);
+  psx::cpu::callGuestNow(*core, __func__, 0x8008B8F0u, out_cdlfile_guest_addr, path_guest_addr);
   return core->r[2];
 }
 
 uint32_t LibcdNative::posToInt(const PosToIntArgs &args) {
   auto [cdlfile_guest_addr, ra] = args;
   core->r[31] = ra;
-  psx::cpu::dispatchGuestToReturn1(
-      *core, 0x8008A110u, cdlfile_guest_addr, psx::cpu::ExecutionBudget::currentTurn(*core), __func__);
+  psx::cpu::callGuestNow(*core, __func__, 0x8008A110u, cdlfile_guest_addr);
   return core->r[2];
 }
 

@@ -124,9 +124,9 @@ void ListStateProducer::render(const psx::present::StateInterval &states, psx::p
   host.zero(header.call.sp - kStackBelow, kStackBelow + kStackAbove);
 
   {
-    const psx::present::GteGuard gte;
+    const psx::present::GteGuard gte(core_.gte());
     const RegisterGuard registers(core_);
-    psx::present::writeGteControl(control);
+    psx::present::writeGteControl(core_.gte(), control);
     emit(psx::present::EmitMemory(core_, host), header.variant, header.call);
   }
 

@@ -35,7 +35,7 @@ void AutoDrive::beforeFrame(Core &core, uint32_t frame) {
   case SkipPhase::ReachGame:
     if (stage != sched::kStageGameEntry) {
       if ((frame % 12u) == 0) {
-        game.pad.driveTap(kTapCross, 6);
+        game.pad.driveTap({.activeLowMask = kTapCross, .frames = 6});
       }
     }
     break;
@@ -45,7 +45,7 @@ void AutoDrive::beforeFrame(Core &core, uint32_t frame) {
     if (cutsceneActive) {
       cutsceneIdleFrames_ = 0;
       if ((frame % 40u) == 0) {
-        game.pad.driveTap(kTapStart, 6);
+        game.pad.driveTap({.activeLowMask = kTapStart, .frames = 6});
       }
     } else if (++cutsceneIdleFrames_ >= 60) {
       game.pad.driveRelease();

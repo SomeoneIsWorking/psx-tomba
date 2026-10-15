@@ -40,7 +40,7 @@ constexpr std::uint32_t kCodeModuleBase = 0x800E7388u;
 } // namespace
 
 Runtime::Runtime()
-    : vsync_(kVSyncEntry, kVSyncQueryCounter),
+    : vsync_({.entry = kVSyncEntry, .queryCounter = kVSyncQueryCounter}),
       libcd_({.read = kCdRead, .readSync = kCdReadSync}, {}, kCdReadyCallbackPointer),
       libgte_({.setGeomOffset = kSetGeomOffset, .setGeomScreen = kSetGeomScreen}),
       pad_({.slot0Buffer = 0x8009EB58u, .slot1Buffer = 0x8009EB7Au}) {}
@@ -95,15 +95,6 @@ void Runtime::stockCdReadLanded(Core &core, const psx::cd::StockReadLanding &lan
 
 std::unique_ptr<psx::game::FrameDriver> Runtime::createFrameDriver(Game &game) {
   return std::make_unique<FrameDriver>(game);
-}
-
-RenderCapabilities Runtime::renderCapabilities() const {
-  // The picture is the guest's GP0 output replayed from the frame record; native 60 fps, no in-betweens.
-  return RenderCapabilities{.defaultPath = RenderPath::Record, .nativeRenderPath = false};
-}
-
-bool Runtime::guestVramIsPicture(const Game &) const {
-  return true;
 }
 
 const GuestWidescreenProjection *Runtime::guestWidescreenProjection() const {

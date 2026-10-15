@@ -39,31 +39,26 @@ constexpr uint32_t kGuestPrintf = 0x8009A730u;
 
 } // namespace
 
-bool StartBinStage::resolveViaIso9660(uint32_t name_ptr, uint32_t *lba, uint32_t *size) {
+psx::cd::DiscFile StartBinStage::resolveViaIso9660(uint32_t name_ptr) {
   char name[80];
   core_.readCString(name_ptr, name, sizeof name);
-  if (disc_find_file(&core_.game->disc, name, lba, size)) {
-    return true;
+  if (const std::optional<psx::cd::DiscFile> file = core_.game->disc.findFile(name)) {
+    return *file;
   }
   lucent::info("start.bin", "not found: {}", name);
-  return false;
+  return {};
 }
 
 void StartBinStage::resolveFileTablesNative() {
   for (const auto &table : kFileTables) {
     for (uint32_t i = 0; i < table.count; i++) {
-      uint32_t lba = 0;
-      uint32_t size = 0;
-      resolveViaIso9660(core_.mem_r32(table.names + i * 4), &lba, &size);
-      core_.mem_w32(table.dest + i * 8, lba);
-      core_.mem_w32(table.dest + i * 8 + 4, size);
+      const psx::cd::DiscFile file = resolveViaIso9660(core_.mem_r32(table.names + i * 4));
+      core_.mem_w32(table.dest + i * 8, file.lba);
+      core_.mem_w32(table.dest + i * 8 + 4, file.size);
     }
   }
   for (const auto &xa : kXaFiles) {
-    uint32_t lba = 0;
-    uint32_t size = 0;
-    resolveViaIso9660(xa.name, &lba, &size);
-    core_.mem_w32(xa.dest, lba);
+    core_.mem_w32(xa.dest, resolveViaIso9660(xa.name).lba);
   }
 }
 

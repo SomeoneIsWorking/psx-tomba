@@ -145,10 +145,10 @@ void ActorObjectContact::resolveHitOrProximity(Core *c) {
     const ContactBody body{c, c->r[17]};
 
     deltaX = (uint32_t)(int32_t)(int16_t)(uint16_t)(actor.posX() - body.posX());
-    guest_mult(c, (int32_t)(uint32_t)deltaX, (int32_t)(uint32_t)deltaX);
+    psx::cpu::multiply(c, (int32_t)(uint32_t)deltaX, (int32_t)(uint32_t)deltaX);
     const uint32_t dxSq = c->lo;
     deltaZ = (uint32_t)(int32_t)(int16_t)(uint16_t)(actor.posZ() - body.posZ());
-    guest_mult(c, (int32_t)(uint32_t)deltaZ, (int32_t)(uint32_t)deltaZ);
+    psx::cpu::multiply(c, (int32_t)(uint32_t)deltaZ, (int32_t)(uint32_t)deltaZ);
 
     c->r[4] = dxSq + c->lo;
     tomba::guest::dispatchJalToReturn(*c, {.target = kSqrtLzc, .returnAddress = kRaAfterDistance});
