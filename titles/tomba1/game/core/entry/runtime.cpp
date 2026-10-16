@@ -14,6 +14,7 @@
 #include "sync_native.h"
 
 #include <cstdlib>
+#include <cstring>
 #include <lucent/log.h>
 
 namespace tomba1 {
@@ -99,6 +100,14 @@ std::unique_ptr<psx::game::FrameDriver> Runtime::createFrameDriver(Game &game) {
 
 const GuestWidescreenProjection *Runtime::guestWidescreenProjection() const {
   return &widescreenPolicy_;
+}
+
+bool Runtime::titleCommand(Core &core, const psx::game::TitleCommandLine &input, std::FILE *reply) {
+  if (std::strcmp(input.command, "warp") != 0) {
+    return false;
+  }
+  std::fprintf(reply, "%s\n", context(core).warp.arm(core, input.line).c_str());
+  return true;
 }
 
 } // namespace tomba1

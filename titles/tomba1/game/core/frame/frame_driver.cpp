@@ -71,6 +71,7 @@ void FrameDriver::stepFrame(Core &core, std::uint32_t frame) {
     core.mem_w32(0x8009C8A8u, static_cast<std::uint32_t>(parity * 0x780 + 0x800A1890));
   }
 
+  context(core).warp.applyArmed(core, frame);
   context(core).tasks.runScheduledTasks(core);
 
   const std::uint32_t fields = core.mem_r16(kRequestedFields);

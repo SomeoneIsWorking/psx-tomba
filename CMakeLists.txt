@@ -76,6 +76,9 @@ if(BUILD_TESTING)
   add_executable(test_authentic_screen_fade tests/test_authentic_screen_fade.cpp)
   target_link_libraries(test_authentic_screen_fade PRIVATE tomba2_game tomba1_runtime tomba_authenticated_image psxport_test_support)
 
+  add_executable(test_authentic_vsync_incrementer tests/test_authentic_vsync_incrementer.cpp)
+  target_link_libraries(test_authentic_vsync_incrementer PRIVATE tomba2_game tomba1_runtime tomba_authenticated_image psxport_test_support)
+
   add_executable(test_authentic_model_emitters tests/test_authentic_model_emitters.cpp)
   target_link_libraries(test_authentic_model_emitters PRIVATE tomba2_game tomba1_runtime tomba_authenticated_image psxport_test_support)
 

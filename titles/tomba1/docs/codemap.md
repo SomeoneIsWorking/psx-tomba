@@ -16,8 +16,9 @@ feature chains are root `docs/features.md`.
 | `bindTitleLibraryOwners` | `titles/tomba1/game/core/boot/sync_native.h` | The stock library bindings, the DMACallback entry (prior pointer and DICR write) and the GPU timeout leaves |
 | `tomba1::FrameDriver` | `titles/tomba1/game/core/frame/frame_driver.h` | One field: the scheduled tasks, the measured VBlank delivery, one presentation fence |
 | `StreamFieldTurn` | `titles/tomba1/game/core/frame/stream_field_turn.h` | Per field during a continuous stream: SPU/XA advanced once, then the paced CD pump |
+| `tomba1::DevWarp` | `titles/tomba1/game/core/debug/dev_warp.h` | The control-channel `warp <area> [section] [entry]`: armed by `Runtime::titleCommand`, applied by `FrameDriver::stepFrame` before the tasks run, through the door's own transition (machine 7) |
 | `GuestTaskSlots` | `titles/tomba1/game/core/task/guest_task_slots.h` | The three-record task table, the guest's start/yield/restart leaves, the bounded resume of a budget exit across fields |
-| tests | `titles/tomba1/tests/` | Stream field turn and its refusals, bounded task resume over real guest code |
+| tests | `titles/tomba1/tests/` | Stream field turn and its refusals, bounded task resume over real guest code, the dev warp's refusals and writes |
 | tools | `titles/tomba1/tools/verify_executable.py` | Executable identity check against `executable.json` |
 | build | `titles/tomba1/cmake/runtime.cmake` | The `tomba1_runtime` library linked into `tomba2_port` |
 

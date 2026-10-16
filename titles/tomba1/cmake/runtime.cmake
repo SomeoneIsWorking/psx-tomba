@@ -22,6 +22,7 @@ add_library(
   tomba1_runtime STATIC
   "${TOMBA1_ROOT}/game/core/boot/cd_native_startup.cpp"
   "${TOMBA1_ROOT}/game/core/state/context.cpp"
+  "${TOMBA1_ROOT}/game/core/debug/dev_warp.cpp"
   "${TOMBA1_ROOT}/game/core/frame/frame_driver.cpp"
   "${TOMBA1_ROOT}/game/core/task/guest_task_slots.cpp"
   "${TOMBA1_ROOT}/game/core/boot/native_boot.cpp"
@@ -34,6 +35,7 @@ set_target_properties(tomba1_runtime PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQ
 # every other concept directory is private to the library and to Tomba! 1's own tests.
 set(TOMBA1_PRIVATE_INCLUDE_DIRS
     "${TOMBA1_ROOT}/game/core/state"
+    "${TOMBA1_ROOT}/game/core/debug"
     "${TOMBA1_ROOT}/game/core/frame"
     "${TOMBA1_ROOT}/game/core/boot"
     "${TOMBA1_ROOT}/game/core/task")
@@ -84,6 +86,12 @@ if(BUILD_TESTING)
   target_link_libraries(tomba1_guest_task_budget_resume_test PRIVATE tomba1_runtime psxport_test_support)
   target_include_directories(tomba1_guest_task_budget_resume_test PRIVATE ${TOMBA1_PRIVATE_INCLUDE_DIRS})
   add_test(NAME tomba1_guest_task_budget_resume COMMAND tomba1_guest_task_budget_resume_test)
+
+  add_executable(tomba1_dev_warp_test "${TOMBA1_ROOT}/tests/test_dev_warp.cpp")
+  set_target_properties(tomba1_dev_warp_test PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON)
+  target_link_libraries(tomba1_dev_warp_test PRIVATE tomba1_runtime psxport_test_support)
+  target_include_directories(tomba1_dev_warp_test PRIVATE ${TOMBA1_PRIVATE_INCLUDE_DIRS})
+  add_test(NAME tomba1_dev_warp COMMAND tomba1_dev_warp_test)
 endif()
 
 add_custom_target(

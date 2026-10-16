@@ -53,7 +53,7 @@ executable-grounded startup and CD facts while introducing the shared Lightrec p
 - deps: T1-05
 - evidence: Pre-migration execution reached visible SCEA and Whoopee Camp frames, loaded `OPTSUB00` at `0x800E7388`, and advanced beyond LBA 58739. Public/internal `CdSync` are `0x800648C8`/`0x80065470`; the current fatal VSync return address is `0x800654A4`. DMA registration `0x80067E84` installs callback `0x80066D80`. Through Lightrec the product now plays the publisher card, the Whoopee Camp logo and both opening movies (issue 0008 resolution). Load-list walker `0x80021D70`: type `0xF0` lands code at `0x800E7388`, type `0xF8` data at `0x80097FA8`. Movie task `0x8001F1C0`: state 3 calls `StUnSetStream` `0x80066D28` (`CdReadyCallback(0)` `0x80064920`), `0x80066CC8`, `CdControlB(Pause)` `0x80064B9C`, then task exit `0x80017208` (record state 0, `CloseTh`, `ChangeTh(0xFF000000)`). `StCdInterrupt` body `0x800670D0` calls `CdReady(1)` and starts DMA3 through `0x80067A74`, which spins on CD status `0x1F801800` bit 6. libetc `VSync(-1)` returns `0x800974D4`.
 - where: title-native owners in `game/core/`; shared image-aware override/original-call dispatcher and Lightrec executor
-- gap: After the opening movies the intro movie (`16:34:22`) replays with no input and the title screen is not reached; find what the attract loop waits for. Then demonstrate input.
+- gap: With no input the intro movie (`16:34:22`) replays; Start reaches the title menu and New Game the first field (2026-10-16). Movie frames still present clipped (S004).
 
 ### T1-07 — Prove representative interactive gameplay
 - status: todo
@@ -61,6 +61,13 @@ executable-grounded startup and CD facts while introducing the shared Lightrec p
 - evidence: Logos, movie playback, and title-screen input are checkpoints, not representative gameplay.
 - where: shipping product, deterministic gameplay scenario, and independent emulator/hardware or separately built test oracle
 - gap: Cover player input, guest PC/registers and memory, interrupts/timing, relevant CD/GPU/SPU behavior, native override reachability, overlay invalidation, and declared frame-time/correctness budgets.
+
+### T1-07a — Area transition owner for the dev warp
+- status: grounded
+- deps: T1-06
+- evidence: Ghidra on `SCUS_942.36` (names from psx_tomba's symbol map, addresses cross-checked): `gameplayStateDispatcher` `0x8001AC00` switches on the gameplay task record (`*0x1F8001D4`) `+0x4C`, the area machine: 0 area select/load `0x8001B0A4`, 1 field `0x8001B2B4` (state 1 ticks), 2..6 area modes, 7 `areaTransitionHandler` `0x8001CFCC`, 8 game over; a pending pair `0x1F8001DC`/`0x1F8001DE` is applied when `0x1F8001CE` is set. The door at `0x8002CFFC` writes the destination u16s `0x8009C0FC` area, `0x8009C0FE` section, `0x8009C108` entry, calls `stopBgm` `0x80020C00`(1) when the area changes, then sets machine 7 state 0 (`0x8002D498`). State 3 of `0x8001CFCC` copies the destination to the current area `0x8009BCC8`/`0x8009BCCA` and loads it. The debug area select `0x8001AD58` bounds the area by `0x8007B290` and the section by the u16 table `0x8007B294`.
+- where: `game/core/debug/dev_warp.cpp`
+- gap: Entry numbers per area are not catalogued; the warp accepts 0..255.
 
 ### T1-08 — Remove the Tomba! 1 guest-source path
 - status: re-verified

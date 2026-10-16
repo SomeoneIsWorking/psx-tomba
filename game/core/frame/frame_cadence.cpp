@@ -1,6 +1,7 @@
 #include "frame/frame_cadence.h"
 
 #include "core.h"
+#include "guest_call.h"
 
 #include <cstdlib>
 #include <lucent/log.h>
@@ -29,6 +30,10 @@ void FrameCadence::publish() {
     // will act on. Fail loudly here rather than pacing against a number nobody can see.
     lucent::error("frame-cadence", "quota publish did not land: wrote {} read {}", vblanksPerLogicFrame_, readBack);
   }
+}
+
+void FrameCadence::installIncrementer() {
+  psx::cpu::callGuestNow(host(), "FrameCadence::installIncrementer", kVSyncCallback, kIncrementer);
 }
 
 void FrameCadence::beginLogicFrame() {

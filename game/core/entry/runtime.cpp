@@ -212,6 +212,7 @@ void Runtime::bootInit(Core &core) {
   eng(c).initSubsystems();                                                        // FUN_800520E0
   callGuest(core, 0x80051E00u);                                                   // scheduler table at 0x801FE000
   psx::cpu::callGuestNow(core, "Runtime::bootInit", 0x80051F14u, 0, 0x800499E8u); // task 0 at FUN_800499E8
+  eng(c).cadence().installIncrementer();
   lucent::info("native_boot", "init prefix complete");
 
   // FUN_80051E60 would set the current task; task0Bootstrap needs it to name slot 0.

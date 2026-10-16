@@ -22,7 +22,7 @@
 //   80050D08  1072FFDC  beq   v1,s2,0x80050C7C   -> next pass
 //
 // The counter's ONLY incremental writer is libapi's VSyncCallback slot 4, installed by the
-// loop's own init at 0x80050BA8 (`jal 0x80085BB0`, a0 = 0x800506B4). FUN_80085BB0 forwards
+// loop's own init at 0x80050BFC (`jal 0x80085BB0`, a0 = 0x800506B4). FUN_80085BB0 forwards
 // (4, cb) to the libapi service slot at 0x80085BC4, which FUN_80085CB4 filled with the return
 // value of FUN_80086230 — 0x800862F4, the registrar whose body is
 // `(&DAT_800abdc0)[slot] = cb`. The registered body is a pure incrementer:
@@ -129,8 +129,8 @@ public:
   // increments it. The guest's incrementer is LAB_800506B4 in vsync-callback slot 4, and in this
   // product it genuinely runs — the port parks LibapiIntr::runVblankCallbacks at 0x80086288 into
   // libsnd's user-callback slot DAT_800AC430 (game/audio/sequencer.h), the per-field sequencer
-  // tick at 0x800909C0 calls whatever is in that slot, and libsnd's SsSetTickMode (0x80090750,
-  // which calls FUN_80085BB0 at 0x800908E4) is what installed the game's callback into slot 4.
+  // tick at 0x800909C0 calls whatever is in that slot, and installIncrementer() makes the init's
+  // VSyncCallback call that puts LAB_800506B4 into slot 4.
   // So the counter is the GUEST's field, advanced by the GUEST's body, and the port observes it.
   //
   // An earlier revision of this class incremented the counter itself once per field. That is
@@ -139,6 +139,11 @@ public:
   // callback — and left the counter at 4 for a 2-field frame. A port that manufactures the
   // number it is checking cannot lie about anything, including about itself.
   void beginLogicFrame();
+  // VSyncCallback(LAB_800506B4), the call FUN_80050b08's init makes at 0x80050BFC: the guest's incrementer
+  // into callback slot 4.
+  void installIncrementer();
+  static constexpr std::uint32_t kVSyncCallback = 0x80085BB0u;
+  static constexpr std::uint32_t kIncrementer = 0x800506B4u;
   // One display field the port SPENDS in this logic frame. Records the field; does NOT write the
   // guest's counter. Returns the counter the guest's own incrementer has left so far.
   std::uint16_t consumeVblank();

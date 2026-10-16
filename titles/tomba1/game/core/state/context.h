@@ -1,6 +1,7 @@
 // The one per-Core owner of Tomba! 1's native subsystem state.
 #pragma once
 
+#include "dev_warp.h"
 #include "game_runtime.h"
 #include "guest_task_slots.h"
 
@@ -14,6 +15,7 @@ public:
   explicit Context(Core &core);
 
   GuestTaskSlots tasks;
+  DevWarp warp;
 };
 
 Context &context(Core &core);

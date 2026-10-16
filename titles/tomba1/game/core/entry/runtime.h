@@ -8,6 +8,7 @@
 #include "stock_vsync.h"
 
 #include <cstdint>
+#include <cstdio>
 #include <memory>
 
 namespace tomba1 {
@@ -23,6 +24,7 @@ public:
   void deliverPad(Core &core, const psx::input::PadDelivery &delivery) override;
   void stockCdReadLanded(Core &core, const psx::cd::StockReadLanding &landing) override;
   const GuestWidescreenProjection *guestWidescreenProjection() const override;
+  bool titleCommand(Core &core, const psx::game::TitleCommandLine &input, std::FILE *reply) override;
 
 private:
   psx::hle::StockVSync vsync_;
