@@ -87,7 +87,7 @@ std::unique_ptr<psx::game::FrameDriver> Runtime::createFrameDriver(Game &game) {
   return std::make_unique<FrameDriver>(game);
 }
 
-const GuestWidescreenProjection *Runtime::guestWidescreenProjection() const {
+const psx::present::GuestWidescreenProjection *Runtime::guestWidescreenProjection() const {
   return &widescreenPolicy_;
 }
 

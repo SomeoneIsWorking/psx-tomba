@@ -32,7 +32,7 @@ public:
   const psx::present::StateProducer *stateProducer(Core &core, std::uint32_t producer) const override;
   bool sealedFrameIsCut(Core &core) const override;
   int displayHeight() const override;
-  const GuestWidescreenProjection *guestWidescreenProjection() const override;
+  const psx::present::GuestWidescreenProjection *guestWidescreenProjection() const override;
   bool titleCommand(Core &core, const psx::game::TitleCommandLine &input, std::FILE *reply) override;
   std::span<const psx::debug::VerbUsage> commandUsage() const override;
   psx::game::TitleAudio *audio(Core &core) const override;
@@ -51,7 +51,7 @@ private:
   psx::hle::StockLibgpu libgpu_;
   psx::hle::StockLibgte libgte_;
   psx::input::StockPadBuffers pad_;
-  GuestWidescreenProjection aspectPolicy_;
+  psx::present::GuestWidescreenProjection aspectPolicy_;
 };
 
 } // namespace tomba

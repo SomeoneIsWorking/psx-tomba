@@ -23,7 +23,7 @@ public:
   std::unique_ptr<psx::game::FrameDriver> createFrameDriver(Game &game) override;
   void deliverPad(Core &core, const psx::input::PadDelivery &delivery) override;
   void stockCdReadLanded(Core &core, const psx::cd::StockReadLanding &landing) override;
-  const GuestWidescreenProjection *guestWidescreenProjection() const override;
+  const psx::present::GuestWidescreenProjection *guestWidescreenProjection() const override;
   bool titleCommand(Core &core, const psx::game::TitleCommandLine &input, std::FILE *reply) override;
 
 private:
@@ -31,7 +31,7 @@ private:
   psx::cd::StockLibcd libcd_;
   psx::hle::StockLibgte libgte_;
   psx::input::StockPadBuffers pad_;
-  GuestWidescreenProjection widescreenPolicy_;
+  psx::present::GuestWidescreenProjection widescreenPolicy_;
 };
 
 } // namespace tomba1

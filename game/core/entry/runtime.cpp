@@ -173,7 +173,7 @@ int Runtime::displayHeight() const {
   return kDisplayLines;
 }
 
-const GuestWidescreenProjection *Runtime::guestWidescreenProjection() const {
+const psx::present::GuestWidescreenProjection *Runtime::guestWidescreenProjection() const {
   return &aspectPolicy_;
 }
 
