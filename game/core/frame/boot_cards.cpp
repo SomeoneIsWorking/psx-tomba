@@ -57,9 +57,8 @@ void BootCards::stepScea(Core &core) {
   if (skipped) {
     lucent::info("scea", "skipped (Start) at frame {}", sceaFrame_);
   } else {
-    game.display.buildHostPicture(sceaImage_.data(),
-                                  {kSceaSplashWidth, kSceaSplashHeight},
-                                  static_cast<float>(sceaFade(sceaFrame_)) / kFadeFull);
+    game.display.buildHostPicture(
+        sceaImage_.data(), {kSceaSplashWidth, kSceaSplashHeight}, static_cast<float>(sceaFade(sceaFrame_)) / kFadeFull);
     // The card frames were measured at the stub's 30 fps rate.
     game.framePacer.paceSubframeFields(core, {FrameCadence::kRetailVblanksPerLogicFrame, 1});
     game.display.show();
