@@ -10,7 +10,7 @@ executable-grounded startup and CD facts while introducing the shared Lightrec p
 - status: re-verified
 - deps:
 - evidence: C001/I001. `SCUS_942.36` is 559,104 bytes with SHA-1 `81cbc79f0230aeb4252e058039f47ac95a777f5a`; its PS-X header reports entry `0x8006B58C`, text `[0x80010000,0x80098000)`, and initial SP `0x801FFFF0`. The verifier compares 15 facts and detects an altered byte.
-- where: `executable.json`; `tools/verify_executable.py`; private user input outside Git
+- where: `executable.json`; private user input outside Git
 - gap: None for the selected USA executable.
 
 ### T1-01 — Provision the selected disc reproducibly

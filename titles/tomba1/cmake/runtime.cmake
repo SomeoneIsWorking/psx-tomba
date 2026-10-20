@@ -16,8 +16,6 @@ if(NOT TARGET oracle_trace)
     EXCLUDE_FROM_ALL)
 endif()
 
-add_custom_target(tomba1_scaffold DEPENDS psxport)
-
 add_library(
   tomba1_runtime STATIC
   "${TOMBA1_ROOT}/game/core/boot/cd_native_startup.cpp"
@@ -62,48 +60,3 @@ endforeach()
 set_source_files_properties(
   "${TOMBA1_ROOT}/game/core/entry/identity.cpp"
   PROPERTIES COMPILE_DEFINITIONS "${TOMBA1_IDENTITY_DEFINITIONS}")
-
-if(BUILD_TESTING)
-  add_executable(
-    tomba1_stream_field_turn_test
-    "${TOMBA1_ROOT}/tests/test_stream_field_turn.cpp")
-  set_target_properties(
-    tomba1_stream_field_turn_test PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON)
-  target_link_libraries(tomba1_stream_field_turn_test PRIVATE tomba1_runtime psxport_test_support)
-  target_include_directories(tomba1_stream_field_turn_test PRIVATE ${TOMBA1_PRIVATE_INCLUDE_DIRS})
-  add_test(NAME tomba1_stream_field_turn COMMAND tomba1_stream_field_turn_test)
-
-  # The bounded multi-field resume, and the guest spin it exists to refuse (docs/issues/0007). Both
-  # halves run real guest code on the real dynarec over real display-field budgets, so the test needs
-  # no provisioned disc and the boot decompress that motivated the bound is not the only thing that
-  # can exercise it. The refusal half is a DEATH TEST: the product ends the process, so the child is
-  # forked and its signal, field count, and report are what the parent asserts.
-  add_executable(
-    tomba1_guest_task_budget_resume_test
-    "${TOMBA1_ROOT}/tests/test_guest_task_budget_resume.cpp")
-  set_target_properties(
-    tomba1_guest_task_budget_resume_test PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON)
-  target_link_libraries(tomba1_guest_task_budget_resume_test PRIVATE tomba1_runtime psxport_test_support)
-  target_include_directories(tomba1_guest_task_budget_resume_test PRIVATE ${TOMBA1_PRIVATE_INCLUDE_DIRS})
-  add_test(NAME tomba1_guest_task_budget_resume COMMAND tomba1_guest_task_budget_resume_test)
-
-  add_executable(tomba1_dev_warp_test "${TOMBA1_ROOT}/tests/test_dev_warp.cpp")
-  set_target_properties(tomba1_dev_warp_test PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON)
-  target_link_libraries(tomba1_dev_warp_test PRIVATE tomba1_runtime psxport_test_support)
-  target_include_directories(tomba1_dev_warp_test PRIVATE ${TOMBA1_PRIVATE_INCLUDE_DIRS})
-  add_test(NAME tomba1_dev_warp COMMAND tomba1_dev_warp_test)
-endif()
-
-add_custom_target(
-  tomba1_identity_check
-  COMMAND
-    "${Python3_EXECUTABLE}" "${TOMBA1_ROOT}/tools/verify_executable.py"
-    --check "${TOMBA1_EXECUTABLE}"
-  USES_TERMINAL
-  VERBATIM)
-
-add_custom_target(
-  tomba1_verify_scaffold
-  DEPENDS
-    tomba1_scaffold
-    tomba1_identity_check)

@@ -371,7 +371,6 @@ def build_game(
             "-B",
             str(build_dir),
             "-DCMAKE_BUILD_TYPE=Release",
-            "-DBUILD_TESTING=OFF",
             f"-DPSXPORT_DIR={psxport_absolute}",
             f"-DCMAKE_C_COMPILER={cc}",
             f"-DCMAKE_CXX_COMPILER={cxx}",
