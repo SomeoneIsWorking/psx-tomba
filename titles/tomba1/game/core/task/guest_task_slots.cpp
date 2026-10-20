@@ -80,7 +80,7 @@ GuestTaskCreationScope::~GuestTaskCreationScope() {
 }
 
 psx::cpu::ExecutionResult dispatchGuestTaskUntilExit(Core &core, std::uint32_t address) {
-  return psx::cpu::dispatchGuestUntilExit(core, address, psx::cpu::ExecutionBudget::currentTurn(core));
+  return psx::cpu::dispatchGuestUntilExitNow(core, address);
 }
 
 void GuestTaskSlots::createTask(Core &core, std::size_t slot, std::uint32_t entry) {
