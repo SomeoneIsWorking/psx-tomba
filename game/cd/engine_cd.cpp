@@ -3,6 +3,7 @@
 
 #include "cd/engine_cd_loader.h"
 
+#include "cd_position.h"
 #include "core.h"
 #include "entry/session.h"
 #include "game.h"
@@ -68,16 +69,17 @@ void cdCommandStream(Core *c) {
   psx::audio::XaStream *xa = &c->game->xa;
   switch (cmd) {
   case 0x0E: // Setmode
-    xa->setMode(paramByte(0));
     c->game->cdc.setMode(paramByte(0));
     break;
   case 0x0D: // Setfilter
-    xa->setFilter(paramByte(0), paramByte(1));
     c->game->cdc.setFilter(paramByte(0), paramByte(1));
     break;
   case 0x02: // Setloc
     if (param) {
-      xa->setLoc(paramByte(0), paramByte(1), paramByte(2));
+      const int lba = psx::cd::msfToLba(paramByte(0), paramByte(1), paramByte(2));
+      if (lba >= 0) {
+        xa->setLoc(static_cast<std::uint32_t>(lba));
+      }
     }
     break;
   case 0x06: // ReadN
