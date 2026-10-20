@@ -130,10 +130,9 @@ void ListStateProducer::render(const psx::present::StateInterval &states, psx::p
     emit(psx::present::EmitMemory(core_, host), header.variant, header.call);
   }
 
-  const psx::present::BucketHeads heads{
-      header.call.ot,
-      OrderingTable::kBucketCount,
-      psx::present::OtSlot{static_cast<std::uint16_t>(header.table), header.slot}};
+  const psx::present::BucketHeads heads{header.call.ot,
+                                        OrderingTable::kBucketCount,
+                                        psx::present::OtSlot{static_cast<std::uint16_t>(header.table), header.slot}};
   psx::present::DrawModeTracker drawMode;
   psx::present::PacketChainWalker(psx::present::EmitMemory(core_, host),
                                   psx::present::PacketBound::within({header.pool, header.arenaBytes}))
