@@ -46,7 +46,6 @@ private:
   static constexpr uint32_t kFileEntryStride = 24u;
   static constexpr int kPathTableSlots = 128;
   static constexpr int kFileEntrySlots = 64;
-  static constexpr uint32_t kSectorBytes = 2048u;
 
   // Read one 2048 B data sector into `out` AND into the guest scratch at kSectorScratch, mirroring
   // the original per-sector read into DAT_80104368. False on read failure.
