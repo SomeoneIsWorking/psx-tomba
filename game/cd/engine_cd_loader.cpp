@@ -1,6 +1,7 @@
 // engine_cd_loader.cpp — sector copies for the engine loaders; the read descriptor is FUN_8001D7C4's.
 #include "cd/engine_cd_loader.h"
 
+#include "cd_position.h"
 #include "core.h"
 #include "game.h"
 
@@ -14,7 +15,6 @@ namespace tomba {
 namespace {
 
 constexpr int V0 = 2;
-constexpr std::uint32_t kSectorBytes = 2048u;
 constexpr std::uint32_t kLastSectorTracker = 0x800BE0E0u;
 constexpr std::uint32_t kReadLba = 0x1F8001F0u;
 constexpr std::uint32_t kReadWords = 0x1F8001F4u;
@@ -29,14 +29,14 @@ struct ReadBytesArgs {
 // Copies `bytes` from consecutive sectors at `lba`; returns the sectors read.
 std::uint32_t readBytes(Core &core, const ReadBytesArgs &args) {
   auto [lba, dest, bytes, done] = args;
-  std::array<std::uint8_t, kSectorBytes> sector{};
+  std::array<std::uint8_t, psx::cd::kDataSectorBytes> sector{};
   std::uint32_t sectors = 0;
   done = 0;
   for (; done < bytes; ++sectors) {
     if (!core.game->disc.readSector(lba + sectors, sector.data())) {
       break;
     }
-    const std::uint32_t n = bytes - done < kSectorBytes ? bytes - done : kSectorBytes;
+    const std::uint32_t n = bytes - done < psx::cd::kDataSectorBytes ? bytes - done : psx::cd::kDataSectorBytes;
     core.mem_write(dest + done, std::span(sector).first(n), psx::cpu::ExecutableWriteSource::ModuleLoad);
     done += n;
   }
@@ -46,12 +46,12 @@ std::uint32_t readBytes(Core &core, const ReadBytesArgs &args) {
 } // namespace
 
 bool EngineCdLoader::readBlocks(std::uint32_t blocks, std::uint32_t lba, std::uint32_t dest) {
-  std::array<std::uint8_t, kSectorBytes> sector{};
+  std::array<std::uint8_t, psx::cd::kDataSectorBytes> sector{};
   for (std::uint32_t i = 0; i < blocks; ++i) {
     if (!core_.game->disc.readSector(lba + i, sector.data())) {
       return false;
     }
-    core_.mem_write(dest + i * kSectorBytes, sector, psx::cpu::ExecutableWriteSource::ModuleLoad);
+    core_.mem_write(dest + i * psx::cd::kDataSectorBytes, sector, psx::cpu::ExecutableWriteSource::ModuleLoad);
   }
   lucent::debug("cd", "read {} blk @ LBA {} -> 0x{:08X}", blocks, lba, dest);
   return true;

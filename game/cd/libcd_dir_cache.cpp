@@ -1,5 +1,6 @@
 // libcd_dir_cache.cpp — see header.
 #include "libcd_dir_cache.h"
+#include "cd_position.h"
 #include "core.h"
 #include "game.h" // Game::disc
 
@@ -9,23 +10,20 @@ namespace {
 uint32_t le32(const uint8_t *p) {
   return (uint32_t)p[0] | ((uint32_t)p[1] << 8) | ((uint32_t)p[2] << 16) | ((uint32_t)p[3] << 24);
 }
-uint8_t bcd(int v) {
-  return (uint8_t)((v % 10) + ((v / 10) << 4));
-}
 } // namespace
 
 bool LibcdDirCache::readSectorIntoScratch(uint32_t lba, uint8_t *out) {
   if (!core_.game->disc.readSector(lba, out)) {
     return false;
   }
-  for (uint32_t i = 0; i < kSectorBytes; i++) {
+  for (uint32_t i = 0; i < psx::cd::kDataSectorBytes; i++) {
     core_.mem_w8(kSectorScratch + i, out[i]);
   }
   return true;
 }
 
 void LibcdDirCache::newMedia() {
-  uint8_t sec[kSectorBytes];
+  uint8_t sec[psx::cd::kDataSectorBytes];
   if (!readSectorIntoScratch(16, sec)) {
     return;
   }
@@ -42,7 +40,7 @@ void LibcdDirCache::newMedia() {
   // + pad-to-even.
   uint32_t off = 0;
   int i = 0;
-  while (off + 8 <= kSectorBytes && sec[off] != 0 && i < kPathTableSlots) {
+  while (off + 8 <= psx::cd::kDataSectorBytes && sec[off] != 0 && i < kPathTableSlots) {
     const uint8_t name_len = sec[off + 0];
     const uint32_t extent = le32(sec + off + 2);
     const uint8_t parent = sec[off + 6]; // only the low byte is kept (max 128 dirs)
@@ -71,7 +69,7 @@ void LibcdDirCache::cacheFile(uint32_t dir_idx) {
     return;
   }
   const uint32_t dir_lba = core_.mem_r32(kPathExtentBase + (dir_idx - 1u) * kPathTableStride);
-  uint8_t sec[kSectorBytes];
+  uint8_t sec[psx::cd::kDataSectorBytes];
   if (!readSectorIntoScratch(dir_lba, sec)) {
     core_.mem_w32(kCurCachedDir, dir_idx);
     return;
@@ -79,23 +77,18 @@ void LibcdDirCache::cacheFile(uint32_t dir_idx) {
 
   uint32_t off = 0;
   int i = 0;
-  while (off < kSectorBytes && sec[off] != 0 && i < kFileEntrySlots) {
+  while (off < psx::cd::kDataSectorBytes && sec[off] != 0 && i < kFileEntrySlots) {
     const uint32_t rec_len = sec[off + 0];
     const uint32_t extent = le32(sec + off + 2);
     const uint32_t size = le32(sec + off + 10);
     const uint8_t fn_len = sec[off + 32];
 
-    // FUN_8008A00C: LBA -> BCD MSF (sector = LBA + 150, split into min/sec/frame at 75 fps).
-    const int t = (int)extent + 150;
-    const int frame = t % 75;
-    const int rem = t / 75;
-    const int ssec = rem % 60;
-    const int min = rem / 60;
-
+    // FUN_8008A00C's LBA to BCD MSF.
+    const std::array<uint8_t, 3> msf = psx::cd::lbaToMsf(static_cast<int>(extent));
     const uint32_t slot = kFileEntryCache + (uint32_t)i * kFileEntryStride;
-    core_.mem_w8(slot + 0, bcd(min));
-    core_.mem_w8(slot + 1, bcd(ssec));
-    core_.mem_w8(slot + 2, bcd(frame));
+    for (uint32_t b = 0; b < msf.size(); b++) {
+      core_.mem_w8(slot + b, msf[b]);
+    }
     core_.mem_w32(slot + 4, size);
     if (i == 0) {
       core_.mem_w32(slot + 8, 0x0000002Eu); // "." — DAT_8001C528 written as one u32

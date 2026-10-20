@@ -45,10 +45,6 @@ EngineCd &cdOf(Core *core) {
   return sessionOf(core).cd;
 }
 
-std::uint8_t bcd(int value) {
-  return static_cast<std::uint8_t>((value % 10) + ((value / 10) << 4));
-}
-
 // FUN_8001CE90(cmd, param, result): the streaming CdControl wrapper. Feeds XA mode/filter/seek/play
 // to the native streamer; GetlocL reports the task's target sector as already reached.
 void cdCommandStream(Core *c) {
@@ -95,13 +91,11 @@ void cdCommandStream(Core *c) {
   }
   if (cmd == 0x10 && result) { // GetlocL
     const std::uint32_t task = c->mem_r32(sched::kCurrentTaskPointer);
-    const int sector = static_cast<int>(c->mem_r32(task + 0x54)) + 150; // FUN_8008A00C's LBA->MSF
-    const int frame = sector % 75;
-    const int seconds = (sector / 75) % 60;
-    const int minutes = (sector / 75) / 60;
-    c->mem_w8(result + 0, bcd(minutes));
-    c->mem_w8(result + 1, bcd(seconds));
-    c->mem_w8(result + 2, bcd(frame));
+    // FUN_8008A00C's LBA to BCD MSF.
+    const std::array<std::uint8_t, 3> msf = psx::cd::lbaToMsf(static_cast<int>(c->mem_r32(task + 0x54)));
+    for (std::uint32_t i = 0; i < msf.size(); i++) {
+      c->mem_w8(result + i, msf[i]);
+    }
   }
   c->r[V0] = 0;
 }
