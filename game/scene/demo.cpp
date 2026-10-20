@@ -76,8 +76,7 @@ void Demo::s1() {
   Core *c = core;
   demo_log("s1", c);
   c->r[4] = 0; // a0 = 0
-  psx::cpu::dispatchGuestToReturn0(
-      *c, 0x80106f80u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // inner menu input machine (SYNC)
+  psx::cpu::callGuestNow(*c, __func__, 0x80106f80u); // inner menu input machine (SYNC)
   uint32_t v0 = c->r[2];
   uint32_t sm = c->mem_r32(SM_PTR);
   if (v0 != 0) {
@@ -97,8 +96,7 @@ void Demo::s1() {
 void Demo::s2() {
   Core *c = core;
   demo_log("s2", c);
-  psx::cpu::dispatchGuestToReturn0(
-      *c, 0x8010696cu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // sub-machine (SYNC)
+  psx::cpu::callGuestNow(*c, __func__, 0x8010696cu); // sub-machine (SYNC)
   uint32_t v0 = c->r[2];
   uint32_t sm = c->mem_r32(SM_PTR);
   if (v0 == 1) { // s2reg: -> s7
@@ -117,8 +115,7 @@ void Demo::s2() {
       c->mem_w16(sm + 0x48, 4);
       c->mem_w16(sm + 0x50, 0);
       c->mem_w8(sm + 0x6b, 0);
-      psx::cpu::dispatchGuestToReturn0(
-          *c, 0x8001cf2cu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // engine per-frame update (SYNC)
+      psx::cpu::callGuestNow(*c, __func__, 0x8001cf2cu); // engine per-frame update (SYNC)
       c->mem_w8(0x800bf84au, 0);
     }
     c->mem_w16(sm + 0x4a, 0); // shared 0x801064dc: sm[0x4a]=0
@@ -135,8 +132,7 @@ void Demo::s2() {
 void Demo::s3() {
   Core *c = core;
   demo_log("s3", c);
-  psx::cpu::dispatchGuestToReturn0(
-      *c, 0x80106ac4u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // sub-machine (SYNC)
+  psx::cpu::callGuestNow(*c, __func__, 0x80106ac4u); // sub-machine (SYNC)
   uint32_t v0 = c->r[2];
   uint32_t sm = c->mem_r32(SM_PTR);
   if (v0 == 1) { // s2reg: -> s7 (shared block)
@@ -153,8 +149,7 @@ void Demo::s3() {
       c->mem_w16(sm + 0x48, 6);
       c->mem_w8(sm + 0x6b, 0);
       c->mem_w16(sm + 0x50, 0);
-      psx::cpu::dispatchGuestToReturn0(
-          *c, 0x800750d8u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // page close (SYNC)
+      psx::cpu::callGuestNow(*c, __func__, 0x800750d8u); // page close (SYNC)
       c->mem_w8(0x800bf808u, 0);
     }
   } else if (v0 == 3) {       // s3reg: back/cancel -> s2
@@ -187,13 +182,11 @@ uint32_t Demo::s3SubMachine() {
 
   if (proceed) {
     c->r[4] = 0;
-    psx::cpu::dispatchGuestToReturn0(
-        *c, 0x80106690u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // still substrate
+    psx::cpu::callGuestNow(*c, __func__, 0x80106690u); // still substrate
     c->r[4] = 1;
     c->r[5] = (c->mem_r8(sm + 0x68) != 2) ? 1u : 0u;
     c->r[17] = 0x1F800000u;
-    psx::cpu::dispatchGuestToReturn0(
-        *c, 0x80106824u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // still substrate
+    psx::cpu::callGuestNow(*c, __func__, 0x80106824u); // still substrate
 
     sm = c->mem_r32(SM_PTR); // reload (matches the guest instruction path's re-read)
     int16_t timer = (int16_t)c->mem_r16(sm + 0x5a);
@@ -265,13 +258,12 @@ uint32_t Demo::s2SubMachine() {
   if (proceed) {
     c->r[4] = 0;
     c->r[31] = 0x801069B8u;
-    psx::cpu::dispatchGuestToReturn0(*c, 0x80106690u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // logos
+    psx::cpu::callGuestNow(*c, __func__, 0x80106690u); // logos
     c->r[4] = 0;
     c->r[5] = (c->mem_r8(sm + 0x68) != 0) ? 1u : 0u;
     c->r[16] = 0x1F800000u;
     c->r[31] = 0x801069E8u;
-    psx::cpu::dispatchGuestToReturn0(
-        *c, 0x80106824u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // items+cursor
+    psx::cpu::callGuestNow(*c, __func__, 0x80106824u); // items+cursor
 
     sm = c->mem_r32(SM_PTR); // reload (matches guest instruction path re-read)
     int16_t timer = (int16_t)c->mem_r16(sm + 0x5a);
@@ -331,19 +323,16 @@ void Demo::registerOverrides(native::NativeOverrideCatalog &natives) {
 void Demo::s6() {
   Core *c = core;
   demo_log("s6", c);
-  psx::cpu::dispatchGuestToReturn0(
-      *c, 0x8007b45cu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // page sub-machine (SYNC)
+  psx::cpu::callGuestNow(*c, __func__, 0x8007b45cu); // page sub-machine (SYNC)
   uint32_t sm = c->mem_r32(SM_PTR);
   if (c->mem_r16(sm + 0x50) == 3) {
     c->r[4] = 1;
     c->r[5] = 1;
     c->r[31] = 0x80106618u;
-    psx::cpu::dispatchGuestToReturn0(
-        *c, 0x80106824u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // commit (a0=1,a1=1)
+    psx::cpu::callGuestNow(*c, __func__, 0x80106824u); // commit (a0=1,a1=1)
     c->r[4] = 1;
     c->r[31] = 0x80106620u;
-    psx::cpu::dispatchGuestToReturn0(
-        *c, 0x80106690u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // commit2 (a0=1)
+    psx::cpu::callGuestNow(*c, __func__, 0x80106690u); // commit2 (a0=1)
     sm = c->mem_r32(SM_PTR);
   }
   uint8_t s6b = c->mem_r8(sm + 0x6b);
@@ -506,8 +495,7 @@ void Demo::s7Phase() {
 
   if (phase == 2) {
     // PHASE2 teardown — fully native, all SYNC. No s7 frame entered -> redirect to the trampoline TAIL.
-    psx::cpu::dispatchGuestToReturn0(
-        *c, 0x80074bc4u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // teardown (SYNC: verified yield-free)
+    psx::cpu::callGuestNow(*c, __func__, 0x80074bc4u); // teardown (SYNC: verified yield-free)
     c->mem_w8(0x1f80019au, 0);                                                  // *0x1f80019a = 0
     c->mem_w16(c->mem_r32(SM_PTR) + 0x48, 0); // sm[0x48] = 0 (restart front-end); re-read sm in case it moved
     tomba::requestGuestContinuation(*c,
@@ -569,10 +557,7 @@ void Demo::stageMain() {
   c->r[5] = 0;
   c->r[6] = 0;
   c->r[7] = 0;
-  psx::cpu::dispatchGuestToReturn0(*c,
-                                   0x800810F0u,
-                                   psx::cpu::ExecutionBudget::currentTurn(*c),
-                                   __func__); // UI / print-stream context init (leaf — synchronous)
+  psx::cpu::callGuestNow(*c, __func__, 0x800810F0u); // UI / print-stream context init (leaf — synchronous)
   c->mem_w8(0x800be0e4u, 0);
   c->mem_w16(0x800e7e68u, 0);
   c->mem_w16(0x800ecf54u, 0);
@@ -626,29 +611,19 @@ static uint32_t demo_menu_machine(Core *c) {
     // state 7 (0x80107280) teardown, faithful — the CdControlB(CdlPause) busy-loop becomes a native no-op
     // (no async CD read is running in our model). The other callees are synchronous libgs/SPU/cleanup.
     c->r[4] = 0;
-    psx::cpu::dispatchGuestToReturn0(
-        *c, 0x8001cf00u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // SPU CD->mix off
+    psx::cpu::callGuestNow(*c, __func__, 0x8001cf00u); // SPU CD->mix off
     c->r[4] = 0;
-    psx::cpu::dispatchGuestToReturn0(
-        *c, 0x8009c820u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // libgs reset
+    psx::cpu::callGuestNow(*c, __func__, 0x8009c820u); // libgs reset
     c->r[4] = 0;
-    psx::cpu::dispatchGuestToReturn0(
-        *c, 0x8009c8bcu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // libgs reset
-    psx::cpu::dispatchGuestToReturn0(
-        *c, 0x8008cd40u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // CD-event cleanup
-    psx::cpu::dispatchGuestToReturn0(*c,
-                                     0x8008cce0u,
-                                     psx::cpu::ExecutionBudget::currentTurn(*c),
-                                     __func__); // alloc/dispatch cleanup (= ov_8008CCE0)
+    psx::cpu::callGuestNow(*c, __func__, 0x8009c8bcu); // libgs reset
+    psx::cpu::callGuestNow(*c, __func__, 0x8008cd40u); // CD-event cleanup
+    psx::cpu::callGuestNow(*c, __func__, 0x8008cce0u); // alloc/dispatch cleanup (= ov_8008CCE0)
     c->mem_w8(0x1f80019cu, 0);
     c->mem_w8(0x1f80019du, 0);
     return 1; // nonzero ⇒ s1 advances sm[0x48] 1->2 (s2)
   }
   c->r[4] = 0; // a0 = 0 (s1 calls 0x80106F80(0))
-  psx::cpu::dispatchGuestToReturn0(*c,
-                                   0x80106f80u,
-                                   psx::cpu::ExecutionBudget::currentTurn(*c),
-                                   __func__); // states 1..3: run the real function (jr ra), advances sm[0x4a]
+  psx::cpu::callGuestNow(*c, __func__, 0x80106f80u); // states 1..3: run the real function (jr ra), advances sm[0x4a]
   return c->r[2];                             // v0 (nonzero => menu machine done)
 }
 
@@ -671,10 +646,10 @@ void Demo::s0PreYield() {
 
 void Demo::s0PostYield() {
   Core *c = core;
-  psx::cpu::dispatchGuestToReturn0(*c, 0x8007982Cu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, 0x8007982Cu);
   eng(c).pool.reset75240();
   c->r[4] = 1;
-  psx::cpu::dispatchGuestToReturn0(*c, 0x8001CF00u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, 0x8001CF00u);
   lucent::debug("demo",
                 "s0 post-yield: sm[0x48]=1, task-1 preload done (texgroup meta[0x800FB170]={:08X})",
                 c->mem_r32(0x800fb170u));
@@ -718,8 +693,7 @@ static void demo_tail_cf2c(Core *c);
 
 static void demo_frame_s2(Core *c) {
   c->r[31] = 0x8010646Cu;
-  psx::cpu::dispatchGuestToReturn0(
-      *c, 0x8010696cu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // title sub-machine (SYNC)
+  psx::cpu::callGuestNow(*c, __func__, 0x8010696cu); // title sub-machine (SYNC)
   uint32_t v0 = c->r[2];
   uint32_t sm = c->mem_r32(SM_PTR);
   if (v0 == 1) { // -> s7 (attract)
@@ -736,7 +710,7 @@ static void demo_frame_s2(Core *c) {
       c->mem_w16(sm + 0x50, 0);
       c->mem_w8(sm + 0x6b, 0);
       c->r[31] = 0x801064DCu;
-      psx::cpu::dispatchGuestToReturn0(*c, 0x8001cf2cu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, 0x8001cf2cu);
       c->mem_w8(0x800bf84au, 0); // engine update (SYNC)
     }
     c->mem_w16(sm + 0x4a, 0);
@@ -752,7 +726,7 @@ static void demo_tail_rend(Core *c) {
 }
 static void demo_tail_cf2c(Core *c) {
   c->r[31] = 0x80106658u;
-  psx::cpu::dispatchGuestToReturn0(*c, 0x8001cf2cu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, 0x8001cf2cu);
   demo_tail_75a80(c);
 }
 
@@ -761,8 +735,7 @@ static void demo_tail_cf2c(Core *c) {
 // Game) clearing *0x1F800134; else -> s6 (sub-page); 3 (back/cancel) -> s2. All paths end TAIL_REND.
 static void demo_frame_s3(Core *c) {
   c->r[31] = 0x801064F0u;
-  psx::cpu::dispatchGuestToReturn0(
-      *c, 0x80106ac4u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // main-menu sub-machine (SYNC)
+  psx::cpu::callGuestNow(*c, __func__, 0x80106ac4u); // main-menu sub-machine (SYNC)
   uint32_t v0 = c->r[2];
   uint32_t sm = c->mem_r32(SM_PTR);
   if (v0 == 1) { // -> s7
@@ -780,7 +753,7 @@ static void demo_frame_s3(Core *c) {
       c->mem_w8(sm + 0x6b, 0);
       c->mem_w16(sm + 0x50, 0);
       c->r[31] = 0x8010655Cu;
-      psx::cpu::dispatchGuestToReturn0(*c, 0x800750d8u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, 0x800750d8u);
       c->mem_w8(0x800bf808u, 0); // page close (SYNC)
     }
   } else if (v0 == 3) { // back -> s2
@@ -840,19 +813,16 @@ static void demo_frame_s4(Core *c) {
 // end TAIL_CF2C; else stay -> TAIL_REND. Return-based twin of ov_demo_s6.
 static void demo_frame_s6(Core *c) {
   c->r[31] = 0x801065F4u;
-  psx::cpu::dispatchGuestToReturn0(
-      *c, 0x8007b45cu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // page sub-machine (SYNC)
+  psx::cpu::callGuestNow(*c, __func__, 0x8007b45cu); // page sub-machine (SYNC)
   uint32_t sm = c->mem_r32(SM_PTR);
   if (c->mem_r16(sm + 0x50) == 3) {
     c->r[4] = 1;
     c->r[5] = 1;
     c->r[31] = 0x80106618u;
-    psx::cpu::dispatchGuestToReturn0(
-        *c, 0x80106824u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // commit (a0=1,a1=1)
+    psx::cpu::callGuestNow(*c, __func__, 0x80106824u); // commit (a0=1,a1=1)
     c->r[4] = 1;
     c->r[31] = 0x80106620u;
-    psx::cpu::dispatchGuestToReturn0(
-        *c, 0x80106690u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // commit2 (a0=1)
+    psx::cpu::callGuestNow(*c, __func__, 0x80106690u); // commit2 (a0=1)
     sm = c->mem_r32(SM_PTR);
   }
   uint8_t s6b = c->mem_r8(sm + 0x6b);
@@ -897,8 +867,7 @@ static void demo_frame_s7(Core *c) {
     // (0x80106c58 addiu v0,zero,0x384), and phase0's `sh v0,0x5a` sits in the `jal 0x8007a8e0` DELAY
     // SLOT — so it stores that 900, NOT 0x8007a8e0's return (0x8007a8e0 is called only for side effects:
     // it clears 0x1f80017c and seeds the control block). The item plays 900 frames (~15s) then times out.
-    psx::cpu::dispatchGuestToReturn0(
-        *c, 0x8007a8e0u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // side effects (clears 0x1f80017c)
+    psx::cpu::callGuestNow(*c, __func__, 0x8007a8e0u); // side effects (clears 0x1f80017c)
     c->mem_w16(sm + 0x5a, 900);                                                 // sh v0(=900),0x5a (delay-slot const)
     uint8_t cur = c->mem_r8(sm + 0x6e);
     uint8_t entry = c->mem_r8(0x8010770cu + (uint32_t)cur * 4); // cursor table {0,1,3}, byte[0]
@@ -922,23 +891,19 @@ static void demo_frame_s7(Core *c) {
     eng(c).pool.finalViewInit();         // 0x80078610 — native
     sm = c->mem_r32(SM_PTR);
     c->r[4] = c->mem_r8(sm + 0x6e);
-    psx::cpu::dispatchGuestToReturn0(
-        *c, 0x80079464u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // jal 0x80079464(sm[0x6e])
+    psx::cpu::callGuestNow(*c, __func__, 0x80079464u); // jal 0x80079464(sm[0x6e])
     c->mem_w8(0x1f80019au, 1);                                                  // sb s1(=1),0x1f80019a
     uint8_t ne = (uint8_t)((c->mem_r8(sm + 0x6e) + 1) & 0xff);
     c->mem_w8(sm + 0x6e, ne < 3 ? ne : 0); // sm[0x6e]++ wrap<3 -> {0,1,2}
   } else if (phase == 1) {
     // PHASE1 0x80106d4c — run one frame of the attract item, then count down sm[0x5a].
     if (c->mem_r16(0x1f80017cu) & 0x10) {
-      psx::cpu::dispatchGuestToReturn0(
-          *c, 0x80079374u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // optional draw (gated)
+      psx::cpu::callGuestNow(*c, __func__, 0x80079374u); // optional draw (gated)
     }
     if (c->mem_r8(0x800bf870u) == 3) {
-      psx::cpu::dispatchGuestToReturn0(
-          *c, 0x80106ee4u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // type-3 item update+render
+      psx::cpu::callGuestNow(*c, __func__, 0x80106ee4u); // type-3 item update+render
     } else {
-      psx::cpu::dispatchGuestToReturn0(
-          *c, 0x80106e28u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // gameplay item update+render
+      psx::cpu::callGuestNow(*c, __func__, 0x80106e28u); // gameplay item update+render
     }
     sm = c->mem_r32(SM_PTR);
     uint16_t t = (uint16_t)((c->mem_r16(sm + 0x5a) - 1) & 0xffff);
@@ -946,8 +911,7 @@ static void demo_frame_s7(Core *c) {
     int advance = 0;
     if (t != 0) {
       c->r[4] = 0;
-      psx::cpu::dispatchGuestToReturn0(
-          *c, 0x800524b4u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // skip/abort check (v0!=0 => skip)
+      psx::cpu::callGuestNow(*c, __func__, 0x800524b4u); // skip/abort check (v0!=0 => skip)
       if (c->r[2] != 0) {
         advance = 1;
       }
@@ -959,8 +923,7 @@ static void demo_frame_s7(Core *c) {
     }
   } else if (phase == 2) {
     // PHASE2 0x80106dfc — teardown + restart the front-end (sm[0x48]=0 -> s0 reinit -> title).
-    psx::cpu::dispatchGuestToReturn0(
-        *c, 0x80074bc4u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // teardown (SYNC, verified yield-free)
+    psx::cpu::callGuestNow(*c, __func__, 0x80074bc4u); // teardown (SYNC, verified yield-free)
     sm = c->mem_r32(SM_PTR);
     c->mem_w8(0x1f80019au, 0);
     c->mem_w16(sm + 0x48, 0); // sm[0x48]=0 (restart)

@@ -60,7 +60,7 @@ inline int try_model_attach(Core *c, uint32_t obj) {
   c->r[5] = MODEL_ID;
   c->r[6] = c->mem_r32(MODEL_META_PTR);
   c->r[7] = MODEL_DATA_PTR;
-  psx::cpu::dispatchGuestToReturn0(*c, 0x800519E0u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, 0x800519E0u);
   return (int)c->r[2];
 }
 inline void anim_graphics_tick(Core *c, uint32_t o) {
@@ -71,7 +71,7 @@ inline void post_cull_update(Core *c, uint32_t o) {
 } // native FUN_800518FC (NodeXform::buildWithOffset)
 inline void bounds_cull(Core *c, uint32_t o) {
   c->r[4] = o;
-  psx::cpu::dispatchGuestToReturn0(*c, 0x8007778Cu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, 0x8007778Cu);
 }
 
 // Spawn a narration prop at (X, Y, Z+0x76C). FUN_8003116C(a0=type, a1=spawn-arg-block-ptr, a2=0) —
@@ -99,8 +99,7 @@ void spawn_narration_prop(Core *c, uint32_t obj) {
   c->r[4] = SPAWN_TYPE;
   c->r[5] = blk;
   c->r[6] = 0;
-  psx::cpu::dispatchGuestToReturn0(
-      *c, 0x8003116Cu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // narration-prop spawn (substrate)
+  psx::cpu::callGuestNow(*c, __func__, 0x8003116Cu); // narration-prop spawn (substrate)
 
   c->r[29] = sp_save;
   c->r[31] = ra_save;

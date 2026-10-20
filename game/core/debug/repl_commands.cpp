@@ -3,12 +3,12 @@
 
 #include "audio/music_list.h" // class MusicList — `musictest`
 #include "core.h"
-#include "debug/dev_args.h"
 #include "engine/engine.h" // game-owned entity lists + behavior registry for `ents`
 #include "entry/session.h" // inv(c) Inventory + sessionOf(c).music_list MusicList
 #include "guest_call.h"    // rc0/rc1/rc3 — typed runtime address dispatch of the Tomba BGM / libsnd-seq guest leaves
 #include <cstdint>
 #include <lucent/log.h>
+#include <optional>
 #include <string_view>
 
 namespace tomba {
@@ -58,21 +58,47 @@ void list_entities(Core *c) {
   lucent::info("ents", "({} nodes; {} native-owned, {} still-PSX)", total, owned, total - owned);
 }
 
+void describe_node(Core *c, uint32_t node) {
+  lucent::info("repl",
+               "node {:08X}: type={:02X} state={:04X} rflag={:02X} handler={:08X}",
+               node,
+               c->mem_r8(node + 0xC),
+               c->mem_r16(node + 0x28),
+               c->mem_r8(node + 1),
+               c->mem_r32(node + 0x1C));
+  lucent::info("repl",
+               "  pos=({},{},{}) rot=({},{},{}) model={:04X} mdata={:08X}",
+               c->mem_r16s(node + 0x2E),
+               c->mem_r16s(node + 0x32),
+               c->mem_r16s(node + 0x36),
+               c->mem_r16s(node + 0x54),
+               c->mem_r16s(node + 0x56),
+               c->mem_r16s(node + 0x58),
+               c->mem_r16(node + 0xE) & 0x3FFF,
+               c->mem_r32(node + 0x38));
+  const uint32_t count = c->mem_r8(node + 8);
+  lucent::info("repl", "  cmds={} next={:08X} prev={:08X}", count, c->mem_r32(node + 0x24), c->mem_r32(node + 0x20));
+  for (uint32_t i = 0; i < count && i < 32; i++) {
+    const uint32_t command = c->mem_r32(node + 0xC0 + i * 4);
+    lucent::info("repl", "    cmd[{}]={:08X} geomblk={:08X}", i, command, command ? c->mem_r32(command + 0x40) : 0);
+  }
+}
+
 } // namespace
 
 } // namespace tomba
 
 namespace tomba {
 
-bool replCommand(Core &core, const char *line) {
+bool replCommand(Core &core, const psx::debug::CommandArgs &args) {
   Core *c = &core;
-  const auto words = DevArgs::words(line);
-  if (words.empty()) {
+  if (args.size() == 0) {
     return false;
   }
-  const std::string_view cmd = words[0];
-  uint32_t a = 0;
-  const bool hasNumber = words.size() >= 2 && DevArgs::decimal(words[1], a);
+  const std::string_view cmd = args.word(0);
+  const std::optional<uint32_t> number = args.number(1);
+  const bool hasNumber = number.has_value();
+  const uint32_t a = number.value_or(0);
   if (cmd == "ents") {
     list_entities(c);
     return true;
@@ -82,7 +108,36 @@ bool replCommand(Core &core, const char *line) {
     return true;
   }
   if (cmd == "stage") {
-    lucent::info("repl", "stage={:08X} sm48={}", c->mem_r32(0x801FE00Cu), (int)c->mem_r16(0x801FE048u));
+    lucent::info("repl",
+                 "stage={:08X} sm48={} scene-active={:08X}",
+                 c->mem_r32(0x801FE00Cu),
+                 (int)c->mem_r16(0x801FE048u),
+                 c->mem_r32(0x800BE258u));
+    return true;
+  }
+  if (cmd == "node") {
+    if (const std::optional<uint32_t> node = args.hex(1)) {
+      describe_node(c, *node);
+    } else {
+      lucent::info("repl", "usage: node <hex>");
+    }
+    return true;
+  }
+  // The model table at *0x800ECF58: group G's table T, sub-model S's block at T + *(T + S*4 + 4).
+  if (cmd == "geomblk") {
+    const std::optional<uint32_t> group = args.number(1);
+    const std::optional<uint32_t> sub = args.number(2);
+    if (!group || !sub) {
+      lucent::info("repl", "usage: geomblk <group> <sub>");
+      return true;
+    }
+    const uint32_t table = c->mem_r32(0x800ECF58u + *group * 4);
+    lucent::info("repl",
+                 "group={} sub={} T={:08X} geomblk={:08X}",
+                 *group,
+                 *sub,
+                 table,
+                 table + c->mem_r32(table + *sub * 4 + 4));
     return true;
   }
   if (cmd == "seq") {
@@ -101,12 +156,11 @@ bool replCommand(Core &core, const char *line) {
     // sweep a spread of item types/amounts covering both quest-ref variants + the 23..28 ring + the cap.
     int ty = -1;
     int am = -1;
-    uint32_t word = 0;
-    if (words.size() >= 2 && DevArgs::decimal(words[1], word)) {
-      ty = static_cast<int>(word);
+    if (const auto type = args.number(1)) {
+      ty = static_cast<int>(*type);
     }
-    if (words.size() >= 3 && DevArgs::decimal(words[2], word)) {
-      am = static_cast<int>(word);
+    if (const auto amount = args.number(2)) {
+      am = static_cast<int>(*amount);
     }
     constexpr int vt[] = {1, 2, 5, 10, 23, 25, 28, 40, 60, 99};
     constexpr int va[] = {1, 3, 1, 50, 1, 99, 2, 7, 1, 5};
@@ -127,7 +181,7 @@ bool replCommand(Core &core, const char *line) {
     return true;
   }
   if (cmd == "bgmstop") {
-    psx::cpu::dispatchGuestToReturn0(*c, 0x80074E48u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, 0x80074E48u);
     lucent::info("repl", "bgmstop");
     return true;
   }
@@ -148,7 +202,7 @@ bool replCommand(Core &core, const char *line) {
   // 'musictest stop' (or n<0) stops. Bypasses the broken libsnd path entirely (engine/audio/).
   if (cmd == "musictest") {
     MusicList &ml = sessionOf(c).music_list; // music_list moved off Game onto the game-side Session
-    if (words.size() >= 2 && words[1] == "stop") {
+    if (args.word(1) == "stop") {
       ml.stop();
       lucent::info("repl", "musictest stop");
     } else if (hasNumber && a <= 0x7FFFFFFFu) {

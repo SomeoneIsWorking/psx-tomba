@@ -59,7 +59,7 @@ inline int try_model_attach(Core *c, uint32_t obj) {
   c->r[5] = MODEL_ID;
   c->r[6] = c->mem_r32(G_MODEL_TABLE);
   c->r[7] = MODEL_META_PTR;
-  psx::cpu::dispatchGuestToReturn0(*c, 0x800519E0u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, 0x800519E0u);
   return (int)c->r[2]; // 0 = success, non-zero = retry
 }
 inline void anim_env_setup(Core *c, uint32_t obj) {
@@ -73,7 +73,7 @@ inline void overlay_oneshot(Core *c, uint32_t obj) {
 }
 inline int bounds_cull(Core *c, uint32_t obj) {
   c->r[4] = obj;
-  psx::cpu::dispatchGuestToReturn0(*c, 0x8007778Cu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, 0x8007778Cu);
   return (int)c->r[2];
 }
 inline void post_cull_update(Core *c, uint32_t obj) {

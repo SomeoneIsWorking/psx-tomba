@@ -189,7 +189,7 @@ void BehaviorDispatch::dispatchObj(const ObjectTick &tick) {
                   c->mem_r8(0x800E7E80u));
   }
   if (!dispatchNative(handler)) {
-    psx::cpu::dispatchGuestToReturn0(*c, handler, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, handler);
   }
 }
 

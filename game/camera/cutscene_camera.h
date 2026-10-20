@@ -103,7 +103,7 @@ private:
   // mirroring the driver's `jal fn`: set only a0 (= cam_), and a1 when given.
   void sub(uint32_t fn) {
     c->r[4] = cam_;
-    psx::cpu::dispatchGuestToReturn0(*c, fn, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, fn);
   }
   // update()'s MODE-byte (cam[0x64]&0x3F) dispatch.
   void dispatchMode(uint8_t mode);

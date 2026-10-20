@@ -160,12 +160,12 @@ void Render::objListWalk1() {
       }
       c->r[31] = 0x8003BC64u;
       c->r[6] = 0u;
-      psx::cpu::dispatchGuestToReturn0(*c, 0x8002AE0Cu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, 0x8002AE0Cu);
       break;
     }
     case 0x8003BC24u: {
       c->r[31] = 0x8003BC2Cu;
-      psx::cpu::dispatchGuestToReturn0(*c, 0x80122974u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, 0x80122974u);
       const uint32_t attr = c->mem_r8(cmd + 0xB);
       if ((attr & 0x40u) == 0u) {
         if ((attr & 0x80u) == 0u) {
@@ -179,7 +179,7 @@ void Render::objListWalk1() {
       }
       c->r[31] = 0x8003BC64u;
       c->r[6] = 0u;
-      psx::cpu::dispatchGuestToReturn0(*c, 0x8002AE0Cu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, 0x8002AE0Cu);
       break;
     }
     case 0x8003BC6Cu:
@@ -192,11 +192,11 @@ void Render::objListWalk1() {
       break;
     case 0x8003BC8Cu:
       c->r[31] = 0x8003BC94u;
-      psx::cpu::dispatchGuestToReturn0(*c, 0x8003C5F8u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, 0x8003C5F8u);
       break;
     case 0x8003BC9Cu:
       c->r[31] = 0x8003BCA4u;
-      psx::cpu::dispatchGuestToReturn0(*c, 0x8003C788u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, 0x8003C788u);
       break;
     case 0x8003BCACu:
       c->r[31] = 0x8003BCB4u;
@@ -209,14 +209,14 @@ void Render::objListWalk1() {
       const uint32_t vt = c->mem_r32(cmd + 124u);
       c->r[31] = 0x8003BCD0u;
       c->r[4] = cmd;
-      psx::cpu::dispatchGuestToReturn0(*c, vt, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, vt);
       break;
     }
     case 0x8003BCC0u: {
       const uint32_t vt = c->mem_r32(cmd + 24u);
       c->r[31] = 0x8003BCD0u;
       c->r[4] = cmd;
-      psx::cpu::dispatchGuestToReturn0(*c, vt, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, vt);
       break;
     }
     case 0x8003BCD0u:
@@ -225,7 +225,7 @@ void Render::objListWalk1() {
       // Defensive mirror of the recorded binary evidence's indirect-jump fallback (authenticated executable/overlay
       // evidence's `default: typed runtime address dispatch(c, c->r[2]); return;`) — a full RETURN bypassing the frame
       // epilogue. Never hit by live game data: the live 144-slot table only ever holds the case values above.
-      psx::cpu::dispatchGuestToReturn0(*c, target, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, target);
       return;
     }
   }
@@ -294,11 +294,11 @@ void Render::objListWalk2() {
       if (mode == 0u) {
         c->r[31] = 0x8003BDD4u;
         c->r[4] = cmd;
-        psx::cpu::dispatchGuestToReturn0(*c, 0x801341E8u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+        psx::cpu::callGuestNow(*c, __func__, 0x801341E8u);
       } else if (mode == 6u) {
         c->r[31] = 0x8003BDECu;
         c->r[4] = cmd;
-        psx::cpu::dispatchGuestToReturn0(*c, 0x80123C14u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+        psx::cpu::callGuestNow(*c, __func__, 0x80123C14u);
       }
       break;
     }
@@ -332,14 +332,14 @@ void Render::objListWalk2() {
       if (leaf != 0u) {
         c->r[31] = ra;
         c->r[4] = cmd;
-        psx::cpu::dispatchGuestToReturn0(*c, leaf, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+        psx::cpu::callGuestNow(*c, __func__, leaf);
       }
       break;
     }
     case 0x8003BE74u:
       c->r[31] = 0x8003BE7Cu;
       c->r[4] = cmd;
-      psx::cpu::dispatchGuestToReturn0(*c, 0x80136748u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, 0x80136748u);
       break;
     case 0x8003BE84u:
       c->r[31] = 0x8003BE8Cu;
@@ -350,7 +350,7 @@ void Render::objListWalk2() {
       const uint32_t vt = c->mem_r32(cmd + 0x7Cu);
       c->r[31] = 0x8003BEA4u;
       c->r[4] = cmd;
-      psx::cpu::dispatchGuestToReturn0(*c, vt, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, vt);
     }
       [[fallthrough]];
     case 0x8003BEA4u:
@@ -367,14 +367,14 @@ void Render::objListWalk2() {
       const uint32_t vt = c->mem_r32(cmd + 0x7Cu);
       c->r[31] = 0x8003BED8u;
       c->r[4] = cmd;
-      psx::cpu::dispatchGuestToReturn0(*c, vt, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, vt);
       break;
     }
     case 0x8003BEC8u: { // vtable +0x18 (the type-0x20 custom-render fn)
       const uint32_t vt = c->mem_r32(cmd + 0x18u);
       c->r[31] = 0x8003BED8u;
       c->r[4] = cmd;
-      psx::cpu::dispatchGuestToReturn0(*c, vt, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, vt);
       break;
     }
     case 0x8003BED8u:
@@ -383,7 +383,7 @@ void Render::objListWalk2() {
       // Defensive mirror of the guest's `jr v0` to a target outside this body — a full RETURN bypassing
       // the frame epilogue. Never hit by live game data: the live 33-slot table only ever holds the
       // labels above.
-      psx::cpu::dispatchGuestToReturn0(*c, target, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, target);
       return;
     }
   }
@@ -459,22 +459,22 @@ void Render::objListWalk3() {
     case 0x8003BFDCu:
       c->r[31] = 0x8003BFE4u;
       c->r[4] = cmd;
-      psx::cpu::dispatchGuestToReturn0(*c, 0x8003C5F8u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, 0x8003C5F8u);
       break;
     case 0x8003BFECu:
       c->r[31] = 0x8003BFF4u;
       c->r[4] = cmd;
-      psx::cpu::dispatchGuestToReturn0(*c, 0x8003C788u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, 0x8003C788u);
       break;
     case 0x8003BFFCu: {
       if (c->mem_r8(W3_MODE_BYTE) == 0x14u) {
         c->r[31] = 0x8003C018u;
         c->r[4] = cmd;
-        psx::cpu::dispatchGuestToReturn0(*c, 0x8010FC70u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+        psx::cpu::callGuestNow(*c, __func__, 0x8010FC70u);
       } else {
         c->r[31] = 0x8003C028u;
         c->r[4] = cmd;
-        psx::cpu::dispatchGuestToReturn0(*c, 0x8004CC88u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+        psx::cpu::callGuestNow(*c, __func__, 0x8004CC88u);
       }
       break;
     }
@@ -485,7 +485,7 @@ void Render::objListWalk3() {
       // evidence's `default: typed runtime address dispatch(c, c->r[2]); return;`) — a full RETURN bypassing the frame
       // epilogue.
       c->r[4] = cmd;
-      psx::cpu::dispatchGuestToReturn0(*c, target, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, target);
       return;
     }
   }
@@ -546,7 +546,7 @@ void Render::objListWalk4() {
         perObjRenderDispatch();
         c->r[31] = 0x8003EF60u;
         c->r[4] = node;
-        psx::cpu::dispatchGuestToReturn0(*c, 0x8003B704u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+        psx::cpu::callGuestNow(*c, __func__, 0x8003B704u);
         c->r[16] = c->r[17];
         continue;
       case 0x8003EF40u: {
@@ -559,7 +559,7 @@ void Render::objListWalk4() {
         }
         c->r[31] = 0x8003EF60u;
         c->r[4] = node;
-        psx::cpu::dispatchGuestToReturn0(*c, 0x8003B704u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+        psx::cpu::callGuestNow(*c, __func__, 0x8003B704u);
         c->r[16] = c->r[17];
         continue;
       }
@@ -567,7 +567,7 @@ void Render::objListWalk4() {
         const uint32_t vt = c->mem_r32(node + 24u);
         c->r[31] = 0x8003EF78u;
         c->r[4] = node;
-        psx::cpu::dispatchGuestToReturn0(*c, vt, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+        psx::cpu::callGuestNow(*c, __func__, vt);
         c->r[16] = c->r[17];
         continue;
       }
@@ -579,7 +579,7 @@ void Render::objListWalk4() {
         // evidence's `default: typed runtime address dispatch(c, c->r[2]); return;`) — a full RETURN bypassing the
         // frame epilogue.
         c->r[4] = node;
-        psx::cpu::dispatchGuestToReturn0(*c, target, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+        psx::cpu::callGuestNow(*c, __func__, target);
         return;
       }
     }

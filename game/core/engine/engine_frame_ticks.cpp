@@ -110,7 +110,7 @@ void Engine::frameStartTick() {
       break;
     }
     c->r[4] = G;
-    psx::cpu::dispatchGuestToReturn0(*c, target, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, target);
     c->mem_w8(0x1F800230u, 0);
   }
 
@@ -177,13 +177,10 @@ void Engine::startStage(uint32_t stage) {
       sessionOf(c).nativeOverrides, *c, {.active = activeStageOverlay, .taskFields = task + 0xc, .stage = stage});
   c->mem_w16(task, 3); // task state = 3 (active)
   c->mem_w8(task + 0x6f, 0);
-  psx::cpu::dispatchGuestToReturn0(
-      *c, 0x80080890u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // EnterCriticalSection (BIOS leaf)
+  psx::cpu::callGuestNow(*c, __func__, 0x80080890u); // EnterCriticalSection (BIOS leaf)
   c->r[4] = c->mem_r32(task + 4);
-  psx::cpu::dispatchGuestToReturn0(
-      *c, 0x80080870u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // B(0Fh) reset (BIOS leaf)
-  psx::cpu::dispatchGuestToReturn0(
-      *c, 0x800808a0u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // ExitCriticalSection (BIOS leaf)
+  psx::cpu::callGuestNow(*c, __func__, 0x80080870u); // B(0Fh) reset (BIOS leaf)
+  psx::cpu::callGuestNow(*c, __func__, 0x800808a0u); // ExitCriticalSection (BIOS leaf)
   c->r[4] = 0xff000000u;
   tomba::sched::taskScheduler(*c).yield(*c); // ChangeThread
 }

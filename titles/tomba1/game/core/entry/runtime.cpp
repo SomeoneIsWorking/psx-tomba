@@ -21,18 +21,7 @@ namespace tomba1 {
 
 namespace {
 
-constexpr psx::game::Crt0Image kCrt0{
-    .bss = {0x8009AFB0u, 0x800A3348u},
-    .stackTopWordAddress = 0x80076E38u,
-    .stackReserveWordAddress = 0x80076E3Cu,
-    .heapBase = 0x800A3348u,
-    .heapSizeStoreAddress = 0x800975C0u,
-    .heapBaseStoreAddress = 0x800975BCu,
-    .globalPointer = 0x80097FA8u,
-    .libcInitEntry = 0x8006B70Cu,
-    .crt0Entry = 0x8006B58Cu,
-    .stackBias = {.declared = true, .bytes = -8},
-};
+constexpr psx::game::Crt0Image kCrt0{.entry = 0x8006B58Cu};
 
 // Where the load-list walker 0x80021D70 places a type-0xF0 entry: the code module resident code
 // calls into (jal 0x800E7D5C from 0x80019A7C and 0x80019A94).
@@ -59,7 +48,7 @@ void Runtime::registerOverrides(Game &game) {
   libgte_.bind(game);
   bindTitleLibraryOwners(game);
   const auto install = [&game](std::uint32_t address, std::string_view name, psx::cpu::NativeFunction function) {
-    const auto identity = game.core.currentImageIdentity(address);
+    const auto identity = game.core.imageCatalog().resolve(address);
     if (!identity) {
       lucent::error("tomba1-runtime", "cannot bind '{}' at ambiguous guest address 0x{:08X}", name, address);
       return false;
@@ -106,7 +95,7 @@ bool Runtime::titleCommand(Core &core, const psx::game::TitleCommandLine &input,
   if (std::strcmp(input.command, "warp") != 0) {
     return false;
   }
-  std::fprintf(reply, "%s\n", context(core).warp.arm(core, input.line).c_str());
+  std::fprintf(reply, "%s\n", context(core).warp.arm(core, input.args).c_str());
   return true;
 }
 

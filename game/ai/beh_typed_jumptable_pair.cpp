@@ -330,8 +330,7 @@ void beh_typed_jumptable_pair(Core *c) {
           eng(c).sceneTransition.clearSwapBlock(0x800E7E80u);
           c->r[4] = 0x6d;
           c->r[5] = 0x41; // 80139518 a0=0x6d ; 80139520 a1=0x41
-          psx::cpu::dispatchGuestToReturn0(
-              *c, 0x8004ED94u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // 8013951C jal 0x8004ed94
+          psx::cpu::callGuestNow(*c, __func__, 0x8004ED94u); // 8013951C jal 0x8004ed94
           eng(c).sfx.trigger({.id = 0x19, .pan = 0, .pitchBend = 0xF}); // 8013952C jal 0x80074590 (native)
           break;                                                        // 80139534 j 0x80139580
         }
@@ -354,8 +353,7 @@ void beh_typed_jumptable_pair(Core *c) {
         if (s5 == 2) { // 801394A4 beq v1,2 -> 0x80139568 ; else tail
           // ---- 0x80139568 ----
           c->r[4] = obj;
-          psx::cpu::dispatchGuestToReturn0(
-              *c, 0x80138B04u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // 80139568 jal 0x80138b04 (a0=s0)
+          psx::cpu::callGuestNow(*c, __func__, 0x80138B04u); // 80139568 jal 0x80138b04 (a0=s0)
           break;                                                                      // 80139570 j 0x80139580
         }
         break; // 801394AC j 0x80139580
@@ -373,8 +371,7 @@ void beh_typed_jumptable_pair(Core *c) {
 
     case 4: // jt1[4] = 0x80139578
       c->r[4] = obj;
-      psx::cpu::dispatchGuestToReturn0(
-          *c, 0x80138C70u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // 80139578 jal 0x80138c70 (a0=s0)
+      psx::cpu::callGuestNow(*c, __func__, 0x80138C70u); // 80139578 jal 0x80138c70 (a0=s0)
       break;                                                                      // (no j; falls into tail @0x80139580)
 
     default: // jt1[5] = 0x80139580 (== tail; no-op)

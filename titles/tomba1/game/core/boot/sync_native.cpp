@@ -20,9 +20,7 @@ constexpr std::uint32_t kCdControlF = 0x80064A70u;
 // CdControlB: CdControl, then CdSync until complete; the movie task stops its stream with it.
 constexpr std::uint32_t kCdControlB = 0x80064B9Cu;
 constexpr std::uint32_t kDmaInterruptControl = 0x1F8010F4u;
-constexpr std::uint32_t kDmaMasterEnable = 0x00800000u;
 constexpr std::uint32_t kDmaControlBits = 0x00FFFFFFu;
-constexpr std::uint32_t kDmaChannelCount = 7u;
 
 // These linked libgpu helpers use VSync(-1) only as a 240-field timeout clock for the GPU command
 // queue. The port's frame driver owns that clock, so the native replacements read logicFrame and
@@ -81,17 +79,17 @@ void bindTitleLibraryOwners(Game &game) {
 }
 
 void dmaCallbackOverride(Core *core) {
-  if (!core || !core->game || core->r[4] >= kDmaChannelCount) {
+  if (!core || !core->game || core->r[4] >= psx::dma::kChannelCount) {
     lucent::error("tomba1-sync", "invalid DMACallback owner or channel");
     std::abort();
   }
 
-  const auto channel = static_cast<DmaChannel>(core->r[4]);
+  const auto channel = static_cast<psx::dma::DmaChannel>(core->r[4]);
   core->r[2] = core->game->dmaCallbacks.exchange(channel, core->r[5]);
 
   const std::uint32_t channelEnable = 1u << (16u + core->r[4]);
   const std::uint32_t dicr = core->mem_r32(kDmaInterruptControl);
-  core->mem_w32(kDmaInterruptControl, (dicr & kDmaControlBits) | channelEnable | kDmaMasterEnable);
+  core->mem_w32(kDmaInterruptControl, (dicr & kDmaControlBits) | channelEnable | psx::dma::kDicrMasterEnable);
 }
 
 void gpuTimeoutBeginOverride(Core *core) {

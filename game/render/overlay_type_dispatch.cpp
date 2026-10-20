@@ -81,83 +81,83 @@ void Render::overlayTypeDispatch() {
   switch (target) {
   case 0x8003D0F4u:
     c->r[31] = 0x8003D0FCu;
-    psx::cpu::dispatchGuestToReturn0(*c, 0x801401B8u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, 0x801401B8u);
     break; // entityLoop (owned)
   case 0x8003D104u:
     c->r[31] = 0x8003D10Cu;
-    psx::cpu::dispatchGuestToReturn0(*c, 0x80132358u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, 0x80132358u);
     break;
   case 0x8003D114u:
     c->r[31] = 0x8003D11Cu;
-    psx::cpu::dispatchGuestToReturn0(*c, 0x80124CB8u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, 0x80124CB8u);
     break;
   case 0x8003D124u:
     c->r[31] = 0x8003D12Cu;
-    psx::cpu::dispatchGuestToReturn0(*c, 0x801185F0u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, 0x801185F0u);
     break;
   case 0x8003D134u:
     c->r[31] = 0x8003D13Cu;
-    psx::cpu::dispatchGuestToReturn0(*c, 0x8013606Cu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, 0x8013606Cu);
     break;
   case 0x8003D144u:
     c->r[31] = 0x8003D14Cu;
-    psx::cpu::dispatchGuestToReturn0(*c, 0x8013CD34u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, 0x8013CD34u);
     break;
   case 0x8003D154u:
     c->r[31] = 0x8003D15Cu;
-    psx::cpu::dispatchGuestToReturn0(*c, 0x8012DA14u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, 0x8012DA14u);
     break;
   case 0x8003D164u:
     c->r[31] = 0x8003D16Cu;
-    psx::cpu::dispatchGuestToReturn0(*c, 0x8012A7CCu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, 0x8012A7CCu);
     break;
   case 0x8003D174u:
     c->r[31] = 0x8003D17Cu;
-    psx::cpu::dispatchGuestToReturn0(*c, 0x8011024Cu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, 0x8011024Cu);
     break;
   case 0x8003D184u:
     c->r[31] = 0x8003D18Cu;
-    psx::cpu::dispatchGuestToReturn0(*c, 0x80113050u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, 0x80113050u);
     break;
   case 0x8003D194u:
     c->r[31] = 0x8003D19Cu;
-    psx::cpu::dispatchGuestToReturn0(*c, 0x80113DB4u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, 0x80113DB4u);
     break;
   case 0x8003D1A4u:
     c->r[31] = 0x8003D1ACu;
-    psx::cpu::dispatchGuestToReturn0(*c, 0x80113628u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, 0x80113628u);
     break;
   case 0x8003D1B4u:
     c->r[31] = 0x8003D1BCu;
-    psx::cpu::dispatchGuestToReturn0(*c, 0x80114320u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, 0x80114320u);
     break;
   case 0x8003D1C4u:
     c->r[31] = 0x8003D1CCu;
-    psx::cpu::dispatchGuestToReturn0(*c, 0x80115364u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, 0x80115364u);
     break;
   case 0x8003D1D4u:
     c->r[31] = 0x8003D1DCu;
-    psx::cpu::dispatchGuestToReturn0(*c, 0x8010C2A4u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, 0x8010C2A4u);
     break;
   case 0x8003D1E4u:
     c->r[31] = 0x8003D1ECu;
-    psx::cpu::dispatchGuestToReturn0(*c, 0x8010B5BCu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, 0x8010B5BCu);
     break;
   case 0x8003D1F4u:
     c->r[31] = 0x8003D1FCu;
-    psx::cpu::dispatchGuestToReturn0(*c, 0x8010BA40u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, 0x8010BA40u);
     break;
   case 0x8003D204u:
     c->r[31] = 0x8003D20Cu;
-    psx::cpu::dispatchGuestToReturn0(*c, 0x8010AA20u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, 0x8010AA20u);
     break;
   case 0x8003D214u:
     c->r[31] = 0x8003D21Cu;
-    psx::cpu::dispatchGuestToReturn0(*c, 0x80115F1Cu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, 0x80115F1Cu);
     break;
   case 0x8003D224u:
     c->r[31] = 0x8003D22Cu;
-    psx::cpu::dispatchGuestToReturn0(*c, 0x8010B0B8u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, 0x8010B0B8u);
     break;
   case 0x8003D22Cu:
     break; // early-out target value itself: no-op (falls straight to epilogue)
@@ -166,7 +166,7 @@ void Render::overlayTypeDispatch() {
     // evidence's `default: typed runtime address dispatch(c, c->r[2]); return;`) — a full RETURN bypassing the frame
     // epilogue, exactly like renderWalk's/perObjRenderDispatch's own default cases. Never hit by live game data: the
     // live 22-slot table only ever holds the 20 case values above (or routes through the areaType>=22 early-out).
-    psx::cpu::dispatchGuestToReturn0(*c, target, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, target);
     return;
   }
 }

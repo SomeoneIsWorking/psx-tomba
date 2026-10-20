@@ -1,22 +1,20 @@
 #include "debug/dev_control.h"
 
 #include "core.h"
-#include "debug/dev_args.h"
 #include "entry/session.h"
 
 #include <string_view>
 
 namespace tomba {
 
-bool DevControl::handle(Core &core, const char *line, std::string &reply) {
-  const auto words = DevArgs::words(line);
-  const std::string_view command = words.empty() ? std::string_view{} : words[0];
+bool DevControl::handle(Core &core, const psx::debug::CommandArgs &args, std::string &reply) {
+  const std::string_view command = args.word(0);
   if (command == "warp") {
-    reply = warp_.arm(core, line);
+    reply = warp_.arm(core, args);
   } else if (command == "items") {
-    reply = items_.arm(core, line);
+    reply = items_.arm(core, args);
   } else if (command == "flag") {
-    reply = flags_.arm(core, line);
+    reply = flags_.arm(core, args);
   } else {
     return false;
   }

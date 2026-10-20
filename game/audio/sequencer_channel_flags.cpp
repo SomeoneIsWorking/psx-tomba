@@ -202,10 +202,7 @@ void Sequencer::channelNoteInit() {
   c->r[31] = 0x80091A38u; // FIX: gen sets the real return-site const before the jal
   channelKeyEventScan();
   c->r[31] = 0x80091A40u; // FIX: gen sets the real return-site const before the jal
-  psx::cpu::dispatchGuestToReturn0(*c,
-                                   0x800931A0u,
-                                   psx::cpu::ExecutionBudget::currentTurn(*c),
-                                   __func__); // input_dispatch_931c0's neighbor, not this wave's target (MAPPED)
+  psx::cpu::callGuestNow(*c, __func__, 0x800931A0u); // input_dispatch_931c0's neighbor, not this wave's target (MAPPED)
 
   uint32_t f132 = c->mem_r32(ch.base + 132u);
   uint32_t f140 = c->mem_r32(ch.base + 140u);

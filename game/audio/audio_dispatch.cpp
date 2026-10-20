@@ -37,8 +37,7 @@ uint32_t AudioDispatch::dispatch3Way(uint32_t idx, uint32_t arg2) {
   if (idx == 0xFFu) {
     v0 = (uint32_t)c->mem_r8(0x800BE0E4u) & 4u;
   } else if (idx == 0xFEu) {
-    psx::cpu::dispatchGuestToReturn0(
-        *c, 0x8001CF2Cu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // engine tick / settle
+    psx::cpu::callGuestNow(*c, __func__, 0x8001CF2Cu); // engine tick / settle
     v0 = c->r[2];
   } else {
     voiceFetchBits({.bits = idx, .flag = arg2});
@@ -79,8 +78,7 @@ void AudioDispatch::voiceFetchBits(const VoiceFetchBitsArgs &args) {
   c->r[5] = base;
   c->r[6] = tail;
   c->r[7] = (flag & 1u) | 2u;
-  psx::cpu::dispatchGuestToReturn0(
-      *c, 0x8001D2A8u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // XA/voice fetch entry (substrate)
+  psx::cpu::callGuestNow(*c, __func__, 0x8001D2A8u); // XA/voice fetch entry (substrate)
 }
 
 // AudioDispatch::settleField — native ownership of FUN_80074BC4 (Ghidra decomp
@@ -89,14 +87,9 @@ void AudioDispatch::voiceFetchBits(const VoiceFetchBitsArgs &args) {
 void AudioDispatch::settleField() {
   Core *c = core;
   c->mem_w8(0x1F80027Eu, 0); // audio-cue scratchpad flag
-  psx::cpu::dispatchGuestToReturn0(
-      *c, 0x8001CF2Cu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // engine tick / VBlank settle (substrate)
-  psx::cpu::dispatchGuestToReturn0(
-      *c, 0x80074B44u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // tail voices reset (substrate)
-  psx::cpu::dispatchGuestToReturn0(*c,
-                                   0x80074E48u,
-                                   psx::cpu::ExecutionBudget::currentTurn(*c),
-                                   __func__); // SsSeqClose + full voice reset (substrate)
+  psx::cpu::callGuestNow(*c, __func__, 0x8001CF2Cu); // engine tick / VBlank settle (substrate)
+  psx::cpu::callGuestNow(*c, __func__, 0x80074B44u); // tail voices reset (substrate)
+  psx::cpu::callGuestNow(*c, __func__, 0x80074E48u); // SsSeqClose + full voice reset (substrate)
 }
 
 // AudioDispatch::selectState — native ownership of FUN_800750A4 (Ghidra decomp
@@ -114,8 +107,7 @@ void AudioDispatch::selectState(uint8_t idx) {
 void AudioDispatch::zoneTransitionSetup(int16_t idx) {
   Core *c = core;
   if (idx < 0) {
-    psx::cpu::dispatchGuestToReturn0(
-        *c, 0x8001CF2Cu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // engine tick (still substrate; SYNC)
+    psx::cpu::callGuestNow(*c, __func__, 0x8001CF2Cu); // engine tick (still substrate; SYNC)
     return;
   }
 
@@ -138,8 +130,7 @@ void AudioDispatch::zoneTransitionSetup(int16_t idx) {
   c->r[5] = base;
   c->r[6] = tail;
   c->r[7] = (uint32_t)group;
-  psx::cpu::dispatchGuestToReturn0(
-      *c, 0x8001D2A8u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // XA/voice fetch entry (still substrate)
+  psx::cpu::callGuestNow(*c, __func__, 0x8001D2A8u); // XA/voice fetch entry (still substrate)
 }
 
 // AudioDispatch::selectStateRemap — native ownership of FUN_80075024. Maps the incoming slot to a
@@ -170,8 +161,7 @@ L_80075044:;
   c->r[4] = c->r[16] + c->r[0];
   c->r[31] = 0x80075050u;
   c->r[5] = c->r[0] + (uint32_t)1;
-  psx::cpu::dispatchGuestToReturn0(
-      *c, 0x800750D8u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // dispatch3Way(stateIdx, 1)
+  psx::cpu::callGuestNow(*c, __func__, 0x800750D8u); // dispatch3Way(stateIdx, 1)
   c->r[31] = c->mem_r32((c->r[29] + (uint32_t)20));                           // lw ra,0x14(sp)
   c->r[2] = (uint32_t)8064u << 16;
   c->mem_w8((c->r[2] + (uint32_t)571), (uint8_t)c->r[16]); // 0x1F80023B = stateIdx (state-index byte)
@@ -200,8 +190,7 @@ void AudioDispatch::publishStateFade(uint8_t idx) {
   c->mem_w32((c->r[29] + (uint32_t)16), c->r[31]); // sw ra,0x10(sp) — LIVE incoming ra
   c->r[31] = 0x80075094u;
   c->mem_w8((c->r[3] + (uint32_t)-7637), (uint8_t)c->r[2]);
-  psx::cpu::dispatchGuestToReturn0(
-      *c, 0x80075CECu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // 0x800BE22B = 1; audioFadeTarget(0)
+  psx::cpu::callGuestNow(*c, __func__, 0x80075CECu); // 0x800BE22B = 1; audioFadeTarget(0)
   c->r[31] = c->mem_r32((c->r[29] + (uint32_t)16));                           // lw ra,0x10(sp)
   c->r[29] = c->r[29] + (uint32_t)24;
   return; // addiu sp,0x18 — ascend the guest frame

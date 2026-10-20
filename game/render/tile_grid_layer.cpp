@@ -439,7 +439,7 @@ void TileGridLayer::cycleSopPalettes(Core *c) {
     c->r[4] = rect;
     c->r[5] = c->mem_r32(cycle + 4u) + frameIndex * kClutRowBytes;
     c->r[31] = kLoadImageReturn;
-    psx::cpu::dispatchGuestToReturn0(*c, kLoadImage, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, kLoadImage);
     c->mem_w32(cycle, c->mem_r32(cycle) + 2u);
   }
 }

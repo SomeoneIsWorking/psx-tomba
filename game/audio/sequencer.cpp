@@ -63,10 +63,7 @@ void Sequencer::seqChannelDispatch() {
   c->mem_w32(libsnd::kSeqReentryFlag, c->r[3]);
   c->r[31] = 0x80090C1Cu;
   c->r[23] = 0u;
-  psx::cpu::dispatchGuestToReturn0(*c,
-                                   libsnd::kSeqPrepFn,
-                                   psx::cpu::ExecutionBudget::currentTurn(*c),
-                                   __func__); // 0x800931C0 input_dispatch_931c0 — still-unwired by us
+  psx::cpu::callGuestNow(*c, __func__, libsnd::kSeqPrepFn); // 0x800931C0 input_dispatch_931c0 — still-unwired by us
   c->r[2] = (uint32_t)c->mem_r16s(libsnd::kSeqCount);
   {
     int _t = ((int32_t)c->r[2] <= 0);
@@ -128,10 +125,7 @@ L_80090C7C:
   }
   c->r[31] = 0x80090CD0u;
   c->r[5] = c->r[17];
-  psx::cpu::dispatchGuestToReturn0(*c,
-                                   0x80090E40u,
-                                   psx::cpu::ExecutionBudget::currentTurn(*c),
-                                   __func__); // pitch-slide: UNWIRED (never fired in any run -- see findings/audio.md)
+  psx::cpu::callGuestNow(*c, __func__, 0x80090E40u); // pitch-slide: UNWIRED (never fired in any run -- see findings/audio.md)
 L_80090CD0:
   c->r[2] = c->mem_r32(c->r[18] + 0u);
   c->r[2] = c->r[16] + c->r[2];
@@ -146,10 +140,7 @@ L_80090CD0:
   }
   c->r[31] = 0x80090CF8u;
   c->r[5] = c->r[17];
-  psx::cpu::dispatchGuestToReturn0(*c,
-                                   0x80090E40u,
-                                   psx::cpu::ExecutionBudget::currentTurn(*c),
-                                   __func__); // pitch-slide: UNWIRED (never fired in any run)
+  psx::cpu::callGuestNow(*c, __func__, 0x80090E40u); // pitch-slide: UNWIRED (never fired in any run)
 L_80090CF8:
   c->r[2] = c->mem_r32(c->r[18] + 0u);
   c->r[2] = c->r[16] + c->r[2];
@@ -164,10 +155,7 @@ L_80090CF8:
   }
   c->r[31] = 0x80090D20u;
   c->r[5] = c->r[17];
-  psx::cpu::dispatchGuestToReturn0(*c,
-                                   0x80092080u,
-                                   psx::cpu::ExecutionBudget::currentTurn(*c),
-                                   __func__); // envelope ramp: UNWIRED (never fired in any run)
+  psx::cpu::callGuestNow(*c, __func__, 0x80092080u); // envelope ramp: UNWIRED (never fired in any run)
 L_80090D20:
   c->r[2] = c->mem_r32(c->r[18] + 0u);
   c->r[2] = c->r[16] + c->r[2];
@@ -182,10 +170,7 @@ L_80090D20:
   }
   c->r[31] = 0x80090D48u;
   c->r[5] = c->r[17];
-  psx::cpu::dispatchGuestToReturn0(*c,
-                                   0x80092080u,
-                                   psx::cpu::ExecutionBudget::currentTurn(*c),
-                                   __func__); // envelope ramp: UNWIRED (never fired in any run)
+  psx::cpu::callGuestNow(*c, __func__, 0x80092080u); // envelope ramp: UNWIRED (never fired in any run)
 L_80090D48:
   c->r[2] = c->mem_r32(c->r[18] + 0u);
   c->r[2] = c->r[16] + c->r[2];
@@ -200,10 +185,7 @@ L_80090D48:
   }
   c->r[31] = 0x80090D70u;
   c->r[5] = (uint32_t)((int32_t)c->r[19] >> 16);
-  psx::cpu::dispatchGuestToReturn0(*c,
-                                   0x80091050u,
-                                   psx::cpu::ExecutionBudget::currentTurn(*c),
-                                   __func__); // release-clear: UNWIRED (never fired in any run)
+  psx::cpu::callGuestNow(*c, __func__, 0x80091050u); // release-clear: UNWIRED (never fired in any run)
 L_80090D70:
   c->r[2] = c->mem_r32(c->r[18] + 0u);
   c->r[2] = c->r[16] + c->r[2];
@@ -218,10 +200,7 @@ L_80090D70:
   }
   c->r[31] = 0x80090D98u;
   c->r[5] = (uint32_t)((int32_t)c->r[19] >> 16);
-  psx::cpu::dispatchGuestToReturn0(*c,
-                                   0x80091910u,
-                                   psx::cpu::ExecutionBudget::currentTurn(*c),
-                                   __func__); // stop-flag: UNWIRED (never fired in any run)
+  psx::cpu::callGuestNow(*c, __func__, 0x80091910u); // stop-flag: UNWIRED (never fired in any run)
 L_80090D98:
   c->r[2] = c->mem_r32(c->r[18] + 0u);
   c->r[2] = c->r[16] + c->r[2];

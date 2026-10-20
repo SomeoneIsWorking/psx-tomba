@@ -66,12 +66,12 @@ void Render::composeTintGate(Core *c) {
     c->r[4] = node;
     c->r[5] = subtype;
     c->r[31] = 0x8003EFE8u; // jal-site ra
-    psx::cpu::dispatchGuestToReturn0(*c, 0x8003F07Cu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, 0x8003F07Cu);
   } else if (mode == MODE_COMPOSE_TINT) {
     c->r[4] = node;
     c->r[5] = subtype;
     c->r[31] = 0x8003EFFCu; // jal-site ra
-    psx::cpu::dispatchGuestToReturn0(*c, 0x8003F07Cu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, 0x8003F07Cu);
 
     // tint precisely the primitives just emitted: [poolBefore, poolNow). Called through the thunk,
     // so the override registry routes it to Render::effectColorAdd rather than the substrate body.
@@ -79,7 +79,7 @@ void Render::composeTintGate(Core *c) {
     c->r[5] = poolBefore;
     c->r[6] = tomba::render::PacketPool(*c).cursor();
     c->r[31] = 0x8003F00Cu; // jal-site ra
-    psx::cpu::dispatchGuestToReturn0(*c, 0x8003D584u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, 0x8003D584u);
   }
 
   c->r[31] = c->mem_r32(frame + 28);

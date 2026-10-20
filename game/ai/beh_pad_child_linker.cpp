@@ -254,7 +254,7 @@ L618:
     goto L6cc;
   }
   c->r[4] = obj;
-  psx::cpu::dispatchGuestToReturn0(*c, 0x8004766Cu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, 0x8004766Cu);
   v1 = c->mem_r16(0x1F8001A8u); // pad2
   v0 = v1 & 0x0002;
   if (v0 == 0) {
@@ -262,7 +262,7 @@ L618:
   }
   c->r[4] = obj;
   c->r[5] = 1;
-  psx::cpu::dispatchGuestToReturn0(*c, 0x80047B5Cu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, 0x80047B5Cu);
   v0 = c->r[2];
   if (v0 == 0) {
     goto L6c8;
@@ -280,7 +280,7 @@ L684:
   }
   c->r[4] = obj;
   c->r[5] = 0;
-  psx::cpu::dispatchGuestToReturn0(*c, 0x80047B5Cu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, 0x80047B5Cu);
   v0 = c->r[2];
   if (v0 == 0) {
     goto L6c8;
@@ -345,7 +345,7 @@ L760:
   }
 L784:
   c->r[4] = obj;
-  psx::cpu::dispatchGuestToReturn0(*c, 0x8006F138u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, 0x8006F138u);
   v0 = eng(c).bit.testFE48((int32_t)c->mem_r8(obj + 1) - 1); // FUN_8006EFF4 (native)
   if (v0 == 0) {
     goto L7cc;

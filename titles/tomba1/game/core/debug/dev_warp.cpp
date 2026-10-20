@@ -3,43 +3,25 @@
 #include "core.h"
 #include "guest_call.h"
 
-#include <charconv>
 #include <lucent/log.h>
-#include <sstream>
-#include <vector>
 
 namespace tomba1 {
-namespace {
-
-bool decimal(const std::string &word, std::uint32_t &value) {
-  const char *end = word.data() + word.size();
-  const auto [last, error] = std::from_chars(word.data(), end, value);
-  return error == std::errc{} && last == end;
-}
-
-} // namespace
-
 bool DevWarp::fieldRunning(Core &core) {
   const std::uint32_t record = core.mem_r32(kTaskRecordPointer);
   return record != 0u && core.mem_r16(record + kMachineOffset) == kFieldMachine &&
          core.mem_r16(record + kStateOffset) == kFieldRunning;
 }
 
-std::string DevWarp::arm(Core &core, const char *line) {
-  std::istringstream stream(line);
-  std::vector<std::string> words;
-  for (std::string word; stream >> word;) {
-    words.push_back(word);
-  }
-  std::uint32_t area = 0;
-  std::uint32_t section = 0;
-  std::uint32_t entry = 0;
-  const bool parsed = words.size() >= 2 && words.size() <= 4 && decimal(words[1], area) &&
-                      (words.size() < 3 || decimal(words[2], section)) &&
-                      (words.size() < 4 || decimal(words[3], entry));
-  if (!parsed) {
+std::string DevWarp::arm(Core &core, const psx::debug::CommandArgs &args) {
+  const std::optional<std::uint32_t> areaWord = args.number(1);
+  const std::optional<std::uint32_t> sectionWord = args.size() < 3 ? 0u : args.number(2);
+  const std::optional<std::uint32_t> entryWord = args.size() < 4 ? 0u : args.number(3);
+  if (args.size() > 4 || !areaWord || !sectionWord || !entryWord) {
     return "usage: warp <area> [section] [entry]";
   }
+  const std::uint32_t area = *areaWord;
+  const std::uint32_t section = *sectionWord;
+  const std::uint32_t entry = *entryWord;
   const std::uint32_t lastArea = core.mem_r16(kLastArea);
   if (area > lastArea) {
     return lucent::format("refused: area {} is out of range (0..{})", area, lastArea);

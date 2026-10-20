@@ -68,13 +68,13 @@ void beh_cube_text_spawn(Core *c) {
     uint8_t type = c->mem_r8(nd + 3);
     if (type == 1) {
       c->r[4] = nd;
-      psx::cpu::dispatchGuestToReturn0(*c, 0x8003A9A0u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, 0x8003A9A0u);
     } else if (type == 0) {
       c->r[4] = nd;
-      psx::cpu::dispatchGuestToReturn0(*c, 0x8003A790u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, 0x8003A790u);
     } else if (type == 2) {
       c->r[4] = nd;
-      psx::cpu::dispatchGuestToReturn0(*c, 0x8003ABE4u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, 0x8003ABE4u);
     }
     c->mem_w8(nd + 1, 1);
     c->r[4] = nd;
@@ -113,11 +113,10 @@ void beh_cube_text_spawn(Core *c) {
     if ((len & 0xff) >= 33) {
       // overflow: log + bail to state 2
       c->r[4] = 0x80014A54u;
-      psx::cpu::dispatchGuestToReturn0(
-          *c, 0x8009A730u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // s_cube_moji_over_flow
+      psx::cpu::callGuestNow(*c, __func__, 0x8009A730u); // s_cube_moji_over_flow
       c->r[4] = 0x80014A6Cu;
       c->r[5] = tbl_strp(c, nd);
-      psx::cpu::dispatchGuestToReturn0(*c, 0x8009A730u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, 0x8009A730u);
       c->mem_w8(nd + 4, 2);
       return;
     }

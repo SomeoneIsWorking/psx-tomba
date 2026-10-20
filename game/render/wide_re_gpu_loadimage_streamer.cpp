@@ -159,7 +159,7 @@ void Render::gpuLoadImageStream() {
     c->r[29] += 48;
   };
 
-  psx::cpu::dispatchGuestToReturn0(*c, FN_GPU_TIMEOUT_ARM, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, FN_GPU_TIMEOUT_ARM);
 
   // --- clamp rect.w (rectPtr+4) against GPU_CLIP_MAXW, write back in place ---
   {
@@ -224,7 +224,7 @@ void Render::gpuLoadImageStream() {
     uint32_t readyWord = c->mem_r32(c->mem_r32(GPU_DMA_FLAGS_PTR));
     if ((readyWord & GPU_READY_BIT) == 0) {
       for (;;) {
-        psx::cpu::dispatchGuestToReturn0(*c, FN_GPU_TIMEOUT_CHK, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+        psx::cpu::callGuestNow(*c, __func__, FN_GPU_TIMEOUT_CHK);
         if (c->r[2] != 0) {
           epilogue((uint32_t)-1);
           return;

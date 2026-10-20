@@ -122,8 +122,7 @@ void beh_visibility_gate_dispatch(Core *c) {
       call_a9a4 = false; // 6-9,12-15 -> c2d4
     }
     c->r[4] = obj;
-    psx::cpu::dispatchGuestToReturn0(
-        *c, call_a9a4 ? 0x8004A9A4u : 0x8004A828u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, call_a9a4 ? 0x8004A9A4u : 0x8004A828u);
     return; // -> EPI
   }
 
@@ -144,13 +143,13 @@ state1: {
     }
     c->r[4] = obj;
     c->r[5] = 0;
-    psx::cpu::dispatchGuestToReturn0(*c, 0x8004B150u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, 0x8004B150u);
     goto post_c48c; // 0x8004c39c
   case 1:           // @0x8004c3a4 (no node[1] re-check)
     state1_gate(c, obj);
     c->r[4] = obj;
     c->r[5] = 0;
-    psx::cpu::dispatchGuestToReturn0(*c, 0x80049A60u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, 0x80049A60u);
     goto post_c48c; // 0x8004c40c
   case 2:           // @0x8004c414
     state1_gate(c, obj);
@@ -159,7 +158,7 @@ state1: {
     }
     c->r[4] = obj;
     c->r[5] = 0;
-    psx::cpu::dispatchGuestToReturn0(*c, 0x8004B208u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, 0x8004B208u);
     goto post_c48c; // 0x8004c48c (falls into post)
   case 3:           // @0x8004c49c
     state1_gate(c, obj);
@@ -168,13 +167,13 @@ state1: {
     }
     c->r[4] = obj;
     c->r[5] = 1;
-    psx::cpu::dispatchGuestToReturn0(*c, 0x8004B150u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, 0x8004B150u);
     goto post_c604; // 0x8004c514
   case 4:           // @0x8004c51c (no node[1] re-check)
     state1_gate(c, obj);
     c->r[4] = obj;
     c->r[5] = 1;
-    psx::cpu::dispatchGuestToReturn0(*c, 0x80049A60u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, 0x80049A60u);
     goto post_c604; // 0x8004c584
   case 5:           // @0x8004c58c
     state1_gate(c, obj);
@@ -183,7 +182,7 @@ state1: {
     }
     c->r[4] = obj;
     c->r[5] = 1;
-    psx::cpu::dispatchGuestToReturn0(*c, 0x8004B208u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, 0x8004B208u);
     goto post_c604; // 0x8004c604 (falls into post)
 
   // ---- area/event handler cases 6-15 ----
@@ -191,76 +190,76 @@ state1: {
     uint8_t area = c->mem_r8(0x800BF870u);
     if (area == 0) {
       c->r[4] = obj;
-      psx::cpu::dispatchGuestToReturn0(*c, 0x80118B10u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, 0x80118B10u);
       goto tail_c750;
     }
     if (area == 6) {
       c->r[4] = obj;
-      psx::cpu::dispatchGuestToReturn0(*c, 0x80116288u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, 0x80116288u);
       goto tail_c750;
     }
     goto tail_c74c; // 0x8004c638: bne v1,6 -> c74c
   }
   case 7: // @0x8004c650
     c->r[4] = obj;
-    psx::cpu::dispatchGuestToReturn0(*c, 0x80118DB0u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, 0x80118DB0u);
     goto tail_c750;
   case 8: // @0x8004c660
     c->r[4] = obj;
-    psx::cpu::dispatchGuestToReturn0(*c, 0x80119350u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, 0x80119350u);
     goto tail_c750;
   case 9: { // @0x8004c670
     uint8_t area = c->mem_r8(0x800BF870u);
     if (area == 0) {
       c->r[4] = obj;
-      psx::cpu::dispatchGuestToReturn0(*c, 0x80118F50u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, 0x80118F50u);
       goto tail_c750;
     }
     if (area == 4) {
       c->r[4] = obj;
-      psx::cpu::dispatchGuestToReturn0(*c, 0x801193D4u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, 0x801193D4u);
       goto tail_c750;
     }
     if (area == 5) {
       c->r[4] = obj;
-      psx::cpu::dispatchGuestToReturn0(*c, 0x80112F88u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, 0x80112F88u);
       goto tail_c750;
     }
     if (area == 6) {
       c->r[4] = obj;
-      psx::cpu::dispatchGuestToReturn0(*c, 0x801160D4u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, 0x801160D4u);
       goto tail_c750;
     }
     if (area == 8) {
       c->r[4] = obj;
-      psx::cpu::dispatchGuestToReturn0(*c, 0x80116750u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, 0x80116750u);
       goto tail_c750;
     }
     goto tail_c74c; // 0x8004c6dc: bne v1,8 -> c74c
   }
   case 10: // @0x8004c6f4
     c->r[4] = obj;
-    psx::cpu::dispatchGuestToReturn0(*c, 0x80119454u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, 0x80119454u);
     goto tail_c750;
   case 11: // @0x8004c704
     c->r[4] = obj;
-    psx::cpu::dispatchGuestToReturn0(*c, 0x801132B8u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, 0x801132B8u);
     goto tail_c750;
   case 12: // @0x8004c714
     c->r[4] = obj;
-    psx::cpu::dispatchGuestToReturn0(*c, 0x801132F0u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, 0x801132F0u);
     goto tail_c750;
   case 13: // @0x8004c724
     c->r[4] = obj;
-    psx::cpu::dispatchGuestToReturn0(*c, 0x801133F4u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, 0x801133F4u);
     goto tail_c750;
   case 14: // @0x8004c734
     c->r[4] = obj;
-    psx::cpu::dispatchGuestToReturn0(*c, 0x80113490u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, 0x80113490u);
     goto tail_c750;
   case 15: // @0x8004c744 (falls into c74c)
     c->r[4] = obj;
-    psx::cpu::dispatchGuestToReturn0(*c, 0x80119170u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, 0x80119170u);
     goto tail_c74c;
   default:
     break;
@@ -269,13 +268,13 @@ state1: {
 
 post_c48c: // @0x8004c48c
   c->r[4] = obj;
-  psx::cpu::dispatchGuestToReturn0(*c, 0x80077B5Cu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, 0x80077B5Cu);
   c->mem_w8(obj + 0x29, 0); // 0x8004c498 (delay slot of j c750)
   goto tail_c750;           // 0x8004c494
 
 post_c604: // @0x8004c604
   c->r[4] = obj;
-  psx::cpu::dispatchGuestToReturn0(*c, 0x80051844u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, 0x80051844u);
   c->mem_w8(obj + 0x29, 0); // 0x8004c610 (delay slot of j c750)
   goto tail_c750;           // 0x8004c60c
 
@@ -307,21 +306,20 @@ state2: {
                                    // false: go via 0x8004c8b4 (always advance)
   if (n3 >= 18) {                  // 0x8004c784: sltiu fails -> default
     c->r[4] = obj;
-    psx::cpu::dispatchGuestToReturn0(
-        *c, 0x8004A3D4u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // @0x8004c8a4 (default)
+    psx::cpu::callGuestNow(*c, __func__, 0x8004A3D4u); // @0x8004c8a4 (default)
     check_ret = true;
   } else {
     switch (n3) { // JT-C
     case 0:
       c->r[4] = obj;
       c->r[5] = 1;
-      psx::cpu::dispatchGuestToReturn0(*c, 0x80049E54u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, 0x80049E54u);
       check_ret = true;
       break; // c7a8
     case 1:
       c->r[4] = obj;
       c->r[5] = 2;
-      psx::cpu::dispatchGuestToReturn0(*c, 0x80049E54u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, 0x80049E54u);
       check_ret = true;
       break; // c7bc
     case 4:
@@ -358,22 +356,22 @@ state2: {
       break; // c85c FUN_8004B3F4 (native)
     case 15:
       c->r[4] = obj;
-      psx::cpu::dispatchGuestToReturn0(*c, 0x8004A118u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, 0x8004A118u);
       check_ret = true;
       break; // c874
     case 16:
       c->r[4] = obj;
-      psx::cpu::dispatchGuestToReturn0(*c, 0x8004A2A0u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, 0x8004A2A0u);
       check_ret = true;
       break; // c884
     case 17:
       c->r[4] = obj;
-      psx::cpu::dispatchGuestToReturn0(*c, 0x8004B428u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, 0x8004B428u);
       check_ret = true;
       break; // c894
     default: // cases 2,3,12,13,14 -> JT-C default 0x8004c8a4
       c->r[4] = obj;
-      psx::cpu::dispatchGuestToReturn0(*c, 0x8004A3D4u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, 0x8004A3D4u);
       check_ret = true;
       break;
     }
@@ -396,13 +394,11 @@ state2_n5_1: // @0x8004c8c8 (node[5] == 1)
     if (flags & 0x4) {                             // 0x8004c8e4: bne -> c900
       c->r[4] = (uint32_t)(int32_t)arg;
       c->r[5] = 1;
-      psx::cpu::dispatchGuestToReturn0(
-          *c, 0x8004D79Cu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // 0x8004c904
+      psx::cpu::callGuestNow(*c, __func__, 0x8004D79Cu); // 0x8004c904
     } else {
       c->r[4] = (uint32_t)(int32_t)arg;
       c->r[5] = 1;
-      psx::cpu::dispatchGuestToReturn0(
-          *c, 0x8004D714u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // 0x8004c8f0
+      psx::cpu::callGuestNow(*c, __func__, 0x8004D714u); // 0x8004c8f0
     }
   }
   c->mem_w8(obj + 4, nv); // 0x8004c914 (delay slot of j c920): node[4] = 3

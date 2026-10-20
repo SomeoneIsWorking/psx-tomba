@@ -200,7 +200,7 @@ void Inventory::giveAndFlagBody(Core *c) {
   addNative(c, type, amount);
   c->r[4] = type;
   c->r[5] = 2; // set_item_flag(type, 2)
-  psx::cpu::dispatchGuestToReturn0(*c, 0x8004ED0Cu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, 0x8004ED0Cu);
 }
 void Inventory::giveAndFlagEntry(Core *c) { // FUN_8004D4C4
   if (sessionOf(c).verification.on("invverify") && !inv(c).inGate) {

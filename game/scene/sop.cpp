@@ -86,7 +86,7 @@ void Sop::areaLoad() {
   c->r[4] = 0x800ef478u;
   c->r[5] = c->mem_r32(0x800be0f0u) + a6e;
   c->r[6] = 2048;
-  psx::cpu::dispatchGuestToReturn0(*c, 0x8001dc40u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, 0x8001dc40u);
 
   // LOAD 2 — FUN_8001dc40(0x8018a000, *0x800be0f8 + (*0x800ef478>>11),
   // *0x800ef47c - *0x800ef478)
@@ -95,7 +95,7 @@ void Sop::areaLoad() {
   sessionOf(c).nativeOverrides.retireOverlay(*c, eng(c).activeAreaOverlay);
   c->r[5] = c->mem_r32(0x800be0f8u) + (l2 >> 11);
   c->r[6] = c->mem_r32(0x800ef47cu) - l2;
-  psx::cpu::dispatchGuestToReturn0(*c, 0x8001dc40u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, 0x8001dc40u);
 
   // UNPACK — FUN_80044e84(0x8018a000, 0x1f8000)  (0x801091e4)
   eng(c).asset.unpackGroup({.tablePtr = 0x8018a000u, .anchorEnd = 0x001f8000u});
@@ -108,7 +108,7 @@ void Sop::areaLoad() {
   c->r[4] = 0x8018a000u;
   c->r[5] = c->mem_r32(0x800be100u) + (l4 >> 11);
   c->r[6] = c->mem_r32(0x800ef484u) - l4;
-  psx::cpu::dispatchGuestToReturn0(*c, 0x8001dc40u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, 0x8001dc40u);
 
   // COLLISION GRID — FUN_80045258((area&0xf)<<1, 0x2f)  (0x80109228)
   uint16_t area = c->mem_r16(0x800bf89eu);
@@ -417,7 +417,7 @@ void Sop::scenePrepass(uint32_t table) {
 
   auto trig = [&](uint32_t fn, uint32_t arg) -> int32_t {
     c->r[4] = arg;
-    psx::cpu::dispatchGuestToReturn0(*c, fn, psx::cpu::ExecutionBudget::currentTurn(*c), "sop");
+    psx::cpu::callGuestNow(*c, "sop", fn);
     return (int32_t)c->r[2];
   };
 

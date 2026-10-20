@@ -41,12 +41,10 @@ void Sfx::trigger(const TriggerArgs &args) {
     constexpr int8_t remap[16] = {2, 3, 4, 5, 6, 7, 10, 11, 12, 13, 10, 11, 12, -1, -1, -1};
     const uint32_t idx = idb - 112u;
     if (idx == 15u) {
-      psx::cpu::dispatchGuestToReturn0(
-          *c, 0x80074EECu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // FUN_80074EEC — menu/UI SFX leaf
+      psx::cpu::callGuestNow(*c, __func__, 0x80074EECu); // FUN_80074EEC — menu/UI SFX leaf
     } else if (remap[idx] >= 0) {
       c->r[4] = (uint32_t)(int32_t)remap[idx];
-      psx::cpu::dispatchGuestToReturn0(
-          *c, 0x80074BF8u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // FUN_80074BF8 — music/track leaf
+      psx::cpu::callGuestNow(*c, __func__, 0x80074BF8u); // FUN_80074BF8 — music/track leaf
     }
     // idx == 13 or 14: silent error path (guest instruction path jumps to 0x800746D8 which returns v0=0).
     c->r[29] = sp_save;
@@ -138,7 +136,7 @@ void Sfx::trigger(const TriggerArgs &args) {
   c->mem_w32(sp + 24u, (uint32_t)pitch_final);
   c->mem_w32(sp + 28u, (uint32_t)pitch_final);
 
-  psx::cpu::dispatchGuestToReturn0(*c, 0x80075E04u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, 0x80075E04u);
 
   c->r[29] = sp_save;
   c->r[31] = ra_save;
@@ -183,10 +181,7 @@ void Sfx::triggerPanned(const TriggerPannedArgs &args) {
   c->r[5] = (uint32_t)panx;
   c->r[6] = 0u;           // pitchBend = 0 (a2 = zero)
   c->r[31] = 0x8007482Cu; // gen return-address constant for the call
-  psx::cpu::dispatchGuestToReturn0(*c,
-                                   0x80074590u,
-                                   psx::cpu::ExecutionBudget::currentTurn(*c),
-                                   __func__); // FUN_80074590 — SFX firing primitive (substrate)
+  psx::cpu::callGuestNow(*c, __func__, 0x80074590u); // FUN_80074590 — SFX firing primitive (substrate)
 
   c->r[31] = c->mem_r32(sp + 16u); // lw ra,16(sp)
   c->r[29] += 24u;                 // addiu sp,+24 (restore)

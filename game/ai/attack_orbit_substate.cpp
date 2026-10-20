@@ -52,10 +52,7 @@ void AttackOrbitSubstate::orbitTargetMotion() {
     case 0: {
       c->r[4] = obj;
       c->r[5] = 0;
-      psx::cpu::dispatchGuestToReturn0(*c,
-                                       FN_ACQUIRE_TARGET,
-                                       psx::cpu::ExecutionBudget::currentTurn(*c),
-                                       __func__); // FUN_8011740C(obj, 0) -> target ptr in r2
+      psx::cpu::callGuestNow(*c, __func__, FN_ACQUIRE_TARGET); // FUN_8011740C(obj, 0) -> target ptr in r2
       c->mem_w32(obj + O_TARGET, c->r[2]);
       c->mem_w32(obj + O_POSSRC, 0);
       c->mem_w16(obj + O_FLAGS, (uint16_t)(c->mem_r16(obj + O_FLAGS) | 1));
@@ -67,8 +64,7 @@ void AttackOrbitSubstate::orbitTargetMotion() {
       c->r[4] = obj;
       c->r[5] = 0x23;
       c->r[6] = 8;
-      psx::cpu::dispatchGuestToReturn0(
-          *c, FN_INIT_A, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // FUN_801402B8(obj, 0x23, 8)
+      psx::cpu::callGuestNow(*c, __func__, FN_INIT_A); // FUN_801402B8(obj, 0x23, 8)
       c->mem_w16(obj + O_RATE, 0x800);
       c->mem_w16(obj + O_TIMER, 0x14);
       c->mem_w8(obj + O_PHASE, (uint8_t)(c->mem_r8(obj + O_PHASE) + 1));
@@ -100,8 +96,7 @@ void AttackOrbitSubstate::orbitTargetMotion() {
       c->r[4] = obj;
       c->r[5] = 0x24;
       c->r[6] = 8;
-      psx::cpu::dispatchGuestToReturn0(
-          *c, FN_INIT_A, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // FUN_801402B8(obj, 0x24, 8)
+      psx::cpu::callGuestNow(*c, __func__, FN_INIT_A); // FUN_801402B8(obj, 0x24, 8)
       c->mem_w16(obj + O_TIMER, 0x10);
       c->mem_w8(obj + O_PHASE, (uint8_t)(c->mem_r8(obj + O_PHASE) + 1));
       [[fallthrough]];
@@ -137,8 +132,7 @@ void AttackOrbitSubstate::orbitTargetMotion() {
 
   // Common tail — every path (including the phase>=6 no-op) reaches this.
   c->r[4] = obj;
-  psx::cpu::dispatchGuestToReturn0(
-      *c, FN_REARM, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // FUN_801406E4(obj)
+  psx::cpu::callGuestNow(*c, __func__, FN_REARM); // FUN_801406E4(obj)
   c->mem_w16(obj + O_AIM_Y, (uint16_t)((int16_t)c->mem_r16(obj + O_AIM_Y) + 0x14));
 }
 
@@ -157,18 +151,14 @@ void AttackOrbitSubstate::aimAtTargetAnchor() {
   if (phase != 2) {
     if (phase == 0) {
       c->r[4] = obj;
-      psx::cpu::dispatchGuestToReturn0(*c,
-                                       FN_REARM,
-                                       psx::cpu::ExecutionBudget::currentTurn(*c),
-                                       __func__); // FUN_801406E4(obj) — phase-0-only re-arm
+      psx::cpu::callGuestNow(*c, __func__, FN_REARM); // FUN_801406E4(obj) — phase-0-only re-arm
     } else if (phase != 1) {
       return; // unreachable for a u8, kept for parity
     }
     c->r[4] = obj;
     c->r[5] = 0x1C;
     c->r[6] = 0;
-    psx::cpu::dispatchGuestToReturn0(
-        *c, FN_INIT_A, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // FUN_801402B8(obj, 0x1c, 0)
+    psx::cpu::callGuestNow(*c, __func__, FN_INIT_A); // FUN_801402B8(obj, 0x1c, 0)
     c->mem_w8(obj + O_PHASE, 2);
     c->mem_w16(obj + O_FLAGS, (uint16_t)(c->mem_r16(obj + O_FLAGS) | 1));
     c->mem_w16(obj + O_ANGLE, 0x800);
@@ -206,10 +196,7 @@ void AttackOrbitSubstate::aimAtTargetAnchor() {
     c->r[5] = c->mem_r32(obj + O_ATKID);
     c->r[6] = (uint32_t)-100;
     c->r[7] = 0;
-    psx::cpu::dispatchGuestToReturn0(*c,
-                                     FN_ATTACK_EFFECT,
-                                     psx::cpu::ExecutionBudget::currentTurn(*c),
-                                     __func__); // func_0x800331D8(obj, obj[0xC4], -100, 0)
+    psx::cpu::callGuestNow(*c, __func__, FN_ATTACK_EFFECT); // func_0x800331D8(obj, obj[0xC4], -100, 0)
     c->mem_w8(obj + O_HITGUARD, (uint8_t)(hitGuard | 0x40));
     c->mem_w8(obj + O_KIND, 7);
   }

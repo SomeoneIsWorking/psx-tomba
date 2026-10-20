@@ -99,7 +99,7 @@ void CubeTextLedger::spawnPopup(Core *c) {
   c->r[4] = 4;
   c->r[5] = 3;
   c->r[6] = 1;
-  psx::cpu::dispatchGuestToReturn0(*c, FN_FREELIST_ALLOC, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, FN_FREELIST_ALLOC);
   const uint32_t node = c->r[2];
   if (node == 0) {
     c->r[2] = 0;
@@ -116,7 +116,7 @@ void CubeTextLedger::spawnPopup(Core *c) {
   c->r[4] = node;
   c->r[5] = value;
   c->r[6] = variant;
-  psx::cpu::dispatchGuestToReturn0(*c, FN_NODE_INIT, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, FN_NODE_INIT);
   c->r[2] = node;
 }
 

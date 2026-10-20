@@ -5,14 +5,9 @@
 namespace tomba {
 namespace {
 
-psx::config::BoolVar cvNoFmv("PSXPORT_NO_FMV",
-                             false,
-                             "skip the native movies (boot cards and the opening OP.STR)",
-                             /*persistable=*/false);
-psx::config::BoolVar cvAutoSkip("PSXPORT_AUTO_SKIP",
-                                false,
-                                "drive the front end into GAME free-roam with scripted pad taps",
-                                /*persistable=*/false);
+psx::config::Var<bool> cvNoFmv("PSXPORT_NO_FMV", false, psx::config::kRunOnly);
+psx::config::Var<bool> cvAutoSkip("PSXPORT_AUTO_SKIP", false, psx::config::kRunOnly);
+const psx::config::Registration kRegistration{cvNoFmv, cvAutoSkip};
 
 } // namespace
 

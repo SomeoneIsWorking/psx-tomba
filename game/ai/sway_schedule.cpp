@@ -192,7 +192,7 @@ void SwaySchedule::advanceRateThenSway(Core *c) {
     // set, because a jump is not a call, and on ONE line because that is the construct
     // tools/dynamic differential evidence excludes from the compared call sequence on both sides.
     default:
-      psx::cpu::dispatchGuestToReturn0(*c, phaseBody, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, phaseBody);
       return;
     }
     if (phaseComplete) {

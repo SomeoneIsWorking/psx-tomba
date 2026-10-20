@@ -12,7 +12,7 @@
 namespace tomba {
 
 uint32_t LibcdNative::newMedia() {
-  psx::cpu::dispatchGuestToReturn0(*core, 0x8008BBE8u, psx::cpu::ExecutionBudget::currentTurn(*core), __func__);
+  psx::cpu::callGuestNow(*core, __func__, 0x8008BBE8u);
   return core->r[2];
 }
 

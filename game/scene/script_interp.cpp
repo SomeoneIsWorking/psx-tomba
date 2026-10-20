@@ -155,7 +155,7 @@ void ScriptInterp::step(uint32_t obj) {
       const uint32_t handler = c->mem_r32(kHandlerTableBase + opcodeId * 4u);
       c->r[4] = obj;
       c->r[31] = tomba::script::kJalReturnFromHandler;
-      psx::cpu::dispatchGuestToReturn0(*c, handler, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, handler);
       ret = c->r[2];
     }
 
@@ -457,7 +457,7 @@ int ScriptInterp::op36MoveTowardScriptTarget(uint32_t obj) {
       // The straight-line distance on the X/Z plane, via the still-substrate GTE square-root leaf.
       // This is NOT Math::isqrt16: the guest's own leaf is what sets the GTE result registers.
       c->r[4] = static_cast<uint32_t>(static_cast<int32_t>(dx * dx + dz * dz));
-      psx::cpu::dispatchGuestToReturn0(*c, kGuestIsqrt, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, kGuestIsqrt);
       const int16_t distance = static_cast<int16_t>(c->r[2]);
 
       uint16_t stepDiv = solveStepDivisor(c, distance, stepsRequested);
@@ -470,7 +470,7 @@ int ScriptInterp::op36MoveTowardScriptTarget(uint32_t obj) {
       if (turnMode == -1) {
         c->r[4] = static_cast<uint32_t>(static_cast<int32_t>(-(static_cast<int32_t>(dx))));
         c->r[5] = static_cast<uint32_t>(static_cast<int32_t>(dz));
-        psx::cpu::dispatchGuestToReturn0(*c, kGuestRatan2, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+        psx::cpu::callGuestNow(*c, __func__, kGuestRatan2);
         so.setFacingAngle(static_cast<int16_t>(c->r[2] & kAngleMask));
       } else if (turnMode == kTurnModeSnapAndStop) {
         so.setPhase(2);
@@ -481,7 +481,7 @@ int ScriptInterp::op36MoveTowardScriptTarget(uint32_t obj) {
       // own fallthrough shape and not an oversight.
       c->r[4] = static_cast<uint32_t>(static_cast<int32_t>(-(static_cast<int32_t>(dx))));
       c->r[5] = static_cast<uint32_t>(static_cast<int32_t>(dz));
-      psx::cpu::dispatchGuestToReturn0(*c, kGuestRatan2, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, kGuestRatan2);
       so.setTurnAngle2(static_cast<int16_t>(c->r[2] & kAngleMask));
       so.advancePhase();
     }
@@ -593,7 +593,7 @@ int ScriptInterp::op31TurnTowardTarget(uint32_t obj) {
       const int32_t x = static_cast<int32_t>(c->mem_r16s(kLookAnchorZ)) - static_cast<int32_t>(targetSo.positionZ());
       c->r[4] = static_cast<uint32_t>(y);
       c->r[5] = static_cast<uint32_t>(x);
-      psx::cpu::dispatchGuestToReturn0(*c, kGuestRatan2, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, kGuestRatan2);
       const int32_t flipped = static_cast<int32_t>(c->r[2]) - kHalfTurnAngle;
       so.setArgC(static_cast<uint16_t>(so.argC() + (static_cast<uint32_t>(flipped) & kAngleMask)));
     } else if (mode < kModeAimFromSelf) {
@@ -603,7 +603,7 @@ int ScriptInterp::op31TurnTowardTarget(uint32_t obj) {
         const int32_t x = static_cast<int32_t>(c->mem_r16s(kLookAnchorZ)) - static_cast<int32_t>(targetSo.positionZ());
         c->r[4] = static_cast<uint32_t>(y);
         c->r[5] = static_cast<uint32_t>(x);
-        psx::cpu::dispatchGuestToReturn0(*c, kGuestRatan2, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+        psx::cpu::callGuestNow(*c, __func__, kGuestRatan2);
         so.setArgC(static_cast<uint16_t>(so.argC() + (c->r[2] & kAngleMask)));
       }
       // mode 0 writes nothing — it keeps the angle already in argC's field.
@@ -612,7 +612,7 @@ int ScriptInterp::op31TurnTowardTarget(uint32_t obj) {
       const int32_t x = static_cast<int32_t>(so.positionZ()) - static_cast<int32_t>(targetSo.positionZ());
       c->r[4] = static_cast<uint32_t>(y);
       c->r[5] = static_cast<uint32_t>(x);
-      psx::cpu::dispatchGuestToReturn0(*c, kGuestRatan2, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, kGuestRatan2);
       so.setArgC(static_cast<uint16_t>(so.argC() + (c->r[2] & kAngleMask)));
     } else if (mode == kModeTrackLivePoint) {
       // The aim point MOVES: it is read from argC/argB themselves, which a previous call left set.
@@ -621,7 +621,7 @@ int ScriptInterp::op31TurnTowardTarget(uint32_t obj) {
       const int32_t x = static_cast<int32_t>(so.argB()) - static_cast<int32_t>(targetSo.positionZ());
       c->r[4] = static_cast<uint32_t>(y);
       c->r[5] = static_cast<uint32_t>(x);
-      psx::cpu::dispatchGuestToReturn0(*c, kGuestRatan2, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, kGuestRatan2);
       so.setArgC(static_cast<uint16_t>(c->r[2] & kAngleMask));
       so.setArgB(static_cast<uint16_t>(kTurnStepDefault));
     }
@@ -774,7 +774,7 @@ int ScriptInterp::advanceGauge(const AdvanceGaugeArgs &args) {
     c->r[5] = 0;
     c->r[31] = kJalReturnFromWrapPulse;
     c->r[6] = static_cast<uint32_t>(kWrapEventArg2);
-    psx::cpu::dispatchGuestToReturn0(*c, kGuestWrapEventPulse, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, kGuestWrapEventPulse);
   }
 
   const uint16_t base = c->mem_r16(c->r[16] + kGaugeBase);

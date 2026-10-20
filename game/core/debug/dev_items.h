@@ -1,5 +1,6 @@
 #pragma once
 
+#include "command_args.h"
 #include "items/inventory.h"
 
 #include <cstdint>
@@ -17,7 +18,7 @@ public:
   inline static constexpr uint32_t kMaxItemId = 255;
   inline static constexpr uint32_t kMaxAmount = 99;
 
-  std::string arm(Core &core, const char *line);
+  std::string arm(Core &core, const psx::debug::CommandArgs &args);
   // Gives the game's own give-and-flag one item; the frame driver supplies the shipping inventory.
   using GiveFn = void (*)(Core &core, const Inventory::ItemGrantArgs &grant);
   void applyArmed(Core &core, GiveFn give, uint32_t frame);

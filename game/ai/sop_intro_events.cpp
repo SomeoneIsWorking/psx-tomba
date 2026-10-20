@@ -203,10 +203,7 @@ uint32_t sopOrbitPathStep(Core *c) { // FUN_8010B11C
     c->r[4] = node;
     c->r[5] = 0x8001B860u;
     c->r[6] = 2;
-    psx::cpu::dispatchGuestToReturn0(*c,
-                                     0x80077C40u,
-                                     psx::cpu::ExecutionBudget::currentTurn(*c),
-                                     __func__); // Animation::attach (still substrate here)
+    psx::cpu::callGuestNow(*c, __func__, 0x80077C40u); // Animation::attach (still substrate here)
     result = 1;
   } else if (state == 0 || state == 1 || state == 2) {
     if (state == 0) {
@@ -342,10 +339,7 @@ void sopIntroEffectTick(Core *c) { // FUN_8010B2D4
 
   if (state == 1) {
     c->r[4] = node;
-    psx::cpu::dispatchGuestToReturn0(*c,
-                                     0x8007778Cu,
-                                     psx::cpu::ExecutionBudget::currentTurn(*c),
-                                     __func__); // Cull::wrapFrame (still substrate here; result unused)
+    psx::cpu::callGuestNow(*c, __func__, 0x8007778Cu); // Cull::wrapFrame (still substrate here; result unused)
 
     uint8_t sub = c->mem_r8(node + 5);
     if (sub == 1) {
@@ -371,19 +365,13 @@ void sopIntroEffectTick(Core *c) { // FUN_8010B2D4
     c->r[6] = c->mem_r32(0x800ECF98u);
     c->r[7] = 0x800A4BC8u;
     c->r[31] = 0x8010B348u; // gen's return constant at this site
-    psx::cpu::dispatchGuestToReturn0(*c,
-                                     0x800519E0u,
-                                     psx::cpu::ExecutionBudget::currentTurn(*c),
-                                     __func__); // GraphicsBind::recordArrayInit (still substrate here)
+    psx::cpu::callGuestNow(*c, __func__, 0x800519E0u); // GraphicsBind::recordArrayInit (still substrate here)
     if (c->r[2] == 0) {
       c->mem_w32(node + 0x3Cu, c->mem_r32(0x800ECF9Cu));
       c->r[4] = node;
       c->r[5] = 0x8001B860u;
       c->r[6] = 0;
-      psx::cpu::dispatchGuestToReturn0(*c,
-                                       0x80077C40u,
-                                       psx::cpu::ExecutionBudget::currentTurn(*c),
-                                       __func__); // Animation::attach (still substrate here)
+      psx::cpu::callGuestNow(*c, __func__, 0x80077C40u); // Animation::attach (still substrate here)
       c->mem_w16(node + 0xB8u, 0);
       c->mem_w16(node + 0xBAu, 0);
       c->mem_w16(node + 0xBCu, 0);
@@ -475,10 +463,7 @@ void sopLiftedSubtickBody(Core *c) {
     c->r[5] = 0x8010D39Cu;
     c->r[6] = 2;
     c->r[31] = 0x8010B644u;
-    psx::cpu::dispatchGuestToReturn0(*c,
-                                     0x80077C40u,
-                                     psx::cpu::ExecutionBudget::currentTurn(*c),
-                                     __func__); // Animation::attach (still substrate here)
+    psx::cpu::callGuestNow(*c, __func__, 0x80077C40u); // Animation::attach (still substrate here)
     c->r[31] = 0x8010B654u;
     eng(c).graphicsBind.installSceneRecord(
         {.rec = c->mem_r32(node + 0xC4u), .classArg = 0x12u, .itemArg = 0x0Fu}); // FUN_80051B04
@@ -502,8 +487,7 @@ void sopLiftedSubtickBody(Core *c) {
     c->r[6] = 2;
     c->r[7] = 6;
     c->r[31] = 0x8010B6C8u;
-    psx::cpu::dispatchGuestToReturn0(
-        *c, 0x80077CFCu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // still substrate (no native owner)
+    psx::cpu::callGuestNow(*c, __func__, 0x80077CFCu); // still substrate (no native owner)
     c->r[31] = 0x8010B6D8u;
     eng(c).graphicsBind.installSceneRecord({.rec = c->mem_r32(node + 0xC4u), .classArg = 0x12u, .itemArg = 1u});
     c->r[31] = 0x8010B6E8u;

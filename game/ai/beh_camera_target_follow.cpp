@@ -108,7 +108,7 @@ void beh_camera_target_follow(Core *c) {
       c->r[4] = 0x2c;
       c->r[5] = p + 0x2c;
       c->r[6] = 0xFFFFFFECu; // FUN_800312d4(0x2c, target+0x2c, -20)
-      psx::cpu::dispatchGuestToReturn0(*c, 0x800312D4u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, 0x800312D4u);
     }
   }
 
@@ -137,8 +137,7 @@ void beh_camera_target_follow(Core *c) {
     } else {
       c->r[4] = nd;
       c->r[5] = (uint32_t)(int32_t)s16(c, nd + 0x32);
-      psx::cpu::dispatchGuestToReturn0(
-          *c, 0x800489E4u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // FUN_800489e4(node, (s16)node[0x32])
+      psx::cpu::callGuestNow(*c, __func__, 0x800489E4u); // FUN_800489e4(node, (s16)node[0x32])
       uint32_t iv5 = c->r[2];
       uint16_t da6 = c->mem_r16(0x1F8001A6u);
       if (iv5 != 0) {
@@ -209,39 +208,39 @@ void beh_camera_target_follow(Core *c) {
       if (c->mem_r8(0x800BF816u) == 0) {
         c->r[4] = nd;
         c->r[5] = p;
-        psx::cpu::dispatchGuestToReturn0(*c, 0x8010C5A8u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+        psx::cpu::callGuestNow(*c, __func__, 0x8010C5A8u);
       }
       break;
     case 4:
       if (c->mem_r8(0x800BF816u) == 0) {
         c->r[4] = nd;
         c->r[5] = p;
-        psx::cpu::dispatchGuestToReturn0(*c, 0x80115AFCu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+        psx::cpu::callGuestNow(*c, __func__, 0x80115AFCu);
       }
       break;
     case 6:
       if (c->mem_r8(0x800BF816u) == 0) {
         c->r[4] = nd;
         c->r[5] = p;
-        psx::cpu::dispatchGuestToReturn0(*c, 0x80114294u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+        psx::cpu::callGuestNow(*c, __func__, 0x80114294u);
       }
       break;
     case 8:
       if (c->mem_r8(p + 0x16b) == 0) {
         c->r[4] = nd;
         c->r[5] = p;
-        psx::cpu::dispatchGuestToReturn0(*c, 0x8011332Cu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+        psx::cpu::callGuestNow(*c, __func__, 0x8011332Cu);
       }
       break;
     case 0xb: {
       c->r[4] = nd;
       c->r[5] = p;
-      psx::cpu::dispatchGuestToReturn0(*c, 0x8010BC10u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, 0x8010BC10u);
     } break;
     case 0xe: {
       c->r[4] = nd;
       c->r[5] = p;
-      psx::cpu::dispatchGuestToReturn0(*c, 0x8010B238u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, 0x8010B238u);
     } break;
     default:
       break;

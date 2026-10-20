@@ -95,10 +95,7 @@ void Engine::frameUpdate() {
   // natively owned (Engine::padEdgeFence) and the per-frame game work moved to Scheduler, which
   // Phase::GameLogic brackets. A ~0.00 ms phase called LOGIC reads as "the game is free".
   c->game->perf.phaseBegin(GpuPerf::Phase::PadFence);
-  psx::cpu::dispatchGuestToReturn0(*c,
-                                   0x800788ACu,
-                                   psx::cpu::ExecutionBudget::currentTurn(*c),
-                                   __func__); // real per-frame state update (still-PSX leaf)
+  psx::cpu::callGuestNow(*c, __func__, 0x800788ACu); // real per-frame state update (still-PSX leaf)
   c->game->perf.phaseEnd(GpuPerf::Phase::PadFence);
   // Per-VBLANK audio work. On hardware the libsnd sequencer ticks once per VBlank IRQ (60 Hz NTSC)
   // and the SPU plays in realtime. One logic frame is however many display fields the engine's own
@@ -126,10 +123,7 @@ void Engine::frameUpdate() {
     // game/core/frame_cadence.h, which records why a revision that did was wrong.
     cadence().consumeVblank();
     if (seq_ok) {
-      psx::cpu::dispatchGuestToReturn0(*c,
-                                       SEQ_TICK_WRAPPER,
-                                       psx::cpu::ExecutionBudget::currentTurn(*c),
-                                       __func__); // libsnd per-vblank tick (user cb + SsSeqCalled)
+      psx::cpu::callGuestNow(*c, __func__, SEQ_TICK_WRAPPER); // libsnd per-vblank tick (user cb + SsSeqCalled)
     }
     c->game->spu_audio.frame(); // advance SPU one 1/60 s field + feed device
   }

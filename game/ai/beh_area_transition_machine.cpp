@@ -100,8 +100,7 @@ static void node6_phase(Core *c, uint32_t nd) {
   case 0: // @0x801279b8 — start fade
     c->r[4] = 1;
     c->r[5] = 1;
-    psx::cpu::dispatchGuestToReturn0(
-        *c, 0x80042354u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // FUN_80042354(1,1)
+    psx::cpu::callGuestNow(*c, __func__, 0x80042354u); // FUN_80042354(1,1)
     c->mem_w8(0x800BF9B5u, 3);    // (v0=3 from the call's delay-slot store)
     c->r[31] = 0x801279D8u;       // ra mirror: gen jal-site (armBody spills ra)
     eng(c).sceneEvents.arm(0x42); // area-transition event; FUN_80040B48 (native)
@@ -128,8 +127,7 @@ static void node6_phase(Core *c, uint32_t nd) {
     c->r[4] = G;
     c->r[5] = 0x71;
     c->r[6] = 8;
-    psx::cpu::dispatchGuestToReturn0(
-        *c, 0x80054D14u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // FUN_80054d14(&DAT_800e7e80,0x71,8)
+    psx::cpu::callGuestNow(*c, __func__, 0x80054D14u); // FUN_80054d14(&DAT_800e7e80,0x71,8)
     // --- camera-transition setup (reachable; Ghidra's "noreturn" on FUN_80054d14 was wrong) ---
     c->mem_w8(nd + 6, (uint8_t)(c->mem_r8(nd + 6) + 1));
     int s2 = (int16_t)(8268 - c->mem_r16(G_eb6));       // (int16)(0x204c - hi(eb4))
@@ -281,8 +279,7 @@ void beh_area_transition_machine(Core *c) {
   c->r[5] = 0;
   c->r[6] = 0;
   c->r[7] = 0;
-  psx::cpu::dispatchGuestToReturn0(
-      *c, 0x80041194u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // FUN_80041194(node, 0, 0, 0)
+  psx::cpu::callGuestNow(*c, __func__, 0x80041194u); // FUN_80041194(node, 0, 0, 0)
 }
 
 } // namespace tomba

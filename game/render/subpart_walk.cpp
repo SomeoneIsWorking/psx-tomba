@@ -97,7 +97,7 @@ void Render::subPartWalk(Core *c) {
       c->r[31] = 0x8003F230u; // jal-site ra
       c->r[6] = passThrough;
       const auto part = c->emission.instance(eng(c).graphicsBind.records.object(sub));
-      psx::cpu::dispatchGuestToReturn0(*c, 0x8003F698u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, 0x8003F698u);
 
       index += 1;
     } while ((int32_t)index < (int32_t)(uint32_t)c->mem_r8(node + NODE_COUNT));

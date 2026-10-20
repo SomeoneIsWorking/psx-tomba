@@ -209,7 +209,7 @@ void beh_a06_sound_cmd_wait_8013AFD8(Core *c) {
     c->mem_w16(scratchArg + 8u, 30000u);
     psx::cpu::callGuestNow(*c, "beh_a06_script_fades", 0x80070F00u, obj, 1u, scratchArg);
     c->r[4] = 3u;
-    psx::cpu::dispatchGuestToReturn0(*c, 0x800708B4u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, 0x800708B4u);
     c->r[29] = sp_save;
     c->mem_w8(obj + O_STATE_78, (uint8_t)(st + 1u));
     setV0(c, 0u);
@@ -249,7 +249,7 @@ void beh_a06_spawn_subobj_8013B074(Core *c) {
   c->mem_w32(G_E8078, 0x800u);
   c->mem_w32(G_E8074, c->mem_r32(G_1003F8) * 7u);
   c->r[4] = scratchArg;
-  psx::cpu::dispatchGuestToReturn0(*c, 0x8006CBA8u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, 0x8006CBA8u);
   c->r[29] = sp_save;
   setV0(c, 1u);
 }

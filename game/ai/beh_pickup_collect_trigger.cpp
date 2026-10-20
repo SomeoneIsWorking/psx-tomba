@@ -145,17 +145,17 @@ bool beh_pickup_collect_trigger_body(Core *c) {
         c->r[5] = buf;
         c->r[6] = 0x800;
         c->r[7] = 0x18;
-        psx::cpu::dispatchGuestToReturn0(*c, 0x80027144u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+        psx::cpu::callGuestNow(*c, __func__, 0x80027144u);
         eng(c).sfx.trigger({.id = 0xc, .pan = 0, .pitchBend = 0}); // FUN_80074590 (native)
         src = c->mem_r32(c->mem_r32(obj + 0xc0) + 0x40);
         c->r[4] = src;
         c->r[5] = buf;
         c->r[6] = 0x800;
         c->r[7] = 8;
-        psx::cpu::dispatchGuestToReturn0(*c, 0x80027144u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+        psx::cpu::callGuestNow(*c, __func__, 0x80027144u);
         eng(c).sfx.trigger({.id = 0xc, .pan = 0, .pitchBend = 0}); // FUN_80074590 (native)
         c->r[4] = 0x39;
-        psx::cpu::dispatchGuestToReturn0(*c, 0x80040C00u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+        psx::cpu::callGuestNow(*c, __func__, 0x80040C00u);
         uint8_t prev = c->mem_r8(0x800BFA23u);
         uint32_t bit = 1u << (c->mem_r8(obj + 3) & 0x1f);
         c->mem_w8(0x800BFA23u, (uint8_t)(prev | (uint8_t)bit));
@@ -167,7 +167,7 @@ bool beh_pickup_collect_trigger_body(Core *c) {
         }
         if ((((uint32_t)prev) | (bit & 0xff)) == 0x1f) {
           c->r[4] = 0x3a;
-          psx::cpu::dispatchGuestToReturn0(*c, 0x80040C00u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+          psx::cpu::callGuestNow(*c, __func__, 0x80040C00u);
         }
       }
     } else if (sub > 3) { // sub in {5..98,100+} no-op; 99 re-arms -> case0
@@ -190,7 +190,7 @@ bool beh_pickup_collect_trigger_body(Core *c) {
         c->mem_w8(obj + 5, 99);
       } else {
         c->r[4] = obj;
-        psx::cpu::dispatchGuestToReturn0(*c, 0x8007413Cu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+        psx::cpu::callGuestNow(*c, __func__, 0x8007413Cu);
         iVar3 = (int)c->r[2];
         c->mem_w32(obj + 0x14, c->r[2]);
         do_inc = true;

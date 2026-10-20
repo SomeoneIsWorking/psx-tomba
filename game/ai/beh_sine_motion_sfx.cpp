@@ -100,11 +100,9 @@ L1b0: // ===== STATE 0 (INIT) =====
   v0 = v0 | 1;                         // ori
   c->mem_w8(nd + 0, (uint8_t)v0);      // delay sb v0,0
   c->r[4] = nd;
-  psx::cpu::dispatchGuestToReturn0(
-      *c, 0x8004766cu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // FUN_8004766C(node)
+  psx::cpu::callGuestNow(*c, __func__, 0x8004766cu); // FUN_8004766C(node)
   c->r[4] = nd;
-  psx::cpu::dispatchGuestToReturn0(
-      *c, 0x80048750u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // FUN_80048750(node)
+  psx::cpu::callGuestNow(*c, __func__, 0x80048750u); // FUN_80048750(node)
   v0 = (int32_t)c->mem_r16(0x1f8001a0u);                                      // lhu scratch[0x1A0]
   v1 = (int32_t)c->mem_r16(nd + 0x2e);                                        // lhu node[0x2E]
   a0 = (int32_t)c->mem_r16(nd + 0x32);                                        // lhu node[0x32]

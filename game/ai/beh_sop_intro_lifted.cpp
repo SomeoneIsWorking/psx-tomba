@@ -50,7 +50,7 @@ inline int try_model_attach(Core *c, uint32_t obj) {
   c->r[5] = MODEL_ID;
   c->r[6] = c->mem_r32(MODEL_META_PTR);
   c->r[7] = MODEL_DATA_PTR;
-  psx::cpu::dispatchGuestToReturn0(*c, 0x800519E0u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, 0x800519E0u);
   return (int)c->r[2];
 }
 inline void overlay_oneshot(Core *c, uint32_t obj) {

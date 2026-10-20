@@ -210,7 +210,7 @@ void Render::gpuDmaQueueEnqueue() {
   };
 
   c->r[31] = 0x80082D30u;
-  psx::cpu::dispatchGuestToReturn0(*c, FN_GPU_TIMEOUT_ARM, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, FN_GPU_TIMEOUT_ARM);
 
   // L_80082D50 loop: wait for a free ring slot (retry via Drain + timeout-checked wait if full).
   for (;;) {
@@ -222,7 +222,7 @@ void Render::gpuDmaQueueEnqueue() {
     }
     // L_80082D38: full — timeout-check, then drain and retry
     c->r[31] = 0x80082D40u;
-    psx::cpu::dispatchGuestToReturn0(*c, FN_GPU_TIMEOUT_CHK, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, FN_GPU_TIMEOUT_CHK);
     if (c->r[2] != 0) {
       epilogue((uint32_t)-1);
       return;
@@ -231,14 +231,14 @@ void Render::gpuDmaQueueEnqueue() {
     // return address MUST be live in r31 before this call or Drain's spilled-ra byte diverges
     // from gen (SBS-fatal). Same for every other non-HLE-leaf call below.
     c->r[31] = 0x80082D50u;
-    psx::cpu::dispatchGuestToReturn0(*c, FN_DRAIN, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, FN_DRAIN);
   }
 
   // Enter critical section (disable interrupts), save the old mask. FN_INT_MASK_SET
   // (guest 0x80085C9C) is a true leaf (no sp adjust, no ra spill) — r31 mirroring is a no-op for it,
   // left unset like every other leaf call in this port.
   c->r[4] = 0;
-  psx::cpu::dispatchGuestToReturn0(*c, FN_INT_MASK_SET, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, FN_INT_MASK_SET);
   c->mem_w32(ENQ_SAVED_MASK, c->r[2]);
 
   // Decide fast (immediate dispatch) vs deferred (ring-enqueue) path.
@@ -278,9 +278,9 @@ void Render::gpuDmaQueueEnqueue() {
     // `fn` is an arbitrary caller-supplied dispatch target — it may push its own guest-stack
     // frame and spill ra, so r31 MUST carry the real guest return address (gen: 0x80082E10).
     c->r[31] = 0x80082E10u;
-    psx::cpu::dispatchGuestToReturn0(*c, fn, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, fn);
     c->r[4] = c->mem_r32(ENQ_SAVED_MASK);
-    psx::cpu::dispatchGuestToReturn0(*c, FN_INT_MASK_SET, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, FN_INT_MASK_SET);
     epilogue(0);
     return;
   }
@@ -292,7 +292,7 @@ void Render::gpuDmaQueueEnqueue() {
   c->r[5] = FN_DRAIN; // install THIS cluster's Drain as the ISR
   // FN_ISR_REGISTER (guest 0x80085B80) pushes a -24 guest frame and spills ra — mirror gen's r31.
   c->r[31] = 0x80082E38u;
-  psx::cpu::dispatchGuestToReturn0(*c, FN_ISR_REGISTER, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, FN_ISR_REGISTER);
 
   if (sizeBytes != 0) {
     int32_t sizeSigned = (int32_t)sizeBytes;
@@ -323,9 +323,9 @@ void Render::gpuDmaQueueEnqueue() {
     c->mem_w32(RING_HEAD, head);
   }
   c->r[4] = c->mem_r32(ENQ_SAVED_MASK);
-  psx::cpu::dispatchGuestToReturn0(*c, FN_INT_MASK_SET, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, FN_INT_MASK_SET);
   c->r[31] = 0x80082F7Cu; // FN_DRAIN spills ra — mirror gen's return address.
-  psx::cpu::dispatchGuestToReturn0(*c, FN_DRAIN, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, FN_DRAIN);
 
   {
     uint32_t head = c->mem_r32(RING_HEAD);
@@ -372,7 +372,7 @@ void Render::gpuDmaQueueDrain() {
   }
 
   c->r[4] = 0;
-  psx::cpu::dispatchGuestToReturn0(*c, FN_INT_MASK_SET, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, FN_INT_MASK_SET);
   c->mem_w32(DRAIN_SAVED_MASK, c->r[2]); // unconditional (matches gen delay-slot write)
 
   bool doDrain = true;
@@ -407,7 +407,7 @@ void Render::gpuDmaQueueDrain() {
           c->r[5] = 0;
           // FN_ISR_REGISTER pushes a -24 guest frame and spills ra — mirror gen's r31.
           c->r[31] = 0x80083068u;
-          psx::cpu::dispatchGuestToReturn0(*c, FN_ISR_REGISTER, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+          psx::cpu::callGuestNow(*c, __func__, FN_ISR_REGISTER);
         }
       }
 
@@ -424,7 +424,7 @@ void Render::gpuDmaQueueDrain() {
       // `fn` is the ring entry's arbitrary dispatch target — mirror gen's r31 (0x8008310C) in
       // case it pushes its own frame and spills ra.
       c->r[31] = 0x8008310Cu;
-      psx::cpu::dispatchGuestToReturn0(*c, fn, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, fn);
 
       uint32_t newTail = (c->mem_r32(RING_TAIL) + 1) & 63u;
       c->mem_w32(RING_TAIL, newTail);
@@ -444,7 +444,7 @@ void Render::gpuDmaQueueDrain() {
   // L_80083164: shared tail — restore mask, fire the one-shot completion handler if the queue is
   // idle+empty+active, return the final depth.
   c->r[4] = c->mem_r32(DRAIN_SAVED_MASK);
-  psx::cpu::dispatchGuestToReturn0(*c, FN_INT_MASK_SET, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, FN_INT_MASK_SET);
 
   {
     uint32_t head = c->mem_r32(RING_HEAD);
@@ -459,7 +459,7 @@ void Render::gpuDmaQueueDrain() {
             c->mem_w32(GPU_QSTAT_ACTIVE, 0);
             // one-shot completion handler is arbitrary too — mirror gen's r31 (0x800831E4).
             c->r[31] = 0x800831E4u;
-            psx::cpu::dispatchGuestToReturn0(*c, handler, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+            psx::cpu::callGuestNow(*c, __func__, handler);
           }
         }
       }
@@ -504,8 +504,7 @@ void Render::gpuDmaQueueSync() {
   constexpr uint32_t R3_NORMAL = 1024u << 16; // 0x04000000
 
   if (mode == 0) {
-    psx::cpu::dispatchGuestToReturn0(
-        *c, FN_GPU_TIMEOUT_ARM, psx::cpu::ExecutionBudget::currentTurn(*c), "gpuDmaQueueSync -> gpuTimeoutArm");
+    psx::cpu::callGuestNow(*c, "gpuDmaQueueSync -> gpuTimeoutArm", FN_GPU_TIMEOUT_ARM);
     for (;;) {
       uint32_t head = c->mem_r32(RING_HEAD);
       uint32_t tail = c->mem_r32(RING_TAIL);
@@ -513,10 +512,8 @@ void Render::gpuDmaQueueSync() {
         // L_80083384: not empty -> drain once, timeout-check, retry. FN_DRAIN spills ra —
         // mirror gen's r31 (0x8008338C).
         c->r[31] = 0x8008338Cu;
-        psx::cpu::dispatchGuestToReturn0(
-            *c, FN_DRAIN, psx::cpu::ExecutionBudget::currentTurn(*c), "gpuDmaQueueSync -> gpuDmaQueueDrain");
-        psx::cpu::dispatchGuestToReturn0(
-            *c, FN_GPU_TIMEOUT_CHK, psx::cpu::ExecutionBudget::currentTurn(*c), "gpuDmaQueueSync -> gpuTimeoutCheck");
+        psx::cpu::callGuestNow(*c, "gpuDmaQueueSync -> gpuDmaQueueDrain", FN_DRAIN);
+        psx::cpu::callGuestNow(*c, "gpuDmaQueueSync -> gpuTimeoutCheck", FN_GPU_TIMEOUT_CHK);
         if (c->r[2] != 0) {
           epilogue((uint32_t)-1, c->mem_r32(0x800A5AC8u));
           return;
@@ -527,8 +524,7 @@ void Render::gpuDmaQueueSync() {
       for (;;) {
         uint32_t stateWord = c->mem_r32(c->mem_r32(GPU_DMA_STATE_PTR));
         if ((stateWord & GPU_DMA_BUSY_BIT) != 0) {
-          psx::cpu::dispatchGuestToReturn0(
-              *c, FN_GPU_TIMEOUT_CHK, psx::cpu::ExecutionBudget::currentTurn(*c), "gpuDmaQueueSync -> gpuTimeoutCheck");
+          psx::cpu::callGuestNow(*c, "gpuDmaQueueSync -> gpuTimeoutCheck", FN_GPU_TIMEOUT_CHK);
           if (c->r[2] != 0) {
             epilogue((uint32_t)-1, c->mem_r32(0x800A5AC8u));
             return;
@@ -538,8 +534,7 @@ void Render::gpuDmaQueueSync() {
         uint32_t readyWord = c->mem_r32(c->mem_r32(GPU_DMA_READY_PTR));
         uint32_t readyBit = readyWord & GPU_DMA_READY_BIT;
         if (readyBit == 0) {
-          psx::cpu::dispatchGuestToReturn0(
-              *c, FN_GPU_TIMEOUT_CHK, psx::cpu::ExecutionBudget::currentTurn(*c), "gpuDmaQueueSync -> gpuTimeoutCheck");
+          psx::cpu::callGuestNow(*c, "gpuDmaQueueSync -> gpuTimeoutCheck", FN_GPU_TIMEOUT_CHK);
           if (c->r[2] != 0) {
             epilogue((uint32_t)-1, c->mem_r32(0x800A5AC8u));
             return;
@@ -569,8 +564,7 @@ void Render::gpuDmaQueueSync() {
   // FN_DRAIN spills ra — mirror gen's r31 (0x80083444).
   if (depth != 0) {
     c->r[31] = 0x80083444u;
-    psx::cpu::dispatchGuestToReturn0(
-        *c, FN_DRAIN, psx::cpu::ExecutionBudget::currentTurn(*c), "gpuDmaQueueSync -> gpuDmaQueueDrain");
+    psx::cpu::callGuestNow(*c, "gpuDmaQueueSync -> gpuDmaQueueDrain", FN_DRAIN);
   }
 
   uint32_t stateWord = c->mem_r32(c->mem_r32(GPU_DMA_STATE_PTR));
@@ -629,7 +623,7 @@ void Render::gpuDmaSend() {
   c->mem_w32(countFieldPtr, count);
 
   c->mem_w32(chcrPtr, 0x11000002u); // KICK
-  psx::cpu::dispatchGuestToReturn0(*c, FN_GPU_TIMEOUT_ARM, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, FN_GPU_TIMEOUT_ARM);
 
   uint32_t chcrWord = c->mem_r32(chcrPtr);
   if ((chcrWord & GPU_DMA_BUSY_BIT) == 0) {
@@ -638,7 +632,7 @@ void Render::gpuDmaSend() {
   }
 
   for (;;) {
-    psx::cpu::dispatchGuestToReturn0(*c, FN_GPU_TIMEOUT_CHK, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, FN_GPU_TIMEOUT_CHK);
     if (c->r[2] != 0) {
       epilogue((uint32_t)-1);
       return;

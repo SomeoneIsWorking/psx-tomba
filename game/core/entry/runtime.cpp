@@ -3,7 +3,6 @@
 #include "cd/engine_cd.h"
 #include "core.h"
 #include "crt0_boot.h"
-#include "debug/dev_args.h"
 #include "debug/repl_commands.h"
 #include "engine/engine.h"
 #include "entry/main_handoff.h"
@@ -51,18 +50,7 @@ constexpr std::uint32_t kDecDctInSync = 0x8009CAECu;
 constexpr std::uint32_t kDecDctOutSync = 0x8009CB80u;
 constexpr int kDisplayLines = 224; // the letterbox bars sit flush to row 223; GP1(07) is never written
 
-constexpr psx::game::Crt0Image kCrt0{
-    .bss = {0x800BE0D8u, 0x80106228u},
-    .stackTopWordAddress = 0x800A3F88u,
-    .stackReserveWordAddress = 0x800A3F8Cu,
-    .heapBase = 0x80106228u,
-    .heapSizeStoreAddress = 0x800ABEF8u,
-    .heapBaseStoreAddress = 0x800ABEF4u,
-    .globalPointer = 0x800BE0D4u,
-    .libcInitEntry = 0x80089860u,
-    .crt0Entry = 0x800896E0u,
-    .stackBias = {.declared = true, .bytes = -8},
-};
+constexpr psx::game::Crt0Image kCrt0{.entry = 0x800896E0u};
 
 constexpr psx::gpu::GuestPacketPoolWindows kPacketPool{
     .representation = psx::gpu::GuestPacketPoolWindows::Representation::FixedBaseStride,
@@ -86,7 +74,7 @@ void cdReady(Core *core) {
 }
 
 void callGuest(Core &core, std::uint32_t address) {
-  psx::cpu::dispatchGuestToReturn0(core, address, psx::cpu::ExecutionBudget::currentTurn(core), "Runtime::bootInit");
+  psx::cpu::callGuestNow(core, "Runtime::bootInit", address);
 }
 
 void callGuest(Core &core, std::uint32_t address, std::uint32_t a0) {
@@ -141,7 +129,7 @@ void Runtime::registerOverrides(Game &game) {
 
 // Only immediately after the resident load; an overlay supplies its own image declarations.
 void Runtime::bindLoadedResident(Core &core) {
-  const auto resident = core.currentImageIdentity(kGameMain);
+  const auto resident = core.imageCatalog().resolve(kGameMain);
   if (!resident) {
     lucent::error("tomba-native", "resident load did not establish the MAIN.EXE image");
     std::abort();
@@ -229,26 +217,24 @@ void Runtime::bootInit(Core &core) {
 }
 
 bool Runtime::titleCommand(Core &core, const psx::game::TitleCommandLine &input, std::FILE *reply) {
-  const auto [command, line] = input;
+  const auto [command, args] = input;
   auto *driver = dynamic_cast<FrameDriver *>(core.game->frameDriver.get());
   if (driver == nullptr) {
     lucent::error("tomba-native", "{} arrived with no Tomba! 2 frame driver", command);
     std::abort();
   }
   std::string answer;
-  if (driver->devControl().handle(core, line, answer)) {
+  if (driver->devControl().handle(core, args, answer)) {
     std::fprintf(reply, "%s\n", answer.c_str());
     return true;
   }
   if (std::strcmp(command, "tp") == 0) {
-    const auto words = DevArgs::words(line);
-    int32_t x = 0;
-    int32_t y = 0;
-    int32_t z = 0;
-    if (words.size() == 4 && DevArgs::integer(words[1], x) && DevArgs::integer(words[2], y) &&
-        DevArgs::integer(words[3], z)) {
-      eng(&core).camTeleport({.x = x, .y = y, .z = z});
-      std::fprintf(reply, "tp camera -> (%d,%d,%d)\n", x, y, z);
+    const std::optional<int> x = args.integer(1);
+    const std::optional<int> y = args.integer(2);
+    const std::optional<int> z = args.integer(3);
+    if (args.size() == 4 && x && y && z) {
+      eng(&core).camTeleport({.x = *x, .y = *y, .z = *z});
+      std::fprintf(reply, "tp camera -> (%d,%d,%d)\n", *x, *y, *z);
     } else {
       eng(&core).camTeleportOff();
       std::fprintf(reply, "tp off (camera follows player)\n");
@@ -256,7 +242,7 @@ bool Runtime::titleCommand(Core &core, const psx::game::TitleCommandLine &input,
     return true;
   }
   // The other developer commands (bgm, invtest, ...) answer through the log.
-  const bool handled = replCommand(core, line);
+  const bool handled = replCommand(core, args);
   if (handled) {
     std::fprintf(reply, "ok: %s\n", command);
   }

@@ -132,10 +132,7 @@ void ReleaseTriggerMotion::hoverBobCycle(uint32_t obj) {
     break;
   }
   c->r[4] = obj;
-  psx::cpu::dispatchGuestToReturn0(*c,
-                                   0x80077B5Cu,
-                                   psx::cpu::ExecutionBudget::currentTurn(*c),
-                                   __func__); // FUN_80077B5C — still-substrate position commit
+  psx::cpu::callGuestNow(*c, __func__, 0x80077B5Cu); // FUN_80077B5C — still-substrate position commit
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -157,10 +154,7 @@ void ReleaseTriggerMotion::leaderFollowSync(uint32_t obj) {
         c->r[4] = obj;
         eng(c).cull.enqueueQueueA(obj); // FUN_80077E7C (return ignored)
         c->r[4] = obj;
-        psx::cpu::dispatchGuestToReturn0(*c,
-                                         0x80123C94u,
-                                         psx::cpu::ExecutionBudget::currentTurn(*c),
-                                         __func__); // FUN_80123C94 — still-substrate predicate
+        psx::cpu::callGuestNow(*c, __func__, 0x80123C94u); // FUN_80123C94 — still-substrate predicate
         if (c->r[2] == 0) {
           int32_t shifted = (int32_t)((uint32_t)c->mem_r16(leader + 0x84) << 16);
           int16_t half = (int16_t)(((shifted >> 16) - (shifted >> 31)) >> 1);
@@ -169,8 +163,7 @@ void ReleaseTriggerMotion::leaderFollowSync(uint32_t obj) {
           c->r[4] = c->mem_r32(leader + 0xc0);
           c->r[5] = obj + 100; // +0x64
           c->r[6] = 0x1F8000C0u;
-          psx::cpu::dispatchGuestToReturn0(
-              *c, 0x80051D90u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // still-substrate scratchpad fill
+          psx::cpu::callGuestNow(*c, __func__, 0x80051D90u); // still-substrate scratchpad fill
           uint16_t r0 = c->mem_r16(0x1F8000C0u);
           c->mem_w16(obj + 0x2e, r0);
           uint16_t r2 = c->mem_r16(0x1F8000C2u);
@@ -192,8 +185,7 @@ void ReleaseTriggerMotion::leaderFollowSync(uint32_t obj) {
     }
   } else if (c->mem_r8(obj + 0x5e) == 1) {
     c->r[4] = obj;
-    psx::cpu::dispatchGuestToReturn0(
-        *c, 0x8012400Cu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // FUN_8012400C — still-substrate
+    psx::cpu::callGuestNow(*c, __func__, 0x8012400Cu); // FUN_8012400C — still-substrate
   }
 }
 
@@ -230,19 +222,15 @@ void ReleaseTriggerMotion::driftReposition(const DriftRepositionArgs &args) {
     if (Actor(c, obj).boundsCull() != 0) { // FUN_8007778C
       uint32_t rec98 = obj + 0x98;
       c->r[4] = rec98;
-      psx::cpu::dispatchGuestToReturn0(
-          *c, 0x80051794u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // still-substrate
+      psx::cpu::callGuestNow(*c, __func__, 0x80051794u); // still-substrate
       c->r[4] = obj + 0x54;
       c->r[5] = rec98;
-      psx::cpu::dispatchGuestToReturn0(
-          *c, 0x800847F0u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // still-substrate
+      psx::cpu::callGuestNow(*c, __func__, 0x800847F0u); // still-substrate
       c->r[4] = 0x1F8000F8u;
       c->r[5] = rec98;
-      psx::cpu::dispatchGuestToReturn0(
-          *c, 0x80084360u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // still-substrate
+      psx::cpu::callGuestNow(*c, __func__, 0x80084360u); // still-substrate
       c->r[4] = obj;
-      psx::cpu::dispatchGuestToReturn0(
-          *c, 0x80077B5Cu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // still-substrate
+      psx::cpu::callGuestNow(*c, __func__, 0x80077B5Cu); // still-substrate
     }
     if (c->mem_r8(0x800BF9DDu) == 0xe) {
       uint32_t uVar4 = (uint32_t)rngOf(c).next(); // FUN_8009A450 (draw 1)
@@ -259,8 +247,7 @@ void ReleaseTriggerMotion::driftReposition(const DriftRepositionArgs &args) {
       c->mem_w16(obj + 0x36, uVar1);
     } else if (c->mem_r8(0x800BF9DDu) < 0xe) {
       c->r[4] = obj;
-      psx::cpu::dispatchGuestToReturn0(
-          *c, 0x80124328u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // FUN_80124328 — still-substrate
+      psx::cpu::callGuestNow(*c, __func__, 0x80124328u); // FUN_80124328 — still-substrate
     }
   }
 }
@@ -346,7 +333,7 @@ tail:
   a.setPosYFixed(a.posYFixed() + (uint32_t)(a.velY() * 0x100));
   a.setVelY((uint16_t)(a.velY() + a.accelY()));
   c->r[4] = obj;
-  psx::cpu::dispatchGuestToReturn0(*c, 0x80077B5Cu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, 0x80077B5Cu);
   if (c->mem_r8(obj + 0x29) == 0) {
     return;
   }
@@ -371,7 +358,7 @@ resume:
       c->mem_w16(obj + 0x36, c->mem_r16(anchor + 0x34));
     }
     c->r[4] = obj;
-    psx::cpu::dispatchGuestToReturn0(*c, 0x80077B5Cu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, 0x80077B5Cu);
     Actor(c, obj).boundsCull(); // FUN_8007778C, return ignored
   } else {
     c->mem_w8(obj + 5, (uint8_t)(c->mem_r8(obj + 5) + 1));
@@ -467,7 +454,7 @@ void ReleaseTriggerMotion::doubleArcMotion(uint32_t obj) {
   }
   Actor(c, obj).boundsCull(); // FUN_8007778C, return ignored
   c->r[4] = obj;
-  psx::cpu::dispatchGuestToReturn0(*c, 0x80077B5Cu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, 0x80077B5Cu);
   if (c->mem_r8(obj + 5) == 8 && c->mem_r8(obj + 1) == 0) {
     c->mem_w8(obj + 0x5e, 2);
     c->mem_w8(obj + 5, 0);
@@ -533,7 +520,7 @@ void ReleaseTriggerMotion::circleOrbitMotion(uint32_t obj) {
     a.setPosYFixed(a.posYFixed() + (uint32_t)(a.velY() * 0x100));
     a.setVelY((uint16_t)(a.velY() + a.accelY()));
     c->r[4] = obj;
-    psx::cpu::dispatchGuestToReturn0(*c, 0x80077B5Cu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, 0x80077B5Cu);
     if (tblY <= c->mem_r16s(obj + 0x32)) {
       c->mem_w8(obj + 5, 1);
       uint8_t cur46 = c->mem_r8(obj + 0x46);
@@ -603,7 +590,7 @@ void ReleaseTriggerMotion::xSweepCycle(Core *c) {
     case 0x80124488u:
       goto L_80124488;
     default:
-      psx::cpu::dispatchGuestToReturn0(*c, c->r[2], psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, c->r[2]);
       return;
     }
   }

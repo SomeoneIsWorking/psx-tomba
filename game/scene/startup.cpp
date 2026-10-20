@@ -104,10 +104,7 @@ void Engine::initDisplay() {
 
   c->mem_w16(0x801003F8, kProjectionPlaneH); // DAT_801003f8 — initCamera reads H back from here
   psx::gte::setGeomScreen(*c, kProjectionPlaneH);
-  psx::cpu::dispatchGuestToReturn0(*c,
-                                   0x80050738u,
-                                   psx::cpu::ExecutionBudget::currentTurn(*c),
-                                   __func__); // FUN_80050738: draw/disp env structs (still PSX; native next)
+  psx::cpu::callGuestNow(*c, __func__, 0x80050738u); // FUN_80050738: draw/disp env structs (still PSX; native next)
 }
 
 // FUN_80050a80 — engine CAMERA init: identity camera-rotation matrix at scratchpad 0x1F8000F8 (the same
@@ -202,8 +199,7 @@ static uint32_t eng_init_mode_ctrl(Core *c, uint32_t a0) {
     c->mem_w32(0x800abe88, 0);
     if ((int32_t)c->mem_r32(0x80102450) >= 150) {
       c->r[4] = c->mem_r32(0x800abe6c);
-      psx::cpu::dispatchGuestToReturn0(
-          *c, c->mem_r32(0x800abe3c), psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, c->mem_r32(0x800abe3c));
     }
     c->mem_w32(0x80102450, 0);
   } else {
@@ -213,8 +209,7 @@ static uint32_t eng_init_mode_ctrl(Core *c, uint32_t a0) {
     c->mem_w32(0x800abe8c, 1);
     if ((int32_t)c->mem_r32(0x80102454) >= 150) {
       c->r[4] = c->mem_r32(0x800abe6c) + 0xf0;
-      psx::cpu::dispatchGuestToReturn0(
-          *c, c->mem_r32(0x800abe3c), psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, c->mem_r32(0x800abe3c));
     }
     c->mem_w32(0x80102454, 0);
   } else {
@@ -229,26 +224,26 @@ static uint32_t eng_init_mode_ctrl(Core *c, uint32_t a0) {
 // direct engine-state writes + the call sequence PC-native and typed runtime address dispatch the sub-init callees.
 void Engine::initInput() {
   Core *c = this->core;
-  psx::cpu::dispatchGuestToReturn0(*c, 0x80080890u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, 0x80080890u);
   c->mem_w32(0x800abe70, 0);
   c->r[4] = 2;
   c->r[5] = 0x80102440u;
-  psx::cpu::dispatchGuestToReturn0(*c, 0x80087400u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, 0x80087400u);
   c->r[4] = 2;
   c->r[5] = 0x80102440u;
-  psx::cpu::dispatchGuestToReturn0(*c, 0x800873f0u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, 0x800873f0u);
   uint32_t v1 = c->mem_r32(0x800abe98);
   c->mem_w32(v1, (uint32_t)-2);
   c->mem_w32(v1 + 4, c->mem_r32(v1 + 4) | 1);
   c->r[4] = 3;
   c->r[5] = 0;
-  psx::cpu::dispatchGuestToReturn0(*c, 0x80085b10u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
-  psx::cpu::dispatchGuestToReturn0(*c, 0x800808a0u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, 0x80085b10u);
+  psx::cpu::callGuestNow(*c, __func__, 0x800808a0u);
   uint32_t handler = c->mem_r32(0x800abe3c);
   c->r[4] = c->mem_r32(0x800abe6c);
-  psx::cpu::dispatchGuestToReturn0(*c, handler, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, handler);
   c->r[4] = c->mem_r32(0x800abe6c) + 0xf0;
-  psx::cpu::dispatchGuestToReturn0(*c, handler, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, handler);
   c->mem_w32(0x80102454, 0);
   c->mem_w32(0x80102450, 0);
   c->mem_w32(0x800abe70, 1);
@@ -265,7 +260,7 @@ void Engine::initAlloc(uint32_t s1, uint32_t s2) {
   c->mem_w32(0x800abe70, 0);
   c->mem_w32(0x800abe84, 0);
   c->r[4] = s1;
-  psx::cpu::dispatchGuestToReturn0(*c, 0x80089160u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, 0x80089160u);
   uint32_t s0 = 0x80102500u;
   c->mem_w32(0x800abe38, 0x80088cc8u);
   c->mem_w32(0x800abe3c, 0x80088c60u);
@@ -277,8 +272,7 @@ void Engine::initAlloc(uint32_t s1, uint32_t s2) {
   c->mem_w32(0x800abe5c, 0x80088dbcu);
   c->r[4] = s0;
   c->r[5] = 480;
-  psx::cpu::dispatchGuestToReturn0(
-      *c, 0x8009a340u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // clear the 480-byte heap
+  psx::cpu::callGuestNow(*c, __func__, 0x8009a340u); // clear the 480-byte heap
   c->mem_w32(s0 + 48, s1);                                                    // once: seed record[0].src = s1
   c->mem_w32(s0 + 288, s2);                                                   // once: seed record[1].src = s2
   uint32_t a0 = s0 + 64, a3 = 0x801024b8u, a2 = 0x80102470u;
@@ -301,7 +295,7 @@ void Engine::initAlloc(uint32_t s1, uint32_t s2) {
     a0 += 240;
     s0 += 240;
   }
-  psx::cpu::dispatchGuestToReturn0(*c, 0x80086738u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, 0x80086738u);
   c->mem_w32(0x800abe70, 1);
 }
 
@@ -365,7 +359,7 @@ uint32_t Engine::runModeEnter() {
     uint32_t handler = c->mem_r32(0x800ABE60);                              // mode-enter handler
     if (handler != 0) {
       c->r[31] = 0x800867B8u;
-      psx::cpu::dispatchGuestToReturn0(*c, handler, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, handler);
     } // jalr handler
     result = 1;
   }

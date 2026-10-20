@@ -90,7 +90,7 @@ static void anim_vm_76d68(Core *c) {
     c->r[4] = s0;
     c->r[5] = a1;
     c->r[6] = (uint32_t)c->mem_r16s(s0 + 14);
-    psx::cpu::dispatchGuestToReturn0(*c, 0x80075ff8u, psx::cpu::ExecutionBudget::currentTurn(*c), "animation");
+    psx::cpu::callGuestNow(*c, "animation", 0x80075ff8u);
     c->r[2] = retval;
   };
 
@@ -621,7 +621,7 @@ void Animation::attach(const AttachArgs &args) {
   c->r[4] = node;
   c->r[5] = a1;
   c->r[6] = (uint32_t)c->mem_r16s(node + 0xE);
-  psx::cpu::dispatchGuestToReturn0(*c, 0x80075ff8u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, 0x80075ff8u);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────

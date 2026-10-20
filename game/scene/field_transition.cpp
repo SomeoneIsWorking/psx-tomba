@@ -7,7 +7,7 @@
 
 #include "core.h"
 #include "entry/session.h"      // eng(c) / fade(c)
-#include "guest_call.h"         // psx::cpu::callGuestNow / dispatchGuestToReturn0 / ExecutionBudget
+#include "guest_call.h"
 #include "render/screen_fade.h" // class ScreenFade — the single fade driver
 #include "sop.h"                // class Sop — transitionAreaLoad (sync FIELD transition load)
 

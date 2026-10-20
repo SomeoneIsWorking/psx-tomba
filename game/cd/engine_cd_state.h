@@ -17,8 +17,8 @@ public:
   [[nodiscard]] std::uint32_t version() const override {
     return 1;
   }
-  bool save(psx::state::BlobWriter &out, std::string &error) const override;
-  bool load(psx::state::BlobReader &in, std::string &error) override;
+  bool save(psx::platform::BlobWriter &out, std::string &error) const override;
+  bool load(psx::platform::BlobReader &in, std::string &error) override;
 
 private:
   EngineCd &cd_;

@@ -35,7 +35,7 @@ int32_t MeleeProximity::isAtApproachAnchor(uint32_t self, uint32_t other) { // F
 
   // FUN_80084080 — still-substrate GTE-LZCS-table sqrt (see .h). Left substrate, typed runtime address dispatch'd.
   c->r[4] = (uint32_t)sumSq;
-  psx::cpu::dispatchGuestToReturn0(*c, 0x80084080u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, 0x80084080u);
   const uint16_t dist16 = (uint16_t)c->r[2];
 
   const int32_t radiusSum = (int16_t)c->mem_r16(other + 128u) + (int16_t)c->mem_r16(self + 128u);

@@ -73,7 +73,7 @@ void Engine::padEdgeFence() {
     c->r[4] = 0;
     c->r[2] = 1u;       // live at the jal (the ==1 compare literal)
     c->r[3] = pollFlag; // live at the jal (the loaded poll byte)
-    psx::cpu::dispatchGuestToReturn0(*c, FN_PAD_SAMPLE, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, FN_PAD_SAMPLE);
     c->mem_w16(CUR_PREV_BASE, (uint16_t)c->r[2]);
   } else {
     uint16_t countdown = (uint16_t)(c->mem_r16(QUEUE_COUNTDOWN) - 1);
@@ -114,10 +114,7 @@ void Engine::padEdgeFence() {
   c->r[2] = 0x800F0000u;
   c->r[3] = ~(uint32_t)cur;
   c->r[5] = 0x800E0000u;
-  psx::cpu::dispatchGuestToReturn0(*c,
-                                   FN_CD_SM,
-                                   psx::cpu::ExecutionBudget::currentTurn(*c),
-                                   __func__); // FUN_8005229C — CD/load sub-state-machine tail-call
+  psx::cpu::callGuestNow(*c, __func__, FN_CD_SM); // FUN_8005229C — CD/load sub-state-machine tail-call
 
   c->r[31] = c->mem_r32(c->r[29] + 20); // lw ra,20(sp)
   c->r[16] = c->mem_r32(c->r[29] + 16); // lw s0,16(sp)
@@ -230,11 +227,11 @@ L_8005232C:;
   c->mem_w8((c->r[16] + (uint32_t)4), (uint8_t)c->r[0]);
   c->r[31] = 0x80052350u;
   c->mem_w8((c->r[16] + (uint32_t)5), (uint8_t)c->r[0]);
-  psx::cpu::dispatchGuestToReturn0(*c, 0x80087EACu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, 0x80087EACu);
 L_80052350:;
   c->r[31] = 0x80052358u;
   c->r[4] = c->r[0] + c->r[0];
-  psx::cpu::dispatchGuestToReturn0(*c, 0x80087AECu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, 0x80087AECu);
   c->r[3] = c->r[0] + (uint32_t)6;
   {
     int _t = (c->r[2] != c->r[3]);
@@ -246,12 +243,12 @@ L_80052350:;
   c->r[5] = (uint32_t)32778u << 16;
   c->r[31] = 0x80052370u;
   c->r[5] = c->r[5] + (uint32_t)16280;
-  psx::cpu::dispatchGuestToReturn0(*c, 0x80087E2Cu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, 0x80087E2Cu);
   goto L_8005244C;
 L_80052378:;
   c->r[31] = 0x80052380u;
   c->r[4] = c->r[0] + c->r[0];
-  psx::cpu::dispatchGuestToReturn0(*c, 0x80087AECu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, 0x80087AECu);
   c->r[3] = c->r[0] + (uint32_t)6;
   {
     int _t = (c->r[2] != c->r[3]);
@@ -263,7 +260,7 @@ L_80052378:;
   c->r[5] = (uint32_t)32778u << 16;
   c->r[31] = 0x80052398u;
   c->r[5] = c->r[5] + (uint32_t)16280;
-  psx::cpu::dispatchGuestToReturn0(*c, 0x80087E2Cu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, 0x80087E2Cu);
   c->r[2] = c->r[0] + (uint32_t)2;
   c->mem_w8((c->r[16] + (uint32_t)6), (uint8_t)c->r[2]);
   goto L_8005244C;
@@ -285,7 +282,7 @@ L_800523BC:;
   c->mem_w8((c->r[16] + (uint32_t)4), (uint8_t)c->r[0]);
   c->r[31] = 0x800523D4u;
   c->mem_w8((c->r[16] + (uint32_t)5), (uint8_t)c->r[0]);
-  psx::cpu::dispatchGuestToReturn0(*c, 0x80087EACu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, 0x80087EACu);
   c->r[2] = c->r[0] + (uint32_t)3;
   c->mem_w8((c->r[16] + (uint32_t)7), (uint8_t)c->r[0]);
   c->mem_w8((c->r[16] + (uint32_t)6), (uint8_t)c->r[2]);
@@ -319,11 +316,11 @@ L_800523E4:;
   c->mem_w8((c->r[16] + (uint32_t)4), (uint8_t)c->r[0]);
   c->r[31] = 0x80052428u;
   c->mem_w8((c->r[16] + (uint32_t)5), (uint8_t)c->r[0]);
-  psx::cpu::dispatchGuestToReturn0(*c, 0x80087EACu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, 0x80087EACu);
 L_80052428:;
   c->r[31] = 0x80052430u;
   c->r[4] = c->r[0] + c->r[0];
-  psx::cpu::dispatchGuestToReturn0(*c, 0x80087AECu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, 0x80087AECu);
   c->r[3] = c->r[0] + (uint32_t)6;
   {
     int _t = (c->r[2] != c->r[3]);
@@ -335,7 +332,7 @@ L_80052428:;
   c->r[5] = (uint32_t)32778u << 16;
   c->r[31] = 0x80052448u;
   c->r[5] = c->r[5] + (uint32_t)16280;
-  psx::cpu::dispatchGuestToReturn0(*c, 0x80087E2Cu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, 0x80087E2Cu);
   c->mem_w8((c->r[16] + (uint32_t)6), (uint8_t)c->r[0]);
 L_8005244C:;
   c->r[31] = c->mem_r32((c->r[29] + (uint32_t)20));

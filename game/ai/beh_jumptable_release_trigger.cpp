@@ -100,21 +100,20 @@ static void release_position_801244e8(Core *c, const ReleasePosition801244e8Args
     mtxOf(c).identity(xf); // FUN_80051794 (native)
     c->r[4] = obj + 0x54;
     c->r[5] = xf;
-    psx::cpu::dispatchGuestToReturn0(*c, 0x800847F0u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, 0x800847F0u);
     c->r[4] = 0x1F8000F8u;
     c->r[5] = xf;
-    psx::cpu::dispatchGuestToReturn0(*c, 0x80084360u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, 0x80084360u);
     c->r[4] = obj;
-    psx::cpu::dispatchGuestToReturn0(*c, 0x80077B5Cu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, 0x80077B5Cu);
   }
   const uint8_t phase = c->mem_r8(0x800BF9DDu);
   if (phase == 0xe) {
-    psx::cpu::dispatchGuestToReturn0(
-        *c, 0x8009A450u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // FUN_8009A450 (rand, still-PSX leaf)
+    psx::cpu::callGuestNow(*c, __func__, 0x8009A450u); // FUN_8009A450 (rand, still-PSX leaf)
     if ((c->r[2] & 0x3f) == 0) {
       eng(c).spawn.spawnAndInit({.a0 = 0x107u, .posSrc = obj + 0x2c, .a2 = (uint32_t)-10}); // FUN_8003116C (native)
     }
-    psx::cpu::dispatchGuestToReturn0(*c, 0x8009A450u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, 0x8009A450u);
     const uint32_t r2 = c->r[2] & 3u;
     c->mem_w16(obj + 0x2e, (uint16_t)(c->mem_r16s(ref + 0x2c) + (int32_t)(r2 - 1) * 0x28));
     c->mem_w16(obj + 0x32, c->mem_r16(ref + 0x30));
@@ -125,8 +124,7 @@ static void release_position_801244e8(Core *c, const ReleasePosition801244e8Args
     c->mem_w16(obj + 0x36, last);
   } else if (phase < 0xe) {
     c->r[4] = obj;
-    psx::cpu::dispatchGuestToReturn0(
-        *c, 0x80124328u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // still-PSX leaf
+    psx::cpu::callGuestNow(*c, __func__, 0x80124328u); // still-PSX leaf
   }
 }
 static constexpr GuestFrameSpill kSpills_80124E74[5] = {
@@ -195,8 +193,7 @@ void beh_jumptable_release_trigger(Core *c) {
 
     case 0: // jt[0] = 0x80124f58
       c->r[4] = obj;
-      psx::cpu::dispatchGuestToReturn0(
-          *c, 0x801241BCu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // 80124F58 jal 0x801241bc (a0=s2)
+      psx::cpu::callGuestNow(*c, __func__, 0x801241BCu); // 80124F58 jal 0x801241bc (a0=s2)
       c->mem_w8(obj + 0x29, 0); // 80124F64 sb zero, 0x29(s2)  (delay slot)
       goto epilogue;            // 80124F60 j 0x801252a4
 
@@ -218,8 +215,7 @@ void beh_jumptable_release_trigger(Core *c) {
       }
       // v==1: jal 0x801246b4(a0=s2)
       c->r[4] = obj;
-      psx::cpu::dispatchGuestToReturn0(
-          *c, 0x801246B4u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // 80124F9C jal 0x801246b4
+      psx::cpu::callGuestNow(*c, __func__, 0x801246B4u); // 80124F9C jal 0x801246b4
       c->mem_w8(obj + 0x29, 0); // 80124FA8 sb zero, 0x29(s2)  (delay slot)
       goto epilogue;            // 80124FA4 j 0x801252a4
     }
@@ -260,8 +256,7 @@ void beh_jumptable_release_trigger(Core *c) {
       c->r[4] = s0;          // 80125038 move a0,s0
       c->r[5] = obj + 0x88;  // 8012503C addiu a1,s3,0x88
       c->r[6] = 0x1F8000C0u; // 80125040 lui s1,0x1f80 ; 80125044 addiu s0,s1,0xc0 ; move a2,s0
-      psx::cpu::dispatchGuestToReturn0(
-          *c, 0x80051D90u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // 80125048 jal 0x80051d90
+      psx::cpu::callGuestNow(*c, __func__, 0x80051D90u); // 80125048 jal 0x80051d90
       // read scratchpad results written by 0x80051d90 into node fields
       uint16_t r0 = c->mem_r16(0x1F8000C0u);     // 80125050 lhu v0, 0xc0(s1)  (=0x1f8000c0)
       c->mem_w16(obj + 0x2e, r0);                // 80125058 sh v0, 0x2e(s3)
@@ -271,8 +266,7 @@ void beh_jumptable_release_trigger(Core *c) {
       // jal 0x80077b5c(a0=s3=obj) ; sh v0,0x36(a0)
       c->r[4] = obj;              // 8012506C move a0,s3
       c->mem_w16(obj + 0x36, r4); // 80125074 sh v0, 0x36(a0)  (delay slot)
-      psx::cpu::dispatchGuestToReturn0(
-          *c, 0x80077B5Cu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // 80125070 jal 0x80077b5c
+      psx::cpu::callGuestNow(*c, __func__, 0x80077B5Cu); // 80125070 jal 0x80077b5c
       c->mem_w8(obj + 0x29, 0); // 8012507C sb zero, 0x29(s2)  (delay slot)
       goto epilogue;            // 80125078 j 0x801252a4
     }
@@ -296,8 +290,7 @@ void beh_jumptable_release_trigger(Core *c) {
       }
       // ---- 801250c0: sub-case 1 ----
       c->r[4] = obj;
-      psx::cpu::dispatchGuestToReturn0(
-          *c, 0x8004DAECu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // 801250C0 jal 0x8004daec (a0=s2)
+      psx::cpu::callGuestNow(*c, __func__, 0x8004DAECu); // 801250C0 jal 0x8004daec (a0=s2)
       if (c->r[2] == 0) {
         goto epi_done; // 801250C8 beqz v0 -> 0x801251e8 (delay addiu v0,3)
       }
@@ -315,8 +308,7 @@ void beh_jumptable_release_trigger(Core *c) {
       if (v == 1) {
         // ---- 80125144 ----
         c->r[4] = obj;
-        psx::cpu::dispatchGuestToReturn0(
-            *c, 0x801249D4u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // 80125144 jal 0x801249d4 (a0=s2)
+        psx::cpu::callGuestNow(*c, __func__, 0x801249D4u); // 80125144 jal 0x801249d4 (a0=s2)
         c->mem_w8(obj + 0x29, 0); // 80125150 sb zero, 0x29(s2)  (delay slot)
         goto epilogue;            // 8012514C j 0x801252a4
       }
@@ -340,8 +332,7 @@ void beh_jumptable_release_trigger(Core *c) {
 
     case 5: // jt[5] = 0x80125164
       c->r[4] = obj;
-      psx::cpu::dispatchGuestToReturn0(
-          *c, 0x80124C6Cu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // 80125164 jal 0x80124c6c (a0=s2)
+      psx::cpu::callGuestNow(*c, __func__, 0x80124C6Cu); // 80125164 jal 0x80124c6c (a0=s2)
       c->mem_w8(obj + 0x29, 0); // 80125170 sb zero, 0x29(s2)  (delay slot)
       goto epilogue;            // 8012516C j 0x801252a4
 
@@ -369,8 +360,7 @@ void beh_jumptable_release_trigger(Core *c) {
         goto epi_done; // 801251BC jal 0x8007778c — Actor::boundsCull (native)
       }
       c->r[4] = obj;
-      psx::cpu::dispatchGuestToReturn0(
-          *c, 0x80123E9Cu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // 801251CC jal 0x80123e9c (a0=s2)
+      psx::cpu::callGuestNow(*c, __func__, 0x80123E9Cu); // 801251CC jal 0x80123e9c (a0=s2)
       uint16_t a = c->mem_r16(obj + 0x7e);                                        // 801251D4 lhu v0, 0x7e(s2)
       uint16_t b = c->mem_r16(obj + 0x64);                                        // 801251D8 lhu v1, 0x64(s2)
       c->mem_w16(obj + 0x2e, (uint16_t)(a + b)); // 801251E4 sh v0, 0x2e(s2)  (v0 = a+b @ 801251E0)
@@ -407,8 +397,7 @@ state2:
     // 2 <= node[5] < 4:
     inv(c).giveAndFlag({.type = 0x77, .amount = 1}); // 8012521C jal 0x8004d4c4 [native]
     c->r[4] = obj;
-    psx::cpu::dispatchGuestToReturn0(
-        *c, 0x8004B0D8u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // 80125224 jal 0x8004b0d8 (a0=s2)
+    psx::cpu::callGuestNow(*c, __func__, 0x8004B0D8u); // 80125224 jal 0x8004b0d8 (a0=s2)
     eng(c).sfx.trigger({.id = 0x11, .pan = 0, .pitchBend = 0});                 // 80125234 jal 0x80074590 (native)
     uint8_t n3 = c->mem_r8(obj + 3);                                            // 8012523C lbu v1, 3(s2)
     c->mem_w8(obj + 4, 3); // 80125248 sb v0(=3), 4(s2)  -> state 3  (delay slot)

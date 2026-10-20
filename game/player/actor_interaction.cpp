@@ -57,7 +57,7 @@ void ActorInteraction::proximityCheck(uint32_t item) {
   const int32_t dx = (int32_t)(int16_t)(tomba.posX() - other.posX());
   const int32_t dz = (int32_t)(int16_t)(tomba.posZ() - other.posZ());
   c->r[4] = (uint32_t)(dx * dx + dz * dz);
-  psx::cpu::dispatchGuestToReturn0(*c, kLeafIsqrt, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, kLeafIsqrt);
   const uint16_t distBits = (uint16_t)c->r[2];
   const int32_t dist = (int32_t)(uint32_t)distBits; // `andi a0,a2,0xffff` — UNSIGNED
 
@@ -76,7 +76,7 @@ void ActorInteraction::proximityCheck(uint32_t item) {
   c->mem_w32(kOutDistanceSlot, (uint32_t)(int32_t)(int16_t)distBits); // sll/sra 16 — sign-extended
   c->r[4] = (uint32_t)(-dz);
   c->r[5] = (uint32_t)dx;
-  psx::cpu::dispatchGuestToReturn0(*c, kLeafAtan2, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, kLeafAtan2);
   c->mem_w32(kOutHeadingSlot, c->r[2]);
   markItemConsumed(c, item);
   c->mem_w8(0x800BF81Eu, 0);
@@ -91,7 +91,7 @@ void ActorInteraction::type4GuardedCheck(uint32_t item) {
   }
   c->r[4] = G;
   c->r[5] = item;
-  psx::cpu::dispatchGuestToReturn0(*c, kLeafProximityF04, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, kLeafProximityF04);
   if (c->r[2] == 0) {
     return;
   }
@@ -119,7 +119,7 @@ void ActorInteraction::subHitboxCheck(uint32_t item) {
     const int32_t dx = (int32_t)(int16_t)(tomba.posX() - c->mem_r16(hitboxArr + 4u));
     const int32_t dz = (int32_t)(int16_t)(tomba.posZ() - c->mem_r16(hitboxArr + 8u));
     c->r[4] = (uint32_t)(dx * dx + dz * dz);
-    psx::cpu::dispatchGuestToReturn0(*c, kLeafIsqrt, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, kLeafIsqrt);
     const int32_t dist = (int32_t)(uint32_t)(c->r[2] & 0xFFFFu);
 
     const int32_t rxz = (int32_t)tomba.boundXZ() + (int32_t)c->mem_r8(kSubHitboxParams + typeParam + 0u);
@@ -139,7 +139,7 @@ void ActorInteraction::subHitboxCheck(uint32_t item) {
     c->r[4] = item;
     c->r[5] = hitboxArr;
     c->r[6] = 0;
-    psx::cpu::dispatchGuestToReturn0(*c, kLeafCollisionCallback, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, kLeafCollisionCallback);
     return;
   }
 }
@@ -171,7 +171,7 @@ uint8_t ActorInteraction::stepModeInteract(const StepModeInteractArgs &args) {
     c->r[5] = item;
     c->r[6] = 1;
     c->r[31] = 0x800203A8u;
-    psx::cpu::dispatchGuestToReturn0(*c, kLeafProximityStep, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, kLeafProximityStep);
     const int32_t v0 = (int32_t)c->r[2];
     if (v0 < 0) {
       result = 0; // no hit
@@ -183,13 +183,13 @@ uint8_t ActorInteraction::stepModeInteract(const StepModeInteractArgs &args) {
         c->r[6] = 0x10;
         c->r[7] = 0x20;
         c->r[31] = 0x80020418u;
-        psx::cpu::dispatchGuestToReturn0(*c, kLeafAltTagSet, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+        psx::cpu::callGuestNow(*c, __func__, kLeafAltTagSet);
         result = 1;
       } else if (mode & 3u) {
         c->r[4] = G;
         c->r[5] = item;
         c->r[31] = 0x800203FCu;
-        psx::cpu::dispatchGuestToReturn0(*c, kLeafGrownPush, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+        psx::cpu::callGuestNow(*c, __func__, kLeafGrownPush);
         result = 1;
       } else {
         result = 1;

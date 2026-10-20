@@ -50,14 +50,14 @@ void runNativeBootPrefix(Core &core) {
   core.mem_w32(core.r[29] + 36u, core.r[17]);
   core.mem_w32(core.r[29] + 32u, core.r[16]);
 
-  psx::cpu::dispatchGuestToReturn0(core, kCxxInitGuard, psx::cpu::ExecutionBudget::currentTurn(core), __func__);
+  psx::cpu::callGuestNow(core, __func__, kCxxInitGuard);
   psx::cpu::callGuestNow(core, __func__, kSetDisplayMask, 0u);
   psx::cpu::callGuestNow(core, __func__, kStopCallback, 0u);
-  psx::cpu::dispatchGuestToReturn0(core, kResetCallback, psx::cpu::ExecutionBudget::currentTurn(core), __func__);
-  psx::cpu::dispatchGuestToReturn0(core, kInitializeGameState, psx::cpu::ExecutionBudget::currentTurn(core), __func__);
+  psx::cpu::callGuestNow(core, __func__, kResetCallback);
+  psx::cpu::callGuestNow(core, __func__, kInitializeGameState);
   psx::cpu::callGuestNow(core, __func__, kResetGraph, 0u);
   psx::cpu::callGuestNow(core, __func__, kSetGraphDebug, 0u);
-  psx::cpu::dispatchGuestToReturn0(core, kInitializeGte, psx::cpu::ExecutionBudget::currentTurn(core), __func__);
+  psx::cpu::callGuestNow(core, __func__, kInitializeGte);
 
   const std::uint32_t cdResult = core.r[29] + 24u;
   initializeSynchronousCd(core, cdResult);
@@ -65,22 +65,22 @@ void runNativeBootPrefix(Core &core) {
   psx::cpu::callGuestNow(core, __func__, kInitializePad, 0u);
   core.mem_w32(0x1F8002A0u, 0u);
   core.mem_w32(0x1F80029Cu, 0u);
-  psx::cpu::dispatchGuestToReturn0(core, kInitializeDisplay, psx::cpu::ExecutionBudget::currentTurn(core), __func__);
+  psx::cpu::callGuestNow(core, __func__, kInitializeDisplay);
   psx::cpu::callGuestNow(core, __func__, kSetFrameCadence, 1u, 1u);
-  psx::cpu::dispatchGuestToReturn0(core, kInitializeSound, psx::cpu::ExecutionBudget::currentTurn(core), __func__);
+  psx::cpu::callGuestNow(core, __func__, kInitializeSound);
 
   core.mem_w32(core.r[29] + 16u, 240u);
   psx::cpu::callGuestNow(core, __func__, kInitializeRect, 0x8009AFE8u, 0u, 0u, 512u);
-  psx::cpu::dispatchGuestToReturn0(core, kInitializeMenu, psx::cpu::ExecutionBudget::currentTurn(core), __func__);
-  psx::cpu::dispatchGuestToReturn0(core, kInitializeInput, psx::cpu::ExecutionBudget::currentTurn(core), __func__);
-  psx::cpu::dispatchGuestToReturn0(core, kInitializeTasks, psx::cpu::ExecutionBudget::currentTurn(core), __func__);
+  psx::cpu::callGuestNow(core, __func__, kInitializeMenu);
+  psx::cpu::callGuestNow(core, __func__, kInitializeInput);
+  psx::cpu::callGuestNow(core, __func__, kInitializeTasks);
   psx::cpu::callGuestNow(core, __func__, kCreateTask, 0u, kTaskEntry);
 
-  psx::cpu::dispatchGuestToReturn0(core, kEnterCritical, psx::cpu::ExecutionBudget::currentTurn(core), __func__);
+  psx::cpu::callGuestNow(core, __func__, kEnterCritical);
   psx::cpu::callGuestNow(
       core, __func__, kOpenEvent, kVblankEventClass, kVblankEventSpec, kInterruptEventMode, kVblankCallback);
   core.mem_w32(kVblankHandle, core.r[2]);
-  psx::cpu::dispatchGuestToReturn0(core, kExitCritical, psx::cpu::ExecutionBudget::currentTurn(core), __func__);
+  psx::cpu::callGuestNow(core, __func__, kExitCritical);
   psx::cpu::callGuestNow(core, __func__, kEnableEvent, core.mem_r32(kVblankHandle));
   psx::cpu::callGuestNow(core, __func__, kSetDisplayMask, 1u);
 
