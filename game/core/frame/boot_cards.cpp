@@ -4,8 +4,8 @@
 #include "display_presenter.h"
 #include "entry/session.h"
 #include "frame/frame_cadence.h"
+#include "frame/scea_splash.h"
 #include "game.h"
-#include "scea_splash.h"
 
 #include <lucent/log.h>
 
@@ -49,7 +49,7 @@ void BootCards::step(Core &core) {
 void BootCards::stepScea(Core &core) {
   Game &game = *core.game;
   if (sceaImage_.empty()) {
-    sceaImage_ = psx::platform::decodeSceaSplash();
+    sceaImage_ = decodeSceaSplash();
   }
   // The host turn is ours, so the pad is read here; a held Start skips the card.
   game.pad.pollHostInput();
@@ -58,7 +58,7 @@ void BootCards::stepScea(Core &core) {
     lucent::info("scea", "skipped (Start) at frame {}", sceaFrame_);
   } else {
     game.display.buildHostPicture(sceaImage_.data(),
-                                  {psx::platform::kSceaSplashWidth, psx::platform::kSceaSplashHeight},
+                                  {kSceaSplashWidth, kSceaSplashHeight},
                                   static_cast<float>(sceaFade(sceaFrame_)) / kFadeFull);
     // The card frames were measured at the stub's 30 fps rate.
     game.framePacer.paceSubframeFields(core, {FrameCadence::kRetailVblanksPerLogicFrame, 1});

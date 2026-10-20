@@ -9,7 +9,7 @@
 #include "core.h"
 #include "entry/session.h"
 #include "game.h" // c->game->hle.deliverEvent — Hle subsystem lives on Game
-#include "gpu_ports.h"
+#include "gpu_device.h"
 #include "guest_call.h" // rc1-4 guest-call helpers (used by the preload chain below)
 #include "overrides/native_override_catalog.h"
 #include "sched/scheduler.h"
@@ -287,7 +287,7 @@ void Asset::uploadImage(const UploadImageArgs &args) {
   for (std::size_t i = 0; i < pixels.size(); i++) {
     pixels[i] = c->mem_r16(src + static_cast<std::uint32_t>(i * 2u));
   }
-  psx::gpu::loadImage(*c, {x, y, w, h}, pixels);
+  c->gpuDevice().loadImage({x, y, w, h}, pixels);
 }
 
 // ===== Stage-0/stage-1 area/asset PRELOAD — PC-native + SYNCHRONOUS (moved from native_boot.cpp,

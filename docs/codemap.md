@@ -17,6 +17,7 @@ function owners in `docs/guest-addresses.md`, producers in `docs/producers.md`, 
 | `Engine`, `StepReturn` | `game/core/engine/` | The stage driver: field run, frame ticks, task machine, object leaves, state dispatch, scene frame |
 | `tomba::FrameDriver` | `game/core/frame/frame_driver.h` | One pass of the retail main loop FUN_80050B08 per frame and exactly one presentation fence (`docs/re/frame-loop.md`) |
 | `BootCards` | `game/core/frame/boot_cards.h` | The SCEA card and LOGO movie before the first game frame, one step per `stepFrame` |
+| `decodeSceaSplash` | `game/core/frame/scea_splash.h`, `scea_asset.h` | The SCEA card's texture page and CLUT, decoded to the host picture `BootCards` shows |
 | `FrameCadence` | `game/core/frame/frame_cadence.h` | The frame-rate decision, published into the guest's quota byte |
 | `FrameCut` | `game/core/frame/frame_cut.h` | Whether a sealed record is a cut (stage, area, sub-scene, SOP shot, camera re-place) |
 | `FrameDiagnostics` | `game/core/frame/frame_diagnostics.h` | Per-frame title probes reported after the frame |
