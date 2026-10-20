@@ -3,7 +3,7 @@
 
 #include "gte_control.h"
 #include "guest_ordering_table.h"
-#include "host_ordering_table.h"
+#include "packet_chains.h"
 
 #include <array>
 #include <cmath>
@@ -130,12 +130,14 @@ void ListStateProducer::render(const psx::present::StateInterval &states, psx::p
     emit(psx::present::EmitMemory(core_, host), header.variant, header.call);
   }
 
-  const psx::present::HostOrderingTable table{
+  const psx::present::BucketHeads heads{
       header.call.ot,
       OrderingTable::kBucketCount,
-      psx::present::OtSlot{static_cast<std::uint16_t>(header.table), header.slot},
-      header.arenaBytes};
-  psx::present::emitHostOrderingTable(host, table, sink);
+      psx::present::OtSlot{static_cast<std::uint16_t>(header.table), header.slot}};
+  psx::present::DrawModeTracker drawMode;
+  psx::present::PacketChainWalker(psx::present::EmitMemory(core_, host),
+                                  psx::present::PacketBound::within({header.pool, header.arenaBytes}))
+      .emitBuckets(heads, drawMode, sink);
 }
 
 } // namespace tomba::render

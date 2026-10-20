@@ -28,6 +28,7 @@ set(GAME_SRC
   game/core/frame/frame_cut.cpp
   game/core/frame/frame_diagnostics.cpp
   game/core/frame/frame_driver.cpp
+  game/core/frame/scea_splash.cpp
   game/core/hle/libapi_intr.cpp
   game/core/overrides/native_override_catalog.cpp
   game/core/entry/session.cpp
