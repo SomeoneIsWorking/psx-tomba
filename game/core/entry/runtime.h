@@ -34,6 +34,7 @@ public:
   int displayHeight() const override;
   const GuestWidescreenProjection *guestWidescreenProjection() const override;
   bool titleCommand(Core &core, const psx::game::TitleCommandLine &input, std::FILE *reply) override;
+  std::span<const psx::debug::VerbUsage> commandUsage() const override;
   psx::game::TitleAudio *audio(Core &core) const override;
   psx::game::TitleDevWarp *devWarp(Core &core) const override;
   std::string worldReadout(Core &core) const override;

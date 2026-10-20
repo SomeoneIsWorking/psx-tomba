@@ -30,6 +30,7 @@
 #include "ui/ui_sprite.h"
 #include "unlit_model_emitter.h"
 
+#include <array>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -41,6 +42,9 @@ namespace tomba {
 namespace {
 
 constexpr std::uint32_t kGameMain = 0x80050B08u;
+constexpr std::array<psx::debug::VerbUsage, 1> kCommandUsage{{
+    {"tp [x y z]", "pin the camera at x y z; no arguments returns it to the player"},
+}};
 constexpr GuestAddressRange kResidentText{0x00010000u, 0x000BE800u};
 constexpr std::uint32_t kChangeThread = 0x80080880u;
 constexpr std::uint32_t kCdReady = 0x8008A96Cu;
@@ -218,13 +222,8 @@ void Runtime::bootInit(Core &core) {
 
 bool Runtime::titleCommand(Core &core, const psx::game::TitleCommandLine &input, std::FILE *reply) {
   const auto [command, args] = input;
-  auto *driver = dynamic_cast<FrameDriver *>(core.game->frameDriver.get());
-  if (driver == nullptr) {
-    lucent::error("tomba-native", "{} arrived with no Tomba! 2 frame driver", command);
-    std::abort();
-  }
   std::string answer;
-  if (driver->devControl().handle(core, args, answer)) {
+  if (core.game->frameDriverAs<FrameDriver>().devControl().handle(core, args, answer)) {
     std::fprintf(reply, "%s\n", answer.c_str());
     return true;
   }
@@ -247,6 +246,10 @@ bool Runtime::titleCommand(Core &core, const psx::game::TitleCommandLine &input,
     std::fprintf(reply, "ok: %s\n", command);
   }
   return handled;
+}
+
+std::span<const psx::debug::VerbUsage> Runtime::commandUsage() const {
+  return kCommandUsage;
 }
 
 psx::game::TitleAudio *Runtime::audio(Core &core) const {
