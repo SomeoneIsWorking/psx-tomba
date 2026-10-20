@@ -12,8 +12,8 @@ from pathlib import Path
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PSXPORT = os.path.join(REPO, 'external', 'psxport')
 
-# The canonical maintainer build; the player build under build/player/<toolchain> belongs to run.sh.
-BIN = os.path.join(REPO, 'build', 'ci', 'bin', 'tomba2_port')
+# The agent build; the player build under build/player belongs to run.sh.
+BIN = os.path.join(REPO, 'build', 'agent', 'bin', 'tomba2_port')
 # The boot stub the catalog selects Tomba! 2 by; the product host extracts it from the disc.
 EXE = os.path.join(REPO, 'scratch', 'bin', 'tomba2', 'SCUS_944.54')
 SHIPPING_SETTINGS = os.path.join(REPO, 'tools', 'shipping_settings.ini')
@@ -51,7 +51,6 @@ def native_environment(watchdog: int, debug: str = '', extra_env: dict | None = 
     sys.path.insert(0, os.path.join(PSXPORT, 'tools'))
     from port.launch_environment import agent_environment
     env = agent_environment(dict(os.environ), settings or SHIPPING_SETTINGS)
-    env['PSXPORT_ASSET_DIR'] = env.get('PSXPORT_ASSET_DIR') or PSXPORT
     env['PSXPORT_TOMBA2_DISC'] = tomba2_disc(env)
     env['PSXPORT_REPL'] = '1'
     env['PSXPORT_WATCHDOG'] = str(watchdog)

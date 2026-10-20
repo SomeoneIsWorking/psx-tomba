@@ -26,16 +26,16 @@ huts/areas/doors), `bugs/` (repros for a specific tracked bug).
 # standalone (REPL, inspect state the scenario produces):
 printf 'newgame\nrun 9999\nquit\n' \
   | PSXPORT_REPL=1 PSXPORT_VK_HEADLESS=1 PSXPORT_NOAUDIO=1 \
-    PSXPORT_PAD_REPLAY=replays/<category>/<name>.pad ./scratch/bin/tomba2_port
+    PSXPORT_PAD_REPLAY=replays/<category>/<name>.pad ./build/agent/bin/tomba2_port
 
 # under SBS-full (surface memory divergences the scenario reaches):
-PSXPORT_NOWINDOW=1 PSXPORT_SBS_MODE=full PSXPORT_SBS_AUTONAV=1 PSXPORT_NOAUDIO=1 \
-  PSXPORT_PAD_REPLAY=replays/<category>/<name>.pad ./scratch/bin/tomba2_port
+PSXPORT_VK_HEADLESS=1 PSXPORT_SBS_MODE=full PSXPORT_SBS_AUTONAV=1 PSXPORT_NOAUDIO=1 \
+  PSXPORT_PAD_REPLAY=replays/<category>/<name>.pad ./build/agent/bin/tomba2_port
 
 # under SBS-full WITH the debug server (pause at the diverge, then `sbs watch`/`sbs bt`):
-PSXPORT_NOWINDOW=1 PSXPORT_DEBUG_SERVER=1 PSXPORT_SBS_MODE=full PSXPORT_SBS_AUTONAV=1 PSXPORT_NOAUDIO=1 \
-  PSXPORT_PAD_REPLAY=replays/<category>/<name>.pad ./scratch/bin/tomba2_port &
-# then: python3 tools/dbgclient.py sbs status   (connects to 127.0.0.1:5959)
+PSXPORT_VK_HEADLESS=1 PSXPORT_DEBUG_SERVER=1 PSXPORT_SBS_MODE=full PSXPORT_SBS_AUTONAV=1 PSXPORT_NOAUDIO=1 \
+  PSXPORT_PAD_REPLAY=replays/<category>/<name>.pad ./build/agent/bin/tomba2_port &
+# then: uv run --frozen python external/psxport/tools/dbgclient.py sbs status   (connects to 127.0.0.1:5959)
 ```
 
 `newgame` pulses Start to reach the GAME prologue, then the replay's button sequence drives from
@@ -119,7 +119,7 @@ Once the recorded sequence ends, input falls through to the host (so `run N` aft
   garbled sprite cluster beside the text — while the guest emits exactly one black FILL.
   ```
   PSXPORT_VK_HEADLESS=1 PSXPORT_NOAUDIO=1 PSXPORT_DEBUG_SERVER=5965 \
-    PSXPORT_PAD_REPLAY=replays/bugs/save-prompt-black-screen.pad ./scratch/bin/tomba2_port <MAIN.EXE>
+    PSXPORT_PAD_REPLAY=replays/bugs/save-prompt-black-screen.pad ./build/agent/bin/tomba2_port <MAIN.EXE>
   # then: dbgclient --port 5965 vkshot <path>   (the prompt is up from ~f12500)
   ```
 - `bugs/weapon-impact-bucket.pad` — 686 frames, self-contained from boot (do NOT add

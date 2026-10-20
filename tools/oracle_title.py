@@ -18,7 +18,6 @@ from compare import (
     DeclaredRange,
     Driver,
     Pattern,
-    SelftestSeed,
     Settle,
     released,
     step_until_counter_resets,
@@ -180,8 +179,6 @@ gameplay = (
     (frozenset({"right"}), 60),
     (frozenset(), 30),
 )
-
-selftest = SelftestSeed(PLAYER_POSITION, "player.position", 0)
 
 
 

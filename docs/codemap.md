@@ -69,7 +69,7 @@ function owners in `docs/guest-addresses.md`, producers in `docs/producers.md`, 
 | packet emitters | `game/render/fx_sprite_*`, `game/render/tile_grid_layer.h`, `game/render/sop_ground.h`, `game/render/rain_streaks.h`, `game/render/*walk*`, `game/render/perobj_*` | One port per remaining guest draw family |
 | Tomba! 1 | `titles/tomba1/` | The second title, isolated from `game/`; `titles/tomba1/docs/codemap.md` |
 | build | `CMakeLists.txt`, `cmake/port.cmake`, `titles/tomba1/cmake/` | `tomba2_port` (both titles), `tomba2_game`, `tomba1_runtime`, the tests and policy gate |
-| launcher, provisioning | `tools/run.py`, `tools/provision.py` | The zero-argument launch, evidence images, the `external/psxport` fetch (`run.py:sync_framework`) |
+| launcher, provisioning | `bootstrap.py`, `tools/run.py`, `tools/provision.py` | The `external/psxport` fetch (`bootstrap.py`), the zero-argument launch on psxport `tools/port/launcher.py`, evidence images |
 | agent tools | `tools/product_environment.py`, `tools/oracle_compare.py`, `tools/oracle_title.py`, `tools/picture_oracle.py`, `tools/title_prompts.py` | Headless launch environment, oracle comparison, picture checks, title prompts |
 
 ## Where new work goes

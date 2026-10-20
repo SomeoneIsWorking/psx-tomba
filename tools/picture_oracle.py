@@ -3,7 +3,6 @@
 full-console reference, at the same title-owned states tools/oracle_compare.py compares RAM at.
 
     uv run --frozen python tools/picture_oracle.py --bios ../SCPH1001.BIN
-    uv run --frozen python tools/picture_oracle.py --bios ../SCPH1001.BIN --selftest
 
 tools/oracle_compare.py answers "does the simulation still behave"; it reads guest RAM and cannot
 see a rendering defect. This answers "does it still LOOK like the game", which is the question a
