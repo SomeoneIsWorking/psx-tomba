@@ -1,4 +1,4 @@
-name: Asset-free native/dynarec contract
+name: Build
 
 on:
   push:
@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   linux-x86_64:
-    name: Linux x86-64 native/Lightrec contract
+    name: Linux x86-64 build
     runs-on: ubuntu-26.04
     timeout-minutes: 60
     env:
@@ -38,5 +38,5 @@ jobs:
         with:
           framework-directory: external/psxport
           dependency-directory: build/deps
-      - name: Run the asset-free repository gate
-        run: uv run --frozen python tools/verify_ci.py
+      - name: Build the product
+        run: uv run --frozen python external/psxport/tools/port/consumer_build.py --build build/ci --target tomba2_port

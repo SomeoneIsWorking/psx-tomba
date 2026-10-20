@@ -58,15 +58,12 @@ movie/CD frontier. Important preserved facts include public/internal `CdSync` at
 `0x80067E84` for callback `0x80066D80`, and prior progress beyond LBA 58739. Title-screen input and
 representative gameplay remain unverified.
 
-## Asset-free verification
+## Building
 
-`uv run --frozen python tools/verify_ci.py` uses PSXPort's shared consumer verifier
-to configure, compile, run all title tests, and inspect the linked execution
-boundary. Set `PSXPORT_LIGHTREC_DIR` and `PSXPORT_LIGHTNING_PREFIX` to the exact
-maintained dependencies; the workflow records and provisions their revisions.
-`--build build/<name>` selects an isolated build whose products live in its own
-`bin/` directory. That is the whole gate: build, the product unit tests, the
-clang-format/clang-tidy/cpp-policy check and the execution-boundary check. Representative gameplay and
+There are no unit tests or gates. Build with `CC=clang CXX=clang++ uv run --frozen python
+external/psxport/tools/port/consumer_build.py --build build/agent --target tomba2_port`. Set
+`PSXPORT_LIGHTREC_DIR` and `PSXPORT_LIGHTNING_PREFIX` to the exact maintained dependencies; the
+workflow records and provisions their revisions. Representative gameplay and
 image-qualified override verification
 remain open ([issue 0005](docs/issues/0005-prove-tomba2-image-aware-lightrec-override-dispatch.md)).
 

@@ -2,8 +2,7 @@
 
 Which guest draw functions key their packets for 60 fps interpolation, what each saves per frame, and
 how the composer renders it between two frames. The mechanism is psxport `presentation.md`
-(Interpolation, Frame model); the owners are in `docs/codemap.md`. Tests: `tests/test_producers.cpp`,
-`tests/test_writer_producers.cpp`, `tests/test_model_emitters.cpp`.
+(Interpolation, Frame model); the owners are in `docs/codemap.md`.
 
 ## Keyed producers
 

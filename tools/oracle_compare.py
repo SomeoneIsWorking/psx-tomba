@@ -7,7 +7,7 @@ reference at title-owned state checkpoints (psxport docs/oracle.md, tools/oracle
 
 The title policy lives in tools/oracle_title.py — which takes the route's DECISIONS (which button a
 screen wants, at what cadence) from tools/title_prompts.py, the module tools/live_play.py asks too — and
-the product launch environment comes from tools/gate.py so every agent driver of the product builds it in
+the product launch environment comes from tools/product_environment.py so every agent driver of the product builds it in
 one place.
 """
 
@@ -19,14 +19,14 @@ from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-import gate  # noqa: E402  (tools/gate.py owns the product launch environment)
+import product_environment  # noqa: E402
 
-sys.path.insert(0, os.path.join(gate.PSXPORT, "tools", "oracle"))
+sys.path.insert(0, os.path.join(product_environment.PSXPORT, "tools", "oracle"))
 
 import compare  # noqa: E402
 import oracle_title as title  # noqa: E402
 
-REPO = Path(gate.REPO)
+REPO = Path(product_environment.REPO)
 OUT_DIR = REPO / "scratch" / "oracle"
 DEFAULT_BIOS = REPO.parent / "SCPH1001.BIN"
 
@@ -35,8 +35,8 @@ def main() -> int:
     parser = compare.build_parser(__doc__, DEFAULT_BIOS)
     parser.add_argument("--watchdog", type=int, default=3600, help="product watchdog seconds")
     args = parser.parse_args()
-    environment = gate.native_environment(args.watchdog, extra_env=compare.product_env(args))
-    product = compare.Product(Path(gate.BIN), Path(gate.EXE), environment, REPO,
+    environment = product_environment.native_environment(args.watchdog, extra_env=compare.product_env(args))
+    product = compare.Product(Path(product_environment.BIN), Path(product_environment.EXE), environment, REPO,
                               Path(environment["PSXPORT_TOMBA2_DISC"]))
     return compare.run(title, product, args, OUT_DIR)
 

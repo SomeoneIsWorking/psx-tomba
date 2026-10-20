@@ -28,8 +28,7 @@ menu (docs/tomba2-newgame.md §1, verified there by cursor and screen capture): 
 NewGame (left) / LoadGame (right) and page 2 offers StartGame (left) / Options (right), and BOTH
 pages confirm with Cross. So a single press advances one page, and the route has to press twice
 before the GAME stage latches — a cadence of one press every 12 frames delivers both confirms
-inside the ~25 frames the product's own REPL `newgame` policy takes (measured: GAME at frame 25,
-tools/gate.py `boot`). Holding one press until the stage changed would confirm page 1 and then sit
+inside the ~25 frames the product's own REPL `newgame` policy takes (measured: GAME at frame 25). Holding one press until the stage changed would confirm page 1 and then sit
 there. The same cadence, in the same numbers, is what `game/core/debug/auto_drive.cpp` ships in C++ for
 `PSXPORT_AUTO_SKIP`/REPL `newgame`; that is the product owner of the policy and this module is the
 driver-side statement of it, deliberately kept in step with it.

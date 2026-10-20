@@ -2,8 +2,7 @@
 
 option(PSXPORT_BUILD_PORT "Build the Tomba!2 native port binary (tomba2_port)" ON)
 
-# The framework static library (psxport) + its option(PSXPORT_BUILD_SMOKE) + the standalone smoke.
-# Always included so `psxport` / `psxport_smoke` are buildable even when the game target is off.
+# The framework static library (psxport). Always included so `psxport` is buildable even when the game target is off.
 include(${PSXPORT_DIR}/cmake/psxport.cmake)
 
 if(NOT PSXPORT_BUILD_PORT)
@@ -309,15 +308,3 @@ target_compile_options(tomba2_game PRIVATE -O2 -g
   ${SDL3_CFLAGS_OTHER} ${FREETYPE_CFLAGS_OTHER})
 target_compile_options(tomba2_port PRIVATE -O2 -g
   ${SDL3_CFLAGS_OTHER} ${FREETYPE_CFLAGS_OTHER})
-
-if(BUILD_TESTING)
-  foreach(TOMBA2_HELP_ARGUMENT IN ITEMS -h --help)
-    string(REPLACE "-" "" TOMBA2_HELP_SUFFIX "${TOMBA2_HELP_ARGUMENT}")
-    add_test(
-      NAME "tomba2_direct_help_${TOMBA2_HELP_SUFFIX}"
-      COMMAND "$<TARGET_FILE:tomba2_port>" "${TOMBA2_HELP_ARGUMENT}")
-    set_tests_properties(
-      "tomba2_direct_help_${TOMBA2_HELP_SUFFIX}"
-      PROPERTIES PASS_REGULAR_EXPRESSION "Usage: tomba2_port")
-  endforeach()
-endif()

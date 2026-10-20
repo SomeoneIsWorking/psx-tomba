@@ -8,7 +8,7 @@ full-console reference, at the same title-owned states tools/oracle_compare.py c
 tools/oracle_compare.py answers "does the simulation still behave"; it reads guest RAM and cannot
 see a rendering defect. This answers "does it still LOOK like the game", which is the question a
 player is actually asking. The title policy is shared with the RAM comparison (tools/oracle_title.py)
-and the launch environment with every other agent driver (tools/gate.py).
+and the launch environment with every other agent driver (tools/product_environment.py).
 """
 
 from __future__ import annotations
@@ -19,15 +19,15 @@ from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-import gate  # noqa: E402  (tools/gate.py owns the product launch environment)
+import product_environment  # noqa: E402
 
-sys.path.insert(0, os.path.join(gate.PSXPORT, "tools", "oracle"))
+sys.path.insert(0, os.path.join(product_environment.PSXPORT, "tools", "oracle"))
 
 import compare  # noqa: E402
 import oracle_title as title  # noqa: E402
 import picture  # noqa: E402
 
-REPO = Path(gate.REPO)
+REPO = Path(product_environment.REPO)
 OUT_DIR = REPO / "scratch" / "picture"
 DEFAULT_BIOS = REPO.parent / "SCPH1001.BIN"
 
@@ -38,9 +38,9 @@ def main() -> int:
     args = parser.parse_args()
     # Not tools/shipping_settings.ini: the picture question needs 4:3 and no interpolation, and
     # picture.py owns that configuration because it is the comparator's requirement, not Tomba! 2's.
-    environment = gate.native_environment(args.watchdog, extra_env=compare.product_env(args),
+    environment = product_environment.native_environment(args.watchdog, extra_env=compare.product_env(args),
                                           settings=str(picture.REFERENCE_SETTINGS))
-    product = compare.Product(Path(gate.BIN), Path(gate.EXE), environment, REPO,
+    product = compare.Product(Path(product_environment.BIN), Path(product_environment.EXE), environment, REPO,
                               Path(environment["PSXPORT_TOMBA2_DISC"]))
     return picture.run(title, product, args, OUT_DIR)
 
