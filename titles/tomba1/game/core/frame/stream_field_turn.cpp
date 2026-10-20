@@ -14,7 +14,7 @@ void advanceStreamAudio(Core &core) {
 }
 
 void pumpStreamDisc(Core &core) {
-  core.game->cd.stockLibrary()->pumpStream(core, CD_STREAM_MAX_BURST);
+  core.game->cd.stockLibrary()->pumpStream(core, psx::cd::kStreamMaxBurst);
 }
 
 constexpr StreamFieldTurn kStreamFieldTurn{.advanceAudio = advanceStreamAudio, .pumpDisc = pumpStreamDisc};
@@ -39,7 +39,7 @@ void logStreamState(Core &core, const char *phase) {
                 controller.bfrd,
                 controller.data_rd,
                 controller.data_n,
-                controller.currentIrqType(),
+                static_cast<unsigned>(controller.currentIrqType()),
                 controller.q_head,
                 controller.q_tail,
                 controller.loc_lba,

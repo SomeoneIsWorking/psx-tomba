@@ -30,9 +30,6 @@ constexpr std::uint32_t kCommandCallback = 0x80096300u;
 constexpr std::uint32_t kSyncHandler = 0x800646F4u;
 constexpr std::uint32_t kReadyHandler = 0x8006471Cu;
 constexpr std::uint32_t kCommandHandler = 0x80064744u;
-constexpr std::uint8_t kCdcIrqDataReady = 1u;
-constexpr std::uint8_t kCdcIrqComplete = 2u;
-constexpr std::uint8_t kCdcIrqAcknowledge = 3u;
 
 // libcd's interrupt handler, which this port replaces with host-served CdControl/CdSync, consumes
 // every command response (INT3/INT2) and drops a data-ready (INT1) no ready callback receives. Those
@@ -41,9 +38,9 @@ void retireUnownedResponses(Core &core) {
   psx::cd::CdController &controller = core.game->cdc;
   controller.service();
   for (;;) {
-    const std::uint8_t type = controller.currentIrqType();
-    const bool commandResponse = type == kCdcIrqComplete || type == kCdcIrqAcknowledge;
-    const bool unclaimedData = type == kCdcIrqDataReady && core.mem_r32(kCdReadyCallbackPointer) == 0u;
+    const psx::cd::CdcResponse type = controller.currentIrqType();
+    const bool commandResponse = type == psx::cd::CdcResponse::Complete || type == psx::cd::CdcResponse::Acknowledge;
+    const bool unclaimedData = type == psx::cd::CdcResponse::DataReady && core.mem_r32(kCdReadyCallbackPointer) == 0u;
     if (!commandResponse && !unclaimedData) {
       return;
     }
@@ -107,7 +104,7 @@ void cdReadyOverride(Core *core) {
   controller.service();
   lucent::debug("tomba1-cdready",
                 "reason={} queue={}->{} read={} first={} data={}/{} lba={}",
-                controller.currentIrqType(),
+                static_cast<unsigned>(controller.currentIrqType()),
                 controller.q_head,
                 controller.q_tail,
                 controller.reading,
@@ -116,7 +113,7 @@ void cdReadyOverride(Core *core) {
                 controller.data_n,
                 controller.loc_lba);
   std::array<std::uint8_t, 8> response{};
-  core->r[2] = psx::cd::acknowledgeCurrentCdResponse(*core, response);
+  core->r[2] = static_cast<std::uint32_t>(psx::cd::acknowledgeCurrentCdResponse(*core, response));
   const std::uint32_t result = core->r[5];
   if (core->r[2] != 0u && result != 0u) {
     for (std::uint32_t offset = 0; offset < response.size(); ++offset) {
