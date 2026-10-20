@@ -57,15 +57,17 @@ void BootCards::stepScea(Core &core) {
   if (skipped) {
     lucent::info("scea", "skipped (Start) at frame {}", sceaFrame_);
   } else {
-    core.game->display.presentHostPicture(sceaImage_.data(),
-                                          {psx::platform::kSceaSplashWidth, psx::platform::kSceaSplashHeight},
-                                          static_cast<float>(sceaFade(sceaFrame_)) / kFadeFull);
+    game.display.buildHostPicture(sceaImage_.data(),
+                                  {psx::platform::kSceaSplashWidth, psx::platform::kSceaSplashHeight},
+                                  static_cast<float>(sceaFade(sceaFrame_)) / kFadeFull);
     // The card frames were measured at the stub's 30 fps rate.
     game.framePacer.paceSubframeFields(core, {FrameCadence::kRetailVblanksPerLogicFrame, 1});
+    game.display.show();
   }
   if (skipped || ++sceaFrame_ >= kSceaFrames) {
     sceaImage_ = {};
-    game.display.present(psx::present::PresentCompletion::Transition);
+    game.display.build(psx::present::PresentCompletion::Transition);
+    game.display.show();
     phase_ = Phase::Movie;
   }
 }
@@ -87,7 +89,8 @@ void BootCards::stepMovie(Core &core) {
 }
 
 void BootCards::finish(Core &core) {
-  core.game->display.present(psx::present::PresentCompletion::Transition);
+  core.game->display.build(psx::present::PresentCompletion::Transition);
+  core.game->display.show();
   phase_ = Phase::Done;
 }
 
