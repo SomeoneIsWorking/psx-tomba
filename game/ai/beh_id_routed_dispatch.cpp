@@ -94,7 +94,7 @@ void beh_id_routed_offset_point(Core *c) {
   c->mem_w16((c->r[5] + (uint32_t)4), (uint16_t)c->r[0]);
   c->r[31] = 0x80122C4Cu;
   c->r[4] = c->r[18] + (uint32_t)24;
-  psx::cpu::dispatchGuestToReturn0(*c, 0x800844C0u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, 0x800844C0u);
   c->r[2] = (uint32_t)c->mem_r16((c->r[17] + (uint32_t)200));
   c->r[3] = (uint32_t)c->mem_r16((c->r[18] + (uint32_t)44));
   c->r[2] = c->r[2] + c->r[3];

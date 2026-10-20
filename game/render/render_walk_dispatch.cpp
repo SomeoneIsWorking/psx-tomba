@@ -118,7 +118,7 @@ void renderWalkCase188(Core *c) {
   if (c->mem_r8(MODE_BYTE_188) == 4u) {
     c->r[4] = node;
     c->r[31] = 0x8003C1A4u;
-    psx::cpu::dispatchGuestToReturn0(*c, 0x8011BE5Cu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, 0x8011BE5Cu);
     return;
   }
   const uint32_t tbl = c->mem_r32(node + 56u);
@@ -133,22 +133,22 @@ void renderWalkCase188(Core *c) {
   c->r[5] = listBase + (uint32_t)(int32_t)byteOff;
   c->r[6] = 0u;
   c->r[31] = 0x8003C1E0u;
-  psx::cpu::dispatchGuestToReturn0(*c, 0x8003B054u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, 0x8003B054u);
   c->mem_w8(sp + 23u, 45u);
   for (uint32_t i = 0; i < 11u; i++) {
     c->mem_w16(sp + 56u + i * 2u, c->mem_r16(node + 96u + i * 2u));
   }
   c->r[4] = c->r[18];
   c->r[31] = 0x8003C27Cu;
-  psx::cpu::dispatchGuestToReturn0(*c, 0x80084660u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, 0x80084660u);
   c->r[4] = c->r[18];
   c->r[31] = 0x8003C284u;
-  psx::cpu::dispatchGuestToReturn0(*c, 0x80084690u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, 0x80084690u);
   c->r[4] = sp + 16u;
   c->r[5] = sp + 56u;
   c->r[6] = 16u;
   c->r[31] = 0x8003C294u;
-  psx::cpu::dispatchGuestToReturn0(*c, 0x8003B320u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, 0x8003B320u);
 }
 } // namespace
 
@@ -182,43 +182,43 @@ void Render::renderWalk() {
           c->r[4] = c->r[16];
           c->r[5] = 0u;
           c->r[31] = 0x8003C0D0u;
-          psx::cpu::dispatchGuestToReturn0(*c, 0x8003F174u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+          psx::cpu::callGuestNow(*c, __func__, 0x8003F174u);
           break;
         case 0x8003C0D8u:
           c->r[4] = c->r[16];
           c->r[31] = 0x8003C0E0u;
-          psx::cpu::dispatchGuestToReturn0(*c, 0x8003EF9Cu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+          psx::cpu::callGuestNow(*c, __func__, 0x8003EF9Cu);
           break;
         case 0x8003C0E8u:
           c->r[4] = c->r[16];
           c->r[31] = 0x8003C0F0u;
-          psx::cpu::dispatchGuestToReturn0(*c, 0x80039F4Cu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+          psx::cpu::callGuestNow(*c, __func__, 0x80039F4Cu);
           break;
         case 0x8003C0F8u:
           c->r[4] = c->r[16];
           c->r[31] = 0x8003C100u;
-          psx::cpu::dispatchGuestToReturn0(*c, 0x8012A43Cu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+          psx::cpu::callGuestNow(*c, __func__, 0x8012A43Cu);
           break;
         case 0x8003C108u:
           c->r[4] = c->r[16];
           c->r[31] = 0x8003C110u;
-          psx::cpu::dispatchGuestToReturn0(*c, 0x801295B4u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+          psx::cpu::callGuestNow(*c, __func__, 0x801295B4u);
           break;
         case 0x8003C118u:
           c->r[4] = c->r[16];
           c->r[31] = 0x8003C120u;
-          psx::cpu::dispatchGuestToReturn0(*c, 0x80129114u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+          psx::cpu::callGuestNow(*c, __func__, 0x80129114u);
           break;
         case 0x8003C128u:
           c->r[4] = c->r[16];
           c->r[31] = 0x8003C130u;
-          psx::cpu::dispatchGuestToReturn0(*c, 0x8013DD58u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+          psx::cpu::callGuestNow(*c, __func__, 0x8013DD58u);
           break;
         case 0x8003C138u:
           // Full-screen fade/flash tile.
           c->r[4] = c->r[16];
           c->r[31] = 0x8003C140u;
-          psx::cpu::dispatchGuestToReturn0(*c, 0x800726D4u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+          psx::cpu::callGuestNow(*c, __func__, 0x800726D4u);
           break;
         case 0x8003C148u:
           c->r[4] = c->r[16];
@@ -233,12 +233,12 @@ void Render::renderWalk() {
         case 0x8003C168u:
           c->r[4] = c->r[16];
           c->r[31] = 0x8003C170u;
-          psx::cpu::dispatchGuestToReturn0(*c, 0x8003C5F8u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+          psx::cpu::callGuestNow(*c, __func__, 0x8003C5F8u);
           break;
         case 0x8003C178u:
           c->r[4] = c->r[16];
           c->r[31] = 0x8003C180u;
-          psx::cpu::dispatchGuestToReturn0(*c, 0x8003C788u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+          psx::cpu::callGuestNow(*c, __func__, 0x8003C788u);
           break;
         case 0x8003C188u:
           renderWalkCase188(c);
@@ -249,7 +249,7 @@ void Render::renderWalk() {
           const uint32_t fn = c->mem_r32(c->r[16] + 24u);
           c->r[4] = c->r[16];
           c->r[31] = 0x8003C2ACu;
-          psx::cpu::dispatchGuestToReturn0(*c, fn, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+          psx::cpu::callGuestNow(*c, __func__, fn);
           break;
         }
         case 0x8003C2ACu:
@@ -261,7 +261,7 @@ void Render::renderWalk() {
           // cases. Never hit by live game data: the live 33-slot table only ever holds the case values enumerated
           // above.
           c->r[4] = c->r[16];
-          psx::cpu::dispatchGuestToReturn0(*c, target, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+          psx::cpu::callGuestNow(*c, __func__, target);
           return;
         }
       }

@@ -26,7 +26,7 @@ constexpr std::uint32_t kYieldResume = 0x80051FA4u; // FUN_80051F80's epilogue
 constexpr std::uint32_t kFreshTaskReturn = 0xDEAD0000u;
 
 void callGuest(Core &core, std::uint32_t address, const char *owner) {
-  psx::cpu::dispatchGuestToReturn0(core, address, psx::cpu::ExecutionBudget::currentTurn(core), owner);
+  psx::cpu::callGuestNow(core, owner, address);
 }
 
 } // namespace

@@ -2,7 +2,6 @@
 
 #include "core.h"
 #include "core/engine/task_sm.h"
-#include "debug/dev_args.h"
 #include "debug/dev_gate.h"
 
 #include <lucent/log.h>
@@ -49,15 +48,14 @@ DevWarp::Phase DevWarp::phase(Core &core) {
   return Phase::Unavailable;
 }
 
-std::string DevWarp::arm(Core &core, const char *line) {
-  const auto words = DevArgs::words(line);
-  uint32_t area = 0;
-  uint32_t entry = 0;
-  const bool parsed = (words.size() == 2 || words.size() == 3) && DevArgs::decimal(words[1], area) &&
-                      (words.size() == 2 || DevArgs::decimal(words[2], entry));
-  if (!parsed) {
+std::string DevWarp::arm(Core &core, const psx::debug::CommandArgs &args) {
+  const std::optional<uint32_t> areaWord = args.number(1);
+  const std::optional<uint32_t> entryWord = args.size() == 2 ? 0u : args.number(2);
+  if ((args.size() != 2 && args.size() != 3) || !areaWord || !entryWord) {
     return "usage: warp <area> [entry]";
   }
+  const uint32_t area = *areaWord;
+  const uint32_t entry = *entryWord;
   const int count = kAreaCount;
   if (area >= static_cast<uint32_t>(count)) {
     return lucent::format("refused: area {} is out of range, this game has {} areas (0..{})", area, count, count - 1);

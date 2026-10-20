@@ -995,8 +995,7 @@ void CollisionResolve::resolveByContactPolicy(Core *c) {
     // measured 2026-07-30, deleting this line still gives port_check a PASS, because its
     // op-sequence extractor counts the five `guest_call` sites and drops the switch default on
     // both sides. That blind spot is recorded in docs/re/collision-resolve-23d48.md.
-    psx::cpu::dispatchGuestToReturn0(
-        *c, c->mem_r32(kPolicyTable + policyIndex * 4u), psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, c->mem_r32(kPolicyTable + policyIndex * 4u));
     return;
   }
 }

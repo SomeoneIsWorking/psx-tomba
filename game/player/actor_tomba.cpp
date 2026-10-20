@@ -404,8 +404,7 @@ uint32_t ActorTomba::settleStep(int32_t mode) {
     c->r[4] = G;
     c->r[5] = probeOffset;
     c->r[6] = (uint32_t)(int32_t)offset;
-    psx::cpu::dispatchGuestToReturn0(
-        *c, 0x8004954Cu, psx::cpu::ExecutionBudget::currentTurn(*c), "actor_tomba"); // grid probe
+    psx::cpu::callGuestNow(*c, "actor_tomba", 0x8004954Cu); // grid probe
     return (int32_t)c->r[2];
   };
 

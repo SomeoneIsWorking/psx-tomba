@@ -134,7 +134,7 @@ inline void call5(Core *c, const FiveArguments &args, uint32_t addr) {
   const uint32_t sp = c->r[29] - 24u;
   c->r[29] = sp;
   c->mem_w32(sp + 16u, f); // MIPS calling convention: 5th arg on stack at sp+16
-  psx::cpu::dispatchGuestToReturn0(*c, addr, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, addr);
   c->r[29] = sp + 24u;
 }
 
@@ -186,7 +186,7 @@ void cutsceneDirector(Core *c, uint32_t obj) {
       c->mem_w8(obj + O_SUB_5, (uint8_t)(st + 1u));
       c->r[4] = obj + O_ANIM_2C;
       c->r[5] = 0u;
-      psx::cpu::dispatchGuestToReturn0(*c, 0x8013DD48u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, 0x8013DD48u);
       c->mem_w16(obj + O_H_40, 8u);
     }
     break;
@@ -199,10 +199,10 @@ void cutsceneDirector(Core *c, uint32_t obj) {
     }
     c->mem_w8(obj + O_SUB_5, (uint8_t)(st + 1u));
     c->r[4] = obj + O_ANIM_2C;
-    psx::cpu::dispatchGuestToReturn0(*c, 0x8013DD48u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, 0x8013DD48u);
     c->r[4] = obj + O_ANIM_2C;
     c->r[5] = 2u;
-    psx::cpu::dispatchGuestToReturn0(*c, 0x8013DD48u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, 0x8013DD48u);
     c->mem_w16(obj + O_H_40, 8u);
     break;
   }
@@ -216,16 +216,16 @@ void cutsceneDirector(Core *c, uint32_t obj) {
     c->mem_w8(obj + O_SUB_5, (uint8_t)(st + 1u));
     c->r[4] = iVar8;
     c->r[5] = 3u;
-    psx::cpu::dispatchGuestToReturn0(*c, 0x8013DD48u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, 0x8013DD48u);
     c->r[4] = iVar8;
     c->r[5] = 4u;
-    psx::cpu::dispatchGuestToReturn0(*c, 0x8013DD48u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, 0x8013DD48u);
     c->r[4] = iVar8;
     c->r[5] = 5u;
-    psx::cpu::dispatchGuestToReturn0(*c, 0x8013DD48u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, 0x8013DD48u);
     c->r[4] = iVar8;
     c->r[5] = 6u;
-    psx::cpu::dispatchGuestToReturn0(*c, 0x8013DD48u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, 0x8013DD48u);
     c->mem_w16(obj + O_H_40, 8u);
     break;
   }
@@ -237,7 +237,7 @@ void cutsceneDirector(Core *c, uint32_t obj) {
       for (int iVar8 = 7; iVar8 < 0x14; iVar8++) {
         c->r[4] = obj + O_ANIM_2C;
         c->r[5] = (uint32_t)iVar8;
-        psx::cpu::dispatchGuestToReturn0(*c, 0x8013DD48u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+        psx::cpu::callGuestNow(*c, __func__, 0x8013DD48u);
       }
       c->mem_w16(obj + O_H_40, 0x5Au);
     }
@@ -322,7 +322,7 @@ void cutsceneDirector(Core *c, uint32_t obj) {
     const uint32_t spriteArg = idIdx * 0x20u - 0x7FEBA61Cu;
     c->r[4] = ptr;
     c->r[5] = spriteArg;
-    psx::cpu::dispatchGuestToReturn0(*c, 0x80081218u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, 0x80081218u);
     c->r[29] = sp_save;
   }
   (void)fellThrough;
@@ -441,7 +441,7 @@ int state0Init(Core *c, uint32_t obj) {
       c->mem_w16(obj + O_H_84, 0x1C0u);
       c->mem_w16(obj + O_H_86, 0x1C0u);
       // Guest calls FUN_800517F8() with no obj arg (bug in guest instruction path? — kept faithfully).
-      psx::cpu::dispatchGuestToReturn0(*c, 0x800517F8u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, 0x800517F8u);
     }
     return LAB_none;
   case 0x11:
@@ -542,7 +542,7 @@ int state1Run(Core *c, uint32_t obj) {
         (int16_t)(((int32_t)((uint32_t)c->mem_r16(G_1F8000E2) - (uint32_t)c->mem_r16(obj + O_H_32)) << 16) >> 16);
     c->r[4] = obj;
     c->r[5] = (uint32_t)(int32_t)sub;
-    psx::cpu::dispatchGuestToReturn0(*c, 0x800778E4u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, 0x800778E4u);
     return RET_none;
   }
   case 5:

@@ -318,8 +318,7 @@ L_state0:; // state 0 — arm the scene event, latch completion
     }
   }
   c->r[31] = 0x800427A0u;
-  psx::cpu::dispatchGuestToReturn0(
-      *c, 0x80040B48u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // SceneEvents::arm(param0)
+  psx::cpu::callGuestNow(*c, __func__, 0x80040B48u); // SceneEvents::arm(param0)
   c->r[3] = c->r[0] + (uint32_t)1;
   {
     int _t = (c->r[2] != c->r[3]);
@@ -343,8 +342,7 @@ L_advance:;
   goto L_ret0;
 L_state1:; // state 1 — poll the scene-progress-ready predicate
   c->r[31] = 0x800427D8u;
-  psx::cpu::dispatchGuestToReturn0(
-      *c, 0x80042728u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // readyForProgress
+  psx::cpu::callGuestNow(*c, __func__, 0x80042728u); // readyForProgress
   goto L_ret;
 L_ret0:;
   c->r[2] = c->r[0] + c->r[0];

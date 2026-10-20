@@ -443,10 +443,7 @@ L_80078D74: {
   c->r[5] = c->r[5] << 16;
   c->r[31] = 0x80078DA8u;
   c->r[5] = (uint32_t)((int32_t)c->r[5] >> 16);
-  psx::cpu::dispatchGuestToReturn0(*c,
-                                   0x80078988u,
-                                   psx::cpu::ExecutionBudget::currentTurn(*c),
-                                   __func__); // FUN_80078988 -- still unowned, out of this wave's band
+  psx::cpu::callGuestNow(*c, __func__, 0x80078988u); // FUN_80078988 -- still unowned, out of this wave's band
   c->r[2] = (uint32_t)c->mem_r16(c->r[18] + 8u);
   c->r[16] = c->r[16] + 1u;
   goto L_80078F70;
@@ -469,7 +466,7 @@ L_80078DB4: {
   c->r[5] = c->r[5] << 16;
   c->r[31] = 0x80078DE8u;
   c->r[5] = (uint32_t)((int32_t)c->r[5] >> 16);
-  psx::cpu::dispatchGuestToReturn0(*c, 0x80078988u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, 0x80078988u);
   c->r[2] = (uint32_t)c->mem_r16(c->r[18] + 8u);
   c->r[16] = c->r[16] + 1u;
   goto L_80078F70;
@@ -492,7 +489,7 @@ L_80078DF4: {
   c->r[5] = c->r[5] << 16;
   c->r[31] = 0x80078E28u;
   c->r[5] = (uint32_t)((int32_t)c->r[5] >> 16);
-  psx::cpu::dispatchGuestToReturn0(*c, 0x80078988u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, 0x80078988u);
   c->r[2] = (uint32_t)c->mem_r16(c->r[18] + 8u);
   c->r[16] = c->r[16] + 1u;
   goto L_80078F70;
@@ -514,7 +511,7 @@ L_80078E34: {
   c->r[5] = c->r[5] << 16;
   c->r[31] = 0x80078E64u;
   c->r[5] = (uint32_t)((int32_t)c->r[5] >> 16);
-  psx::cpu::dispatchGuestToReturn0(*c, 0x80078988u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, 0x80078988u);
   c->r[2] = (uint32_t)c->mem_r16(c->r[18] + 8u);
   c->r[16] = c->r[16] + 1u;
   goto L_80078F70;
@@ -635,10 +632,7 @@ L_80078F88:
   c->mem_w32(c->r[29] + 16u, c->r[0]);
   c->r[31] = 0x80078FA8u;
   c->r[4] = c->r[16] + c->r[0];
-  psx::cpu::dispatchGuestToReturn0(*c,
-                                   0x80083DE0u,
-                                   psx::cpu::ExecutionBudget::currentTurn(*c),
-                                   __func__); // guest 0x80083DE0 -- already owned, process-globally wired
+  psx::cpu::callGuestNow(*c, __func__, 0x80083DE0u); // guest 0x80083DE0 -- already owned, process-globally wired
   const auto tailOt = tomba::render::OrderingTable::active(*c);
   c->r[4] = tailOt.slot(c->r[19]);
   c->r[3] = 2u << 24;

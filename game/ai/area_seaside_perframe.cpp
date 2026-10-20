@@ -89,7 +89,7 @@ inline void aux_list_walk(Core *c) {
       }
     } // typ == 0 → dispatch below
     c->r[4] = item;
-    psx::cpu::dispatchGuestToReturn0(*c, LEAF_AUX_ITEM_112A60, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, LEAF_AUX_ITEM_112A60);
   }
 }
 
@@ -124,18 +124,15 @@ void Behaviors::areaSeasidePerframe(Core *c) {
   }
 
   // Fixed mid-update trio (fires in every mode 0/2/6 + default's fall-through).
-  psx::cpu::dispatchGuestToReturn0(
-      *c, LEAF_TRIO_22554, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // no-args engine tick
-  psx::cpu::dispatchGuestToReturn0(
-      *c, LEAF_TRIO_113700, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // no-args
-  psx::cpu::dispatchGuestToReturn0(
-      *c, LEAF_TRIO_1138E8, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // no-args
+  psx::cpu::callGuestNow(*c, __func__, LEAF_TRIO_22554); // no-args engine tick
+  psx::cpu::callGuestNow(*c, __func__, LEAF_TRIO_113700); // no-args
+  psx::cpu::callGuestNow(*c, __func__, LEAF_TRIO_1138E8); // no-args
 
   aux_list_walk(c);
 
   // Fixed post-update pair + Tomba post-frame tick.
-  psx::cpu::dispatchGuestToReturn0(*c, LEAF_POST_112C0C, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
-  psx::cpu::dispatchGuestToReturn0(*c, LEAF_POST_112F14, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, LEAF_POST_112C0C);
+  psx::cpu::callGuestNow(*c, __func__, LEAF_POST_112F14);
   eng(c).actorTomba.postFrameWaterCheck(); // native FUN_8010E904 (Tomba post-frame water/sea)
 }
 

@@ -135,8 +135,7 @@ void Engine::areaLoadState() {
   TaskSm sm(c);
   switch (sm.stage4c()) {
   case 0: {
-    psx::cpu::dispatchGuestToReturn0(
-        *c, 0x8001CF2Cu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // engine tick (substrate)
+    psx::cpu::callGuestNow(*c, __func__, 0x8001CF2Cu); // engine tick (substrate)
     c->mem_w16(0x800BE222u,
                0x47FFu); // FUN_80075CEC(0x47ff): fade target (inlined —
                          // same private leaf music_coord.cpp inlines;
@@ -145,10 +144,7 @@ void Engine::areaLoadState() {
     sm.setStage4c((uint16_t)(sm.stage4c() + 1));
     eng(c).audioDispatch.dispatch3Way(0x2C,
                                       0); // native — was FUN_800750D8(0x2c,0)
-    psx::cpu::dispatchGuestToReturn0(*c,
-                                     0x8004D8B0u,
-                                     psx::cpu::ExecutionBudget::currentTurn(*c),
-                                     __func__); // 128-byte zero-init (substrate; un-owned this pass)
+    psx::cpu::callGuestNow(*c, __func__, 0x8004D8B0u); // 128-byte zero-init (substrate; un-owned this pass)
     c->mem_w8(0x1F800206u, 0);
     break;
   }
@@ -162,13 +158,11 @@ void Engine::areaLoadState() {
     c->r[5] = 0x70;
     c->r[6] = 0;
     c->r[7] = 0x17A;
-    psx::cpu::dispatchGuestToReturn0(
-        *c, 0x8007E8DCu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // camera/view helper (substrate)
+    psx::cpu::callGuestNow(*c, __func__, 0x8007E8DCu); // camera/view helper (substrate)
     break;
   }
   case 2:
-    psx::cpu::dispatchGuestToReturn0(
-        *c, 0x8001CF2Cu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // engine tick (substrate)
+    psx::cpu::callGuestNow(*c, __func__, 0x8001CF2Cu); // engine tick (substrate)
     eng(c).audioDispatch.selectState(4);                                        // native — was FUN_800750A4(4)
     sm.setS4e(1);
     sm.setF6b(0);
@@ -177,13 +171,11 @@ void Engine::areaLoadState() {
     [[fallthrough]];
   case 3: {
     c->r[4] = sm.s4e();
-    psx::cpu::dispatchGuestToReturn0(
-        *c, 0x8007ED5Cu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // SAVE-prompt text render (substrate)
+    psx::cpu::callGuestNow(*c, __func__, 0x8007ED5Cu); // SAVE-prompt text render (substrate)
     if (c->mem_r16(0x800E7E68u) & 0x4000u) {
       uint16_t e = sm.s4e();
       if (e == 0) {
-        psx::cpu::dispatchGuestToReturn0(
-            *c, 0x80078824u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // AREA START POS write (substrate)
+        psx::cpu::callGuestNow(*c, __func__, 0x80078824u); // AREA START POS write (substrate)
         sm.setStage4c(8);
         c->mem_w8(0x800BF84Au, 0);
       } else if (e == 1) {
@@ -215,10 +207,7 @@ void Engine::areaLoadState() {
   }
   case 4: {
     c->r[4] = sm.s4e();
-    psx::cpu::dispatchGuestToReturn0(*c,
-                                     0x8007EE74u,
-                                     psx::cpu::ExecutionBudget::currentTurn(*c),
-                                     __func__); // CONTINUE/LOAD/QUIT prompt render (substrate)
+    psx::cpu::callGuestNow(*c, __func__, 0x8007EE74u); // CONTINUE/LOAD/QUIT prompt render (substrate)
     if ((c->mem_r16(0x800E7E68u) & 0x4000u) == 0) {
       if (c->mem_r16(0x800E7E68u) & 0x2000u) {
         int16_t s = (int16_t)(sm.stage4c() - 1);
@@ -233,14 +222,12 @@ void Engine::areaLoadState() {
       if (e == 1) {
         sm.setStage4c(7);
         c->mem_w8(0x800BF84Au, 0);
-        psx::cpu::dispatchGuestToReturn0(
-            *c, 0x8001CF2Cu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // engine tick (substrate)
+        psx::cpu::callGuestNow(*c, __func__, 0x8001CF2Cu); // engine tick (substrate)
       } else if (e == 0) {
         sm.setTop(2);
         sm.setSubMode(1);
         sm.setStage4c(0);
-        psx::cpu::dispatchGuestToReturn0(
-            *c, 0x8001CF2Cu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // engine tick (substrate; guest arg
+        psx::cpu::callGuestNow(*c, __func__, 0x8001CF2Cu); // engine tick (substrate; guest arg
                                                                                     // 0x11 unused by callee)
       }
       // e == 2: sm[0x4c]++ (no other write) falls straight through to the
@@ -272,14 +259,12 @@ void Engine::areaLoadState() {
   }
   case 5: {
     c->r[4] = sm.s4e();
-    psx::cpu::dispatchGuestToReturn0(
-        *c, 0x8007EF60u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // QUIT-confirm render (substrate)
+    psx::cpu::callGuestNow(*c, __func__, 0x8007EF60u); // QUIT-confirm render (substrate)
     if (c->mem_r16(0x800E7E68u) & 0x4000u) {
       uint16_t e = sm.s4e();
       if (e == 0) {
         sm.setStage4c((uint16_t)(sm.stage4c() + 1));
-        psx::cpu::dispatchGuestToReturn0(
-            *c, 0x8001CF2Cu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // engine tick (substrate)
+        psx::cpu::callGuestNow(*c, __func__, 0x8001CF2Cu); // engine tick (substrate)
         return;
       }
       if (e != 1) {
@@ -384,10 +369,7 @@ void Engine::submitPage810c() {
   uint32_t task = c->mem_r32(0x1F800138u);
   if (task && c->mem_r8(task + 0x6Bu) == 1) {
     fade(c).applyLeafCall(0x808080u, ScreenFade::kSubtractive, 4);
-    psx::cpu::dispatchGuestToReturn0(*c,
-                                     0x801084F8u,
-                                     psx::cpu::ExecutionBudget::currentTurn(*c),
-                                     __func__); // still guest instruction path: menu draw + cursor/page transitions
+    psx::cpu::callGuestNow(*c, __func__, 0x801084F8u); // still guest instruction path: menu draw + cursor/page transitions
     return;
   }
   psx::cpu::callGuestNow(*c, __func__, 0x8010810cu);
@@ -449,7 +431,7 @@ void Engine::stageRunning() {
       eng(c).areaLoadState();
     } // native FUN_80106478
     else {
-      psx::cpu::dispatchGuestToReturn0(*c, handler[s4a], psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, handler[s4a]);
     }
   }
 }
@@ -486,8 +468,7 @@ void Engine::submode0() {
       if (c->mem_r32(0x80109450u) == 0x3C021F80u) {
         eng(c).sop.fieldMode(); // native SOP; unowned calls cross the runtime guest boundary
       } else {
-        psx::cpu::dispatchGuestToReturn0(
-            *c, 0x80109450u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // other overlay -> guest
+        psx::cpu::callGuestNow(*c, __func__, 0x80109450u); // other overlay -> guest
       }
     }
   } else if (sm.stage4c() == 1) {

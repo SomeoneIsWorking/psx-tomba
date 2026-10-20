@@ -47,8 +47,8 @@ void FrameDriver::finishMainIteration(Core &core, std::uint32_t fields) {
     if (displayState == 3u) {
       core.mem_w8(0x1F8001CCu, 2u);
     }
-    psx::cpu::dispatchGuestToReturn0(core, kDisplaySwap, psx::cpu::ExecutionBudget::currentTurn(core), __func__);
-    psx::cpu::dispatchGuestToReturn0(core, kTickTaskSleeps, psx::cpu::ExecutionBudget::currentTurn(core), __func__);
+    psx::cpu::callGuestNow(core, __func__, kDisplaySwap);
+    psx::cpu::callGuestNow(core, __func__, kTickTaskSleeps);
   }
 }
 

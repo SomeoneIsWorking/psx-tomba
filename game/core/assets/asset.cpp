@@ -165,12 +165,10 @@ void Asset::unpackGroupFaithful(const GroupRangeArgs &args) {
       c->r[4] = c->r[17];
       c->r[5] = c->r[16];
       c->r[31] = 0x80044F1Cu;
-      psx::cpu::dispatchGuestToReturn0(
-          *c, 0x80081218u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // libgs LoadImage at the live sp
+      psx::cpu::callGuestNow(*c, __func__, 0x80081218u); // libgs LoadImage at the live sp
       c->r[4] = 0;
       c->r[31] = 0x80044F24u;
-      psx::cpu::dispatchGuestToReturn0(
-          *c, 0x80080F6Cu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // libgs DrawSync(0)
+      psx::cpu::callGuestNow(*c, __func__, 0x80080F6Cu); // libgs DrawSync(0)
       const int32_t rem = (int32_t)c->r[20];
       c->r[20] = (uint32_t)(rem - 1);
       if (rem <= 0) {
@@ -230,8 +228,7 @@ void Asset::loadTexgroup() {
   c->r[5] = hdr_sector;
   c->r[6] = 2048;
   c->r[31] = 0x80044FD8u;
-  psx::cpu::dispatchGuestToReturn0(
-      *c, 0x8001DC40u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // 1. CD-load 2KB header (platform)
+  psx::cpu::callGuestNow(*c, __func__, 0x8001DC40u); // 1. CD-load 2KB header (platform)
   c->r[16] = HDR;                                                             // s0 = header base (live for spills)
   uint32_t h0 = c->mem_r32(HDR + 0), h1 = c->mem_r32(HDR + 4);
   c->r[4] = 0x8018A000u;
@@ -239,10 +236,7 @@ void Asset::loadTexgroup() {
   c->r[5] = c->mem_r32(0x800BE0F8u) + (h0 >> 11);
   c->r[6] = h1 - h0;
   c->r[31] = 0x80045008u;
-  psx::cpu::dispatchGuestToReturn0(*c,
-                                   0x8001DC40u,
-                                   psx::cpu::ExecutionBudget::currentTurn(*c),
-                                   __func__); // 2. CD-load compressed archive -> staging
+  psx::cpu::callGuestNow(*c, __func__, 0x8001DC40u); // 2. CD-load compressed archive -> staging
   c->r[4] = 0x8018A000u;
   c->r[5] = 0x001FD000u;
   c->r[31] = 0x8004501Cu;

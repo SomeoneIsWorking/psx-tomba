@@ -329,7 +329,7 @@ void Render::perModeDispatch() {
     return;
   }
   c->r[31] = 0x8003F790u; // RE'd: L_8003F788's own r31 set before guest 0x800803DC (the generic label)
-  psx::cpu::dispatchGuestToReturn0(*c, 0x800803DCu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, 0x800803DCu);
 }
 
 namespace {

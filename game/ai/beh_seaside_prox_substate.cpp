@@ -109,14 +109,14 @@ constexpr uint32_t MODEARM_REC_BASE = 0x8014ABE6u;  // (x,y) pos + VRAM-base-4 s
 
 inline int bounds_cull(Core *c, uint32_t o) {
   c->r[4] = o;
-  psx::cpu::dispatchGuestToReturn0(*c, 0x8007778Cu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, 0x8007778Cu);
   return (int)c->r[2];
 }
 inline int32_t cam_distance(Core *c, uint32_t o) {
   c->r[4] = (uint32_t)((int32_t)(int16_t)c->mem_r16(CAM_X_SPAD) - (int32_t)(int16_t)c->mem_r16(o + 0x2E));
   c->r[5] = (uint32_t)((int32_t)(int16_t)c->mem_r16(CAM_Y_SPAD) - (int32_t)(int16_t)c->mem_r16(o + 0x32));
   c->r[6] = (uint32_t)((int32_t)(int16_t)c->mem_r16(CAM_Z_SPAD) - (int32_t)(int16_t)c->mem_r16(o + 0x36));
-  psx::cpu::dispatchGuestToReturn0(*c, 0x80078240u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, 0x80078240u);
   return (int32_t)c->r[2];
 }
 
@@ -165,7 +165,7 @@ void modeArm(Core *c, int32_t mode) {
   // REPLACEMENT that writes host VRAM and skips the guest's GsSortObject ring enqueue, so wiring it
   // would make core A omit guest writes core B performs. The substrate path here does the enqueue,
   // which is what keeps this call byte-exact. See the banner above Asset::uploadImage.
-  psx::cpu::dispatchGuestToReturn0(*c, 0x80081218u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, 0x80081218u);
   c->r[29] = saveSp;
   c->mem_w32(MODEARM_TABLE_PTR, ptr + 2); // advance the duration/index cursor
 }
@@ -201,8 +201,7 @@ void drawInit(Core *c, const ObjectDataArgs &args) {
   }
   c->r[4] = obj;
   c->r[5] = data;
-  psx::cpu::dispatchGuestToReturn0(
-      *c, 0x8013B534u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // FUN_8013B534(obj) — a1 unchanged
+  psx::cpu::callGuestNow(*c, __func__, 0x8013B534u); // FUN_8013B534(obj) — a1 unchanged
   if (c->r[2] != 0) {
     c->mem_w8(obj + 4, 3);
     return;
@@ -238,15 +237,9 @@ void subA(Core *c, uint32_t obj) {
     c->mem_w8(0x1F800137u, 2);
     c->mem_w8(0x800BF841u, 1);
     c->r[4] = 8;
-    psx::cpu::dispatchGuestToReturn0(*c,
-                                     0x8006E1C0u,
-                                     psx::cpu::ExecutionBudget::currentTurn(*c),
-                                     __func__); // FUN_8006E1C0(8) — sound-loop start (leaf)
+    psx::cpu::callGuestNow(*c, __func__, 0x8006E1C0u); // FUN_8006E1C0(8) — sound-loop start (leaf)
     c->r[4] = obj + 0x2C;
-    psx::cpu::dispatchGuestToReturn0(*c,
-                                     0x8006CBA8u,
-                                     psx::cpu::ExecutionBudget::currentTurn(*c),
-                                     __func__); // CutsceneCamera::initSeedGrp (EngineOverride)
+    psx::cpu::callGuestNow(*c, __func__, 0x8006CBA8u); // CutsceneCamera::initSeedGrp (EngineOverride)
     c->mem_w16(0x1F8000D6u, c->mem_r16(obj + 0x32));
     c->mem_w8(obj + 5, (uint8_t)(c->mem_r8(obj + 5) + 1));
     break;
@@ -292,10 +285,7 @@ void subA(Core *c, uint32_t obj) {
     if (left == 0) {
       c->mem_w8(0x1F800137u, 0);
       c->mem_w8(0x800BF841u, 0);
-      psx::cpu::dispatchGuestToReturn0(*c,
-                                       0x8006E1E4u,
-                                       psx::cpu::ExecutionBudget::currentTurn(*c),
-                                       __func__); // FUN_8006E1E4() — sound-loop stop (leaf)
+      psx::cpu::callGuestNow(*c, __func__, 0x8006E1E4u); // FUN_8006E1E4() — sound-loop stop (leaf)
       c->mem_w8(GATE_BFA17, (uint8_t)(c->mem_r8(GATE_BFA17) | (1u << (c->mem_r8(obj + 3) & 0x1F))));
       c->mem_w8(obj + 0x5E, 1);
       c->mem_w8(obj + 0, 1);
@@ -334,15 +324,9 @@ void subB(Core *c, uint32_t obj) {
     c->mem_w32(G_eac, c->mem_r32(G_eac) + (int32_t)c->mem_r16s(obj + 0x44) * (int32_t)c->mem_r16s(G_ec8));
     c->mem_w32(G_eb4, c->mem_r32(G_eb4) + (int32_t)c->mem_r16s(obj + 0x44) * (int32_t)c->mem_r16s(G_ecc));
     c->r[4] = G;
-    psx::cpu::dispatchGuestToReturn0(*c,
-                                     0x8004766Cu,
-                                     psx::cpu::ExecutionBudget::currentTurn(*c),
-                                     __func__); // FUN_8004766C(&G) — tile-move step (leaf)
+    psx::cpu::callGuestNow(*c, __func__, 0x8004766Cu); // FUN_8004766C(&G) — tile-move step (leaf)
     c->r[4] = G;
-    psx::cpu::dispatchGuestToReturn0(*c,
-                                     0x80048750u,
-                                     psx::cpu::ExecutionBudget::currentTurn(*c),
-                                     __func__); // FUN_80048750(&G) — anim-link tick (leaf)
+    psx::cpu::callGuestNow(*c, __func__, 0x80048750u); // FUN_80048750(&G) — anim-link tick (leaf)
     c->mem_w16(G_f38, (uint16_t)(c->mem_r16s(G_f38) - 0x80));
     c->mem_w16(G_f3a, (uint16_t)(c->mem_r16s(G_f3a) - 0x80));
     c->mem_w16(G_f3c, (uint16_t)(c->mem_r16s(G_f3c) - 0x80));
@@ -391,10 +375,7 @@ void subC(Core *c, const ObjectDataArgs &args) {
     c->mem_w8(0x1F800137u, 2);
     c->mem_w8(GATE_BFA19, (uint8_t)(c->mem_r8(GATE_BFA19) | (1u << (c->mem_r8(obj + 3) & 0x1F))));
     c->r[4] = 8;
-    psx::cpu::dispatchGuestToReturn0(*c,
-                                     0x8006E1C0u,
-                                     psx::cpu::ExecutionBudget::currentTurn(*c),
-                                     __func__); // FUN_8006E1C0(8) — sound-loop start (leaf)
+    psx::cpu::callGuestNow(*c, __func__, 0x8006E1C0u); // FUN_8006E1C0(8) — sound-loop start (leaf)
     c->mem_w16(0x1F8000D2u, c->mem_r16(data + 0));
     c->mem_w16(0x1F8000D6u, c->mem_r16(data + 2));
     c->mem_w16(0x1F8000DAu, c->mem_r16(data + 4));
@@ -433,17 +414,14 @@ void subC(Core *c, const ObjectDataArgs &args) {
       c->r[4] = 0x15;
       c->r[5] = sp0;
       c->r[6] = (uint32_t)-0x32;
-      psx::cpu::dispatchGuestToReturn0(*c,
-                                       0x8003116Cu,
-                                       psx::cpu::ExecutionBudget::currentTurn(*c),
-                                       __func__); // Spawn::spawnAndInitBody (EngineOverride)
+      psx::cpu::callGuestNow(*c, __func__, 0x8003116Cu); // Spawn::spawnAndInitBody (EngineOverride)
       uint32_t rec1 = c->r[2];
       c->mem_w8(rec1 + 0x28, (uint8_t)(c->mem_r8(rec1 + 0x28) | 0x80));
 
       c->r[4] = 0x24;
       c->r[5] = sp0;
       c->r[6] = (uint32_t)-0x32;
-      psx::cpu::dispatchGuestToReturn0(*c, 0x8003116Cu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, 0x8003116Cu);
       uint32_t rec2 = c->r[2];
       c->mem_w8(rec2 + 0x28, (uint8_t)(c->mem_r8(rec2 + 0x28) | 0x80));
 
@@ -454,13 +432,13 @@ void subC(Core *c, const ObjectDataArgs &args) {
       c->r[5] = obj + 0x2C;
       c->r[6] = 0x800;
       c->r[7] = 8;
-      psx::cpu::dispatchGuestToReturn0(*c, 0x80027144u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, 0x80027144u);
       eng(c).sfx.trigger({.id = 0xc, .pan = 0, .pitchBend = 0});
       c->r[4] = c->mem_r32(link1 + 0x40);
       c->r[5] = obj + 0x2C;
       c->r[6] = 0x600;
       c->r[7] = 0x18;
-      psx::cpu::dispatchGuestToReturn0(*c, 0x80027144u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, 0x80027144u);
       eng(c).sfx.trigger({.id = 0xc, .pan = 0, .pitchBend = 0});
 
       uint32_t link2 = c->mem_r32(obj + 0xC4);
@@ -468,13 +446,13 @@ void subC(Core *c, const ObjectDataArgs &args) {
       c->r[5] = obj + 0x2C;
       c->r[6] = 0x800;
       c->r[7] = 8;
-      psx::cpu::dispatchGuestToReturn0(*c, 0x80027144u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, 0x80027144u);
       eng(c).sfx.trigger({.id = 0xc, .pan = 0, .pitchBend = 0});
       c->r[4] = c->mem_r32(link2 + 0x40);
       c->r[5] = obj + 0x2C;
       c->r[6] = 0x600;
       c->r[7] = 0x18;
-      psx::cpu::dispatchGuestToReturn0(*c, 0x80027144u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, 0x80027144u);
       eng(c).sfx.trigger({.id = 0xc, .pan = 0, .pitchBend = 0});
 
       uint32_t link3 = c->mem_r32(obj + 0xC8);
@@ -482,20 +460,19 @@ void subC(Core *c, const ObjectDataArgs &args) {
       c->r[5] = obj + 0x2C;
       c->r[6] = 0x800;
       c->r[7] = 8;
-      psx::cpu::dispatchGuestToReturn0(*c, 0x80027144u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, 0x80027144u);
       eng(c).sfx.trigger({.id = 0xc, .pan = 0, .pitchBend = 0});
       c->r[4] = c->mem_r32(link3 + 0x40);
       c->r[5] = obj + 0x2C;
       c->r[6] = 0x600;
       c->r[7] = 0x18;
-      psx::cpu::dispatchGuestToReturn0(*c, 0x80027144u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, 0x80027144u);
       eng(c).sfx.trigger({.id = 0xc, .pan = 0, .pitchBend = 0});
     } else {
       uint32_t link1 = c->mem_r32(obj + 0xC0);
       c->mem_w16(link1 + 2, (uint16_t)((c->mem_r8(0x1F80017Cu) & 1) * 6));
       c->r[4] = 0;
-      psx::cpu::dispatchGuestToReturn0(
-          *c, 0x8009A450u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // FUN_8009A450() — PRNG (leaf)
+      psx::cpu::callGuestNow(*c, __func__, 0x8009A450u); // FUN_8009A450() — PRNG (leaf)
       c->mem_w16(link1, (uint16_t)(((int32_t)(c->r[2] & 3) - 2) * 6));
     }
     break;
@@ -506,10 +483,7 @@ void subC(Core *c, const ObjectDataArgs &args) {
     if (left == -1) {
       c->mem_w8(obj + 4, 3);
       c->mem_w8(0x1F800137u, 0);
-      psx::cpu::dispatchGuestToReturn0(*c,
-                                       0x8006E1E4u,
-                                       psx::cpu::ExecutionBudget::currentTurn(*c),
-                                       __func__); // FUN_8006E1E4() — sound-loop stop (leaf)
+      psx::cpu::callGuestNow(*c, __func__, 0x8006E1E4u); // FUN_8006E1E4() — sound-loop stop (leaf)
     }
     c->mem_w8(obj + 1, 0);
     break;

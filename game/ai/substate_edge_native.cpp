@@ -42,10 +42,7 @@ void SubstateEdgeLeaves::tickChildOscillators(Core *c) {
       c->r[4] = node.addr();
       c->r[5] = (uint32_t)(int32_t)(int16_t)(uint16_t)slot;
       c->r[31] = kRaAfterPartTick;
-      psx::cpu::dispatchGuestToReturn0(*c,
-                                       0x80130D5Cu,
-                                       psx::cpu::ExecutionBudget::currentTurn(*c),
-                                       __func__); // the per-sub-part oscillator, runtime guest code
+      psx::cpu::callGuestNow(*c, __func__, 0x80130D5Cu); // the per-sub-part oscillator, runtime guest code
 
       // Re-read config after the call: the tick can clear pair mode, and when clear this
       // loop runs exactly once. Caching across the call would change behaviour.

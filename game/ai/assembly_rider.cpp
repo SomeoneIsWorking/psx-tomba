@@ -197,7 +197,7 @@ void AssemblyRider::rideSlotAndReactToStroke(Core *c) {
     // The guest's `jr v0` into an entry outside its own five-word table — unreachable unless that
     // table is corrupt, and modelled by the recorded binary evidence as a tail dispatch with no epilogue.
     default:
-      psx::cpu::dispatchGuestToReturn0(*c, entry, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, entry);
       return;
     }
   }

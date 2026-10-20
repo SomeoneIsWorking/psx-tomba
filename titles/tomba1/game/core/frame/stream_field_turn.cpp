@@ -50,7 +50,7 @@ void logStreamState(Core &core, const char *phase) {
                 xa.pulls,
                 xa.sectors,
                 core.mem_r32(0x8001CA08u),
-                psx::dma::doneOwed(core, 3),
+                core.dma.done.owed(psx::dma::DmaChannel::Cdrom),
                 core.mem_r32(0x1F8010F4u),
                 core.pending_work);
 }

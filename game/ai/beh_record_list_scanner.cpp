@@ -145,7 +145,7 @@ void beh_record_list_scanner(Core *c) {
       uint32_t ret;
       if (area == 1 && c->mem_r8(0x800BF871u) >= 15) {
         c->r[4] = c->mem_r8(s4 + 12);
-        psx::cpu::dispatchGuestToReturn0(*c, 0x80111CCCu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+        psx::cpu::callGuestNow(*c, __func__, 0x80111CCCu);
         ret = c->r[2];
       } else {
         c->r[4] = obj;

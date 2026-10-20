@@ -152,7 +152,7 @@ void voiceStop(Core *c) {
     cdOf(c).deferredMusic().pending = false;
   }
   c->r[A0] = 0;
-  psx::cpu::dispatchGuestToReturn0(*c, kCdToSpuMix, psx::cpu::ExecutionBudget::currentTurn(*c), "voiceStop");
+  psx::cpu::callGuestNow(*c, "voiceStop", kCdToSpuMix);
 }
 
 } // namespace
@@ -191,8 +191,7 @@ bool EngineCd::clipStreaming() const {
 
 void EngineCd::toSpuMix(bool on) {
   core_.r[A0] = on ? 1 : 0;
-  psx::cpu::dispatchGuestToReturn0(
-      core_, kCdToSpuMix, psx::cpu::ExecutionBudget::currentTurn(core_), "EngineCd::toSpuMix");
+  psx::cpu::callGuestNow(core_, "EngineCd::toSpuMix", kCdToSpuMix);
 }
 
 void EngineCd::hleInit() {

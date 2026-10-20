@@ -46,9 +46,8 @@ Tomba! 2 is the active conformance target. Preserve its existing native engine, 
 fatal guest-VSync boundary at `0x80085900`, renderer, widescreen, interpolation, and recorded
 boot-to-free-roam evidence while changing only the remaining guest executor.
 
-1. Keep the break-first boundary mechanically enforced: the build requires `psxport`,
-   `dynarec_capabilities.h`, and the typed runtime address API, and no generator or generated source
-   input exists.
+1. Keep the break-first boundary: the build requires `psxport` and its typed runtime address API, and no
+   generator or generated source input exists.
 2. Consume the shared per-`Core` Lightrec executor from `psxport` and authenticate the resident image
    and each loaded overlay before execution.
 3. Prove one reached resident override in both modes: normal calls execute the native owner and a

@@ -132,11 +132,7 @@ void SaveMenu::runHandler(uint32_t task) {
 
   // ---- dispatch: handler = table[substate]; jr handler (tail-call, frame + regs live) ----
   uint32_t handler = c->mem_r32(SAVE_HANDLER_TBL + substate * 4u);
-  psx::cpu::dispatchGuestToReturn0(
-      *c,
-      handler,
-      psx::cpu::ExecutionBudget::currentTurn(*c),
-      __func__); // the page handler runs the load/save page logic + unwinds the frame itself
+  psx::cpu::callGuestNow(*c, __func__, handler); // the page handler runs the load/save page logic + unwinds the frame itself
 }
 
 // ------------------------------------------------------------------------------------------------

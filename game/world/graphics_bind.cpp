@@ -128,7 +128,7 @@ uint32_t GraphicsBind::renderUpdateBody(Core *c) {
   c->mem_w32(obj + 0xb4, (uint32_t)c->mem_r16s(obj + 0x36));
   c->r[4] = obj;
   c->r[31] = 0x80051834u;
-  psx::cpu::dispatchGuestToReturn0(*c, 0x80051300u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, 0x80051300u);
   uint32_t ret = c->r[2];
 
   c->r[31] = c->mem_r32(c->r[29] + 20);

@@ -52,7 +52,7 @@ int32_t ActorMeleeEngage::doIt(const DoItArgs &args) { // FUN_80112188 — UNWIR
 
   // FUN_80084080 — still-substrate distance/sqrt-shaped leaf (see .h; NOT Math::isqrt16).
   c->r[4] = (uint32_t)sumSq;
-  psx::cpu::dispatchGuestToReturn0(*c, 0x80084080u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, 0x80084080u);
   const uint16_t dist16 = (uint16_t)c->r[2];
 
   const int32_t radiusSum1 = (int16_t)c->mem_r16(self + 128u) + (int16_t)c->mem_r16(target + 128u);
@@ -205,7 +205,7 @@ int32_t ActorMeleeEngage::doIt(const DoItArgs &args) { // FUN_80112188 — UNWIR
   // Shared abort tail (L_801125AC in the guest instruction path): cleanup(self) + target+94=0, always returns 2.
   auto abortToDisengage = [&]() -> int32_t {
     c->r[4] = self;
-    psx::cpu::dispatchGuestToReturn0(*c, 0x80022C78u, psx::cpu::ExecutionBudget::currentTurn(*c), "actor_melee_engage");
+    psx::cpu::callGuestNow(*c, "actor_melee_engage", 0x80022C78u);
     c->mem_w8(target + 94u, 0);
     return 2;
   };
@@ -250,7 +250,7 @@ int32_t ActorMeleeEngage::doIt(const DoItArgs &args) { // FUN_80112188 — UNWIR
   // must reproduce that live value explicitly, since c->r[4] in the NATIVE call sequence would
   // otherwise still hold the FUN_80084080 sqrt call's stale a0 (sumSq), not `angle`.
   c->r[4] = (uint32_t)angle;
-  psx::cpu::dispatchGuestToReturn0(*c, 0x80055844u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, 0x80055844u);
 
   if (c->r[2] != 0) {
     // GRANTED: arm state 23, stamp target+94 with the RELOADED self+325 value (== 2, `lockOwner`).

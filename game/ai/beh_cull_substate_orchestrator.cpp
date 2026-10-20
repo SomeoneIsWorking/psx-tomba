@@ -60,10 +60,7 @@ void beh_cull_substate_orchestrator(Core *c) {
     if (st >= 2) {   // 0x801325B8  slti v0,a0,2 / beqz -> 0x801325D4
       if (st == 2) { // 0x801325D8  beq a0,2 -> 0x80132704
         c->r[4] = obj;
-        psx::cpu::dispatchGuestToReturn0(*c,
-                                         0x80133184u,
-                                         psx::cpu::ExecutionBudget::currentTurn(*c),
-                                         __func__); // 0x80132704  jal FUN_80133184 (a0=s0)
+        psx::cpu::callGuestNow(*c, __func__, 0x80133184u); // 0x80132704  jal FUN_80133184 (a0=s0)
         return;                                     // 0x80132708  j 0x8013271C (epilogue)
       }
       if (st == 3) {               // 0x801325E0  beq a0,3 -> 0x80132714
@@ -77,10 +74,7 @@ void beh_cull_substate_orchestrator(Core *c) {
     }
     // ---- STATE 0 [0x801325F0] ----
     c->r[4] = obj;
-    psx::cpu::dispatchGuestToReturn0(*c,
-                                     0x8013272Cu,
-                                     psx::cpu::ExecutionBudget::currentTurn(*c),
-                                     __func__); // 0x801325F0  jal FUN_8013272C (a0=s0)  (per-type init)
+    psx::cpu::callGuestNow(*c, __func__, 0x8013272Cu); // 0x801325F0  jal FUN_8013272C (a0=s0)  (per-type init)
     return;                                     // 0x801325F8  j 0x8013271C (epilogue)
   }
 
@@ -122,25 +116,21 @@ void beh_cull_substate_orchestrator(Core *c) {
   switch (sub) {                    // beq/slti tree, NOT a jump table
   case 0:                           // 0x80132674  beqz v1 -> 0x8013269C
     c->r[4] = obj;
-    psx::cpu::dispatchGuestToReturn0(
-        *c, 0x80132954u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // 0x8013269C  jal FUN_80132954 (a0=s0)
+    psx::cpu::callGuestNow(*c, __func__, 0x80132954u); // 0x8013269C  jal FUN_80132954 (a0=s0)
     break;                                                                      // 0x801326A4  j 0x801326D4 (tail)
   case 1:                                                                       // 0x8013267C  j 0x801326D4 (no call)
     break;
   case 2: // 0x80132664  beq v1,2 -> 0x801326AC
     c->r[4] = obj;
-    psx::cpu::dispatchGuestToReturn0(
-        *c, 0x80132D58u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // 0x801326AC  jal FUN_80132D58 (a0=s0)
+    psx::cpu::callGuestNow(*c, __func__, 0x80132D58u); // 0x801326AC  jal FUN_80132D58 (a0=s0)
     break;                                                                      // 0x801326B4  j 0x801326D4 (tail)
   case 3:                                                                       // 0x80132684  beq v1,3 -> 0x801326BC
     c->r[4] = obj;
-    psx::cpu::dispatchGuestToReturn0(
-        *c, 0x80132EDCu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // 0x801326BC  jal FUN_80132EDC (a0=s0)
+    psx::cpu::callGuestNow(*c, __func__, 0x80132EDCu); // 0x801326BC  jal FUN_80132EDC (a0=s0)
     break;                                                                      // 0x801326C4  j 0x801326D4 (tail)
   case 4:                                                                       // 0x8013268C  beq v1,4 -> 0x801326CC
     c->r[4] = obj;
-    psx::cpu::dispatchGuestToReturn0(
-        *c, 0x80133500u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // 0x801326CC  jal FUN_80133500 (a0=s0)
+    psx::cpu::callGuestNow(*c, __func__, 0x80133500u); // 0x801326CC  jal FUN_80133500 (a0=s0)
     break; // 0x801326D0  NO j; falls through to tail (same as code)
   default: // sub>=5 -> 0x80132694 j 0x801326D4 (tail)
     break;
@@ -148,11 +138,9 @@ void beh_cull_substate_orchestrator(Core *c) {
 
   // ---- STATE 1: common tail [0x801326D4..0x80132700] ----
   c->r[4] = obj;
-  psx::cpu::dispatchGuestToReturn0(
-      *c, 0x80133550u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // 0x801326D4  jal FUN_80133550 (a0=s0)
+  psx::cpu::callGuestNow(*c, __func__, 0x80133550u); // 0x801326D4  jal FUN_80133550 (a0=s0)
   c->r[4] = obj;
-  psx::cpu::dispatchGuestToReturn0(
-      *c, 0x80132A88u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // 0x801326DC  jal FUN_80132A88 (a0=s0)
+  psx::cpu::callGuestNow(*c, __func__, 0x80132A88u); // 0x801326DC  jal FUN_80132A88 (a0=s0)
   uint8_t n1 = c->mem_r8(obj + 1);                                            // 0x801326E4  lbu v0, 1(s0)
   c->mem_w8(obj + 0x29, 0);                   // 0x801326F0  sb zero, 0x29(s0)  (delay slot @ED-style; ALWAYS runs)
   if (n1 != 0) {                              // 0x801326EC  beqz v0 -> 0x8013271C (epilogue)

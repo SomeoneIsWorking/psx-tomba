@@ -47,12 +47,12 @@ void SopGround::draw(Core *c) {
     c->r[5] = orderingTable;
     c->r[6] = counts & 0xFFu;
     c->r[31] = kReturnAfterGt3;
-    psx::cpu::dispatchGuestToReturn0(*c, kGt3, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, kGt3);
     c->r[4] = c->r[2];
     c->r[5] = orderingTable;
     c->r[6] = (counts >> 16) & 0xFFu;
     c->r[31] = kReturnAfterGt4;
-    psx::cpu::dispatchGuestToReturn0(*c, kGt4, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, kGt4);
   }
 }
 

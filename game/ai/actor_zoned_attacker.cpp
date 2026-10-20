@@ -26,7 +26,7 @@ void ActorZonedAttacker::gateCheck(Core *c) {
   } else if (n66 == (int8_t)0x80) {
     c->r[R_A0] = c->mem_r8(kGateTimer);
     c->r[R_A1] = kGateScratch;
-    psx::cpu::dispatchGuestToReturn0(*c, kZoneClassify, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, kZoneClassify);
     result = (c->r[R_V0] != 0);
   } else {
     const uint32_t typePtr = c->mem_r32(node + 0x14);
@@ -43,7 +43,7 @@ void ActorZonedAttacker::gateCheck(Core *c) {
     }
     c->r[R_A0] = c->mem_r8(node + 0x2a);
     c->r[R_A1] = node + 0x2c;
-    psx::cpu::dispatchGuestToReturn0(*c, kZoneClassify, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, kZoneClassify);
     const int32_t iVar3 = (int32_t)c->r[R_V0];
     result = (iVar2 != iVar3);
   }
@@ -66,7 +66,7 @@ void ActorZonedAttacker::typeInit(Core *c) {
   c->r[R_A1] = 0x12u;
   c->r[R_A2] = c->mem_r32(kTableBase);
   c->r[R_A3] = kNodeFieldBase;
-  psx::cpu::dispatchGuestToReturn0(*c, kInstallTypeTable, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, kInstallTypeTable);
   c->mem_w32(node + 0x3c, c->mem_r32(kCopyScratch));
   psx::cpu::callGuestNow(*c, "actor_zoned_attacker", kGridResolve, node);
   if (c->r[R_V0] == 0) {
@@ -88,7 +88,7 @@ void ActorZonedAttacker::typeInit(Core *c) {
   c->r[R_A0] = node + 0x2c;
   c->r[R_A1] = (uint32_t)ix;
   c->r[R_A2] = (uint32_t)iy;
-  psx::cpu::dispatchGuestToReturn0(*c, kLeaf_800782B0, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, kLeaf_800782B0);
   const int32_t s4 = (int32_t)(int16_t)c->r[R_V0];
   uint16_t v62 = a.stateEcho_u();
   const uint32_t val = (uint32_t)(s60 - s4 + 0x400) & 0xfffu;
@@ -118,7 +118,7 @@ void ActorZonedAttacker::pickAttackByRange(Core *c) {
   GuestFrame<40, 5> frame(c, kSpills_801409C0);
   const uint32_t node = c->r[R_A0];
   Actor a(c, node);
-  psx::cpu::dispatchGuestToReturn0(*c, kRngRead, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, kRngRead);
   const uint32_t rngv = c->r[R_V0];
   if (c->mem_r16(kS_800E7FFE) & 0x8200) {
     c->r[R_V0] = 0;
@@ -130,7 +130,7 @@ void ActorZonedAttacker::pickAttackByRange(Core *c) {
   const int32_t ty = c->mem_r16s(kS_1F800164);
   c->r[R_A0] = (uint32_t)(int32_t)(int16_t)(nx - tx);
   c->r[R_A1] = (uint32_t)(int32_t)(int16_t)(ny - ty);
-  psx::cpu::dispatchGuestToReturn0(*c, kDist2D, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, kDist2D);
   const int32_t dist = (int32_t)(int16_t)c->r[R_V0];
   int32_t zone;
   if ((c->mem_r16(kS_800E7FFE) & 0x8200) == 0 && dist < 0x641) {
@@ -187,7 +187,7 @@ label_caseD_2: {
   c->r[R_A0] = (uint32_t)(int32_t)(int16_t)(tx - nx);
   c->r[R_A1] = (uint32_t)(int32_t)(int16_t)(ty - ny);
   c->r[R_A2] = (uint32_t)(int32_t)(int16_t)(tz - nz);
-  psx::cpu::dispatchGuestToReturn0(*c, kDist3D, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, kDist3D);
   if (c->r[R_V0] < 0x3c0u) {
     goto label_ac8;
   }

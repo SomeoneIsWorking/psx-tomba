@@ -135,8 +135,7 @@ void Engine::announcerCue(const AnnouncerCueArgs &args) {
   c->r[4] = base;
   c->r[5] = 0xFFFFFFFFu;
   c->r[6] = flag;
-  psx::cpu::dispatchGuestToReturn0(
-      *c, 0x8004FA38u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // announcer-cue queue push (substrate)
+  psx::cpu::callGuestNow(*c, __func__, 0x8004FA38u); // announcer-cue queue push (substrate)
 }
 
 // FUN_800518FC is NOT owned here — it is NodeXform::buildWithOffset
@@ -244,10 +243,7 @@ void Engine::uploadModeSprites() {
     c->mem_w16(rect + 2u, y); // patch Y
     c->r[4] = rect;
     c->r[5] = data;
-    psx::cpu::dispatchGuestToReturn0(*c,
-                                     0x80081218u,
-                                     psx::cpu::ExecutionBudget::currentTurn(*c),
-                                     "engine_object_leaves"); // LoadImage(rect, data) — substrate leaf
+    psx::cpu::callGuestNow(*c, "engine_object_leaves", 0x80081218u); // LoadImage(rect, data) — substrate leaf
   };
   upload(0x1E2, p0);
   upload(0x1E5, p1);
@@ -294,7 +290,7 @@ void Engine::gStateMutate(const GStateMutateArgs &args) {
     }
     c->r[4] = 0x25;
     c->r[5] = 0;
-    psx::cpu::dispatchGuestToReturn0(*c, 0x800310F4u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, 0x800310F4u);
     n174 = f174 & 0xF7;
     n0D = f0D & 0xBD;
     c->mem_w8(G + 0x174u, n174);

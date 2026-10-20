@@ -290,17 +290,14 @@ static void nativePutDrawEnv(Core *c) {
     uint32_t initFn = c->mem_r32(GPU_SYS_INIT_FN);
     c->r[5] = c->r[17];
     c->r[31] = 0x8008161Cu; // guest call-site return address — callees spill ra to their own frames
-    psx::cpu::dispatchGuestToReturn0(*c, initFn, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, initFn);
   }
 
   c->r[16] = c->r[17] + 28; // s0 = dstPacket, live across the remaining calls
   c->r[4] = c->r[16];
   c->r[5] = c->r[17];
   c->r[31] = 0x8008162Cu;
-  psx::cpu::dispatchGuestToReturn0(*c,
-                                   FN_PUTDRAWENV_PACK,
-                                   psx::cpu::ExecutionBudget::currentTurn(*c),
-                                   __func__); // guest 0x80081FB0, MAPPED not drafted — see file header
+  psx::cpu::callGuestNow(*c, __func__, FN_PUTDRAWENV_PACK); // guest 0x80081FB0, MAPPED not drafted — see file header
 
   c->mem_w32(c->r[17] + 28, c->mem_r32(c->r[17] + 28) | 0x00FFFFFFu);
 
@@ -317,16 +314,13 @@ static void nativePutDrawEnv(Core *c) {
   c->r[6] = 64u;
   c->r[7] = 0u;
   c->r[31] = 0x80081664u;
-  psx::cpu::dispatchGuestToReturn0(*c, dmaSendFn, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, dmaSendFn);
 
   c->r[4] = c->r[18] + 14; // &bootFlag + 14 = GPU_CURRENT_ENV (0x800A59B0), exactly as the gen computes it
   c->r[5] = c->r[17];
   c->r[6] = 92u;
   c->r[31] = 0x80081674u;
-  psx::cpu::dispatchGuestToReturn0(*c,
-                                   FN_MEMCPY_92,
-                                   psx::cpu::ExecutionBudget::currentTurn(*c),
-                                   __func__); // guest 0x8009A3E0, out-of-band shared primitive, not drafted
+  psx::cpu::callGuestNow(*c, __func__, FN_MEMCPY_92); // guest 0x8009A3E0, out-of-band shared primitive, not drafted
 
   epilogue(c->r[17]);
 }

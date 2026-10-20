@@ -1,5 +1,6 @@
 #pragma once
 
+#include "command_args.h"
 #include <cstdint>
 #include <string>
 
@@ -14,7 +15,7 @@ class DevFlags {
 public:
   inline static constexpr uint32_t kFlagCount = 256;
 
-  std::string arm(Core &core, const char *line);
+  std::string arm(Core &core, const psx::debug::CommandArgs &args);
   void applyArmed(Core &core, uint32_t frame);
 
 private:

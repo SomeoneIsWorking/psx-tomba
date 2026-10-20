@@ -27,14 +27,14 @@ void ActorZonedAttacker::idleTick(Core *c) {
   case 1:
     if (c->mem_r8(node + 6) == 0) {
       c->r[R_A0] = 4;
-      psx::cpu::dispatchGuestToReturn0(*c, kLeaf_80026100, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, kLeaf_80026100);
       psx::cpu::callGuestNow(*c, "actor_zoned_attacker_idle", kSetAnimStateCue, node, 2u, 4u);
       c->mem_w16(node + 0x84, 0x14);
       c->mem_w16(node + 0x86, 100);
       c->r[R_A0] = 0x89u;
       c->r[R_A1] = 0;
       c->r[R_A2] = 0;
-      psx::cpu::dispatchGuestToReturn0(*c, kSfxTrigger, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, kSfxTrigger);
       c->mem_w8(node + 0x1b, (uint8_t)(c->mem_r8(node + 0x1b) & 0xbf));
       c->mem_w8(node + 0xd, (uint8_t)(c->mem_r8(node + 0xd) & 0xfd));
       c->mem_w8(node + 6, 1);
@@ -52,7 +52,7 @@ void ActorZonedAttacker::idleTick(Core *c) {
       c->r[R_A1] = 0x20u;
       c->r[R_A2] = 0x30u;
       c->r[R_A3] = 0xffu;
-      psx::cpu::dispatchGuestToReturn0(*c, kPaletteSideEffect, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, kPaletteSideEffect);
       goto LAB_80144bd0;
     }
     goto LAB_80144bd0;
@@ -63,7 +63,7 @@ void ActorZonedAttacker::idleTick(Core *c) {
       c->r[R_A1] = 0xffu;
       c->r[R_A2] = 0x30u;
       c->r[R_A3] = 0x30u;
-      psx::cpu::dispatchGuestToReturn0(*c, kPaletteSideEffect, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, kPaletteSideEffect);
     }
   switchD_caseD_0: {
     bool bVar1;
@@ -95,7 +95,7 @@ void ActorZonedAttacker::idleTick(Core *c) {
           c->r[R_A0] = 0x88u;
           c->r[R_A1] = 0;
           c->r[R_A2] = 0;
-          psx::cpu::dispatchGuestToReturn0(*c, kSfxTrigger, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+          psx::cpu::callGuestNow(*c, __func__, kSfxTrigger);
           c->mem_w16(node + 6, 1);
           goto LAB_80144d20;
         }
@@ -188,7 +188,7 @@ void ActorZonedAttacker::idleTick(Core *c) {
     c->r[R_A0] = node;
     c->r[R_A1] = c->mem_r32(node + 0xc0);
     c->r[R_A2] = 1u;
-    psx::cpu::dispatchGuestToReturn0(*c, kLeaf_80080750, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, kLeaf_80080750);
     const int32_t iVar5 = (int32_t)c->r[R_V0];
     if (iVar5 != 0) {
       goto LAB_801451b0;
@@ -204,7 +204,7 @@ switchD_caseD_2:
     c->r[R_A0] = (uint32_t)a.interactState() << 4;
     c->r[R_A1] = (uint32_t)a.triggerParam();
     c->r[R_A2] = 0;
-    psx::cpu::dispatchGuestToReturn0(*c, kLeaf_80077768, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, kLeaf_80077768);
     uint16_t v62 = a.stateEcho_u();
     v62 = (c->r[R_V0] == 0) ? (uint16_t)(v62 | 1) : (uint16_t)(v62 & 0xfffe);
     a.setStateEcho(v62);
@@ -215,7 +215,7 @@ switchD_caseD_2:
     c->r[R_A0] = 0x88u;
     c->r[R_A1] = 0;
     c->r[R_A2] = 0;
-    psx::cpu::dispatchGuestToReturn0(*c, kSfxTrigger, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, kSfxTrigger);
   } else {
     if (c->mem_r8(node + 6) != 1) {
       c->mem_w8(node + 4, 3);
@@ -239,16 +239,16 @@ switchD_caseD_2:
       c->r[R_A0] = node;
       c->r[R_A1] = 0;
       c->r[R_A2] = 0;
-      psx::cpu::dispatchGuestToReturn0(*c, kLeaf_800495DC, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, kLeaf_800495DC);
       despawnNow = (c->r[R_V0] != 0);
     }
     if (despawnNow) {
       c->r[R_A0] = node + 0x2c;
-      psx::cpu::dispatchGuestToReturn0(*c, kLeaf_800315D4, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, kLeaf_800315D4);
       c->r[R_A0] = 0x1bu;
       c->r[R_A1] = 0;
       c->r[R_A2] = 0;
-      psx::cpu::dispatchGuestToReturn0(*c, kSfxTrigger, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, kSfxTrigger);
       goto LAB_801451b0;
     }
     const int32_t sVar4 = a.accelY();
@@ -296,7 +296,7 @@ switchD_caseD_8:
     c->r[R_A1] = 0xffu;
     c->r[R_A2] = 0x30u;
     c->r[R_A3] = 0x30u;
-    psx::cpu::dispatchGuestToReturn0(*c, kPaletteSideEffect, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, kPaletteSideEffect);
   switchD_caseD_7:;
   }
   if ((c->mem_r32(node + 4) & 0xffff00u) == 0x700u) {
@@ -304,7 +304,7 @@ switchD_caseD_8:
     c->r[R_A1] = 0x20u;
     c->r[R_A2] = 0x30u;
     c->r[R_A3] = 0xffu;
-    psx::cpu::dispatchGuestToReturn0(*c, kPaletteSideEffect, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, kPaletteSideEffect);
   }
   goto switchD_caseD_2;
 }

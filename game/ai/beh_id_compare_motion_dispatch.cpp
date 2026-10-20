@@ -78,8 +78,7 @@ void beh_id_compare_motion_dispatch(Core *c) {
       if (st == 2) { // beq v1,2 -> 0x8014561c      [0x80145280]
         // ---- STATE 2 (idle) [0x8014561C] ----
         c->r[4] = obj;
-        psx::cpu::dispatchGuestToReturn0(
-            *c, 0x80144B50u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // FUN_80144b50 [0x8014561C]
+        psx::cpu::callGuestNow(*c, __func__, 0x80144B50u); // FUN_80144b50 [0x8014561C]
         return;                                                                     // j 0x80145654 (epilogue)
       }
       if (st == 3) { // beq v1,3 -> 0x8014562c      [0x80145288]
@@ -100,8 +99,7 @@ void beh_id_compare_motion_dispatch(Core *c) {
     }
     // ---- STATE 0 (init) [0x80145298] ----
     c->r[4] = obj;
-    psx::cpu::dispatchGuestToReturn0(
-        *c, 0x80140544u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // FUN_80140544 [0x80145298]
+    psx::cpu::callGuestNow(*c, __func__, 0x80140544u); // FUN_80140544 [0x80145298]
     return;                                                                     // j 0x80145654 (epilogue)
   }
 
@@ -169,8 +167,7 @@ void beh_id_compare_motion_dispatch(Core *c) {
     } else {
       // ---- gate call [0x80145328] ----
       c->r[4] = obj;
-      psx::cpu::dispatchGuestToReturn0(
-          *c, 0x8014047Cu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // FUN_8014047c [0x80145328]
+      psx::cpu::callGuestNow(*c, __func__, 0x8014047Cu); // FUN_8014047c [0x80145328]
       if (c->r[2] != 0) {
         return; // bnez v0 -> epilogue          [0x80145330]
       }
@@ -188,8 +185,7 @@ void beh_id_compare_motion_dispatch(Core *c) {
   // ---- node[3] compare-dispatch [0x801453A8..0x80145510] ----
   // Reached ONLY from the tick branch with n2b==0 (fall through 0x801453A8). It re-calls FUN_8014047c.
   c->r[4] = obj;
-  psx::cpu::dispatchGuestToReturn0(
-      *c, 0x8014047Cu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // FUN_8014047c [0x801453A8]
+  psx::cpu::callGuestNow(*c, __func__, 0x8014047Cu); // FUN_8014047c [0x801453A8]
   if (c->r[2] != 0) {
     goto after_no_cull; // bnez v0 -> 0x8014560c        [0x801453B0]
   }
@@ -215,8 +211,7 @@ void beh_id_compare_motion_dispatch(Core *c) {
     // n3==0 OR (n3>=6 && !=0x80 && !=0x81) -> 0x801453EC
     // ---- default / node[3]==0 block [0x801453EC] ----
     c->r[4] = obj;
-    psx::cpu::dispatchGuestToReturn0(
-        *c, 0x80143A00u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // FUN_80143a00 [0x801453EC]
+    psx::cpu::callGuestNow(*c, __func__, 0x80143A00u); // FUN_80143a00 [0x801453EC]
     if (c->mem_r8(obj + 0x2a) == 1) {                // lbu node[0x2a]; bne 1 -> 0x80145510 [0x801453FC]
       int16_t n2e = (int16_t)c->mem_r16(obj + 0x2e); // lh node[0x2e]              [0x80145404]
       if (n2e >= 0x31a9) {                           // slti 0x31a9; bnez -> 0x80145510 (skip) [0x8014540C/10]
@@ -230,8 +225,7 @@ n3_motion:;
   // ---- node[3] motion block [0x80145420..0x801454F4] ----
   {
     c->r[4] = obj;
-    psx::cpu::dispatchGuestToReturn0(
-        *c, 0x80144928u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // FUN_80144928 [0x80145420]
+    psx::cpu::callGuestNow(*c, __func__, 0x80144928u); // FUN_80144928 [0x80145420]
     uint16_t r = (uint16_t)c->r[2]; // sll v0,0x10 -> low 16 bits  [0x80145428]
     if (r == 0) {
       goto second_cull; // beqz -> 0x80145510           [0x8014542C]
@@ -248,8 +242,7 @@ n3_motion:;
     int16_t t1 = (int16_t)c->mem_r16(0x1F800164u);    // lh a1,0x164(0x1f80_0000)
     c->r[4] = (uint32_t)(int32_t)(int16_t)(a2 - t0);  // a0 = node[0x2e]-DAT_1f800160 (subu, used as arg)
     c->r[5] = (uint32_t)(int32_t)(int16_t)(s36 - t1); // a1 = node[0x36]-DAT_1f800164
-    psx::cpu::dispatchGuestToReturn0(
-        *c, 0x800781E0u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // FUN_800781e0 -> v0 [0x80145464]
+    psx::cpu::callGuestNow(*c, __func__, 0x800781E0u); // FUN_800781e0 -> v0 [0x80145464]
     int32_t a1v;
     if (c->mem_r16(0x800E7FFEu) & 0x8200) { // lh DAT_800e7ffe; andi 0x8200; bnez -> a1=-1 [0x80145478..7C]
       a1v = -1;                             // addiu a1,-1  [delay slot @0x80145498]
@@ -273,8 +266,7 @@ n3_motion:;
     }
     c->r[4] = obj;
     c->r[5] = (uint32_t)a1v; // a0=node, a1=(sll16/sra16 of a1v) [0x801454C0..C4]
-    psx::cpu::dispatchGuestToReturn0(
-        *c, 0x801409C0u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // FUN_801409c0 -> v0 [0x801454C8]
+    psx::cpu::callGuestNow(*c, __func__, 0x801409C0u); // FUN_801409c0 -> v0 [0x801454C8]
     uint32_t v1 = c->r[2];         // move v1,v0                   [0x801454D0]
     if ((v1 & 0xffff) == 0) {      // andi 0xffff; beqz -> 0x801454ec [0x801454D8]
       c->mem_w32(obj + 4, 0x301u); // sw 0x301,node[4] (node[4..7]) [0x801454EC]

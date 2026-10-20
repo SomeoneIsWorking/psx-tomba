@@ -344,10 +344,7 @@ void beh_typed_table_seed_gate(Core *c) {
     a.setCounterA(0);
     a.setCounterB(0);
     c->r[4] = a.addr();
-    psx::cpu::dispatchGuestToReturn0(*c,
-                                     SUB_TILE_MOVE_STEP,
-                                     psx::cpu::ExecutionBudget::currentTurn(*c),
-                                     __func__);  // init snap: seed posX/posZ via tile step
+    psx::cpu::callGuestNow(*c, __func__, SUB_TILE_MOVE_STEP);  // init snap: seed posX/posZ via tile step
     a.setOscPhase((int16_t)0);                   // target-#4 accumulator reset
     uint16_t seed = osc_base_table(c, a.type()); // per-type posY seed
     a.setTriggerParam(-0xc8);                    // -200 world units (Y offset?)
@@ -379,7 +376,7 @@ void beh_typed_table_seed_gate(Core *c) {
 
   // ---- render tail: per-frame tile move (integrates posX/posZ) + render-state update ---------------
   c->r[4] = a.addr();
-  psx::cpu::dispatchGuestToReturn0(*c, SUB_TILE_MOVE_STEP, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, SUB_TILE_MOVE_STEP);
   c->r[4] = a.addr();
   eng(c).graphicsBind.renderUpdate();
 }

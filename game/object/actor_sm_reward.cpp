@@ -164,7 +164,7 @@ void ActorReward::smBlinkB(Core *c) {
     c->r[R_A1] = (uint32_t)delta;
     c->r[R_A2] = 0;
     c->r[R_A3] = 0;
-    psx::cpu::dispatchGuestToReturn0(*c, FN_41194, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, FN_41194);
     if (side == 0) {
       c->mem_w8(obj + 0x18, 0);
     } else {
@@ -215,11 +215,11 @@ void ActorReward::smWindowScroll(Core *c) {
         c->mem_w8(obj + 0, 1);
       }
       c->r[R_A0] = obj;
-      psx::cpu::dispatchGuestToReturn0(*c, FN_766C, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, FN_766C);
       c->r[R_A0] = obj;
       c->r[R_A1] = 0;
       c->r[R_A2] = (uint32_t)(int32_t)(-c->mem_r16s(obj + 0x84));
-      psx::cpu::dispatchGuestToReturn0(*c, FN_493E8, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, FN_493E8);
       if (c->r[R_V0] != 0) {
         c->mem_w8(obj + 0, 1);
         a.setVelY(0);
@@ -242,12 +242,12 @@ void ActorReward::smWindowScroll(Core *c) {
       bool setState5 = false;
       if ((c->mem_r8(obj + 0x28) & 0x80) == 0) {
         c->r[R_A0] = obj;
-        psx::cpu::dispatchGuestToReturn0(*c, FN_766C, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+        psx::cpu::callGuestNow(*c, __func__, FN_766C);
         int16_t delta = (int16_t)(c->mem_r16(obj + 0x86) - c->mem_r16(obj + 0x84));
         c->r[R_A0] = obj;
         c->r[R_A1] = 0;
         c->r[R_A2] = (uint32_t)(int32_t)delta;
-        psx::cpu::dispatchGuestToReturn0(*c, FN_49250, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+        psx::cpu::callGuestNow(*c, __func__, FN_49250);
         uint32_t tag = c->r[R_V0];
         if (tag == 1) {
           setState5 = true;
@@ -277,12 +277,12 @@ void ActorReward::smWindowScroll(Core *c) {
           setState5 = true;
         } else {
           c->r[R_A0] = obj;
-          psx::cpu::dispatchGuestToReturn0(*c, FN_766C, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+          psx::cpu::callGuestNow(*c, __func__, FN_766C);
           int16_t delta = (int16_t)(c->mem_r16(obj + 0x86) - c->mem_r16(obj + 0x84));
           c->r[R_A0] = obj;
           c->r[R_A1] = 0;
           c->r[R_A2] = (uint32_t)(int32_t)delta;
-          psx::cpu::dispatchGuestToReturn0(*c, FN_49250, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+          psx::cpu::callGuestNow(*c, __func__, FN_49250);
           if (c->r[R_V0] == 0) {
             break; // no state-5, no scroll reset
           }
@@ -322,7 +322,7 @@ void ActorReward::smWindowScroll(Core *c) {
     c->r[R_A1] = (uint32_t)(int32_t)c->mem_r16s(obj + 0x2e);
     c->r[R_A2] = (uint32_t)(int32_t)c->mem_r16s(obj + 0x32);
     c->r[R_A3] = (uint32_t)(int32_t)c->mem_r16s(obj + 0x36);
-    psx::cpu::dispatchGuestToReturn0(*c, FN_77ACC, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, FN_77ACC);
     if (c->r[R_V0] == 0) {
       c->mem_w8(obj + 4, 3);
     }
@@ -371,7 +371,7 @@ void ActorReward::smTallyTick(Core *c) {
       uint32_t savedA1 = step;
       c->r[R_A0] = obj;
       c->r[R_A1] = savedA1;
-      psx::cpu::dispatchGuestToReturn0(*c, FN_72114, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, FN_72114);
       ret = 0;
     }
   } else {
@@ -413,21 +413,21 @@ void ActorReward::smEventDispatch(Core *c) {
   case 0: {
     c->r[R_A0] = evt;
     c->r[R_A1] = 1;
-    psx::cpu::dispatchGuestToReturn0(*c, FN_D4C4, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, FN_D4C4);
     c->mem_w8(G_BF88C, (uint8_t)evt);
     c->mem_w8(G_E7EEC, c->mem_r8(G_BF88C));
     c->r[R_A0] = 0x1e;
-    psx::cpu::dispatchGuestToReturn0(*c, FN_40C00, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, FN_40C00);
     break;
   }
   case 5: {
     c->r[R_A0] = evt;
     c->r[R_A1] = 1;
-    psx::cpu::dispatchGuestToReturn0(*c, FN_D4C4, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, FN_D4C4);
     c->mem_w8(G_BF88C, (uint8_t)evt);
     c->mem_w8(G_E7EEC, c->mem_r8(G_BF88C));
     c->r[R_A0] = 0x0f;
-    psx::cpu::dispatchGuestToReturn0(*c, FN_40C00, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, FN_40C00);
     break;
   }
   case 3:
@@ -435,7 +435,7 @@ void ActorReward::smEventDispatch(Core *c) {
     // guest frame, so every reacher must carry the RE'd constant (guest 0x8004A3D4 evidence).
     c->r[R_A0] = 9;
     c->r[31] = 0x8004A458u;
-    psx::cpu::dispatchGuestToReturn0(*c, FN_40B48, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, FN_40B48);
     [[fallthrough]];
   case 1:
   case 2:
@@ -445,7 +445,7 @@ void ActorReward::smEventDispatch(Core *c) {
   case 8: {
     c->r[R_A0] = evt;
     c->r[R_A1] = 1;
-    psx::cpu::dispatchGuestToReturn0(*c, FN_D4C4, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, FN_D4C4);
     c->mem_w8(G_BF88C, (uint8_t)evt);
     c->mem_w8(G_E7EEC, c->mem_r8(G_BF88C));
     break;
@@ -453,69 +453,69 @@ void ActorReward::smEventDispatch(Core *c) {
   case 10: {
     c->r[R_A0] = 0x0b;
     c->r[R_A1] = 1;
-    psx::cpu::dispatchGuestToReturn0(*c, FN_D4C4, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, FN_D4C4);
     c->mem_w8(G_BF88D, 1);
     c->mem_w8(G_E7EED, c->mem_r8(G_BF88D));
     c->r[R_A0] = 0;
-    psx::cpu::dispatchGuestToReturn0(*c, FN_67DA8, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, FN_67DA8);
     c->mem_w8(G_BF9CF, (uint8_t)(c->mem_r8(G_BF9CF) + 1));
     break;
   }
   case 0xb: {
     c->r[R_A0] = 0x0c;
     c->r[R_A1] = 1;
-    psx::cpu::dispatchGuestToReturn0(*c, FN_D4C4, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, FN_D4C4);
     c->mem_w8(G_BF88D, 2);
     c->mem_w8(G_E7EED, c->mem_r8(G_BF88D));
     c->r[R_A0] = 0;
-    psx::cpu::dispatchGuestToReturn0(*c, FN_67DA8, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, FN_67DA8);
     c->mem_w8(G_BF9CF, (uint8_t)(c->mem_r8(G_BF9CF) + 1));
     break;
   }
   case 0x2e: {
     c->r[R_A0] = evt;
     c->r[R_A1] = 1;
-    psx::cpu::dispatchGuestToReturn0(*c, FN_D4C4, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, FN_D4C4);
     c->r[R_A0] = 0x18;
     c->r[31] = 0x8004A664u;
-    psx::cpu::dispatchGuestToReturn0(*c, FN_40B48, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, FN_40B48);
     break;
   }
   case 0x46: {
     c->r[R_A0] = evt;
     c->r[R_A1] = 1;
-    psx::cpu::dispatchGuestToReturn0(*c, FN_D4C4, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, FN_D4C4);
     c->r[R_A0] = 0x4d;
     c->r[31] = 0x8004A680u;
-    psx::cpu::dispatchGuestToReturn0(*c, FN_40B48, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, FN_40B48);
     break;
   }
   case 0x56: {
     c->r[R_A0] = 0x4d;
     c->r[R_A1] = 2;
-    psx::cpu::dispatchGuestToReturn0(*c, FN_D4F4, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, FN_D4F4);
     c->r[R_A0] = 0x57;
     c->r[R_A1] = 2;
-    psx::cpu::dispatchGuestToReturn0(*c, FN_ED0C, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, FN_ED0C);
     c->r[R_A0] = 0x3e;
     c->r[31] = 0x8004A548u;
-    psx::cpu::dispatchGuestToReturn0(*c, FN_40B48, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, FN_40B48);
     break;
   }
   case 0x69: {
     c->r[R_A0] = evt;
     c->r[R_A1] = 1;
-    psx::cpu::dispatchGuestToReturn0(*c, FN_D4C4, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, FN_D4C4);
     c->r[R_A0] = 0x58;
-    psx::cpu::dispatchGuestToReturn0(*c, FN_40C00, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, FN_40C00);
     break;
   }
   case 0x6a: {
     c->r[R_A0] = evt;
     c->r[R_A1] = 1;
-    psx::cpu::dispatchGuestToReturn0(*c, FN_D4C4, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, FN_D4C4);
     c->r[R_A0] = 0x59;
-    psx::cpu::dispatchGuestToReturn0(*c, FN_40C00, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, FN_40C00);
     break;
   }
   case 0x6f:
@@ -526,83 +526,82 @@ void ActorReward::smEventDispatch(Core *c) {
       if (c->mem_r8(G_BFB24) == 0) {
         c->r[R_A0] = 0x70;
         c->r[R_A1] = 1;
-        psx::cpu::dispatchGuestToReturn0(*c, FN_D4F4, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+        psx::cpu::callGuestNow(*c, __func__, FN_D4F4);
         cue = 0x10;
       } else {
         c->r[R_A0] = 0x6f;
         c->r[R_A1] = 1;
-        psx::cpu::dispatchGuestToReturn0(*c, FN_D4F4, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+        psx::cpu::callGuestNow(*c, __func__, FN_D4F4);
         c->r[R_A0] = 0x70;
         c->r[R_A1] = 1;
-        psx::cpu::dispatchGuestToReturn0(*c, FN_D650, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+        psx::cpu::callGuestNow(*c, __func__, FN_D650);
         cue = 0x11;
       }
     } else if (key == 0x71) {
       if (c->mem_r8(G_BFB26) == 0) {
         c->r[R_A0] = 0x72;
         c->r[R_A1] = 1;
-        psx::cpu::dispatchGuestToReturn0(*c, FN_D4F4, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+        psx::cpu::callGuestNow(*c, __func__, FN_D4F4);
         cue = 0x12;
       } else {
         c->r[R_A0] = 0x71;
         c->r[R_A1] = 1;
-        psx::cpu::dispatchGuestToReturn0(*c, FN_D4F4, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+        psx::cpu::callGuestNow(*c, __func__, FN_D4F4);
         c->r[R_A0] = 0x72;
         c->r[R_A1] = 1;
-        psx::cpu::dispatchGuestToReturn0(*c, FN_D650, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+        psx::cpu::callGuestNow(*c, __func__, FN_D650);
         cue = 0x13;
       }
     } else {
       if (c->mem_r8(G_BFB28) == 0) {
         c->r[R_A0] = 0x74;
         c->r[R_A1] = 1;
-        psx::cpu::dispatchGuestToReturn0(*c, FN_D4F4, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+        psx::cpu::callGuestNow(*c, __func__, FN_D4F4);
         cue = 0x14;
       } else {
         c->r[R_A0] = 0x73;
         c->r[R_A1] = 1;
-        psx::cpu::dispatchGuestToReturn0(*c, FN_D4F4, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+        psx::cpu::callGuestNow(*c, __func__, FN_D4F4);
         c->r[R_A0] = 0x74;
         c->r[R_A1] = 1;
-        psx::cpu::dispatchGuestToReturn0(*c, FN_D650, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+        psx::cpu::callGuestNow(*c, __func__, FN_D650);
         cue = 0x15;
       }
     }
     c->r[R_A0] = cue;
     c->r[R_A1] = 0x41;
-    psx::cpu::dispatchGuestToReturn0(*c, FN_ED94, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, FN_ED94);
     break;
   }
   case 0x7b: {
     c->r[R_A0] = evt;
     c->r[R_A1] = 1;
-    psx::cpu::dispatchGuestToReturn0(*c, FN_D4C4, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, FN_D4C4);
     // Shared gen tail L_8004A6CC (case 0x7b falls through, case 0x89 jumps): ra 0x8004A6D4.
     c->r[R_A0] = 0x50;
     c->r[31] = 0x8004A6D4u;
-    psx::cpu::dispatchGuestToReturn0(*c, FN_40B48, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, FN_40B48);
     break;
   }
   case 0x88: {
     c->r[R_A0] = 0x60;
     c->r[R_A1] = 2;
-    psx::cpu::dispatchGuestToReturn0(*c, FN_D4F4, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, FN_D4F4);
     c->r[R_A0] = 0x89;
     c->r[R_A1] = 2;
-    psx::cpu::dispatchGuestToReturn0(*c, FN_ED0C, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, FN_ED0C);
     break;
   }
   case 0x89: {
     c->r[R_A0] = 0x7c;
     c->r[R_A1] = 3;
-    psx::cpu::dispatchGuestToReturn0(*c, FN_D4F4, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, FN_D4F4);
     c->r[R_A0] = 0x8a;
     c->r[R_A1] = 2;
-    psx::cpu::dispatchGuestToReturn0(*c, FN_ED0C, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, FN_ED0C);
     c->r[R_A0] = 0x50;
     c->r[31] = 0x8004A6D4u;
-    psx::cpu::dispatchGuestToReturn0(
-        *c, FN_40B48, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // shared tail L_8004A6CC
+    psx::cpu::callGuestNow(*c, __func__, FN_40B48); // shared tail L_8004A6CC
     break;
   }
   case 0x90: {
@@ -614,10 +613,10 @@ void ActorReward::smEventDispatch(Core *c) {
     c->mem_w16(G_TALLY_PREV, c->mem_r16(G_TALLY_CUR));
     c->r[R_A0] = 0x0f;
     c->r[R_A1] = 0x41;
-    psx::cpu::dispatchGuestToReturn0(*c, FN_ED94, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, FN_ED94);
     c->r[R_A0] = 0x711;
     c->r[R_A1] = 0;
-    psx::cpu::dispatchGuestToReturn0(*c, FN_310F4, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, FN_310F4);
     {
       uint32_t o2 = c->r[R_V0];
       if (o2 != 0) {
@@ -634,13 +633,13 @@ void ActorReward::smEventDispatch(Core *c) {
     c->r[R_A0] = obj;
     c->r[R_A1] = 100000;
     c->r[R_A2] = 0;
-    psx::cpu::dispatchGuestToReturn0(*c, FN_71B44, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, FN_71B44);
     [[fallthrough]];
   }
   default: {
     c->r[R_A0] = evt;
     c->r[R_A1] = 1;
-    psx::cpu::dispatchGuestToReturn0(*c, FN_D4C4, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, FN_D4C4);
     break;
   }
   case 0x9f:
@@ -648,22 +647,22 @@ void ActorReward::smEventDispatch(Core *c) {
   case 0xa1:
   case 0xa2: {
     c->r[R_A0] = obj;
-    psx::cpu::dispatchGuestToReturn0(*c, FN_115AEC, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, FN_115AEC);
     break;
   }
   case 0xa5: {
     c->r[R_A0] = evt;
     c->r[R_A1] = 1;
-    psx::cpu::dispatchGuestToReturn0(*c, FN_D4C4, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, FN_D4C4);
     c->r[R_A0] = obj;
-    psx::cpu::dispatchGuestToReturn0(*c, FN_114F24, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, FN_114F24);
     break;
   }
   }
 
   c->r[R_A0] = 0x1f;
   c->r[R_A1] = (uint32_t)-140;
-  psx::cpu::dispatchGuestToReturn0(*c, FN_310F4, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, FN_310F4);
   uint32_t o2 = c->r[R_V0];
   if (o2 != 0) {
     c->mem_w8(o2 + 0x28, (uint8_t)(c->mem_r8(o2 + 0x28) | 0x80));
@@ -674,7 +673,7 @@ void ActorReward::smEventDispatch(Core *c) {
   c->r[R_A0] = 0x28;
   c->r[R_A1] = 0;
   c->r[R_A2] = 0;
-  psx::cpu::dispatchGuestToReturn0(*c, FN_74590, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, FN_74590);
   c->r[R_V0] = 1;
 }
 
@@ -770,7 +769,7 @@ void ActorReward::update(Core *c) {
       // spills it at its own +20 frame slot -- must byte-match.
       c->r[R_A0] = obj;
       c->r[31] = 0x800702ACu;
-      psx::cpu::dispatchGuestToReturn0(*c, FN_A624, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, FN_A624);
       updateEpilogue(c);
       return;
     }
@@ -801,53 +800,53 @@ void ActorReward::update(Core *c) {
             c->r[R_A0] = obj;
             c->r[R_A1] = 100;
             c->r[31] = 0x800701F0u;
-            psx::cpu::dispatchGuestToReturn0(*c, FN_B3F4, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+            psx::cpu::callGuestNow(*c, __func__, FN_B3F4);
             result = c->r[R_V0];
             break;
           case 5:
             c->r[R_A0] = obj;
             c->r[R_A1] = 200;
             c->r[31] = 0x80070204u;
-            psx::cpu::dispatchGuestToReturn0(*c, FN_B3F4, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+            psx::cpu::callGuestNow(*c, __func__, FN_B3F4);
             result = c->r[R_V0];
             break;
           case 6:
             c->r[R_A0] = obj;
             c->r[R_A1] = 500;
             c->r[31] = 0x80070218u;
-            psx::cpu::dispatchGuestToReturn0(*c, FN_B3F4, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+            psx::cpu::callGuestNow(*c, __func__, FN_B3F4);
             result = c->r[R_V0];
             break;
           case 7:
             c->r[R_A0] = obj;
             c->r[R_A1] = 1000;
             c->r[31] = 0x8007022Cu;
-            psx::cpu::dispatchGuestToReturn0(*c, FN_B3F4, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+            psx::cpu::callGuestNow(*c, __func__, FN_B3F4);
             result = c->r[R_V0];
             break;
           case 0xb:
             c->r[R_A0] = obj;
             c->r[R_A1] = 100000;
             c->r[31] = 0x80070244u;
-            psx::cpu::dispatchGuestToReturn0(*c, FN_B3F4, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+            psx::cpu::callGuestNow(*c, __func__, FN_B3F4);
             result = c->r[R_V0];
             break;
           case 0xf:
             c->r[R_A0] = obj;
             c->r[31] = 0x80070254u;
-            psx::cpu::dispatchGuestToReturn0(*c, FN_A118, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+            psx::cpu::callGuestNow(*c, __func__, FN_A118);
             result = c->r[R_V0];
             break;
           case 0x10:
             c->r[R_A0] = obj;
             c->r[31] = 0x80070264u;
-            psx::cpu::dispatchGuestToReturn0(*c, FN_A2A0, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+            psx::cpu::callGuestNow(*c, __func__, FN_A2A0);
             result = c->r[R_V0];
             break;
           case 0x11:
             c->r[R_A0] = obj;
             c->r[31] = 0x80070274u;
-            psx::cpu::dispatchGuestToReturn0(*c, FN_B428, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+            psx::cpu::callGuestNow(*c, __func__, FN_B428);
             result = c->r[R_V0];
             break;
           default:
@@ -893,13 +892,11 @@ void ActorReward::update(Core *c) {
   if ((flags5f & 0x80) == 0) {
     c->r[R_A0] = obj;
     c->r[31] = 0x80070168u;
-    psx::cpu::dispatchGuestToReturn0(
-        *c, FN_517F8, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // GraphicsBind::renderUpdateBody
+    psx::cpu::callGuestNow(*c, __func__, FN_517F8); // GraphicsBind::renderUpdateBody
   } else {
     c->r[R_A0] = obj;
     c->r[31] = 0x80070158u;
-    psx::cpu::dispatchGuestToReturn0(
-        *c, FN_77B5C, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // Animation::advanceLinkChain
+    psx::cpu::callGuestNow(*c, __func__, FN_77B5C); // Animation::advanceLinkChain
   }
   updateEpilogue(c);
 }

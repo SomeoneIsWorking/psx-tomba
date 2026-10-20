@@ -21,10 +21,7 @@ void AreaFadeSequencer::step(uint32_t node) {
     c->mem_w8(node + 3, 0);
     c->mem_w8(node + 2, (uint8_t)(outer + 1)); // -> outer state 1
     c->r[4] = node;
-    psx::cpu::dispatchGuestToReturn0(*c,
-                                     0x8010D030u,
-                                     psx::cpu::ExecutionBudget::currentTurn(*c),
-                                     __func__); // overlay guest 0x8010D030(node) — not yet decoded
+    psx::cpu::callGuestNow(*c, __func__, 0x8010D030u); // overlay guest 0x8010D030(node) — not yet decoded
     c->mem_w16(node + 106, 31);
     fade(c).applyLeafCall(0x00FFFFFFu, ScreenFade::kSubtractive, 0);
     return;
@@ -56,10 +53,7 @@ void AreaFadeSequencer::step(uint32_t node) {
   };
   auto helperCC68 = [&](uint32_t arg) {
     c->r[4] = arg;
-    psx::cpu::dispatchGuestToReturn0(*c,
-                                     0x8010CC68u,
-                                     psx::cpu::ExecutionBudget::currentTurn(*c),
-                                     "area_fade_sequencer"); // overlay guest 0x8010CC68 — returns bool in v0
+    psx::cpu::callGuestNow(*c, "area_fade_sequencer", 0x8010CC68u); // overlay guest 0x8010CC68 — returns bool in v0
   };
 
   switch (substep) {

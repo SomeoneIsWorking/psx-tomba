@@ -145,21 +145,21 @@ void beh_scene_ui_trigger(Core *c) {
       break;
     } // ca0: node[5]=4 -> render
     c->r[4] = c->mem_r8(obj + 3);
-    psx::cpu::dispatchGuestToReturn0(*c, 0x800737F8u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, 0x800737F8u);
     if (c->mem_r16(0x800E7E68u) & 0x2000) {
       sfx_advance(c, obj); // confirm edge -> SFX + advance
     }
   } break;
   case 2: // jt[2]=0x80073bbc
   {
-    psx::cpu::dispatchGuestToReturn0(*c, 0x800738B0u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, 0x800738B0u);
     uint16_t pad = c->mem_r16(0x800E7E68u);
     if (pad & 0x4000) {
       sfx_advance(c, obj);
     } else if (pad & 0x2000) {
       c->mem_w8(obj + 5, 4);
       c->r[4] = 1;
-      psx::cpu::dispatchGuestToReturn0(*c, 0x80074BF8u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, 0x80074BF8u);
     }
   } break;
   case 3: // jt[3]=0x80073c1c: seed camera/save globals + FUN_8005082C

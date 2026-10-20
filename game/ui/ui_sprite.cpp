@@ -66,7 +66,7 @@ void UiSprite::drawFromTable(Core *c) {
   c->r[6] = c->mem_r32(MODEL_TABLE_PTR);
   c->r[7] = attributes;
   c->r[31] = 0x8007E928u; // jal-site ra
-  psx::cpu::dispatchGuestToReturn0(*c, kQuads, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, kQuads);
 
   c->r[31] = c->mem_r32(frame + 32);
   c->r[29] += 40;
@@ -84,10 +84,7 @@ void UiSprite::drawFixedDef152(Core *c) {
 
   c->r[31] = 0x8007E9B8u; // jal-site ra
   c->r[7] = (uint32_t)DEF_FIXED_152;
-  psx::cpu::dispatchGuestToReturn0(*c,
-                                   0x8007E8DCu,
-                                   psx::cpu::ExecutionBudget::currentTurn(*c),
-                                   __func__); // through the thunk, so the port above runs
+  psx::cpu::callGuestNow(*c, __func__, 0x8007E8DCu); // through the thunk, so the port above runs
 
   c->r[31] = c->mem_r32(frame + 16);
   c->r[29] += 24;

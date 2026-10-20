@@ -645,7 +645,7 @@ static void grid_step_4798c(Core *c, uint32_t obj) {
   uint32_t gid = c->mem_r8(SP + 0x1FE);
   if (v1 != gid) {
     c->r[4] = v1;
-    psx::cpu::dispatchGuestToReturn0(*c, 0x80048eccu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, 0x80048eccu);
   }
   // ---- block 2: select range (Z if h[0x1AE] u< h[0x1B0], else X), test, maybe re-resolve ----
   uint32_t aE = c->mem_r16(SP + 0x1AE); // h[0x1AE] (a1)
@@ -661,7 +661,7 @@ static void grid_step_4798c(Core *c, uint32_t obj) {
   if (test != 0) {
     c->r[4] = obj;
     c->r[5] = 1;
-    psx::cpu::dispatchGuestToReturn0(*c, 0x80048fc4u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, 0x80048fc4u);
   }
   // ---- block 3: clamp the in-range coord, then recompute the other from it ----
   uint32_t lo = c->mem_r16(SP + 0x1AE), hi = c->mem_r16(SP + 0x1B0);
@@ -833,19 +833,17 @@ uint32_t Collision::snapObjectToTerrain(uint32_t obj) {
     // --- 2. clamp the probe onto the actor's current path sector ---
     c->r[31] = 0x800476B4u; // ra for FUN_80047778's own frame
     c->r[4] = obj;
-    psx::cpu::dispatchGuestToReturn0(*c, 0x80047778u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, 0x80047778u);
     const uint32_t clampStatus = c->r[2];
 
     // --- 3. load that sector's cell rows, then find the cell under the probe ---
     c->r[4] = act.sectorId(); // a0 = sector id (re-read: step 2 may move it)
     c->r[31] = 0x800476C0u;   // ra for FUN_80049968
     c->r[18] = clampStatus;   // s2 holds the status across both calls
-    psx::cpu::dispatchGuestToReturn0(
-        *c, 0x80049968u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // Collision::gridSetup(sectorId)
+    psx::cpu::callGuestNow(*c, __func__, 0x80049968u); // Collision::gridSetup(sectorId)
     stepStatus = clampStatus;
     c->r[31] = 0x800476C8u; // ra for FUN_80047CBC
-    psx::cpu::dispatchGuestToReturn0(
-        *c, 0x80047CBCu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // Collision::gridQuery()
+    psx::cpu::callGuestNow(*c, __func__, 0x80047CBCu); // Collision::gridQuery()
     if (c->r[2] == 0) {
       break; // off grid — actor position stays untouched
     }
@@ -868,11 +866,9 @@ uint32_t Collision::snapObjectToTerrain(uint32_t obj) {
   if (onGrid) {
     // --- 5. fold the probe into slope-local deltas, then pick the floor line under it ---
     c->r[31] = 0x8004771Cu; // ra for FUN_80048134
-    psx::cpu::dispatchGuestToReturn0(
-        *c, 0x80048134u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // guest slope-local delta
+    psx::cpu::callGuestNow(*c, __func__, 0x80048134u); // guest slope-local delta
     c->r[31] = 0x80047724u;                                                     // ra for FUN_80048034
-    psx::cpu::dispatchGuestToReturn0(
-        *c, 0x80048034u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // guest floor selection
+    psx::cpu::callGuestNow(*c, __func__, 0x80048034u); // guest floor selection
 
     // --- 6. displace the probe by the slope-local correction; publish it to probe AND actor ---
     const uint16_t snappedX = (uint16_t)(gr.probeX_u() + gr.localX_u());

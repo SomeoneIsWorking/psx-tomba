@@ -109,7 +109,7 @@ void Render::drawSync() {
     uint32_t initFn = c->mem_r32(GPU_SYS_INIT_FN);
     c->r[5] = c->r[16];
     c->r[31] = 0x80080FA8u;
-    psx::cpu::dispatchGuestToReturn0(*c, initFn, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, initFn);
   }
   // BUG FIX (2026-07-10, wiring re-verify): GPU_SYS_TABLE (0x800A5998) is a POINTER FIELD holding
   // the address of the real jump table — the guest-visible behavior dereferences it TWICE
@@ -123,7 +123,7 @@ void Render::drawSync() {
   uint32_t tableSlot60 = c->mem_r32(tableBase + 60); // table+0x3C, the DrawSync entry itself
   c->r[4] = c->r[16];
   c->r[31] = 0x80080FC4u;
-  psx::cpu::dispatchGuestToReturn0(*c, tableSlot60, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, tableSlot60);
   epilogue();
 }
 
@@ -168,7 +168,7 @@ void Render::clearOTagR() {
     uint32_t initFn = c->mem_r32(GPU_SYS_INIT_FN);
     c->r[6] = c->r[17];
     c->r[31] = 0x800814A0u;
-    psx::cpu::dispatchGuestToReturn0(*c, initFn, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, initFn);
   }
   // Same missing-indirection bug as DrawSync above (fixed 2026-07-10): GPU_SYS_TABLE must be
   // dereferenced once to get the table's real base, THEN +44 dereferenced again (authenticated executable/overlay
@@ -178,7 +178,7 @@ void Render::clearOTagR() {
   c->r[4] = c->r[16];
   c->r[5] = c->r[17];
   c->r[31] = 0x800814BCu;
-  psx::cpu::dispatchGuestToReturn0(*c, tableSlot44, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, tableSlot44);
 
   const uint32_t mask24 = (255u << 16) | 65535u;              // 0x00FFFFFF
   constexpr uint32_t kDummyTagAddr = 0x800A0000u + 23136u;    // 0x800A5A60 (gen-C decimal, CORRECTED — see header)

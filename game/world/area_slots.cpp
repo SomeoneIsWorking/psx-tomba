@@ -67,7 +67,7 @@ void AreaSlots::updateTail() {
 
   // (1) Fill the 24-byte per-slot state buffer for this frame.
   c->r[4] = buf_addr;
-  psx::cpu::dispatchGuestToReturn0(*c, 0x800998E4u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, 0x800998E4u);
 
   // (2) Slot loop over 24 entries at 0x800BE238 (12 bytes each), starting at the counter at 0x800BED78.
   int32_t s2 = (int32_t)c->mem_r32(0x800BED78u);
@@ -131,7 +131,7 @@ void AreaSlots::updateTail() {
                     c->r[16],
                     c->r[19],
                     c->mem_r8(0x800BF870u));
-      psx::cpu::dispatchGuestToReturn0(*c, 0x80092660u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, 0x80092660u);
       uint32_t mask = c->mem_r32(0x800BE358u); // clear bit s2 in the arm-mask
       mask &= ~(1u << (uint32_t)s2);
       c->mem_w32(0x800BE358u, mask);
@@ -177,7 +177,7 @@ void AreaSlots::updateTail() {
   if (c->mem_r32(0x800BE358u) != 0) {
     c->r[4] = 0;
     c->r[31] = 0x80075C4Cu;
-    psx::cpu::dispatchGuestToReturn0(*c, 0x80098F90u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, 0x80098F90u);
     c->mem_w32(0x800BE358u, 0);
   }
 
@@ -191,7 +191,7 @@ void AreaSlots::updateTail() {
   eng(c).musicCoord.voiceMixTick(S5); // FUN_80075824 (native)
   c->r[4] = S5;
   c->r[31] = 0x80075C60u;
-  psx::cpu::dispatchGuestToReturn0(*c, 0x80099490u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, 0x80099490u);
 
   // (5) Key2 branch. gen reassigns r17:=0x800C0000 right here, before the key2 read, and the S5
   // zero-write below is UNCONDITIONAL — it lives in the branch's delay slot, so it fires whether
@@ -205,7 +205,7 @@ void AreaSlots::updateTail() {
     c->r[4] = (uint32_t)(int32_t)entry_hw;
     c->r[5] = 0;
     c->r[31] = 0x80075C90u;
-    psx::cpu::dispatchGuestToReturn0(*c, 0x8008E0C0u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, 0x8008E0C0u);
     if ((c->r[2] & 0xFFFFu) == 0) {
       // Guest checked (return << 16) != 0 == (return & 0xFFFF) != 0.
       // gen reassigns r16:=S5 here (r16 = 0x800C0000 - 7688), live for both the subid==0 and
@@ -220,12 +220,12 @@ void AreaSlots::updateTail() {
         c->mem_w16(0x800BED80u, 0);
         c->r[4] = (uint32_t)subid;
         c->r[31] = 0x80075CB8u;
-        psx::cpu::dispatchGuestToReturn0(*c, 0x80074BF8u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+        psx::cpu::callGuestNow(*c, __func__, 0x80074BF8u);
         c->mem_w8(0x800BE22Au, 0); // gen mem_w8(r16+50,0) after BF8 (r16=S5, +50=0x800BE22A)
       } else {
         c->r[4] = 0;
         c->r[31] = 0x80075CC8u;
-        psx::cpu::dispatchGuestToReturn0(*c, 0x80074E48u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+        psx::cpu::callGuestNow(*c, __func__, 0x80074E48u);
       }
     }
   }
@@ -304,7 +304,7 @@ bool AreaSlots::updateCell(const UpdateCellArgs &args) {
   c->r[4] = idx;
   c->r[5] = (uint32_t)(dx << 7);
   c->r[6] = (uint32_t)(dy << 7);
-  psx::cpu::dispatchGuestToReturn0(*c, 0x80092E3Cu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, 0x80092E3Cu);
   return true;
 }
 

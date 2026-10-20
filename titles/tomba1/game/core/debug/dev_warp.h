@@ -1,5 +1,7 @@
 #pragma once
 
+#include "command_args.h"
+
 #include <cstdint>
 #include <string>
 
@@ -33,8 +35,8 @@ public:
 
   static bool fieldRunning(Core &core);
 
-  // Parses and arms one command line; the returned text answers the client.
-  std::string arm(Core &core, const char *line);
+  // The returned text answers the client.
+  std::string arm(Core &core, const psx::debug::CommandArgs &args);
   // Writes the armed request at a frame boundary.
   void applyArmed(Core &core, std::uint32_t frame);
 

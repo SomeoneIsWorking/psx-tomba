@@ -278,7 +278,7 @@ void Engine::fieldRunX() {
     // Scheduler::spawnAndWait runs the spawned body inline when the waiting
     // task cannot suspend (kanban #50).
     c->r[31] = 0x80107108u;
-    psx::cpu::dispatchGuestToReturn0(*c, 0x8006c77cu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, 0x8006c77cu);
     psx::cpu::callGuestNow(*c, __func__, 0x8005082cu, 0, 0, 0); // input reset
     // fall through to state 1
   }
@@ -327,7 +327,7 @@ void Engine::fieldRunX() {
 
 void Engine::submode1Case0Native() {
   Core *c = core;
-  psx::cpu::dispatchGuestToReturn0(*c, 0x8005245cu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, 0x8005245cu);
   // The owned load is synchronous: retain FUN_80044BD4's flag-2 RNG stamp, then
   // continue without manufacturing a wait frame or loading-screen service.
   tomba::sched::taskScheduler(*c).completeSyncWait(c->mem_r32(0x1f800138u), /*flag=*/2);

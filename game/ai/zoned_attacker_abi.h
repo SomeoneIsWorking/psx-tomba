@@ -3,7 +3,7 @@
 // and the guest-stack frame contracts the override trampolines must mirror.
 //
 // Every leaf reached through these addresses is an un-owned PSX body called through
-// psx::cpu::dispatchGuestToReturn0; two of them (0x800777FC, 0x800518FC) also have native owners
+// psx::cpu::callGuestNow; two of them (0x800777FC, 0x800518FC) also have native owners
 // elsewhere and are still reached here so the whole cluster dispatches uniformly.
 #pragma once
 

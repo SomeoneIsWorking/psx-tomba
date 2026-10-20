@@ -26,7 +26,7 @@ function owners in `docs/guest-addresses.md`, producers in `docs/producers.md`, 
 | guest structure types | `game/engine_types.h` | Native mirrors of the engine's in-RAM structures |
 | `DevControl`, `DevWarp`, `DevItems`, `DevFlags`, `DevGate` | `game/core/debug/dev_*` | `warp`, `items`, `flag`: parsed between frames, applied by the frame driver at a frame boundary |
 | `tomba::DevAreas` | `game/core/debug/dev_areas.h` | The picker's warp list (`TitleDevWarp`) |
-| `replCommand` | `game/core/debug/repl_commands.h` | The remaining title control-channel commands |
+| `replCommand` | `game/core/debug/repl_commands.h` | The remaining title control-channel commands: `ents`, `node`, `geomblk`, `stage`, `seq`, `bgm`, `musictest`, ... |
 | `AutoDrive` | `game/core/debug/auto_drive.h` | `PSXPORT_AUTO_SKIP`: the front end driven into GAME free-roam at frame boundaries |
 | `VerificationCounters` | `game/core/debug/verification_counters.h` | Title verification tallies on the diagnostics channel |
 | `LibapiIntr` | `game/core/hle/` | libapi interrupt-mask primitives and the VBlank count mirror |

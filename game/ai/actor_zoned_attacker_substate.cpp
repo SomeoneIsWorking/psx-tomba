@@ -67,7 +67,7 @@ void ActorZonedAttacker::defaultSubStateMachine(Core *c) {
         uVar7 = 0x201u;
         if ((int32_t)((uint32_t)bVar2 << 24) < 1) {
           c->mem_w32(node + 4, 0x301u);
-          psx::cpu::dispatchGuestToReturn0(*c, kRngRead, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+          psx::cpu::callGuestNow(*c, __func__, kRngRead);
           c->mem_w8(node + 100, (uint8_t)(c->r[R_V0] & 3));
           return;
         }
@@ -83,7 +83,7 @@ void ActorZonedAttacker::defaultSubStateMachine(Core *c) {
         const int32_t tz = c->mem_r16s(kS_1F800164);
         c->r[R_A0] = (uint32_t)(int32_t)(int16_t)(nx - tx);
         c->r[R_A1] = (uint32_t)(int32_t)(int16_t)(nz - tz);
-        psx::cpu::dispatchGuestToReturn0(*c, kDist2D, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+        psx::cpu::callGuestNow(*c, __func__, kDist2D);
         const int32_t d = (int32_t)(int16_t)c->r[R_V0];
         int32_t zone;
         if ((c->mem_r16(kS_800E7FFE) & 0x8200) == 0 && d < 0x641) {
@@ -97,7 +97,7 @@ void ActorZonedAttacker::defaultSubStateMachine(Core *c) {
         }
         c->r[R_A0] = node;
         c->r[R_A1] = (uint32_t)zone;
-        psx::cpu::dispatchGuestToReturn0(*c, kPickAttackByRange, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+        psx::cpu::callGuestNow(*c, __func__, kPickAttackByRange);
         const int32_t r = (int32_t)(int16_t)c->r[R_V0];
         uVar7 = 0x301u;
         if (r != 0) {
@@ -181,7 +181,7 @@ void ActorZonedAttacker::defaultSubStateMachine(Core *c) {
       if (1 < bv) {
         return;
       }
-      psx::cpu::dispatchGuestToReturn0(*c, kRngRead, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, kRngRead);
       uVar6 = c->r[R_V0];
       uVar7 = 0x101u;
       if ((uVar6 & 0x8000) == 0) {
@@ -282,7 +282,7 @@ void ActorZonedAttacker::defaultSubStateMachine(Core *c) {
       c->r[R_A0] = node;
       c->r[R_A1] = 0;
       c->r[R_A2] = 0x1900u;
-      psx::cpu::dispatchGuestToReturn0(*c, kLeaf_80141AC4, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, kLeaf_80141AC4);
       const int32_t sVar4 = (int32_t)(int16_t)c->r[R_V0];
       if (sVar4 != 0) {
         c->mem_w16(node + 6, 3);
@@ -581,7 +581,7 @@ void ActorZonedAttacker::defaultSubStateMachine(Core *c) {
       const int32_t tz = c->mem_r16s(kS_1F800164);
       c->r[R_A0] = (uint32_t)(int32_t)(int16_t)(nx - tx);
       c->r[R_A1] = (uint32_t)(int32_t)(int16_t)(nz - tz);
-      psx::cpu::dispatchGuestToReturn0(*c, kDist2D, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, kDist2D);
       // `slti v0,v0,800` [0x80144488] — the compare is on the FULL 32-bit v0, with NO
       // `sll 16 / sra 16` first (unlike the range ladders elsewhere in this cluster, which do
       // sign-extend). The rebuild sign-extended the low half, so a distance in 0x8000..0xFFFF read

@@ -130,7 +130,7 @@ void UiSprite::compose(Core *c) {
   c->r[6] = 0;
   c->r[7] = (uint32_t)(int32_t)(int16_t)tpage;
   c->r[31] = 0x8007E890u; // jal-site ra
-  psx::cpu::dispatchGuestToReturn0(*c, 0x80083DE0u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, 0x80083DE0u);
 
   tomba::render::OrderingTable::active(*c).link(
       {.packet = modePacket, .words = MODE_TAG_WORDS, .bucket = c->mem_r8(attrs + 1)});

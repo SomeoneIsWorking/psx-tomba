@@ -160,7 +160,7 @@ void Engine::areaModeDispatch() {
     return;
   }
   c->r[4] = 0x800ED018u;
-  psx::cpu::dispatchGuestToReturn0(*c, target, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, target);
 }
 
 // Engine::sceneStateStep — the SCENE-INIT / SCENE-RUN state machine at guest
@@ -194,7 +194,7 @@ void Engine::sceneStateStep() {
       return;
     }
     c->r[4] = SCENE_STATE;
-    psx::cpu::dispatchGuestToReturn0(*c, target, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, target);
     return;
   }
   if (phase != 0) {
@@ -223,7 +223,7 @@ void Engine::sceneStateStep() {
   uint32_t target = init[idx];
   if (target) {
     c->r[4] = SCENE_STATE;
-    psx::cpu::dispatchGuestToReturn0(*c, target, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, target);
   }
   c->mem_w8(SCENE_STATE,
             1); // advance to RUN (all L_80050F94 paths, incl. the default at idx 9)
@@ -260,7 +260,7 @@ void Engine::modePerFrameDispatch() {
     Behaviors::areaSeasidePerframe(c);
     return;
   }
-  psx::cpu::dispatchGuestToReturn0(*c, target, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, target);
 }
 
 } // namespace tomba

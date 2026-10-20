@@ -50,18 +50,18 @@ void beh_area_event_dispatch(Core *c) {
   switch (state) {
   case 0:
     c->r[4] = obj;
-    psx::cpu::dispatchGuestToReturn0(*c, 0x800716B4u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, 0x800716B4u);
     if (c->mem_r8(0x800BFAE1u) != 0 && c->mem_r8(0x800BF870u) == 4) {
       c->r[4] = obj;
-      psx::cpu::dispatchGuestToReturn0(*c, 0x8011B79Cu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, 0x8011B79Cu);
     } else if (c->mem_r8(0x800BFAE6u) != 0 && c->mem_r8(0x800BF870u) == 7) {
       c->r[4] = obj;
-      psx::cpu::dispatchGuestToReturn0(*c, 0x801178E4u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+      psx::cpu::callGuestNow(*c, __func__, 0x801178E4u);
     }
     break;
   case 1:
     c->r[4] = obj;
-    psx::cpu::dispatchGuestToReturn0(*c, 0x80071768u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, 0x80071768u);
     if (c->mem_r8(obj + 1) != 0) {
       rend(c)->mNodeXform.buildWithOffset(obj); // FUN_800518FC (native)
     }

@@ -130,8 +130,7 @@ void ObjectTable::handler27254(uint32_t obj) {
 
   if (st == 3) {
     c->r[4] = obj;
-    psx::cpu::dispatchGuestToReturn0(
-        *c, LEAF_POOL_RETURN, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // pool free (substrate)
+    psx::cpu::callGuestNow(*c, __func__, LEAF_POOL_RETURN); // pool free (substrate)
     return;
   }
 
@@ -153,11 +152,7 @@ void ObjectTable::dispatch() {
         handler27254(obj);
         continue;
       } // native — the only real entry
-      psx::cpu::dispatchGuestToReturn0(
-          *c,
-          fn,
-          psx::cpu::ExecutionBudget::currentTurn(*c),
-          "object_table"); // any other handler (defensive; the table only holds H_27254 today)
+      psx::cpu::callGuestNow(*c, "object_table", fn); // any other handler (defensive; the table only holds H_27254 today)
     }
   };
 

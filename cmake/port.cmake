@@ -9,14 +9,6 @@ if(NOT PSXPORT_BUILD_PORT)
   return()
 endif()
 
-if(NOT EXISTS "${PSXPORT_DIR}/runtime/cpu/dynarec_capabilities.h" OR
-   NOT EXISTS "${PSXPORT_DIR}/runtime/cpu/native_dispatch.h")
-  message(FATAL_ERROR
-    "Tomba! 2's offline guest-source product was removed by the break-first migration, but "
-    "PSXPORT_DIR=${PSXPORT_DIR} does not expose the required Lightrec runtime address API "
-    "(runtime/cpu/dynarec_capabilities.h and runtime/cpu/native_dispatch.h).")
-endif()
-
 # ---- game source list (game/* only — the framework moved to cmake/psxport.cmake) --------------
 set(GAME_SRC
   game/resident_natives.cpp
@@ -27,7 +19,6 @@ set(GAME_SRC
   game/cd/engine_cd_state.cpp
   game/core/assets/asset.cpp
   game/core/debug/auto_drive.cpp
-  game/core/debug/dev_args.cpp
   game/core/debug/dev_control.cpp
   game/core/debug/dev_flags.cpp
   game/core/debug/dev_items.cpp

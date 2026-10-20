@@ -129,16 +129,13 @@ void OverlayGt3Gt4::submitBlock(Core *c) {
   c->r[5] = otBase;
   c->r[6] = counts & 0xFFFFu;
   c->r[31] = kRaAfterGt3;
-  psx::cpu::dispatchGuestToReturn0(*c, 0x801465ECu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, 0x801465ECu);
 
   c->r[4] = c->r[2]; // the GT4 run begins where the GT3 run ended
   c->r[5] = c->r[17];
   c->r[6] = counts >> 16;
   c->r[31] = kRaAfterGt4;
-  psx::cpu::dispatchGuestToReturn0(*c,
-                                   0x801467BCu,
-                                   psx::cpu::ExecutionBudget::currentTurn(*c),
-                                   __func__); // its v0 falls through as this function's return value
+  psx::cpu::callGuestNow(*c, __func__, 0x801467BCu); // its v0 falls through as this function's return value
 
   c->r[31] = c->mem_r32(sp + kSpillRa);
   c->r[17] = c->mem_r32(sp + kSpillS1);

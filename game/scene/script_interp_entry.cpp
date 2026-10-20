@@ -376,10 +376,7 @@ int ScriptInterp::advanceStep(const AdvanceStepArgs &args) {
   c->r[31] = 0x80040FB4u;
   c->r[4] = obj;
   c->r[5] = kindArg;
-  psx::cpu::dispatchGuestToReturn0(*c,
-                                   0x80040E54u,
-                                   psx::cpu::ExecutionBudget::currentTurn(*c),
-                                   __func__); // still-substrate entry classifier, out of band for this pass
+  psx::cpu::callGuestNow(*c, __func__, 0x80040E54u); // still-substrate entry classifier, out of band for this pass
   const uint32_t ret = c->r[2];
   if (ret >= 7u) {
     return -1; // out of range: the guest's table has 7 arms and index 3 is its literal -1

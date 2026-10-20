@@ -98,7 +98,7 @@ void NativeOverrideCatalog::bindResident(Core &core,
       ++unreachable;
       continue;
     }
-    const auto identity = core.currentImageIdentity(entry.address);
+    const auto identity = core.imageCatalog().resolve(entry.address);
     if (!entry.imageName.empty() || !identity || *identity != resident) {
       ++inactive;
       continue;
@@ -157,7 +157,7 @@ void NativeOverrideCatalog::bindOverlay(Core &core,
       continue;
     }
     ++declaredForImage;
-    const auto identity = core.currentImageIdentity(entry.address);
+    const auto identity = core.imageCatalog().resolve(entry.address);
     if (!overlayText.containsPhysical(entry.address) || !identity || *identity != overlay) {
       ++inactive;
       continue;

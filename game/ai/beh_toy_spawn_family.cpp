@@ -156,7 +156,7 @@ uint32_t beh_spawn_toy_child_type4_8012763c(Core *c, uint32_t owner) {
   // FUN_80072DDC dispatch above left it as (matches ground truth exactly since we route through
   // the same typed runtime address dispatch, which mutates the same shared Core register file).
   c->r[5] = 1u;
-  psx::cpu::dispatchGuestToReturn0(*c, 0x8004D650u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, 0x8004D650u);
   c->mem_w32(child + 0x1Cu, CHILD_TABLE_PTR);
   c->mem_w8(child + 0x03u, 4u);
   c->mem_w16(child + 0x5Cu, 0u);

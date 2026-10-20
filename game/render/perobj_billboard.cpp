@@ -272,7 +272,7 @@ void Render::perObjRenderDispatch() {
   default:
     // Defensive mirror of the guest instruction path's raw `jr` fallback for an unrecognized table entry — never
     // hit by live game data (only the 6 cases above ever appear in the live table).
-    psx::cpu::dispatchGuestToReturn0(*c, target, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, target);
     return;
   }
 }
@@ -380,7 +380,7 @@ void Render::billboardCompose2() {
   c->r[5] = (uint32_t)c->mem_r16s(node + 122);
   c->r[6] = (uint32_t)c->mem_r16s(node + 124);
   c->r[7] = (uint32_t)c->mem_r16s(node + 126);
-  psx::cpu::dispatchGuestToReturn0(*c, 0x800517BCu, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, 0x800517BCu);
   mtxOf(c).identity(MAT_ROTZ);
   mathOf(c).rotZ((int16_t)c->mem_r16(node + 90), MAT_ROTZ);
   const uint32_t flag = c->mem_r8(node + 71) & 1u;
@@ -536,7 +536,7 @@ void Render::billboardEmit() {
     c->r[4] = FR(16);
     c->r[5] = 0;
     c->r[6] = particle;
-    psx::cpu::dispatchGuestToReturn0(*c, 0x8003B220u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, 0x8003B220u);
 
     c->gte().writeData(0, c->mem_r32(FR(16) + 0));
     c->gte().writeData(1, c->mem_r32(FR(16) + 4));
@@ -602,7 +602,7 @@ void Render::billboardEmit() {
     c->r[4] = BUF;
     c->r[5] = particle;
     c->r[6] = flag;
-    psx::cpu::dispatchGuestToReturn0(*c, 0x8003B054u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+    psx::cpu::callGuestNow(*c, __func__, 0x8003B054u);
     if (c->mem_r16(node + 92) != 0) {
       c->mem_w16(BUF + 14, c->mem_r16(node + 92));
     }
@@ -637,7 +637,7 @@ void Render::billboardEmit() {
         // guest instruction path does `typed runtime address dispatch(c, caseTarget); return` here — a FULL early
         // return, NOT a fallthrough to packet emission. Never hit by live game data (this 33-entry table's slots all
         // resolve to one of the 5 cases above or the CBC8 no-op).
-        psx::cpu::dispatchGuestToReturn0(*c, caseTarget, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+        psx::cpu::callGuestNow(*c, __func__, caseTarget);
         return;
       }
     }

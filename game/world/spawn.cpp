@@ -282,7 +282,7 @@ uint32_t Spawn::spawnAndInitBody(Core *c) {
   c->mem_w16(node + 0x32, (uint16_t)a2);
   c->r[4] = node;
   c->r[5] = a0;
-  psx::cpu::dispatchGuestToReturn0(*c, 0x80028E10u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, 0x80028E10u);
   return node;
 }
 
@@ -536,8 +536,7 @@ uint32_t Spawn::spawnEffectChild(uint32_t owner, uint32_t sub) {
   c->mem_w32((c->r[29] + (uint32_t)24), c->r[31]); // sw ra,0x18(sp)
   c->r[31] = 0x80031580u;
   c->r[6] = c->r[0] + (uint32_t)1;
-  psx::cpu::dispatchGuestToReturn0(
-      *c, 0x8007A980u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__); // dispatch arg list = 1 — FUN_8007A980
+  psx::cpu::callGuestNow(*c, __func__, 0x8007A980u); // dispatch arg list = 1 — FUN_8007A980
   {
     int poolEmpty = (c->r[2] == c->r[0]);
     c->r[3] = (uint32_t)32771u << 16;
@@ -596,7 +595,7 @@ static void eov_spawnLiftPlatformChild(Core *c) {
   c->r[6] = 0;
   c->mem_w32(c->r[29] + 20, c->r[31]);
   c->r[31] = 0x8013A750u;
-  psx::cpu::dispatchGuestToReturn0(*c, SPAWN_DISPATCH, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, SPAWN_DISPATCH);
   c->r[3] = (uint32_t)32788u << 16; // r3 = 0x80140000 (set before null-check, per substrate)
   if (c->r[2] != 0) {
     c->mem_w32(c->r[2] + 0x1Cu, HANDLER_LIFT);
@@ -624,7 +623,7 @@ static void eov_spawnQuadRecordChild(Core *c) {
   c->r[6] = 0;
   c->mem_w32(c->r[29] + 24, c->r[31]);
   c->r[31] = 0x8013611Cu;
-  psx::cpu::dispatchGuestToReturn0(*c, SPAWN_DISPATCH, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, SPAWN_DISPATCH);
   c->r[3] = (uint32_t)32787u << 16; // 32787 (not 32788) per substrate
   if (c->r[2] != 0) {
     c->mem_w32(c->r[2] + 0x1Cu, HANDLER_QUADREC);
@@ -653,7 +652,7 @@ static void eov_spawnSiblingAngleChild(Core *c) {
   c->r[6] = 0;
   c->mem_w32(c->r[29] + 24, c->r[31]);
   c->r[31] = 0x80139860u;
-  psx::cpu::dispatchGuestToReturn0(*c, SPAWN_DISPATCH, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, SPAWN_DISPATCH);
   c->r[3] = (uint32_t)32788u << 16;
   if (c->r[2] != 0) {
     c->mem_w32(c->r[2] + 0x1Cu, HANDLER_SIBANG);
@@ -682,7 +681,7 @@ static void eov_spawnChildTrigChild(Core *c) {
   c->r[6] = 0;
   c->mem_w32(c->r[29] + 24, c->r[31]);
   c->r[31] = 0x8013AC5Cu;
-  psx::cpu::dispatchGuestToReturn0(*c, SPAWN_DISPATCH, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, SPAWN_DISPATCH);
   c->r[3] = (uint32_t)32788u << 16;
   if (c->r[2] != 0) {
     c->mem_w32(c->r[2] + 0x1Cu, HANDLER_CHILDTRIG);
@@ -818,7 +817,7 @@ void Spawn::dropScoreGem(const DropScoreGemArgs &args) {
   c->r[4] = sourceNode;
   c->r[5] = (uint32_t)value;
   c->r[6] = 0;
-  psx::cpu::dispatchGuestToReturn0(*c, 0x80071B44u, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+  psx::cpu::callGuestNow(*c, __func__, 0x80071B44u);
   c->r[2] = 1; // guest instruction path returns v0 = 1 (unread by every current callsite, but faithful)
 }
 
