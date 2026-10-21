@@ -15,7 +15,7 @@ SBS's own frame axis, so it is valid by construction.
 
     PSXPORT_SBS_KEYS="$(cat replays/gate/seaside-sweep.sbskeys)" \
     PSXPORT_SBS_EXIT_FRAME=27500 \
-    PSXPORT_SBS_MODE=full PSXPORT_VK_HEADLESS=1 PSXPORT_NOAUDIO=1 \
+    PSXPORT_SBS_MODE=full PSXPORT_SHOW_WINDOW=0 PSXPORT_NOAUDIO=1 \
     ./scratch/bin/tomba2_port </dev/null
 
 Read the `coverage:` line it prints at exit and the divergence count. A divergence in the
