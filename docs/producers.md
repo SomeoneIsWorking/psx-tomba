@@ -43,7 +43,7 @@ Tomba's frame cuts stay `tomba::FrameCut`.
 | 0x8007E9C8 `ScreenFade::draw` | one call: its call site, n-th in the logic frame (`CallSiteObjects`, `render/call_site_objects.h`, held by `tomba::Session::callSites`) | the OT slot and bucket, colour, span and blend page | the colour moves by t when the blend is unchanged |
 | 0x8007E1B8 `UiSprite::quads`, 0x8007E6DC `UiSprite::compose` | one call, by call site as above (the DEMO menu 0x80106824 and every 2D sprite reach these) | `AnchoredPackets` from the placement word; compose adds the definition's texture page | the anchor moves by t |
 | 0x8003C8F4 `Render::billboardEmit` (reached from 0x8003C2D4 and the other three composers) | the node's render record life (`RenderRecordPool::object`) | `BillboardState`: GTE CR0-7 and per drawn particle its corners, bucket and packet | the transform and corners move by t, then RTPT/RTPS project again |
-| 0x80027768 `PackedMesh::write` | the call, as an emitter (`EmitterObject`); 0x8002AB5C `DropShadow::draw` opens the shadow's record life around it | a `ListJob`: the records, the IR0 cue word and the GTE control | `ListStateProducer` over the mesh body |
+| 0x80027768 `PackedMesh::write` | the call: under an open scope its object (0x8002AB5C `DropShadow::draw` opens the shadow's record life around it), otherwise its call site, n-th in the logic frame (`CallSiteObjects`; SOP 0x8010BF54 draws list 0x8010CC08 twice a frame) | a `ListJob`: the records, the IR0 cue word and the GTE control | `ListStateProducer` over the mesh body |
 
 Not state producers: `SopGround::draw` 0x80109FE0, `Render::cmdListDispatch` 0x8003CDD8, `Render::subPartWalk`
 0x8003F174, `Render::sharedTransformWalk` 0x8003F07C and `OverlayGroundGt3Gt4::entityLoop` 0x801401B8 open
