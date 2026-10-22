@@ -1,6 +1,7 @@
 // game/render/list_state_producer.cpp — ListStateProducer. See list_state_producer.h.
 #include "list_state_producer.h"
 
+#include "entry/session.h"
 #include "gte_control.h"
 #include "guest_ordering_table.h"
 #include "packet_chains.h"
@@ -106,35 +107,35 @@ void ListStateProducer::render(const psx::present::StateInterval &states, psx::p
                          : std::vector<std::byte>(job.inputs()[index].bytes.begin(), job.inputs()[index].bytes.end()));
   }
 
-  psx::present::HostMemory host;
-  host.zero(kScratchBase, kScratchBytes);
+  const psx::present::Kept<psx::present::HostMemory>::Use host(sessionOf(&core_).renderMemory);
+  host->zero(kScratchBase, kScratchBytes);
   for (std::size_t index = 0; index < inputs.size(); ++index) {
     const std::uint32_t address = job.inputs()[index].address;
     if (address - kScratchBase < kScratchBytes) {
-      host.write(address, inputs[index].data(), static_cast<std::uint32_t>(inputs[index].size()));
+      host->write(address, inputs[index].data(), static_cast<std::uint32_t>(inputs[index].size()));
     } else {
-      host.provide(address, inputs[index]);
+      host->provide(address, inputs[index]);
     }
   }
   std::array<std::byte, sizeof(std::uint32_t)> cursor{};
   std::memcpy(cursor.data(), &header.pool, sizeof(header.pool));
-  host.provide(PacketPool::kCursor, cursor);
-  host.zero(header.pool, header.arenaBytes);
-  host.zero(header.call.ot, kOtBytes);
-  host.zero(header.call.sp - kStackBelow, kStackBelow + kStackAbove);
+  host->provide(PacketPool::kCursor, cursor);
+  host->zero(header.pool, header.arenaBytes);
+  host->zero(header.call.ot, kOtBytes);
+  host->zero(header.call.sp - kStackBelow, kStackBelow + kStackAbove);
 
   {
     const psx::present::GteGuard gte(core_.gte());
     const RegisterGuard registers(core_);
     psx::present::writeGteControl(core_.gte(), control);
-    emit(psx::present::EmitMemory(core_, host), header.variant, header.call);
+    emit(psx::present::EmitMemory(core_, *host), header.variant, header.call);
   }
 
   const psx::present::BucketHeads heads{header.call.ot,
                                         OrderingTable::kBucketCount,
                                         psx::present::OtSlot{static_cast<std::uint16_t>(header.table), header.slot}};
   psx::present::DrawModeTracker drawMode;
-  psx::present::PacketChainWalker(psx::present::EmitMemory(core_, host),
+  psx::present::PacketChainWalker(psx::present::EmitMemory(core_, *host),
                                   psx::present::PacketBound::within({header.pool, header.arenaBytes}))
       .emitBuckets(heads, drawMode, sink);
 }
