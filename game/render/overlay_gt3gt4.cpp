@@ -184,11 +184,11 @@ uint32_t OverlayGt3Gt4::emitGt3(const psx::present::EmitMemory &memory,
       continue; // GTE FLAG error -> drop this record
     }
 
-    memory.storeGteXy(pool + 8, 12);  // SXY0
-    memory.storeGteXy(pool + 20, 13); // SXY1
-    memory.storeGteXy(pool + 32, 14); // SXY2
-    int32_t sxy0 = (int32_t)c->gte().readData(12), sxy1 = (int32_t)c->gte().readData(13),
-            sxy2 = (int32_t)c->gte().readData(14);
+    memory.storeVertex(pool + 8, c->gte().projected(0));  // SXY0
+    memory.storeVertex(pool + 20, c->gte().projected(1)); // SXY1
+    memory.storeVertex(pool + 32, c->gte().projected(2)); // SXY2
+    int32_t sxy0 = (int32_t)c->gte().projected(0).word(), sxy1 = (int32_t)c->gte().projected(1).word(),
+            sxy2 = (int32_t)c->gte().projected(2).word();
 
     // Frustum reject, the recovered predicate: unsigned-compare the packed SXY words against the
     // frame HEIGHT, then (after <<16 each) against the draw WIDTH — an OR over corners on each axis,
@@ -295,9 +295,9 @@ OverlayGt3Gt4::emitGt4(const psx::present::EmitMemory &memory, const tomba::rend
       continue; // backface cull
     }
 
-    memory.storeGteXy(pool + 8, 12);  // SXY0
-    memory.storeGteXy(pool + 20, 13); // SXY1
-    memory.storeGteXy(pool + 32, 14); // SXY2
+    memory.storeVertex(pool + 8, c->gte().projected(0));  // SXY0
+    memory.storeVertex(pool + 20, c->gte().projected(1)); // SXY1
+    memory.storeVertex(pool + 32, c->gte().projected(2)); // SXY2
 
     uint32_t uv0 = memory.mem_r32(rec + 8), uv1 = memory.mem_r32(rec + 12);
     uint32_t rgb0_code = memory.mem_r32(rec + 0), rgb2_src = memory.mem_r32(rec + 4);
@@ -318,7 +318,7 @@ OverlayGt3Gt4::emitGt4(const psx::present::EmitMemory &memory, const tomba::rend
     if ((int32_t)flagreg2 < 0) {
       continue;
     }
-    memory.storeGteXy(pool + 44, 14); // SXY3
+    memory.storeVertex(pool + 44, c->gte().projected(2)); // SXY3
 
     uint32_t flagbyte = rgb2_src >> 24;
     if (uvScroll != kNoScroll && (flagbyte & kScrollFlag) != 0) {

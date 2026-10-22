@@ -165,9 +165,9 @@ uint32_t OverlayGroundGt3Gt4::emitGt3(const psx::present::EmitMemory &memory,
       continue; // backface cull
     }
 
-    memory.mem_w32(pool + 8, c->gte().readData(12));  // SXY0
-    memory.mem_w32(pool + 20, c->gte().readData(13)); // SXY1
-    memory.mem_w32(pool + 32, c->gte().readData(14)); // SXY2
+    memory.storeVertex(pool + 8, c->gte().projected(0));  // SXY0
+    memory.storeVertex(pool + 20, c->gte().projected(1)); // SXY1
+    memory.storeVertex(pool + 32, c->gte().projected(2)); // SXY2
 
     // The recovered screen-edge cull, triangle form: OR over the three corners on each axis, the two
     // axes AND-ed, every compare UNSIGNED so a negative projected coordinate fails it. The bound comes
@@ -305,9 +305,9 @@ uint32_t OverlayGroundGt3Gt4::emitGt4(const psx::present::EmitMemory &memory,
       continue; // backface cull
     }
 
-    memory.mem_w32(pool + 8, c->gte().readData(12));  // SXY0
-    memory.mem_w32(pool + 20, c->gte().readData(13)); // SXY1
-    memory.mem_w32(pool + 32, c->gte().readData(14)); // SXY2
+    memory.storeVertex(pool + 8, c->gte().projected(0));  // SXY0
+    memory.storeVertex(pool + 20, c->gte().projected(1)); // SXY1
+    memory.storeVertex(pool + 32, c->gte().projected(2)); // SXY2
 
     c->gte().writeData(0, memory.mem_r32(rec + 40)); // VXY3
     c->gte().writeData(1, vz23 >> 16);               // VZ3
@@ -323,7 +323,7 @@ uint32_t OverlayGroundGt3Gt4::emitGt4(const psx::present::EmitMemory &memory,
     if ((int32_t)memory.mem_r32(SCRATCH_FLAG_TMP) < 0) {
       continue;
     }
-    memory.mem_w32(pool + 44, c->gte().readData(14)); // SXY3
+    memory.storeVertex(pool + 44, c->gte().projected(2)); // SXY3
 
     // The same recovered predicate in its quad form: four corners, OR over corners per axis, the axes
     // AND-ed, compares unsigned. Bound from the draw window, not a literal — see the triangle site

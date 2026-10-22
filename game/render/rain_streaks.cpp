@@ -2,6 +2,7 @@
 #include "rain_streaks.h"
 
 #include "core.h"
+#include "emit_memory.h"
 #include "core/overrides/guest_jal.h"
 #include "core/overrides/native_override_catalog.h"
 #include "gp0_primitive_decode.h"
@@ -12,7 +13,6 @@
 #include "state_producer.h"
 
 #include <array>
-#include <cmath>
 #include <cstdlib>
 #include <cstring>
 #include <lucent/log.h>
@@ -79,12 +79,10 @@ struct StreakState {
   std::int16_t y[2] = {};
 };
 
-std::int16_t lerpCoordinate(std::int16_t from, std::int16_t to, float t) {
-  return static_cast<std::int16_t>(std::lround(from + (to - from) * static_cast<double>(t)));
-}
-
-std::uint32_t packXy(std::int16_t x, std::int16_t y) {
-  return static_cast<std::uint16_t>(x) | (static_cast<std::uint32_t>(static_cast<std::uint16_t>(y)) << 16);
+// One streak end lerped between its two drawn ends: the word the guest would round it to, and where it lies.
+psx::gte::ProjectedVertex lerpEnd(const StreakState &earlier, const StreakState &later, std::size_t end, float t) {
+  return psx::gte::ProjectedVertex::nearest({earlier.x[end] + (later.x[end] - earlier.x[end]) * t,
+                                             earlier.y[end] + (later.y[end] - earlier.y[end]) * t});
 }
 
 class StreakStateProducer final : public psx::present::StateProducer {
@@ -95,12 +93,12 @@ public:
     StreakState earlier;
     std::memcpy(&later, to.data(), sizeof(later));
     std::memcpy(&earlier, from.data(), sizeof(earlier));
-    const std::array<std::uint32_t, kLineWords> words = {
-        kLineColour0,
-        packXy(lerpCoordinate(earlier.x[0], later.x[0], t), lerpCoordinate(earlier.y[0], later.y[0], t)),
-        kLineColour1,
-        packXy(lerpCoordinate(earlier.x[1], later.x[1], t), lerpCoordinate(earlier.y[1], later.y[1], t))};
-    auto streak = psx::gpu::decodePacketPrimitive(words);
+    psx::gpu::PacketBuffer<kLineWords> words;
+    words.store(0, kLineColour0);
+    words.storeVertex(1, lerpEnd(earlier, later, 0, t));
+    words.store(2, kLineColour1);
+    words.storeVertex(3, lerpEnd(earlier, later, 1, t));
+    auto streak = psx::gpu::decodePacketPrimitive(words.view());
     if (!streak) {
       lucent::error("rain", "streak line packet did not decode");
       std::abort();
@@ -187,7 +185,7 @@ void RainStreaks::draw(Core *c) {
       c->mem_w32(trail, kNoTrail);
       continue;
     }
-    c->mem_w32(pool + 8u, c->gte().readData(psx::gte::kSxy2));
+    psx::present::EmitMemory(*c).storeVertex(pool + 8u, c->gte().projected(2));
     const std::int32_t otz = orderingIndex(static_cast<std::int32_t>(c->gte().readData(psx::gte::kSz3)));
     c->mem_w32(kScratchDepth, static_cast<std::uint32_t>(otz));
     const bool wrapped = (((x ^ (latticeX + lastX)) | (y ^ (latticeY + lastY)) | (z ^ (latticeZ + lastZ))) &

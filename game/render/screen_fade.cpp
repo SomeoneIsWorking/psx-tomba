@@ -78,7 +78,7 @@ public:
                                                static_cast<std::uint16_t>(later.left),
                                                (static_cast<std::uint32_t>(ScreenFade::kGuestHeight) << 16) |
                                                    static_cast<std::uint16_t>(later.width)};
-    auto fill = psx::gpu::decodePacketPrimitive(command);
+    auto fill = psx::gpu::decodePacketPrimitive({.words = command, .places = {}});
     if (!fill) {
       lucent::error("screen-fade", "fade fill packet did not decode");
       std::abort();

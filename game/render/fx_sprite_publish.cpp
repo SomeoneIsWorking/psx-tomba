@@ -50,7 +50,7 @@ bool FxSpritePublish::projectAnchor(const ProjectAnchorArgs &args) {
   if (otKey() < 0) {
     return false;
   }
-  setScreenXY(mCore->gte().readData(psx::gte::kSxy2));
+  setScreenXY(mCore->gte().projected(2).word());
   setScaleX((int32_t)mCore->gte().readData(psx::gte::kMac0));
   return true;
 }
