@@ -2,7 +2,6 @@
 #include "rain_streaks.h"
 
 #include "core.h"
-#include "emit_memory.h"
 #include "core/overrides/guest_jal.h"
 #include "core/overrides/native_override_catalog.h"
 #include "gp0_primitive_decode.h"
@@ -81,8 +80,8 @@ struct StreakState {
 
 // One streak end lerped between its two drawn ends: the word the guest would round it to, and where it lies.
 psx::gte::ProjectedVertex lerpEnd(const StreakState &earlier, const StreakState &later, std::size_t end, float t) {
-  return psx::gte::ProjectedVertex::nearest({earlier.x[end] + (later.x[end] - earlier.x[end]) * t,
-                                             earlier.y[end] + (later.y[end] - earlier.y[end]) * t});
+  return psx::gte::ProjectedVertex::nearest(
+      {earlier.x[end] + (later.x[end] - earlier.x[end]) * t, earlier.y[end] + (later.y[end] - earlier.y[end]) * t});
 }
 
 class StreakStateProducer final : public psx::present::StateProducer {
@@ -185,7 +184,7 @@ void RainStreaks::draw(Core *c) {
       c->mem_w32(trail, kNoTrail);
       continue;
     }
-    psx::present::EmitMemory(*c).storeVertex(pool + 8u, c->gte().projected(2));
+    c->mem_w32(pool + 8u, c->gte().projected(2).word());
     const std::int32_t otz = orderingIndex(static_cast<std::int32_t>(c->gte().readData(psx::gte::kSz3)));
     c->mem_w32(kScratchDepth, static_cast<std::uint32_t>(otz));
     const bool wrapped = (((x ^ (latticeX + lastX)) | (y ^ (latticeY + lastY)) | (z ^ (latticeZ + lastZ))) &
