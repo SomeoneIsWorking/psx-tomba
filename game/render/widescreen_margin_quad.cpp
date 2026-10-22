@@ -11,7 +11,6 @@
 // Writes the guest's own GTE, OT and packet-pool state; every write is part of the byte-exact state.
 #include "widescreen_margin_quad.h"
 #include "core.h"
-#include "emit_memory.h"
 #include "core/overrides/guest_jal.h"
 #include "core/overrides/native_override_catalog.h"
 #include "entry/session.h"
@@ -246,7 +245,6 @@ void WidescreenMarginQuad::emit(Core *c) {
                 recAddr,
                 (uint32_t)node);
 
-  const psx::present::EmitMemory guest(*c);
   for (;;) {
     MarginQuadRecord rec{c, recAddr};
     const bool more = rec.continues();
@@ -287,9 +285,9 @@ void WidescreenMarginQuad::emit(Core *c) {
       goto skipRecord;
     }
 
-    guest.storeVertex(pool + 8, c->gte().projected(0));  // SXY0
-    guest.storeVertex(pool + 20, c->gte().projected(1)); // SXY1
-    guest.storeVertex(pool + 32, c->gte().projected(2)); // SXY2
+    c->mem_w32(pool + 8, c->gte().projected(0).word());
+    c->mem_w32(pool + 20, c->gte().projected(1).word());
+    c->mem_w32(pool + 32, c->gte().projected(2).word());
 
     // uv1|tpage: low 23 bits of the same plane word that also gates the loop's continuation.
     c->mem_w32(poolBase - 24, rec.planeWord() & kPlanePayloadMask);
@@ -307,8 +305,8 @@ void WidescreenMarginQuad::emit(Core *c) {
     if ((int32_t)c->mem_r32(flagScratch) < 0) {
       goto skipRecord;
     }
-    guest.storeVertex(pool + 44, c->gte().projected(2)); // SXY3
-    c->mem_w32(poolBase - 20, rec.rgb2Raw());     // rgb2 raw copy
+    c->mem_w32(pool + 44, c->gte().projected(2).word());
+    c->mem_w32(poolBase - 20, rec.rgb2Raw()); // rgb2 raw copy
 
     c->gte().execute(0x4B68002Eu);           // AVSZ4
     c->mem_w32(poolBase - 8, rec.rgb3Raw()); // rgb3 raw copy
