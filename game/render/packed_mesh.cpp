@@ -3,6 +3,7 @@
 
 #include "core.h"
 #include "core/overrides/native_override_catalog.h"
+#include "entry/session.h"
 #include "gte_registers.h"
 #include "guest_ordering_table.h"
 #include "list_state_producer.h"
@@ -57,7 +58,7 @@ public:
       return false;
     }
     for (std::uint32_t corner = 0; corner < 3u; ++corner) {
-      memory_.storeGteXy(packet + kScreen[corner], static_cast<int>(psx::gte::kSxy0 + corner));
+      memory_.storeVertex(packet + kScreen[corner], gte().projected(corner));
     }
     loadLastCorner();
     memory_.mem_w32(packet + kUv[0], memory_.mem_r32(record) + (call_.a1 << kClutRowShift));
@@ -65,7 +66,7 @@ public:
     if (overflowed()) {
       return false;
     }
-    memory_.storeGteXy(packet + kScreen[3], static_cast<int>(psx::gte::kSxy2));
+    memory_.storeVertex(packet + kScreen[3], gte().projected(2));
     memory_.mem_w32(packet + kUv[1], texturePage & kTexturePageMask);
     const std::int32_t bucket = depthBucket();
     if (bucket < 0) {
@@ -180,7 +181,9 @@ void PackedMesh::write(Core *core) {
                       .a3 = core->r[7],
                       .sp = core->r[29],
                       .a1 = core->r[5]};
-  const EmitterObject object(core->emission, kWriter, call.list);
+  // Unscoped, the call is its own object: SOP 0x8010BF54 draws one list twice a frame.
+  const EmitterObject object(
+      core->emission, kWriter, core->emission.isOpen() ? call.list : sessionOf(core).callSites.object(core->r[31]));
   const std::uint32_t records = recordCount(*core, call.list);
   ListJobWriter job(*core, 0u, call, records * kPacketBytes);
   job.input(*core, call.list, records * kRecordBytes);
