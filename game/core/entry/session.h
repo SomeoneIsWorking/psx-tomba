@@ -13,6 +13,7 @@
 #include "core/entry/settings.h"
 #include "core/overrides/native_override_catalog.h"
 #include "core/sched/scheduler.h"
+#include "emit_memory.h"
 #include "game.h"
 #include "game_runtime.h"
 #include "items/inventory.h"
@@ -55,6 +56,8 @@ public:
   Audio audio;
   DevAreas devWarp;
   psx::present::StateProducerTable stateProducers;
+  // The host memory a state render runs its emitter over, kept so renders allocate none.
+  psx::present::Kept<psx::present::HostMemory> renderMemory;
   native::NativeOverrideCatalog nativeOverrides;
 };
 
