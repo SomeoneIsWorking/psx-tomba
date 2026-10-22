@@ -65,6 +65,7 @@
 //      cmdListDispatch/perModeDispatch already documents.
 #include "billboard_state.h"
 #include "core.h"
+#include "emit_memory.h"
 #include "core/overrides/native_override_catalog.h"
 #include "entry/session.h"
 #include "game.h"
@@ -551,9 +552,10 @@ void Render::billboardEmit() {
     if (ctrl31 < 0) {
       depth = DEFAULT_DEPTH;
     } else {
-      c->mem_w32(BUF + 8, c->gte().readData(12));
-      c->mem_w32(BUF + 16, c->gte().readData(13));
-      c->mem_w32(BUF + 24, c->gte().readData(14));
+      const psx::present::EmitMemory guest(*c);
+      guest.storeVertex(BUF + 8, c->gte().projected(0));
+      guest.storeVertex(BUF + 16, c->gte().projected(1));
+      guest.storeVertex(BUF + 24, c->gte().projected(2));
       c->gte().execute(0x4B400006u); // AVSZ3
       c->mem_w32(FR(48), c->gte().readData(24));
       c->gte().writeData(0, c->mem_r32(FR(40) + 0));
@@ -562,7 +564,7 @@ void Render::billboardEmit() {
       ctrl31 = (int32_t)c->gte().readControl(31);
       c->mem_w32(FR(48), (uint32_t)ctrl31);
       if (ctrl31 >= 0) {
-        c->mem_w32(BUF + 32, c->gte().readData(14));
+        guest.storeVertex(BUF + 32, c->gte().projected(2));
         c->gte().execute(0x4B68002Eu); // AVSZ4 -> OTZ
         c->mem_w32(FR(52), c->gte().readData(7));
         depth = (int32_t)c->mem_r32(FR(52));

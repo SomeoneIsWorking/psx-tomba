@@ -63,7 +63,7 @@ public:
     for (std::size_t packet = later.buckets.size(); packet-- > 0;) {
       at -= later.lengths[packet];
       const std::span<const std::uint32_t> command(later.words.data() + at, later.lengths[packet]);
-      std::optional<psx::present::DrawPrimitive> primitive = psx::gpu::decodePacketPrimitive(command);
+      std::optional<psx::present::DrawPrimitive> primitive = psx::gpu::decodePacketPrimitive({.words = command, .places = {}});
       if (!primitive) {
         lucent::error("anchored-packets", "saved packet 0x{:08X} did not decode", command.empty() ? 0u : command[0]);
         std::abort();

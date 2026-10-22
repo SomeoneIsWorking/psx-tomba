@@ -50,7 +50,7 @@ void ModelPacket::loadTriangle() const {
 
 void ModelPacket::storeTriangle() const {
   for (std::uint32_t corner = 0; corner < 3u; ++corner) {
-    mMemory.storeGteXy(mPacket + kScreen[corner], static_cast<int>(psx::gte::kSxy0 + corner));
+    mMemory.storeVertex(mPacket + kScreen[corner], mMemory.core().gte().projected(corner));
   }
 }
 
@@ -119,7 +119,7 @@ bool ModelPacket::projectGt4(const ProjectGt4Args &args) const {
   if (transformFailed()) {
     return false;
   }
-  mMemory.storeGteXy(mPacket + kScreen[3], static_cast<int>(psx::gte::kSxy2));
+  mMemory.storeVertex(mPacket + kScreen[3], mMemory.core().gte().projected(2));
   return onScreen(visible);
 }
 
@@ -134,7 +134,7 @@ bool ModelPacket::projectGt4CornerThreeFirst(std::uint32_t colourMask,
   if (transformFailed()) {
     return false;
   }
-  mMemory.storeGteXy(mPacket + kScreen[3], static_cast<int>(psx::gte::kSxy2));
+  mMemory.storeVertex(mPacket + kScreen[3], mMemory.core().gte().projected(2));
   loadTriangle();
   const std::uint32_t colour01 = mMemory.mem_r32(mRecord);
   mMemory.mem_w32(mPacket + 4u, colour01 & colourMask);

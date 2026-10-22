@@ -20,6 +20,7 @@
 // leaf's contract is op-exact transcription.
 #include "quad_rtpt_submit.h"
 #include "core.h"
+#include "emit_memory.h"
 #include "core/overrides/native_override_catalog.h"
 #include "entry/session.h"
 #include "game.h"
@@ -155,9 +156,10 @@ void QuadRtptSubmit::submitQuad(Core *c) {
     return;
   } // GTE FLAG error -> drop
 
-  c->mem_w32(out + 8, c->gte().readData(12));  // SXY0
-  c->mem_w32(out + 16, c->gte().readData(13)); // SXY1
-  c->mem_w32(out + 24, c->gte().readData(14)); // SXY2
+  const psx::present::EmitMemory guest(*c);
+  guest.storeVertex(out + 8, c->gte().projected(0));  // SXY0
+  guest.storeVertex(out + 16, c->gte().projected(1)); // SXY1
+  guest.storeVertex(out + 24, c->gte().projected(2)); // SXY2
 
   c->gte().execute(0x4B400006u);             // NCLIP (real, provably dead output — see banner)
   c->mem_w32(sp + 0, c->gte().readData(24)); // MAC0 (clobbered below before ever being read)
@@ -171,7 +173,7 @@ void QuadRtptSubmit::submitQuad(Core *c) {
     pop();
     return;
   } // GTE FLAG error -> drop
-  c->mem_w32(out + 32, c->gte().readData(14)); // SXY3
+  guest.storeVertex(out + 32, c->gte().projected(2)); // SXY3
 
   c->gte().execute(0x4B68002Eu); // AVSZ4
   c->mem_w32(sp + 4, c->gte().readData(7));

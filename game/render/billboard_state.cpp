@@ -68,22 +68,23 @@ public:
     for (std::size_t particle = later.header.particles; particle-- > 0;) {
       const std::uint32_t *saved = later.particles.data() + particle * kParticleWords;
       const std::uint32_t *moved = corners.data() + particle * kParticleWords;
-      std::uint32_t command[BillboardState::kPacketWords];
-      std::copy_n(saved + kCommandWord, BillboardState::kPacketWords, command);
+      psx::gpu::PacketBuffer<BillboardState::kPacketWords> command(
+          std::span<const std::uint32_t, BillboardState::kPacketWords>(saved + kCommandWord,
+                                                                       BillboardState::kPacketWords));
       for (std::uint32_t reg = 0; reg < 6u; ++reg) {
         core_.gte().writeData(reg, moved[reg]);
       }
       core_.gte().execute(psx::gte::kRtpt);
-      command[kCornerXy[0]] = core_.gte().readData(psx::gte::kSxy0);
-      command[kCornerXy[1]] = core_.gte().readData(psx::gte::kSxy1);
-      command[kCornerXy[2]] = core_.gte().readData(psx::gte::kSxy2);
+      for (std::uint32_t corner = 0; corner < 3u; ++corner) {
+        command.storeVertex(kCornerXy[corner], core_.gte().projected(corner));
+      }
       core_.gte().writeData(psx::gte::kVxy0, moved[6]);
       core_.gte().writeData(psx::gte::kVz0, moved[7]);
       core_.gte().execute(psx::gte::kRtps);
-      command[kCornerXy[3]] = core_.gte().readData(psx::gte::kSxy2);
-      auto quad = psx::gpu::decodePacketPrimitive(command);
+      command.storeVertex(kCornerXy[3], core_.gte().projected(2));
+      auto quad = psx::gpu::decodePacketPrimitive(command.view());
       if (!quad) {
-        lucent::error("billboard", "saved billboard packet 0x{:08X} did not decode", command[0]);
+        lucent::error("billboard", "saved billboard packet 0x{:08X} did not decode", command.word(0));
         std::abort();
       }
       sink.emit(
