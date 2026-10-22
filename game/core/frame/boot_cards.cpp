@@ -9,6 +9,9 @@
 
 #include <lucent/log.h>
 
+#include <algorithm>
+#include <cmath>
+
 namespace tomba {
 namespace {
 
@@ -57,11 +60,21 @@ void BootCards::stepScea(Core &core) {
   if (skipped) {
     lucent::info("scea", "skipped (Start) at frame {}", sceaFrame_);
   } else {
-    game.display.buildHostPicture(
-        sceaImage_.data(), {kSceaSplashWidth, kSceaSplashHeight}, static_cast<float>(sceaFade(sceaFrame_)) / kFadeFull);
-    // The card frames were measured at the stub's 30 fps rate.
-    game.framePacer.paceSubframeFields(core, {FrameCadence::kRetailVblanksPerLogicFrame, 1});
-    game.display.show();
+    // The card frames were measured at the stub's 30 fps rate; at 60 fps the second field shows the fade halfway
+    // to the next card frame's.
+    const int parts = game.mods.fps60 != 0 ? 2 : 1;
+    for (int part = 0; part < parts; ++part) {
+      const float fade = std::lerp(static_cast<float>(sceaFade(sceaFrame_)),
+                                   static_cast<float>(sceaFade(std::min(sceaFrame_ + 1, kSceaFrames - 1))),
+                                   static_cast<float>(part) / static_cast<float>(parts));
+      game.display.buildHostPicture(sceaImage_.data(), {kSceaSplashWidth, kSceaSplashHeight}, fade / kFadeFull);
+      const psx::frame::FieldCadence cadence{FrameCadence::kRetailVblanksPerLogicFrame, parts};
+      game.display.showAt(game.framePacer.subframeDeadline(core, cadence),
+                          {.fence = game.presentation.fence(),
+                           .t = static_cast<float>(part + 1) / static_cast<float>(parts),
+                           .fields = cadence.fields,
+                           .parts = cadence.parts});
+    }
   }
   if (skipped || ++sceaFrame_ >= kSceaFrames) {
     sceaImage_ = {};
