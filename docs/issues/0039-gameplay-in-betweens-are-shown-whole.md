@@ -31,5 +31,7 @@ packets its emitters re-run. Then each remaining writer above needs a producer w
 ## Fixed on the way (2026-10-22)
 The new-game intro showed 94 consecutive in-betweens whole: SOP `FUN_8010BF54` draws list 0x8010CC08 twice a
 frame through `PackedMesh::write`, and both calls took the object `(0x80027768, list)`, so the state was
-ambiguous. An unscoped `PackedMesh::write` is now its call site, n-th in the logic frame (`producers.md`). The
-intro composes every in-between but the title's static backdrop (SOP 0x80106690's two sprites, unkeyed and still).
+ambiguous. An unscoped `PackedMesh::write` is now (call site, list, n-th call of that pair in the logic frame)
+(`CallSiteObjects::object(returnAddress, list)`, `producers.md`); keying by call order alone would pair different
+meshes when a site's set of lists changed between frames. The intro composes every in-between but the title's
+static backdrop (SOP 0x80106690's two sprites, unkeyed and still).

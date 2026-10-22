@@ -182,8 +182,10 @@ void PackedMesh::write(Core *core) {
                       .sp = core->r[29],
                       .a1 = core->r[5]};
   // Unscoped, the call is its own object: SOP 0x8010BF54 draws one list twice a frame.
-  const EmitterObject object(
-      core->emission, kWriter, core->emission.isOpen() ? call.list : sessionOf(core).callSites.object(core->r[31]));
+  const EmitterObject object(core->emission,
+                             kWriter,
+                             core->emission.isOpen() ? call.list
+                                                     : sessionOf(core).callSites.object(core->r[31], call.list));
   const std::uint32_t records = recordCount(*core, call.list);
   ListJobWriter job(*core, 0u, call, records * kPacketBytes);
   job.input(*core, call.list, records * kRecordBytes);
