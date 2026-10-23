@@ -20,15 +20,17 @@
 #include "overrides/register_overrides.h"
 #include "platform_hle.h"
 #include "rain_streaks.h"
+#include "render/anchor_quads.h"
 #include "render/area_map.h"
 #include "render/billboard_state.h"
+#include "render/guest_keyed_emitters.h"
 #include "render/guest_ordering_table.h"
-#include "render/line_strip.h"
 #include "render/letterbox_bars.h"
+#include "render/line_strip.h"
 #include "render/object_draw.h"
 #include "render/packed_mesh.h"
-#include "render/anchor_quads.h"
 #include "render/screen_fade.h"
+#include "render/widescreen_margin_quad.h"
 #include "resident_natives.h"
 #include "sched/scheduler.h"
 #include "sched/task_slot_layout.h"
@@ -145,6 +147,8 @@ void Runtime::registerOverrides(Game &game) {
   tomba::render::ObjectDraws::registerStateRenders(renders);
   tomba::render::LineStrip::registerStateRenders(renders, game.core);
   tomba::render::AnchorQuads::registerStateRenders(renders, game.core);
+  tomba::render::GuestKeyedEmitters::registerStateRenders(renders);
+  WidescreenMarginQuad::registerStateRenders(renders);
   tomba::text_label_register_state_renders(renders);
   tomba::render::AreaMap::registerStateRenders(renders, game.core);
   Panel::registerStateRenders(renders, game.core);

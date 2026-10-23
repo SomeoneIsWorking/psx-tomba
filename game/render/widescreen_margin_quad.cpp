@@ -17,8 +17,11 @@
 #include "game.h"
 #include "guest_abi.h"
 #include "guest_ordering_table.h"
+#include "ordering_table.h"
+#include "quad_state.h"
 #include <cstdint>
 #include <lucent/log.h>
+#include <memory>
 
 namespace tomba {
 
@@ -164,6 +167,19 @@ int32_t marginOtzIndex(int32_t zPlusBias) {
   using tomba::render::OrderingTable;
   const int32_t idx = OrderingTable::compressDepth(zPlusBias);
   return OrderingTable::inDepthRange(idx) ? idx : OrderingTable::kNoBucket;
+}
+
+// The override entry: the node keys the quads it draws, and their screen vertices are its state.
+void ov_emit(Core *c) {
+  const std::uint32_t object = eng(c).graphicsBind.records.object(c->r[4]);
+  const psx::present::EmissionScope::Guard scope(c->emission, WidescreenMarginQuad::kEmitter, object, 0);
+  const std::uint32_t before = render::PacketPool(*c).cursor();
+  WidescreenMarginQuad::emit(c);
+  render::saveQuads(*c,
+                    {.emitter = WidescreenMarginQuad::kEmitter,
+                     .object = object,
+                     .before = before,
+                     .after = render::PacketPool(*c).cursor()});
 }
 
 } // namespace
@@ -377,7 +393,11 @@ void WidescreenMarginQuad::emit(Core *c) {
 }
 
 void WidescreenMarginQuad::registerOverrides(native::NativeOverrideCatalog &natives) {
-  natives.declareOverlay("A00", 0x8013CDD4u, "&WidescreenMarginQuad::emit", &WidescreenMarginQuad::emit);
+  natives.declareOverlay("A00", kEmitter, "&WidescreenMarginQuad::emit", &ov_emit);
+}
+
+void WidescreenMarginQuad::registerStateRenders(psx::present::StateProducerTable &renders) {
+  renders.install(kEmitter, std::make_unique<render::QuadStateRender>());
 }
 
 } // namespace tomba

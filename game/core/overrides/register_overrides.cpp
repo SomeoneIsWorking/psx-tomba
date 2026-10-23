@@ -42,12 +42,13 @@
 #include "overlay_gt3gt4.h"        // class OverlayGt3Gt4 — A00 and A08 model GT3/GT4 packet emitters
 #include "quad_rtpt_submit.h"      // class QuadRtptSubmit — 0x8003xxxx rope/flame quad rotate+RTPT submit
 #include "rain_streaks.h"          // class RainStreaks — A08 rain streaks (0x80116904)
+#include "render/anchor_quads.h"
 #include "render/area_map.h"
 #include "render/drop_shadow.h"
+#include "render/guest_keyed_emitters.h"
 #include "render/line_strip.h"
 #include "render/object_draw.h"
 #include "render/packed_mesh.h"
-#include "render/anchor_quads.h"
 #include "render/scaled_sprites.h"
 #include "scene/scene_events.h" // class SceneEvents — scene-event ARM (FUN_80040B48 sole owner)
 #include "screen_fade.h"        // class ScreenFade — full-screen fade leaf (0x8007E9C8)
@@ -160,16 +161,17 @@ void register_engine_overrides(Game &game, native::NativeOverrideCatalog &native
       natives); // libapi SetIntrMask (0x80085C9C) — I_MASK swap through libapi's hw-pointer table
   LibgpuDrawEnv::registerOverrides(
       natives); // libgpu SetDrawEnv (0x80081FB0): DRAWENV -> DR_ENV packet compiler, 2x/frame
-  GteTransform3::registerOverrides(natives);             // GTE 3-vertex rotate+pack (0x80084250)
-  render::ScaledSprites::registerOverrides(natives);     // scaled sprite-record writer (0x80027A4C)
-  render::ObjectDraws::registerOverrides(natives);       // draws whose emitter calls are one object (A08 0x80117628)
-  render::LineStrip::registerOverrides(natives);         // A08 node line strip (0x80117E84)
+  GteTransform3::registerOverrides(natives);              // GTE 3-vertex rotate+pack (0x80084250)
+  render::ScaledSprites::registerOverrides(natives);      // scaled sprite-record writer (0x80027A4C)
+  render::ObjectDraws::registerOverrides(natives);        // draws whose emitter calls are one object (A08 0x80117628)
+  render::LineStrip::registerOverrides(natives);          // A08 node line strip (0x80117E84)
   render::AnchorQuads::registerOverrides(natives);        // A00 anchor quads (0x8013E9D8/0x80122974)
-  render::AreaMap::registerOverrides(natives);           // A02 area map and player marker (0x80113628)
-  FxSpriteSwarm::registerOverrides(natives);             // per-particle sprite emitter (0x800281EC)
-  FxSpriteAnchored::registerOverrides(natives);          // anchored sprite emitters (0x80027CB4 and its variants)
-  RegisterBehActorTombaProximityCombatOverride(natives); // enemy-vs-Tomba proximity-combat FSM (0x800527C8)
-  eng(c).sequencer.registerOverrides(natives);           // libsnd SsSeqCalled cluster (0x80090BD0 etc.)
+  render::GuestKeyedEmitters::registerOverrides(natives); // A01/A00/DEMO unported render bodies, keyed
+  render::AreaMap::registerOverrides(natives);            // A02 area map and player marker (0x80113628)
+  FxSpriteSwarm::registerOverrides(natives);              // per-particle sprite emitter (0x800281EC)
+  FxSpriteAnchored::registerOverrides(natives);           // anchored sprite emitters (0x80027CB4 and its variants)
+  RegisterBehActorTombaProximityCombatOverride(natives);  // enemy-vs-Tomba proximity-combat FSM (0x800527C8)
+  eng(c).sequencer.registerOverrides(natives);            // libsnd SsSeqCalled cluster (0x80090BD0 etc.)
   eng(c).script.registerOverrides(
       natives); // cutscene-script opcodes 05/06/34/36/31 (0x80042090/800420AC/80042E10/80043108/80041468)
   RegisterSopIntroEventOverrides(

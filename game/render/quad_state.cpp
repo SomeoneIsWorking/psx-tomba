@@ -3,7 +3,9 @@
 
 #include "blend.h"
 #include "core.h"
+#include "entry/session.h"
 #include "gp0_primitive_decode.h"
+#include "guest_call.h"
 #include "guest_ordering_table.h"
 #include "ordering_table.h"
 #include "state_bytes.h"
@@ -95,6 +97,23 @@ void saveQuads(Core &core, const QuadRange &range) {
     state.putAll(std::span<const std::uint32_t>(packet.words));
   }
   core.frameStates.save(core.emission.current(), state.bytes());
+}
+
+std::uint32_t nodeObject(Core &core) {
+  return eng(&core).graphicsBind.records.object(core.r[4]);
+}
+
+void runGuestEmitter(Core &core, std::uint32_t emitter, std::uint32_t object, const char *owner) {
+  const std::uint32_t otBase = OrderingTable::active(core).base();
+  if (!core.otTables.slotOf(otBase)) {
+    // Without a published slot the packets would be keyed with no state to pair them with.
+    psx::cpu::callOriginalToReturn(core, emitter, psx::cpu::ExecutionBudget::currentTurn(core), owner);
+    return;
+  }
+  const psx::present::EmissionScope::Guard scope(core.emission, emitter, object, 0);
+  const std::uint32_t before = PacketPool(core).cursor();
+  psx::cpu::callOriginalToReturn(core, emitter, psx::cpu::ExecutionBudget::currentTurn(core), owner);
+  saveQuads(core, {.emitter = emitter, .object = object, .before = before, .after = PacketPool(core).cursor()});
 }
 
 void QuadStateRender::render(const psx::present::StateInterval &states, psx::present::PrimitiveSink &sink) const {
