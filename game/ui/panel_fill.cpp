@@ -1,35 +1,5 @@
 // game/ui/panel_fill.cpp — Panel::fillQuad, guest FUN_8004FFB4.
-//
-// The 9-slice panel's fill primitive, and the busiest render function on the field path (505
-// dispatches per 1200 frames). RE'd 2026-07-22 from guest 0x8004FFB4.
-//
-// Registered on 0x8004FFB4 by Panel::install() (game/ui/panel.cpp).
-//
-// It builds ONE textured quad — a GP0 0x2C, or 0x2E when the caller asks for semi-transparency — and
-// links it into the ordering table. Ten words off the packet pool:
-//
-//     +0   tag            next-pointer | (9 << 24)
-//     +4/5/6  colour      0x40 on each channel when flat-shaded; otherwise left alone and the
-//                         opcode's raw-texture bit is set instead
-//     +7   opcode         0x2C / 0x2E, | 1 when raw-textured
-//     +8,+10   v0 xy      the rect's top-left
-//     +12,+13  v0 uv
-//     +14  clut
-//     +16,+18  v1 xy      top-right
-//     +20,+21  v1 uv
-//     +22  tpage          95
-//     +24,+26  v2 xy      bottom-left
-//     +28,+29  v2 uv
-//     +32,+34  v3 xy      bottom-right
-//     +36,+37  v3 uv
-//
-// ATTR BITS (r6): 0x80 semi-transparent · 0x40 selects CLUT 63 rather than 62 · 0x20 flat-shade at
-// 0x40 instead of raw texture · 0x1F is the CLUT row, placed at ((row + 496) << 6).
-//
-// UV SETS: the uvIndex argument picks one of five fixed atlas rectangles. The guest compiles this as
-// a jump table, but every arm only chooses four constants, so it is a table here. An index of 5 or
-// more skips the UVs entirely and leaves whatever the packet already held — that is the guest's
-// behaviour, not an oversight.
+// Builds one textured quad (GP0 0x2C, or 0x2E semi) and links it into the ordering table.
 #include "core.h"
 #include "render/guest_ordering_table.h"
 #include "ui/panel.h"
@@ -67,66 +37,62 @@ constexpr UvSet kUvSets[5] = {
 
 } // namespace
 
-// EQUIVALENCE. This is a REBUILD, not a transcription, so `port_check` cannot pass it: it compares
-// STATIC store sequences, and the guest's five-arm jump table has 12 store sites where the table
-// below has 8. Contorting the code to match that count is precisely how these files end up
-// unreadable. Equivalence is instead proven the way rebuilds have to be — by running the bucket
-// capture with this installed and with it disabled (so guest 0x8004FFB4 runs) and diffing the 2 MB
-// dumps at frame 1200: ZERO differing bytes, 2026-07-22. Re-run that A/B if this file is edited.
-//
-// FUN_8004FFB4(rect r4 {s16 x,y,w,h}, uvIndex r5, attr r6, otBucket r7)
-void Panel::fillQuad(Core *c) {
-  const uint32_t rect = c->r[4];
-  const uint32_t uvIndex = c->r[5];
-  const uint16_t attr = (uint16_t)c->r[6];
-  const uint32_t otBucket = c->r[7];
+// A rebuild, not a transcription; equivalence is an A/B dump diff, not port_check's static store-site count.
+void Panel::fill(const psx::present::EmitMemory &memory, const render::OrderingTable &ot, const FillArgs &args) {
+  const uint32_t rect = args.rect;
+  const uint16_t attr = args.attr;
+  const uint32_t packet = tomba::render::PacketPool(memory).allocate(PACKET_BYTES);
 
-  const uint32_t packet = tomba::render::PacketPool(*c).allocate(PACKET_BYTES);
-
-  c->mem_w8(packet + 7, GP0_QUAD);
+  memory.mem_w8(packet + 7, GP0_QUAD);
   if (attr & ATTR_SEMI) {
-    c->mem_w8(packet + 7, GP0_QUAD_SEMI);
+    memory.mem_w8(packet + 7, GP0_QUAD_SEMI);
   }
 
   const uint16_t clut =
       (uint16_t)((((attr & ATTR_CLUT_ROW) + CLUT_ROW_BASE) << 6) | ((attr & ATTR_CLUT_ALT) ? 63u : 62u));
-  c->mem_w16(packet + 14, clut);
+  memory.mem_w16(packet + 14, clut);
 
   if (attr & ATTR_FLAT_SHADE) {
-    c->mem_w8(packet + 6, FLAT_SHADE_LVL);
-    c->mem_w8(packet + 5, FLAT_SHADE_LVL);
-    c->mem_w8(packet + 4, FLAT_SHADE_LVL);
+    memory.mem_w8(packet + 6, FLAT_SHADE_LVL);
+    memory.mem_w8(packet + 5, FLAT_SHADE_LVL);
+    memory.mem_w8(packet + 4, FLAT_SHADE_LVL);
   } else {
-    c->mem_w8(packet + 7, (uint8_t)(c->mem_r8(packet + 7) | RAW_TEXTURE_BIT));
+    memory.mem_w8(packet + 7, (uint8_t)(memory.mem_r8(packet + 7) | RAW_TEXTURE_BIT));
   }
-  c->mem_w16(packet + 22, TPAGE);
+  memory.mem_w16(packet + 22, TPAGE);
 
   // four corners of the rect, in the order the guest writes them
-  const uint16_t x = c->mem_r16(rect + 0), y = c->mem_r16(rect + 2);
-  const uint16_t w = c->mem_r16(rect + 4), h = c->mem_r16(rect + 6);
-  c->mem_w16(packet + 8, x);
-  c->mem_w16(packet + 10, y);
-  c->mem_w16(packet + 16, (uint16_t)(x + w));
-  c->mem_w16(packet + 18, y);
-  c->mem_w16(packet + 24, x);
-  c->mem_w16(packet + 26, (uint16_t)(y + h));
-  c->mem_w16(packet + 32, (uint16_t)(x + w));
-  c->mem_w16(packet + 34, (uint16_t)(y + h));
+  const uint16_t x = memory.mem_r16(rect + 0), y = memory.mem_r16(rect + 2);
+  const uint16_t w = memory.mem_r16(rect + 4), h = memory.mem_r16(rect + 6);
+  memory.mem_w16(packet + 8, x);
+  memory.mem_w16(packet + 10, y);
+  memory.mem_w16(packet + 16, (uint16_t)(x + w));
+  memory.mem_w16(packet + 18, y);
+  memory.mem_w16(packet + 24, x);
+  memory.mem_w16(packet + 26, (uint16_t)(y + h));
+  memory.mem_w16(packet + 32, (uint16_t)(x + w));
+  memory.mem_w16(packet + 34, (uint16_t)(y + h));
 
-  if (uvIndex < 5) {
-    const UvSet &uv = kUvSets[uvIndex];
-    c->mem_w8(packet + 13, uv.vTop); // v0.v and v1.v share the top edge
-    c->mem_w8(packet + 21, uv.vTop);
-    c->mem_w8(packet + 12, uv.uLeft);
-    c->mem_w8(packet + 20, uv.uRight);
-    c->mem_w8(packet + 28, uv.uLeft);
-    c->mem_w8(packet + 29, uv.vBottom);
-    c->mem_w8(packet + 36, uv.uRight);
-    c->mem_w8(packet + 37, uv.vBottom);
+  if (args.uvIndex < 5) {
+    const UvSet &uv = kUvSets[args.uvIndex];
+    memory.mem_w8(packet + 13, uv.vTop); // v0.v and v1.v share the top edge
+    memory.mem_w8(packet + 21, uv.vTop);
+    memory.mem_w8(packet + 12, uv.uLeft);
+    memory.mem_w8(packet + 20, uv.uRight);
+    memory.mem_w8(packet + 28, uv.uLeft);
+    memory.mem_w8(packet + 29, uv.vBottom);
+    memory.mem_w8(packet + 36, uv.uRight);
+    memory.mem_w8(packet + 37, uv.vBottom);
   }
 
-  // link at the head of the requested bucket
-  tomba::render::OrderingTable::active(*c).link({.packet = packet, .words = TAG_WORDS, .bucket = otBucket});
+  ot.link({.packet = packet, .words = TAG_WORDS, .bucket = args.bucket});
+}
+
+// FUN_8004FFB4(rect r4 {s16 x,y,w,h}, uvIndex r5, attr r6, otBucket r7)
+void Panel::fillQuad(Core *c) {
+  fill(*c,
+       render::OrderingTable::active(*c),
+       {.rect = c->r[4], .uvIndex = c->r[5], .attr = static_cast<uint16_t>(c->r[6]), .bucket = c->r[7]});
 }
 
 } // namespace tomba

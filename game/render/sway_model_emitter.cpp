@@ -350,7 +350,7 @@ void SwayModelEmitter::cueGt4(Core &core, const Visibility &visible) {
 namespace {
 
 template <std::uint32_t Entry, void (*Body)(Core &, const Visibility &)> void emitAt(Core *core) {
-  const EmitterObject object(core->emission, Entry, core->r[4]);
+  const EmitterObject object(*core, Entry, core->r[4]);
   Body(*core, horizontal_cull::forDrawWindow(core));
 }
 

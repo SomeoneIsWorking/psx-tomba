@@ -15,10 +15,9 @@
 // (0x1F80028C), then selects one of 6 cases by
 // `mem8(node+13) & 0xB` (bound-checked < 9) via a 9-slot table at 0x80014EC8. Every valid case runs
 // cmdListDispatch() (already owned, FUN_8003CDD8) then, for 4 of the 6 cases, calls one of 5
-// still-substrate "special effect" leaves (FUN_8003D584/F344/F3F4/F4C4/F594) with
+// "special effect" leaves (FUN_8003D584/F344/F3F4/F4C4/F594, `render::ObjectEffect`) with
 // (node, poolPtrBeforeCmdListDispatch, poolPtrAfter) — i.e. the packet-pool span cmdListDispatch just
-// emitted. None of these 5 leaves fire at seaside (perobj_dispatch.cpp's prior finding); they stay
-// substrate, reached as plain guest-ABI calls so they still see the correct pool-pointer bracket.
+// emitted.
 //
 // FUN_8003C2D4 / FUN_8003C464 (billboardCompose1/2, a0=node r4): each builds a "local" transform for a
 // billboard-type node and composes it with a persistent camera MATRIX before handing off to
@@ -65,13 +64,19 @@
 //      cmdListDispatch/perModeDispatch already documents.
 #include "billboard_state.h"
 #include "core.h"
+#include "core/overrides/guest_jal.h"
 #include "core/overrides/native_override_catalog.h"
 #include "entry/session.h"
 #include "game.h"
+#include "guest_abi.h"
 #include "guest_call.h"
 #include "guest_ordering_table.h"
 #include "horizontal_visibility_cull.h"
 #include "render.h"
+
+#include <lucent/log.h>
+
+#include <cstdlib>
 // original guest-instruction fallbacks for the test-only substrate gate. The image-qualified runtime dispatcher is a
 // single PROCESS-GLOBAL table shared by EVERY Core (SBS core A AND core B), so the trampolines below MUST defer to the
 // real guest body on core B (the pure-substrate oracle) — otherwise the oracle runs this native mirror and SBS compares
@@ -152,6 +157,51 @@ struct CCA4Frame {
   }
 };
 
+// A case of FUN_8003CCA4's table (0x80014EC8): the effect leaf it runs after cmdListDispatch, and the jal-site ra
+// of each call (0 where it makes none).
+struct NodeCase {
+  render::ObjectEffect effect;
+  uint32_t dispatchReturn = 0;
+  uint32_t effectReturn = 0;
+};
+
+constexpr uint32_t kNoDrawCase = 0x8003CDC0u; // falls straight to the epilogue
+
+// FUN_8004CC88's node table and frame.
+constexpr uint32_t kInstanceClock = 0x1F80017Cu; // u16 frame clock; its value mod 20 scrolls kinds 4..10
+constexpr uint64_t kDivideBy20 = 0xCCCCCCCDu;    // the guest's multu by 1/20
+constexpr uint32_t kInstanceFields = 0x60u;      // held in s3
+constexpr uint32_t kInstanceCount = 0x6Au;       // s16
+constexpr uint32_t kInstanceTable = 0x6Cu;       // 16-byte entries: kind at +3, s16 x, y, z at +4
+constexpr uint32_t kInstancePosition = 8u;       // the entry's z, which s1 points at
+constexpr uint32_t kInstanceStride = 0x10u;
+constexpr uint32_t kInstanceShown = 0x70u;  // bit per entry
+constexpr uint32_t kInstanceHidden = 0x74u; // bit per entry
+constexpr uint32_t kInstancePlace = 0x8004A828u;
+constexpr uint32_t kInstanceTurn = 0x8004B374u;
+constexpr GuestFrameSpill kInstanceSpills[6] = {{16, 16}, {18, 24}, {19, 28}, {31 /*ra*/, 36}, {20, 32}, {17, 20}};
+
+NodeCase nodeCaseOf(Core &c, uint32_t node, uint32_t target) {
+  switch (target) {
+  case 0x8003CD00u:
+    return {{}, 0x8003CD08u, 0};
+  case 0x8003CD10u:
+    return {render::ObjectEffect::colorAdd(c, node), 0x8003CD20u, 0x8003CD30u}; // FUN_8003D584
+  case 0x8003CD38u:
+    return {render::ObjectEffect::clutSwap(c, node), 0x8003CD48u, 0x8003CD58u}; // FUN_8003F344
+  case 0x8003CD60u:
+    // node+27 == 0 runs FUN_8003F4C4 (off), otherwise FUN_8003F3F4 (on).
+    if (c.mem_r8(node + 27) == 0) {
+      return {render::ObjectEffect::semi(false), 0x8003CD70u, 0x8003CD98u};
+    }
+    return {render::ObjectEffect::semi(true), 0x8003CD70u, 0x8003CD88u};
+  case 0x8003CDA0u:
+    return {render::ObjectEffect::flatTint(c, node), 0x8003CDB0u, 0x8003CDC0u}; // FUN_8003F594
+  default:
+    return {};
+  }
+}
+
 } // namespace
 
 // ==================================================================================================
@@ -187,94 +237,36 @@ void Render::perObjRenderDispatch() {
   }
   constexpr uint32_t TABLE = 0x80014EC8u;
   const uint32_t target = c->mem_r32(TABLE + sel * 4u);
-  // RE'd return-address constants gen sets in r31 immediately before each nested call (see
-  // authenticated executable/overlay evidence guest 0x8003CCA4). Register-faithfulness (2026-07-09, the f118 residual
-  // root cause): a prior draft called cmdListDispatch()/the special-effect leaves without ever
-  // setting c->r[31], leaving whatever stale value the OUTER caller (FUN_8003C048) left there
-  // instead — a real, reproducible SBS diff at FUN_80146478's own ra spill slot (0x801FE8D0..),
-  // several frames deep in this call chain. Mirrored per CLAUDE.md ("MIRROR THE GUEST STACK...
-  // register-faithfulness"), same discipline as billboardCompose1/2's own fix (commit bef7769).
-  switch (target) {
-  case 0x8003CD00u: {
-    c->r[4] = node;
-    c->r[5] = flag;
-    c->r[31] = 0x8003CD08u;
-    rend(c)->cmdListDispatch();
-    break;
-  }
-  case 0x8003CD10u: {
-    const uint32_t pre = tomba::render::PacketPool(*c).cursor();
-    c->r[4] = node;
-    c->r[5] = flag;
-    c->r[31] = 0x8003CD20u;
-    rend(c)->cmdListDispatch();
-    const uint32_t post = tomba::render::PacketPool(*c).cursor();
-    c->r[4] = node;
-    c->r[5] = pre;
-    c->r[6] = post;
-    c->r[31] = 0x8003CD30u;
-    rend(c)->effectColorAdd({.node = node, .lo = pre, .hi = post});
-    break;
-  }
-  case 0x8003CD38u: {
-    const uint32_t pre = tomba::render::PacketPool(*c).cursor();
-    c->r[4] = node;
-    c->r[5] = flag;
-    c->r[31] = 0x8003CD48u;
-    rend(c)->cmdListDispatch();
-    const uint32_t post = tomba::render::PacketPool(*c).cursor();
-    c->r[4] = node;
-    c->r[5] = pre;
-    c->r[6] = post;
-    c->r[31] = 0x8003CD58u;
-    rend(c)->effectClutSwap({.node = node, .lo = pre, .hi = post});
-    break;
-  }
-  case 0x8003CD60u: {
-    const uint32_t pre = tomba::render::PacketPool(*c).cursor();
-    c->r[4] = node;
-    c->r[5] = flag;
-    c->r[31] = 0x8003CD70u;
-    rend(c)->cmdListDispatch();
-    const uint32_t post = tomba::render::PacketPool(*c).cursor();
-    c->r[4] = node;
-    c->r[5] = pre;
-    c->r[6] = post;
-    // Branch polarity (2026-07-09, found during the same audit): guest 0x8003CCA4 L_8003CD60
-    // tests node+27==0 -> guest 0x8003F4C4 (the L_8003CD90 target), node+27!=0 -> guest 0x8003F3F4 —
-    // a prior draft had this INVERTED. Neither leaf fires at seaside (this file's own banner),
-    // so the flip was never caught by the autonav gate; fixed here to match gen exactly.
-    if (c->mem_r8(node + 27) == 0) {
-      c->r[31] = 0x8003CD98u;
-      rend(c)->effectSemiOff(node, pre, post);
-    } else {
-      c->r[31] = 0x8003CD88u;
-      rend(c)->effectSemiOn(node, pre, post);
+  // Each case publishes its own jal-site ra before cmdListDispatch and before its effect leaf.
+  const NodeCase nodeCase = nodeCaseOf(*c, node, target);
+  if (nodeCase.dispatchReturn == 0) {
+    if (target != kNoDrawCase) {
+      psx::cpu::callGuestNow(*c, __func__, target);
     }
-    break;
-  }
-  case 0x8003CDA0u: {
-    const uint32_t pre = tomba::render::PacketPool(*c).cursor();
-    c->r[4] = node;
-    c->r[5] = flag;
-    c->r[31] = 0x8003CDB0u;
-    rend(c)->cmdListDispatch();
-    const uint32_t post = tomba::render::PacketPool(*c).cursor();
-    c->r[4] = node;
-    c->r[5] = pre;
-    c->r[6] = post;
-    c->r[31] = 0x8003CDC0u;
-    rend(c)->effectFlatTint({.node = node, .lo = pre, .hi = post});
-    break;
-  }
-  case 0x8003CDC0u:
-    break; // no-op case: the guest instruction path falls straight to the epilogue
-  default:
-    // Defensive mirror of the guest instruction path's raw `jr` fallback for an unrecognized table entry — never
-    // hit by live game data (only the 6 cases above ever appear in the live table).
-    psx::cpu::callGuestNow(*c, __func__, target);
     return;
   }
+  const uint32_t pre = tomba::render::PacketPool(*c).cursor();
+  c->r[4] = node;
+  c->r[5] = flag;
+  c->r[31] = nodeCase.dispatchReturn;
+  {
+    const render::ObjectEffectScope underEffect(objectEffect, nodeCase.effect);
+    cmdListDispatch();
+  }
+  if (nodeCase.effectReturn == 0) {
+    return;
+  }
+  const uint32_t post = tomba::render::PacketPool(*c).cursor();
+  // The leaf reads the node after the emission; the effect the emitters saved was read before it.
+  if (nodeCaseOf(*c, node, target).effect != nodeCase.effect) {
+    lucent::error("render", "node 0x{:08X}: its effect changed while cmdListDispatch emitted it", node);
+    std::abort();
+  }
+  c->r[4] = node;
+  c->r[5] = pre;
+  c->r[6] = post;
+  c->r[31] = nodeCase.effectReturn;
+  nodeCase.effect.apply(psx::present::EmitMemory(*c), pre, post);
 }
 
 struct BillboardComposeTailArgs {
@@ -488,6 +480,64 @@ void Render::billboardComposeC5F8() {
   c->r[31] = c->mem_r32(sp + 32);
 }
 
+// FUN_8004CC88 (a0=node): each shown instance of the node's table at node+0x6C (count at +0x6A, shown where
+// +0x70 has the bit and +0x74 does not) moves the node to the instance and composes it. The instances are one
+// object draw, numbered by table index.
+void Render::billboardInstances() {
+  Core *c = mCore;
+  ::GuestFrame<40, 6> frame(c, kInstanceSpills);
+  GuestReg<16> nodeReg(c);
+  nodeReg = c->r[4];
+  const uint32_t node = c->r[16];
+  const uint64_t clockProduct = (uint64_t)c->mem_r16(kInstanceClock) * kDivideBy20;
+  c->hi = (uint32_t)(clockProduct >> 32);
+  c->lo = (uint32_t)clockProduct;
+  GuestReg<18> indexReg(c);
+  indexReg = 0;
+  GuestReg<19> fieldsReg(c);
+  fieldsReg = node + kInstanceFields;
+  GuestReg<20> scrollReg(c);
+  scrollReg = (c->mem_r16(kInstanceClock) % 20u) & 0xFFFEu;
+  if ((int16_t)c->mem_r16(node + kInstanceCount) <= 0) {
+    return;
+  }
+  const tomba::render::ObjectDrawScope draw(
+      *c, tomba::render::BillboardState::kInstances, eng(c).graphicsBind.records.object(node));
+  GuestReg<17> entryReg(c);
+  entryReg = c->mem_r32(node + kInstanceTable) + kInstancePosition;
+  for (uint32_t index = 0; (int32_t)index < (int16_t)c->mem_r16(node + kInstanceCount); index++) {
+    indexReg = index;
+    const uint32_t entry = c->r[17];
+    const uint32_t bit = 1u << index;
+    if ((c->mem_r32(node + kInstanceShown) & bit) != 0 && (c->mem_r32(node + kInstanceHidden) & bit) == 0) {
+      c->mem_w8(node + 3, c->mem_r8(entry - 5));
+      c->mem_w32(node + 0x2C, (uint32_t)(int32_t)(int16_t)c->mem_r16(entry - 4) << 16);
+      c->mem_w32(node + 0x30, (uint32_t)(int32_t)(int16_t)c->mem_r16(entry - 2) << 16);
+      c->mem_w32(node + 0x34, (uint32_t)(int32_t)(int16_t)c->mem_r16(entry) << 16);
+      c->r[4] = node;
+      tomba::guest::dispatchJalToReturn(*c, {.target = kInstancePlace, .returnAddress = 0x8004CD5Cu});
+      sessionOf(c).objectDraw.numberNext(index);
+      const uint32_t kind = c->mem_r8(node + 3);
+      if (kind < 2u || (uint8_t)(kind - 4u) < 7u) {
+        if (kind >= 2u) {
+          c->mem_w32(node + 0x38, c->mem_r32(node + 0x38) + c->r[20] * 2u);
+        }
+        c->mem_w8(node + 0xD, c->mem_r8(node + 0xD) & 0xDFu);
+        c->r[4] = node;
+        tomba::guest::dispatchJalToReturn(
+            *c, {.target = 0x8003C2D4u, .returnAddress = kind < 2u ? 0x8004CD84u : 0x8004CDC0u});
+      } else {
+        c->r[4] = node;
+        c->r[5] = 0;
+        tomba::guest::dispatchJalToReturn(*c, {.target = kInstanceTurn, .returnAddress = 0x8004CDD4u});
+        c->r[4] = node;
+        tomba::guest::dispatchJalToReturn(*c, {.target = 0x8003C464u, .returnAddress = 0x8004CDDCu});
+      }
+    }
+    entryReg = entry + kInstanceStride;
+  }
+}
+
 // ==================================================================================================
 // FUN_8003C8F4
 void Render::billboardEmit() {
@@ -498,8 +548,8 @@ void Render::billboardEmit() {
     return;
   }
   // The node's particles are one object: its render record's current life.
-  const psx::present::EmissionScope::Guard object(
-      c->emission, tomba::render::BillboardState::kEmitter, eng(c).graphicsBind.records.object(node), 0);
+  const tomba::render::EmitterObject object(
+      *c, tomba::render::BillboardState::kEmitter, tomba::render::OwnObject{eng(c).graphicsBind.records.object(node)});
   tomba::render::BillboardState drawn(c->gte());
   GuestFrame frame(c, 96); // real guest stack frame: guest 0x8003B220 writes through this as a real
                            // guest address, and callers' own frames must already be allocated
@@ -689,6 +739,9 @@ void ov_billboardComposeC5F8(Core *c) {
 void ov_billboardEmit(Core *c) {
   rend(c)->billboardEmit();
 }
+void ov_billboardInstances(Core *c) {
+  rend(c)->billboardInstances();
+}
 } // namespace
 
 void perobj_billboard_install(native::NativeOverrideCatalog &natives) {
@@ -702,6 +755,7 @@ void perobj_billboard_install(native::NativeOverrideCatalog &natives) {
   natives.declare(0x8003C788u, "ov_billboardCompose3", ov_billboardCompose3);
   natives.declare(0x8003C5F8u, "ov_billboardComposeC5F8", ov_billboardComposeC5F8);
   natives.declare(tomba::render::BillboardState::kEmitter, "ov_billboardEmit", ov_billboardEmit);
+  natives.declare(tomba::render::BillboardState::kInstances, "ov_billboardInstances", ov_billboardInstances);
 }
 
 } // namespace tomba

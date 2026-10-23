@@ -1,6 +1,7 @@
 // game/render/list_job.cpp — ListJobWriter and ListJob. See list_job.h.
 #include "list_job.h"
 
+#include "entry/session.h"
 #include "gte_control.h"
 #include "guest_ordering_table.h"
 
@@ -31,6 +32,7 @@ ListJobWriter::ListJobWriter(Core &core, std::uint32_t variant, const ListCall &
     header_.slot = slot->index;
   }
   header_.control = psx::present::readGteControl(core.gte());
+  header_.effect = rend(&core)->objectEffect;
 }
 
 void ListJobWriter::input(
@@ -56,7 +58,7 @@ void ListJobWriter::save(Core &core) const {
   state.put(header);
   state.putAll(std::span<const std::uint32_t>(ranges_));
   state.putAll(std::span<const std::byte>(bytes_));
-  core.frameStates.save(core.emission.current(), state.bytes());
+  saveEmitterState(core, state.bytes());
 }
 
 ListJob::ListJob(std::span<const std::byte> state) {

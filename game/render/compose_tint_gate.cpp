@@ -1,28 +1,5 @@
 // game/render/compose_tint_gate.cpp — Render::composeTintGate, guest FUN_8003EF9C.
-//
-// RE'd 2026-07-22 from guest 0x8003EF9C. One of the two per-type render handlers still unported from
-// the render frontier list (the other is FUN_8003F174); every other entry on that list is already
-// LIVE, so this closes half the remaining gap.
-//
-// WHAT IT DOES. It is a small GATE in front of the geometry emitter, and its whole point is the pool
-// snapshot:
-//
-//     poolBefore = *packetPool          // where the emitter is about to start writing
-//     compose(node, node[0x0B] == 0x0F) // emit this object's primitives
-//     if (mode == 2)                    // ...and then tint exactly those primitives
-//         effectColorAdd(node, poolBefore, *packetPool)
-//
-// `effectColorAdd` (FUN_8003D584, already owned) takes a LO/HI packet range and modulates each
-// colour channel over it. Capturing the pool pointer before the emit and passing it with the pointer
-// after is how the guest says "apply this to the primitives I just produced, and nothing earlier".
-// Read without that framing the two pool reads look incidental; they are the mechanism.
-//
-// The gate itself is the low nibble of node[+0x0D]: 0 = compose plain, 2 = compose then tint, and any
-// other value draws NOTHING AT ALL — an object in an unlisted mode is silently skipped, which is worth
-// knowing when something fails to appear.
-//
-// node[+0x0B] == 0x0F is passed through to the emitter as a bool. It is a sub-type flag; what it
-// selects lives inside FUN_8003F07C, which is not ported yet, so it is forwarded rather than named.
+// The low nibble of node[+0x0D] gates: 0 composes, 2 composes then tints the just-emitted pool span.
 #include "core.h"
 #include "core/overrides/native_override_catalog.h"
 #include "entry/session.h" // rend(c) — the Render instance
@@ -30,7 +7,9 @@
 #include "guest_ordering_table.h"
 #include "render.h"
 
-// Render::effectColorAdd, which already owns this address
+#include <lucent/log.h>
+
+#include <cstdlib>
 
 namespace tomba {
 
@@ -60,26 +39,33 @@ void Render::composeTintGate(Core *c) {
   const uint32_t subtype = (c->mem_r8(node + NODE_SUBTYPE) == SUBTYPE_MATCH) ? 1u : 0u;
   const uint32_t mode = c->mem_r8(node + NODE_MODE) & 0x0Fu;
 
-  // Two separate branches, as the guest has them — mode 0 emits and stops, mode 2 emits and then
-  // tints. They are not merged, because the emit call sites differ in the jal-site ra they publish.
+  // Two branches, as the guest has them; not merged, the emit sites publish different jal-site ra.
   if (mode == MODE_COMPOSE) {
     c->r[4] = node;
     c->r[5] = subtype;
     c->r[31] = 0x8003EFE8u; // jal-site ra
     psx::cpu::callGuestNow(*c, __func__, 0x8003F07Cu);
   } else if (mode == MODE_COMPOSE_TINT) {
+    // The tint is read after the emission; what the emitters saved was read before it.
+    const render::ObjectEffect tint = render::ObjectEffect::colorAdd(*c, node);
     c->r[4] = node;
     c->r[5] = subtype;
     c->r[31] = 0x8003EFFCu; // jal-site ra
-    psx::cpu::callGuestNow(*c, __func__, 0x8003F07Cu);
+    {
+      const render::ObjectEffectScope underTint(rend(c)->objectEffect, tint);
+      psx::cpu::callGuestNow(*c, __func__, 0x8003F07Cu);
+    }
+    if (render::ObjectEffect::colorAdd(*c, node) != tint) {
+      lucent::error("render", "node 0x{:08X}: its tint changed while FUN_8003F07C emitted it", node);
+      std::abort();
+    }
 
-    // tint precisely the primitives just emitted: [poolBefore, poolNow). Called through the thunk,
-    // so the override registry routes it to Render::effectColorAdd rather than the substrate body.
+    // FUN_8003D584 over precisely the primitives just emitted: [poolBefore, poolNow).
     c->r[4] = node;
     c->r[5] = poolBefore;
     c->r[6] = tomba::render::PacketPool(*c).cursor();
     c->r[31] = 0x8003F00Cu; // jal-site ra
-    psx::cpu::callGuestNow(*c, __func__, 0x8003D584u);
+    tint.apply(psx::present::EmitMemory(*c), poolBefore, c->r[6]);
   }
 
   c->r[31] = c->mem_r32(frame + 28);

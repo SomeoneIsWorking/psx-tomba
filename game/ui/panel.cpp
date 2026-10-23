@@ -6,7 +6,8 @@
 namespace tomba {
 
 void Panel::install(native::NativeOverrideCatalog &natives) {
-  natives.declare(0x8004FFB4u, "Panel::fillQuad", Panel::fillQuad);
+  natives.declare(kBuild, "Panel::build", Panel::drawPanel);
+  natives.declare(kFill, "Panel::fillQuad", Panel::fillQuad);
 }
 
 } // namespace tomba

@@ -1,8 +1,5 @@
 // game/render/billboard_state.h — what one billboardEmit call drew, and its render.
-//
-// FUN_8003C8F4 projects each particle's four corner vectors through the composed billboard transform in GTE
-// CR0-7 and links one textured quad per visible particle. Its state is that transform, and per drawn particle
-// its corners, bucket and packet; the render moves the transform and the corners by t and projects again.
+// FUN_8003C8F4 projects each particle's corners through GTE CR0-7 and links one textured quad per visible particle.
 #pragma once
 
 #include "core.h"
@@ -17,8 +14,9 @@ namespace tomba::render {
 
 class BillboardState {
 public:
-  static constexpr std::uint32_t kEmitter = 0x8003C8F4u; // FUN_8003C8F4, billboardEmit
-  static constexpr std::uint32_t kCornerWords = 8u;      // V0..V2 as RTPT reads them, then V3
+  static constexpr std::uint32_t kEmitter = 0x8003C8F4u;   // FUN_8003C8F4, billboardEmit
+  static constexpr std::uint32_t kInstances = 0x8004CC88u; // FUN_8004CC88, one node's instances as one draw
+  static constexpr std::uint32_t kCornerWords = 8u;        // V0..V2 as RTPT reads them, then V3
   static constexpr std::uint32_t kPacketWords = 9u;
 
   // Reads the GTE control registers the particles are projected under.

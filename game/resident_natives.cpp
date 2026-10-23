@@ -40,10 +40,11 @@
 #include "game.h"
 #include "gpu_ports.h"
 #include "guest_call.h"
-#include "mathlib.h"         // PC-native math/PRNG leaf primitives (rand, trig LUTs, bit-test)
-#include "ui/font.h"         // Font::registerOverrides — drawText/glyphEmit
-#include "ui/options_page.h" // OptionsPage::install — the OPTIONS page backdrop (FUN_8007FC24)
-#include "ui/panel.h"        // Panel::install — FUN_8004FFB4 panel fill quad
+#include "mathlib.h"          // PC-native math/PRNG leaf primitives (rand, trig LUTs, bit-test)
+#include "ui/dialog_glyphs.h" // DialogGlyphs::registerOverrides — FUN_8007CC00 dialog box text
+#include "ui/font.h"          // Font::registerOverrides — drawText/glyphEmit
+#include "ui/options_page.h"  // OptionsPage::install — the OPTIONS page backdrop (FUN_8007FC24)
+#include "ui/panel.h"         // Panel::install — FUN_8005019C panel, FUN_8004FFB4 its fill quad
 #include <stdio.h>
 #include <stdlib.h>
 // g_render_object retired 2026-07-03 — was defined + written by Cull::objectCull but never read; dead.
@@ -173,22 +174,23 @@ void installResidentNatives(native::NativeOverrideCatalog &natives) {
   // (engine_math_register, save_register, sound_register, hud_register, actor_sm_24448_register, and
   // the beh_*_register siblings) were left as empty stubs "in case." Every stub had a zero- or single-
   // dead-line body — dead scaffolding — and got deleted. Direct-call wiring is the shape now.
-  perobj_dispatch_install(natives);        // FUN_8003CDD8/FUN_8003F698 substrate-mirror ownership (band 0x8003xxxx)
-  perobj_billboard_install(natives);       // FUN_8003CCA4/C2D4/C464/C8F4 substrate-mirror ownership (band 0x8003xxxx)
-  text_label_install(natives);             // FUN_80039F4C text-label renderer (Render::textLabelEmit)
-  render_walk_dispatch_install(natives);   // FUN_8003C048 render-walk loop ownership (band 0x8003xxxx)
-  overlay_type_dispatch_install(natives);  // FUN_8003D0BC per-area-type overlay dispatch (band 0x8003xxxx)
-  objlist_walk_install(natives);           // FUN_8003BB50/BCF4/BED8/BF00/EEC0 object-list walkers (band 0x8003xxxx)
-  gpu_dma_queue_install(natives);          // FUN_80082D04/FB4/83364/82424 GPU-DMA completion-queue cluster
-  gpu_libgpu_leaves_install(natives);      // FUN_80080F6C/81458 DrawSync/ClearOTagR (libgpu GPU-sys jump table)
-  gpu_loadimage_streamer_install(natives); // FUN_80082734 libgpu LoadImage() chunked GP0-FIFO pixel streamer
-  gpu_putdrawenv_install(natives);         // FUN_800815D0 PutDrawEnv + 4 DRAWENV field-word builders
-  Font::registerOverrides(natives);        // FUN_80079374/80078CA8 Font::drawText/glyphEmit (hottest unowned leaves)
-  tomba::Str::registerOverrides(natives);  // FUN_80079528 Str::length (generic strlen, hottest unowned leaf)
-  Asset::registerOverrides(natives);       // FUN_80045558 indexed load into the AREA slot + code-image publish
-  Panel::install(natives);                 // FUN_8004FFB4 panel fill quad
-  OptionsPage::install(natives);           // FUN_8007FC24 OPTIONS page backdrop packet
-  pad_edge_fence_install(natives);         // FUN_800788AC per-frame input-edge fence (banked draft, §9-verified)
+  perobj_dispatch_install(natives);         // FUN_8003CDD8/FUN_8003F698 substrate-mirror ownership (band 0x8003xxxx)
+  perobj_billboard_install(natives);        // FUN_8003CCA4/C2D4/C464/C8F4 substrate-mirror ownership (band 0x8003xxxx)
+  text_label_install(natives);              // FUN_80039F4C text-label renderer (Render::textLabelEmit)
+  render_walk_dispatch_install(natives);    // FUN_8003C048 render-walk loop ownership (band 0x8003xxxx)
+  overlay_type_dispatch_install(natives);   // FUN_8003D0BC per-area-type overlay dispatch (band 0x8003xxxx)
+  objlist_walk_install(natives);            // FUN_8003BB50/BCF4/BED8/BF00/EEC0 object-list walkers (band 0x8003xxxx)
+  gpu_dma_queue_install(natives);           // FUN_80082D04/FB4/83364/82424 GPU-DMA completion-queue cluster
+  gpu_libgpu_leaves_install(natives);       // FUN_80080F6C/81458 DrawSync/ClearOTagR (libgpu GPU-sys jump table)
+  gpu_loadimage_streamer_install(natives);  // FUN_80082734 libgpu LoadImage() chunked GP0-FIFO pixel streamer
+  gpu_putdrawenv_install(natives);          // FUN_800815D0 PutDrawEnv + 4 DRAWENV field-word builders
+  Font::registerOverrides(natives);         // FUN_80079374/80078CA8 Font::drawText/glyphEmit (hottest unowned leaves)
+  tomba::Str::registerOverrides(natives);   // FUN_80079528 Str::length (generic strlen, hottest unowned leaf)
+  Asset::registerOverrides(natives);        // FUN_80045558 indexed load into the AREA slot + code-image publish
+  Panel::install(natives);                  // FUN_8005019C panel, FUN_8004FFB4 its fill quad
+  DialogGlyphs::registerOverrides(natives); // FUN_8007CC00 dialog box text
+  OptionsPage::install(natives);            // FUN_8007FC24 OPTIONS page backdrop packet
+  pad_edge_fence_install(natives);          // FUN_800788AC per-frame input-edge fence (banked draft, §9-verified)
   lucent::debug("engine", "native object-list walk active (FUN_8007a904)");
 }
 

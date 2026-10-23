@@ -54,13 +54,15 @@ function owners in `docs/guest-addresses.md`, producers in `docs/producers.md`, 
 | `tomba::EngineCdState` | `game/cd/engine_cd_state.h` | The `nativeState` port: deferred area music in the machine save state (section `tomba2.cd`) |
 | `Inventory`, `ItemGrant` | `game/items/` | Item collection and the give-and-flag the debug `items` command uses |
 | `Math`, `Mtx`, `Trig`, `Rng`, `Bit` | `game/math/` | The GTE transform cluster, libgte matrix and trig leaves, the LFSR, flag bits |
-| `Font`, `Panel`, `UiSprite`, `OptionsPage`, `SaveMenu`, `DialogTextStream` | `game/ui/` | Guest-time UI ports: glyphs, panels, 2D sprite writers, options, save menu, dialog stream |
+| `Font`, `Panel`, `DialogGlyphs`, `UiSprite`, `OptionsPage`, `SaveMenu`, `DialogTextStream` | `game/ui/` | Guest-time UI ports: glyphs, panels (`panel_build.cpp` the 9-slice build, `panel_fill.cpp` its quads), dialog-box glyphs, 2D sprite writers, options, save menu, dialog stream |
 | `Render` | `game/render/render.h`, `game/render/render_frame.cpp` | The per-Core render umbrella and the guest render orchestrator |
 | `OrderingTable`, `PacketPool` | `game/render/guest_ordering_table.h` | The guest OT and packet pool: link, allocate, depth-to-bucket, `extremeDepth` |
 | `ModelPacket`, `UnlitModelEmitter`, `LitModelEmitter`, `SwayModelEmitter` | `game/render/*model*` | The GT3/GT4 model list emitters and their shared steps |
 | `OverlayGt3Gt4`, `OverlayGroundGt3Gt4` | `game/render/overlay_*gt3gt4.*` | The overlay scenery GT3/GT4 emitters |
 | `PackedMesh`, `DropShadow` | `game/render/packed_mesh.h`, `game/render/drop_shadow.h` | The packed-mesh writer FUN_80027768 and the drop shadow FUN_8002AB5C |
 | `ListJob`, `ListStateProducer` | `game/render/list_job.h`, `game/render/list_state_producer.h` | An emitter call saved as state and replayed over host memory between frames |
+| `ObjectEffect`, `ObjectDraw` | `game/render/object_effect.h`, `game/render/object_draw.h` | The dispatcher's per-object effect over an emitted packet span, saved with each emitter's state; a multi-call draw as one object with numbered parts |
+| `LineStrip`, `AreaMap`, `ScaledSprites` | `game/render/line_strip.h`, `game/render/area_map.h`, `game/render/scaled_sprites.h` | A08's node strip and A02's map+marker; the scaled sprite-record writer the FX sprite emitters stamp through |
 | `AnchoredPackets`, `BillboardState`, `CallSiteObjects` | `game/render/anchored_packets.h`, `game/render/billboard_state.h`, `game/render/call_site_objects.h` | Saved state of anchored 2D writers and billboards; the call-site object key |
 | `ScreenFade`, `LetterboxBars`, `HudGaugeEmitter` | `game/render/screen_fade.h`, `game/render/letterbox_bars.h`, `game/render/hud_gauge_emitter.h` | The fade leaf FUN_8007E9C8, the cutscene letterbox FUN_80026864, the HUD gauge |
 | `NodeXform`, `ObjModelView`, `QuadRtptSubmit`, `LibgpuDrawEnv` | `game/render/` | Node transforms, model-view setup, the shared quad submit, DRAWENV compile |
