@@ -58,20 +58,20 @@ void lerpVertex(psx::present::RecordVertex &vertex, const psx::present::RecordVe
   vertex.v = static_cast<std::uint8_t>(psx::present::lerpInt(from.v, vertex.v, t));
 }
 
-} // namespace
-
-void saveQuads(Core &core, const QuadRange &range) {
+void savePackets(Core &core, std::uint32_t emitter, std::uint32_t object, std::uint32_t before, std::uint32_t after) {
   const OrderingTable ot = OrderingTable::active(core);
   const auto slot = core.otTables.slotOf(ot.base());
   if (!slot) {
     return;
   }
+  // A zero span takes every packet the key names; otherwise only those a call linked.
+  const bool spanned = before != after;
   std::vector<Packet> packets;
   for (std::uint32_t bucket = 0; bucket < OrderingTable::kBucketCount; ++bucket) {
-    for (std::uint32_t packet = core.mem_r32(ot.slot(bucket)); packet >= range.before && packet < range.after;) {
+    for (std::uint32_t packet = core.mem_r32(ot.slot(bucket)); !spanned || (packet >= before && packet < after);) {
       const psx::gpu::OtNode node(psx::gpu::mainRamOffsetOf(packet), psx::gpu::OtHeaderWord{core.mem_r32(packet)});
       const std::optional<psx::present::RecordKey> key = core.emission.keyFor(packet);
-      if (key && key->producer == range.emitter && key->object == range.object) {
+      if (key && key->producer == emitter && key->object == object) {
         Packet saved;
         saved.bucket = bucket;
         saved.words.resize(node.gp0WordCount());
@@ -97,6 +97,16 @@ void saveQuads(Core &core, const QuadRange &range) {
     state.putAll(std::span<const std::uint32_t>(packet.words));
   }
   core.frameStates.save(core.emission.current(), state.bytes());
+}
+
+} // namespace
+
+void saveQuads(Core &core, const QuadRange &range) {
+  savePackets(core, range.emitter, range.object, range.before, range.after);
+}
+
+void saveKeyedQuads(Core &core, std::uint32_t emitter, std::uint32_t object) {
+  savePackets(core, emitter, object, 0u, 0u);
 }
 
 std::uint32_t nodeObject(Core &core) {

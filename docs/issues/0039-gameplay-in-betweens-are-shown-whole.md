@@ -2,8 +2,8 @@
 
 Features: F-FPS60.
 
-Status: partial (2026-10-23) — gameplay, the intro, the fisherman cutscene and the title compose every
-in-between; the attract demo composes 1919 of 2556, the boot cards and two writers below still whole.
+Status: partial (2026-10-23) — every screen composes its in-betweens but four attract records, the boot
+cards (deliberately stepped) and one `AnchorQuads` object.
 
 ## Observed
 Real-speed walk from boot, 8x on a 3840x2160 sink, fps60 (`scratch/judder-check/walk-b3`, load 1.6 to 1.0):
@@ -43,9 +43,30 @@ Result: `attract12` composes 1919 of 2556 in-between records (was 625 of 2556), 
 8x, 3840x2160) shows title 108 of 108 composed (was 1 of 108), boot 162 of 467 (was 0 of 467), and intro,
 field, `warp 1`, `warp 8` unchanged and fully composed. The census is down to `unkeyed attributed 0`.
 
-Still whole in the attract: 116 records `object 0x8003C8F4/0x000EDD18 has no render or state` (a
-`billboardEmit` object the state does not pair with) and about 200 records whose packet sits at the packet
-page boundary (0x800BFFFC) and is written by `UnlitModelEmitter`'s bodies (0x8007FDB0) with no scope open.
+Two families were still whole in the attract: 116 records `object 0x8003C8F4/0x000EDD18 has no render or state` (a
+`billboardEmit` object the state did not pair with) and about 200 records whose packet sat at the packet
+page boundary (0x800BFFFC) and was written by `UnlitModelEmitter`'s bodies (0x8007FDB0) with no scope open.
+
+Both were the same defect, and both are fixed (2026-10-23). `billboardEmit` was reached twice per frame for
+one node from one call site, so both calls took `(0x8003C8F4, node)` with two serials and the composer kept
+the record whole; its object is now the call, the n-th from the site drawing that node
+(`CallSiteObjects::object(returnAddress, node)`), as `PackedMesh::write` already did.
+
+The packets at the page boundary were the HUD gauge's: `HudGaugeEmitter::emitFrame` calls the still-guest
+glyph-row leaf FUN_8004EB94, which stores into the pool with no scope open, so those packets carried no key
+at all (the census could only count them as `span-miss`, never as `unkeyed attributed`). `emitFrame` now
+opens a scope and saves the packets it linked. The range-based `saveQuads` cannot find them — the body puts
+the pool cursor back before it returns, so `before == after`; `saveKeyedQuads` takes every OT-linked packet
+carrying the key instead. `judge8` (real speed, 8x, 3840x2160) is unchanged from `judge7` on every screen,
+and the attract's whole in-between records fall from 216 to 4.
+
+The four are all `object 0x8013E9D8/0x000FC6C8` (`AnchorQuads`' rope): that node reaches its emitter twice
+in one frame, so the same defect remains there. Changing `AnchorQuads`' object to the call-site one would
+fix it and is deliberately left for its own change, since its current object scheme is what `warp 1`,
+`warp 8` and the village were verified against.
+
+The boot's 305 uncomposed in-betweens are the SCEA card, the logo and the capped movie in `frame/boot_cards.cpp`,
+which are stepped, not composed: a static card has no in-between to show.
 
 Wrapping a *walker* in one scope does not work and was reverted: the A01 scenery walker `0x80132358` in a
 single scope made 453 records whole for `0x8012F8D8` (the sway cue pair), because `EmitterObject` gives a

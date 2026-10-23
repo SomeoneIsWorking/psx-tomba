@@ -23,6 +23,10 @@ struct QuadRange {
 // The packets `emitter` linked into the OT between `before` and `after`, keyed to `object`.
 void saveQuads(Core &core, const QuadRange &range);
 
+// Every OT-linked packet carrying `object`'s key, with no address range: for a body that restores the
+// pool cursor after linking (the HUD gauge), its packets are not inside any before/after span.
+void saveKeyedQuads(Core &core, std::uint32_t emitter, std::uint32_t object);
+
 // Runs a guest render body (the original at `emitter`) with its own packets keyed to `object`, and saves
 // them as that object's state. One guest leaf's packets, re-emitted at t by QuadStateRender.
 void runGuestEmitter(Core &core, std::uint32_t emitter, std::uint32_t object, const char *owner);

@@ -6,6 +6,9 @@
 // index)").
 //
 #pragma once
+
+#include "state_producer.h"
+
 struct Core;
 class Game;
 
@@ -17,6 +20,8 @@ namespace tomba {
 
 class HudGaugeEmitter {
 public:
+  static constexpr std::uint32_t kEmitter = 0x8004FD30u; // FUN_8004FD30
+
   // FUN_8004FD30() -> void. Frame entry: draws the two fixed HUD viewport/panel DR_AREA clip
   // rects, walks the 0x800BF548 gauge-item table (stride 0x8C, count at +8) calling emitItem()
   // per record.
@@ -28,6 +33,8 @@ public:
   static void emitItem(Core *c);
 
   static void registerOverrides(native::NativeOverrideCatalog &natives);
+  // The frame's gauge is one object (one call per frame); its state is the packets it linked.
+  static void registerStateRenders(psx::present::StateProducerTable &renders);
 };
 
 } // namespace tomba
