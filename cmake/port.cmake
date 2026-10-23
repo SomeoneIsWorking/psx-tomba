@@ -250,6 +250,8 @@ set(GAME_SRC
   game/render/object_effect.cpp
   game/render/object_draw.cpp
   game/render/line_strip.cpp
+  game/render/anchor_quads.cpp
+  game/render/quad_state.cpp
   game/render/area_map.cpp
   game/render/text_label.cpp
   game/render/render_walk_dispatch.cpp

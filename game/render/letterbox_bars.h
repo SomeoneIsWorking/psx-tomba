@@ -2,6 +2,8 @@
 // at 0x80100400 (Array8Dispatch, handler table 0x8009D314).
 #pragma once
 
+#include "state_producer.h"
+
 #include <cstdint>
 
 class Core;
@@ -27,6 +29,8 @@ public:
   // The rects span the guest's 320 columns plus `margin` each side, so the wide canvas is covered.
   static void tick(Core &core, std::uint32_t slot, int margin);
   static void registerOverrides(native::NativeOverrideCatalog &natives);
+  // One call is an object saved by its slot; the render moves the bar height.
+  static void registerStateRenders(psx::present::StateProducerTable &renders);
 };
 
 } // namespace tomba::render

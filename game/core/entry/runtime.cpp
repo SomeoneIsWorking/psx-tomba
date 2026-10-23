@@ -24,8 +24,10 @@
 #include "render/billboard_state.h"
 #include "render/guest_ordering_table.h"
 #include "render/line_strip.h"
+#include "render/letterbox_bars.h"
 #include "render/object_draw.h"
 #include "render/packed_mesh.h"
+#include "render/anchor_quads.h"
 #include "render/screen_fade.h"
 #include "resident_natives.h"
 #include "sched/scheduler.h"
@@ -134,6 +136,7 @@ void Runtime::registerOverrides(Game &game) {
   RainStreaks::registerStateRenders(renders);
   Font::registerStateRenders(renders);
   ScreenFade::registerStateRenders(renders);
+  tomba::render::LetterboxBars::registerStateRenders(renders);
   UiSprite::registerStateRenders(renders);
   tomba::render::BillboardState::registerStateRenders(renders, game.core);
   tomba::render::PackedMesh::registerStateRenders(renders, game.core);
@@ -141,6 +144,8 @@ void Runtime::registerOverrides(Game &game) {
   FxSpriteSwarm::registerStateRenders(renders, game.core);
   tomba::render::ObjectDraws::registerStateRenders(renders);
   tomba::render::LineStrip::registerStateRenders(renders, game.core);
+  tomba::render::AnchorQuads::registerStateRenders(renders, game.core);
+  tomba::text_label_register_state_renders(renders);
   tomba::render::AreaMap::registerStateRenders(renders, game.core);
   Panel::registerStateRenders(renders, game.core);
   DialogGlyphs::registerStateRenders(renders);

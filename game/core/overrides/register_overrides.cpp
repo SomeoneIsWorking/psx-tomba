@@ -47,6 +47,7 @@
 #include "render/line_strip.h"
 #include "render/object_draw.h"
 #include "render/packed_mesh.h"
+#include "render/anchor_quads.h"
 #include "render/scaled_sprites.h"
 #include "scene/scene_events.h" // class SceneEvents — scene-event ARM (FUN_80040B48 sole owner)
 #include "screen_fade.h"        // class ScreenFade — full-screen fade leaf (0x8007E9C8)
@@ -163,6 +164,7 @@ void register_engine_overrides(Game &game, native::NativeOverrideCatalog &native
   render::ScaledSprites::registerOverrides(natives);     // scaled sprite-record writer (0x80027A4C)
   render::ObjectDraws::registerOverrides(natives);       // draws whose emitter calls are one object (A08 0x80117628)
   render::LineStrip::registerOverrides(natives);         // A08 node line strip (0x80117E84)
+  render::AnchorQuads::registerOverrides(natives);        // A00 anchor quads (0x8013E9D8/0x80122974)
   render::AreaMap::registerOverrides(natives);           // A02 area map and player marker (0x80113628)
   FxSpriteSwarm::registerOverrides(natives);             // per-particle sprite emitter (0x800281EC)
   FxSpriteAnchored::registerOverrides(natives);          // anchored sprite emitters (0x80027CB4 and its variants)
