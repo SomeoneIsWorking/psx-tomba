@@ -497,9 +497,12 @@ void Render::billboardEmit() {
   if (c->mem_r32(node + 56) == 0) {
     return;
   }
-  // The node's particles are one object: its render record's current life.
-  const tomba::render::EmitterObject object(
-      *c, tomba::render::BillboardState::kEmitter, tomba::render::OwnObject{eng(c).graphicsBind.records.object(node)});
+  // The node's particles are one object. A composer reaches this twice for one node, so the object is the
+  // call: the n-th call from the site drawing this node. The node alone would give both calls one object
+  // with two serials, which the composer keeps whole.
+  const tomba::render::EmitterObject object(*c,
+                                            tomba::render::BillboardState::kEmitter,
+                                            tomba::render::OwnObject{sessionOf(c).callSites.object(c->r[31], node)});
   tomba::render::BillboardState drawn(c->gte());
   GuestFrame frame(c, 96); // real guest stack frame: guest 0x8003B220 writes through this as a real
                            // guest address, and callers' own frames must already be allocated

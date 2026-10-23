@@ -13,6 +13,7 @@
 #include "fx_sprite_swarm.h"
 #include "game.h"
 #include "guest_call.h"
+#include "hud_gauge_emitter.h"
 #include "lit_model_emitter.h"
 #include "overlay_ground_gt3gt4.h"
 #include "overlay_gt3gt4.h"
@@ -148,6 +149,7 @@ void Runtime::registerOverrides(Game &game) {
   tomba::render::LineStrip::registerStateRenders(renders, game.core);
   tomba::render::AnchorQuads::registerStateRenders(renders, game.core);
   tomba::render::GuestKeyedEmitters::registerStateRenders(renders);
+  HudGaugeEmitter::registerStateRenders(renders);
   WidescreenMarginQuad::registerStateRenders(renders);
   tomba::text_label_register_state_renders(renders);
   tomba::render::AreaMap::registerStateRenders(renders, game.core);
