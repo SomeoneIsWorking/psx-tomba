@@ -60,10 +60,12 @@ the pool cursor back before it returns, so `before == after`; `saveKeyedQuads` t
 carrying the key instead. `judge8` (real speed, 8x, 3840x2160) is unchanged from `judge7` on every screen,
 and the attract's whole in-between records fall from 216 to 4.
 
-The four are all `object 0x8013E9D8/0x000FC6C8` (`AnchorQuads`' rope): that node reaches its emitter twice
-in one frame, so the same defect remains there. Changing `AnchorQuads`' object to the call-site one would
-fix it and is deliberately left for its own change, since its current object scheme is what `warp 1`,
-`warp 8` and the village were verified against.
+The four are all `object 0x8013E9D8/...` (`AnchorQuads`' rope) and are NOT yet root-caused. `0x8013E9D8` is
+reached from one site (guest 0x8003C2AC) with one object per node and once per frame per node, and each call
+links into a non-empty pool span; the census still counts 24 primitives with no state over a 60 s attract run.
+Making the object the call (site, n-th, node — as `billboardEmit` now does) changed the object but not the
+count, so the cause is not two calls of one node; finding it is the next RE step. `warp 1`, `warp 8`, the
+village and the intro have no such primitive and are fully composed.
 
 The boot's 305 uncomposed in-betweens are the SCEA card, the logo and the capped movie in `frame/boot_cards.cpp`,
 which are stepped, not composed: a static card has no in-between to show.
