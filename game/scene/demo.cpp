@@ -75,7 +75,7 @@ static void demo_log(const char *who, Core *c) {
 void Demo::s1() {
   Core *c = core;
   demo_log("s1", c);
-  c->r[4] = 0; // a0 = 0
+  c->r[4] = 0;                                       // a0 = 0
   psx::cpu::callGuestNow(*c, __func__, 0x80106f80u); // inner menu input machine (SYNC)
   uint32_t v0 = c->r[2];
   uint32_t sm = c->mem_r32(SM_PTR);
@@ -87,6 +87,31 @@ void Demo::s1() {
     c->mem_w8(0x1f80019du, 1); // skip-request
   }
   tomba::requestGuestContinuation(*c, TAIL_NONE);
+}
+
+// s1's opening movie, one frame per turn (the boot LOGO's pattern); true once it has ended.
+bool Demo::stepOpeningMovie() {
+  Game &game = *core->game;
+  if (sessionOf(core).settings.skipMovies) {
+    openingMovie_ = OpeningMovie::Done;
+    return true;
+  }
+  if (openingMovie_ == OpeningMovie::Pending) {
+    openingMovie_ = OpeningMovie::Playing;
+    if (!game.fmv.beginPath("MOVIE/OP.STR")) {
+      openingMovie_ = OpeningMovie::Done; // unresolved: the guest's player would not have played it either
+      return true;
+    }
+  }
+  if (openingMovie_ == OpeningMovie::Done || game.fmv.finished()) {
+    openingMovie_ = OpeningMovie::Done;
+    return true;
+  }
+  game.fmv.step(); // presents its own frames and skips on a held Start
+  if (game.fmv.finished()) {
+    openingMovie_ = OpeningMovie::Done;
+  }
+  return openingMovie_ == OpeningMovie::Done;
 }
 
 // s2 0x80106464 — sub-machine v0 = 0x8010696c(). Outcome 1 -> go to s7 (sm[0x48]=7, reset 0x4a/0x4c).
@@ -496,8 +521,8 @@ void Demo::s7Phase() {
   if (phase == 2) {
     // PHASE2 teardown — fully native, all SYNC. No s7 frame entered -> redirect to the trampoline TAIL.
     psx::cpu::callGuestNow(*c, __func__, 0x80074bc4u); // teardown (SYNC: verified yield-free)
-    c->mem_w8(0x1f80019au, 0);                                                  // *0x1f80019a = 0
-    c->mem_w16(c->mem_r32(SM_PTR) + 0x48, 0); // sm[0x48] = 0 (restart front-end); re-read sm in case it moved
+    c->mem_w8(0x1f80019au, 0);                         // *0x1f80019a = 0
+    c->mem_w16(c->mem_r32(SM_PTR) + 0x48, 0);          // sm[0x48] = 0 (restart front-end); re-read sm in case it moved
     tomba::requestGuestContinuation(*c,
                                     TAIL_NONE); // == 0x80106670, the trampoline's post-jal flow (frame-ctr++ -> yield)
     return;
@@ -601,12 +626,11 @@ static uint32_t demo_menu_machine(Core *c) {
   // 4 (0x80107054) start the load of `\MOVIE\OP.STR;1` (CdControlB 0x8008B8F0); 5 (0x801070A4) stream a
   // chunk via strNext 0x8010755C; 6 (0x80107144) post/decode-draw; 7 (0x80107280) teardown (CD CdlPause
   // 0x80089E1C busy-loop) then returns nonzero ⇒ s1 advances to s2. Run pure-PSX they drive the libcd/STR
-  // streaming our no-IRQ runtime can't complete. Own the whole sub-sequence natively: play OP.STR with the
-  // self-contained native .STR player (native_fmv.cpp — already plays LOGO/OP at boot), then replicate
-  // state 7's teardown and return nonzero so s1 advances to s2 (the front-end/title proper).
+  // streaming our no-IRQ runtime can't complete. Own the whole sub-sequence natively: step OP.STR and
+  // replicate state 7's teardown, returning nonzero so s1 advances to s2 (the front-end/title proper).
   if (s4a >= 4) {
-    if (!sessionOf(c).settings.skipMovies) {
-      c->game->fmv.play("MOVIE/OP.STR");
+    if (!eng(c).demo.stepOpeningMovie()) {
+      return 0; // the movie is still playing; stay in this sub-sequence
     }
     // state 7 (0x80107280) teardown, faithful — the CdControlB(CdlPause) busy-loop becomes a native no-op
     // (no async CD read is running in our model). The other callees are synchronous libgs/SPU/cleanup.
@@ -622,9 +646,9 @@ static uint32_t demo_menu_machine(Core *c) {
     c->mem_w8(0x1f80019du, 0);
     return 1; // nonzero ⇒ s1 advances sm[0x48] 1->2 (s2)
   }
-  c->r[4] = 0; // a0 = 0 (s1 calls 0x80106F80(0))
+  c->r[4] = 0;                                       // a0 = 0 (s1 calls 0x80106F80(0))
   psx::cpu::callGuestNow(*c, __func__, 0x80106f80u); // states 1..3: run the real function (jr ra), advances sm[0x4a]
-  return c->r[2];                             // v0 (nonzero => menu machine done)
+  return c->r[2];                                    // v0 (nonzero => menu machine done)
 }
 
 void Demo::s0PreYield() {
@@ -663,6 +687,7 @@ void Demo::s0Body() {
   s0PostYield();
 }
 void Demo::s0Native() {
+  openingMovie_ = OpeningMovie::Pending;
   s0Body();
 }
 
@@ -868,7 +893,7 @@ static void demo_frame_s7(Core *c) {
     // SLOT — so it stores that 900, NOT 0x8007a8e0's return (0x8007a8e0 is called only for side effects:
     // it clears 0x1f80017c and seeds the control block). The item plays 900 frames (~15s) then times out.
     psx::cpu::callGuestNow(*c, __func__, 0x8007a8e0u); // side effects (clears 0x1f80017c)
-    c->mem_w16(sm + 0x5a, 900);                                                 // sh v0(=900),0x5a (delay-slot const)
+    c->mem_w16(sm + 0x5a, 900);                        // sh v0(=900),0x5a (delay-slot const)
     uint8_t cur = c->mem_r8(sm + 0x6e);
     uint8_t entry = c->mem_r8(0x8010770cu + (uint32_t)cur * 4); // cursor table {0,1,3}, byte[0]
     c->mem_w8(0x800bf870u, entry);                              // sb v1,0x800bf870 (phase1 selector)
@@ -892,7 +917,7 @@ static void demo_frame_s7(Core *c) {
     sm = c->mem_r32(SM_PTR);
     c->r[4] = c->mem_r8(sm + 0x6e);
     psx::cpu::callGuestNow(*c, __func__, 0x80079464u); // jal 0x80079464(sm[0x6e])
-    c->mem_w8(0x1f80019au, 1);                                                  // sb s1(=1),0x1f80019a
+    c->mem_w8(0x1f80019au, 1);                         // sb s1(=1),0x1f80019a
     uint8_t ne = (uint8_t)((c->mem_r8(sm + 0x6e) + 1) & 0xff);
     c->mem_w8(sm + 0x6e, ne < 3 ? ne : 0); // sm[0x6e]++ wrap<3 -> {0,1,2}
   } else if (phase == 1) {

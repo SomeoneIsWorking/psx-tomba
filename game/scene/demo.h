@@ -43,6 +43,9 @@ public:
   void stageMain(); // one-time prologue + s0 (formerly ov_demo_stage_main)
   void frame();     // one per-frame substate dispatch + tail (formerly ov_demo_frame)
 
+  // s1's opening-movie sub-sequence: open OP.STR and step it one frame per turn; true once it ends.
+  bool stepOpeningMovie();
+
   // Substate handlers (called by frame() based on the current sm[0x48]
   // substate).
   void s0(); // formerly ov_demo_s0
@@ -74,6 +77,10 @@ public:
 
 private:
   void s0Body(); // shared s0 case-0 body (see s0Native/s0Faithful above)
+
+  // The opening movie's progress across turns; s0 resets it (the guest clears its skip flag there).
+  enum class OpeningMovie : std::uint8_t { Pending, Playing, Done };
+  OpeningMovie openingMovie_ = OpeningMovie::Pending;
 };
 
 } // namespace tomba
