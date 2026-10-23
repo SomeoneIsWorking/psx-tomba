@@ -1,67 +1,17 @@
-// perobj_billboard.cpp — SUBSTRATE MIRROR for the per-object render-TYPE dispatch (FUN_8003CCA4) and
-// 3 of its "special effect" billboard/particle-quad leaf renderers (FUN_8003C2D4, FUN_8003C464,
-// FUN_8003C8F4). Same band (0x8003xxxx) as perobj_dispatch.cpp's cmdListDispatch/perModeDispatch;
-// same ownership mechanism (tomba::native::declareOverride — these are reached as PLAIN intra-shard C calls from
-// the still-substrate walk cluster guest 0x8003BF00/etc, never through typed runtime address dispatch).
+// game/render/perobj_billboard.cpp — the per-object render-type dispatch and three of its billboard leaves.
 //
-// RE method: Ghidra headless decompile of a live free-roam RAM dump cross-checked against the ACTUAL
-// guest body in authenticated executable/overlay evidence (C2D4), shard_1.c (C464), shard_4.c (C8F4), shard_5.c (CCA4),
-// authenticated executable/overlay evidence (image-qualified runtime dispatcher slot wiring) — the recorded binary
-// evidence's GTE register writes, commands and reads are ground truth, not Ghidra's COP2 pseudo-C.
-// All 4 addresses confirmed unowned via tools/codemap.py before porting.
-//
-// ==================================================================================================
-// FUN_8003CCA4 (perObjRenderDispatch, a0=node r4): stores node into the "current render node" scratch
-// (0x1F80028C), then selects one of 6 cases by
-// `mem8(node+13) & 0xB` (bound-checked < 9) via a 9-slot table at 0x80014EC8. Every valid case runs
-// cmdListDispatch() (already owned, FUN_8003CDD8) then, for 4 of the 6 cases, calls one of 5
-// "special effect" leaves (FUN_8003D584/F344/F3F4/F4C4/F594, `render::ObjectEffect`) with
-// (node, poolPtrBeforeCmdListDispatch, poolPtrAfter) — i.e. the packet-pool span cmdListDispatch just
-// emitted.
-//
-// FUN_8003C2D4 / FUN_8003C464 (billboardCompose1/2, a0=node r4): each builds a "local" transform for a
-// billboard-type node and composes it with a persistent camera MATRIX before handing off to
-// billboardEmit. Both use a shared per-instance SCRATCHPAD region at 0x1F800000
-// (BUF below) that holds ordinary libgte MATRIX structs (m[3][3] int16 row-major + 2 pad bytes + t[3]
-// int32 — exactly what Mtx::identity's 8-word write pattern and Math::rotZ/matMul's byte
-// reads agree on):
-//   BUF+0x00 MAT_A     — C2D4: identity (Mtx::identity). C464: seeded by the still-substrate
-//                         FUN_800517BC(node+122/124/126 as s16 x,y,z) instead of identity.
-//   BUF+0x20 MAT_ROTZ  — identity, then Z-rotated in place by mem16(node+90) via Math::rotZ.
-//   BUF+0x40 MAT_OUT   — Math::matMul(MAT_ROTZ, MAT_A, MAT_OUT) (= MAT_ROTZ for C2D4, since MAT_A is
-//                         identity there); .t (=MAT_OUT+0x14) becomes the composed WORLD translation.
-//   BUF+0xC0 WORLD_POS — object's world position triple (s16 x3, from node+46/50/54).
-//   BUF+0xF8 CAM2      — the SCENE CAMERA view MATRIX at scratchpad 0x1F8000F8 — m rows @+0xF8..0x109,
-//                         t @+0x10C..0x117. Read-only
-//                         here. (#67 correction: an earlier note called this "main-RAM 0x800C0000";
-//                         that was the same mis-base the f117 fix corrected for BUF itself.)
-// Both then: load CAM2.m into CR0-4, MVMVA-transform WORLD_POS by it (same opcode as cmdListDispatch's
-// world-translate), add CAM2.t into MAT_OUT.t, reload CR0-7 from MAT_OUT (rotation + composed
-// translation), and call billboardEmit(node, mem8(node+71)&1).
-//
-// FUN_8003C8F4 (billboardEmit, a0=node r4, a1=flag r5): resolves the node's active particle SUB-LIST
-// (node+56 -> {count:s16@0, byteOff:s16@2}[] indexed by *(s16*)(*(node+56)); node+60 = sub-list base),
-// then for each particle (16-byte stride):
-//   1. still-substrate FUN_8003B220(a0=guest scratch, a1=0, a2=particle) fills 4 quad-corner vectors
-//      (V0..V2 packed for RTPT, V3 for a second RTPS) into REAL GUEST STACK memory at r29+16..+45 —
-//      genuine stack addresses (not a host buffer) because a substrate callee writes them via
-//      Core::mem_w16/32, and because SBS compares guest RAM including live stack frames (see
-//      docs/findings — Animation::attach's guest-stack residual). A real GuestFrame(96) allocation
-//      backs this (found the hard way: omitting it — and the callers' own frame allocations —
-//      shifted this frame relative to the guest instruction path and produced a real, reproducible SBS diff).
-//   2. RTPT (0x4A280030) projects V0-2 -> SXY0-2; on success stash them at BUF+8/16/24, AVSZ3
-//      (0x4B400006) gives a first depth estimate; RTPS (0x4A180001) projects V3, and on success AVSZ4
-//      (0x4B68002E) gives the final OTZ-style depth (else the particle is invalid, depth=-1).
-//   3. off-screen cull: skip if all 4 corners' X>=320 (unsigned) or all 4 corners' Y>=240.
-//   4. quantize the depth into an OT bucket (node+8 signed per-node depth-bias byte, >>10/<<9 rebucket,
-//      clamped to the valid <2044 range else reset to -1 and skip).
-//   5. still-substrate FUN_8003B054(BUF, particle, flag) fills the packet's color/UV fields; an
-//      optional node+92 half-word override and a node+13-selected small case table (6 labels) patch a
-//      couple of BUF bytes (sprite index / extra color word) before emission.
-//   6. emit a 10-word packet (1 tag word [size=9 | old-OT-head] + 9 data words copied from
-//      BUF+4..+36) at the packet-pool tail, prepended into the OT bucket
-//      `depth` (OrderingTable::link) — the identical packet-chain mechanism perobj_dispatch.cpp's
-//      cmdListDispatch/perModeDispatch already documents.
+//   FUN_8003CCA4  perObjRenderDispatch: node into 0x1F80028C, one of 6 cases by mem8(node+13)&0xB (table
+//                 0x80014EC8). Every case runs cmdListDispatch (FUN_8003CDD8); four then run one effect leaf
+//                 (FUN_8003D584/F344/F3F4/F4C4/F594) over the packet span it emitted.
+//   FUN_8003C2D4 / FUN_8003C464  compose a billboard node's local matrix with the scene camera, then
+//                 billboardEmit. Per-instance scratchpad BUF at 0x1F800000:
+//                 +0x00 MAT_A (identity; C464 seeds it from FUN_800517BC node+122/124/126), +0x20 MAT_ROTZ
+//                 (Z-rotated by mem16(node+90)), +0x40 MAT_OUT (matMul, .t the composed world translation),
+//                 +0xC0 WORLD_POS (node+46/50/54), +0xF8 CAM2 (the scene camera view matrix, read-only).
+//   FUN_8003C8F4  billboardEmit(node, flag): the node's active particle sub-list (node+56), each 16-byte
+//                 particle projected by RTPT/RTPS (corners from FUN_8003B220 into guest stack r29+16..+45),
+//                 depth-culled and bucketed, its colour/UV filled by FUN_8003B054, then a 10-word packet
+//                 (tag + BUF+4..+36) linked into the OT bucket.
 #include "billboard_state.h"
 #include "core.h"
 #include "core/overrides/guest_jal.h"

@@ -1,21 +1,7 @@
-// class Demo — the PC-native DEMO / front-end MENU stage state machine.
+// game/scene/demo.h — class Demo, the DEMO / front-end MENU stage state machine, one per Core.
 //
-// PROPER OOP: one instance per Core, embedded as `Core::engine::demo`.
-// Back-pointer wired once by Core's constructor. Callers reach the demo stage
-// through the object graph:
-//
-//     eng(c).demo.stageMain();   // one-time entry (prologue + s0)
-//     eng(c).demo.frame();       // one per-frame call (sm[0x48] substate
-//     dispatch + tail)
-//
-// No `extern "C"` shim, no free function, no static, no Core-as-first-arg. Same
-// shape as ObjectList, SceneTransition, TransitionState3.
-//
-// Owns the DEMO overlay's SUBSTATE MACHINE (which substate runs, the sm[0x48]
-// transitions and their field writes). The per-substate SYSTEM work (menu input
-// machines, loaders, SFX, render) stays dispatched to the retained PSX code.
-// Full RE map: docs/engine_re.md "DEMO / front-end MENU stage". Implementations
-// + full doc-comments live in demo.cpp.
+// Owns the substate machine (which of sm[0x48] runs and its field writes); the per-substate system work stays
+// dispatched. Reached as `eng(c).demo.stageMain()` / `.frame()`; implementations in demo.cpp.
 #pragma once
 #include <cstdint>
 class Core;

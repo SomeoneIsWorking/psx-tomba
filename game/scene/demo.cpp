@@ -1,38 +1,13 @@
-// demo.cpp — PC-native ownership of the DEMO / front-end MENU stage state machine (the
-// title/attract/menu front-end), mirroring engine.cpp's GAME-stage pattern. Boundary: the
-// ENGINE owns the substate machine (which substate runs, what sm fields each transition writes); the
-// per-substate SYSTEM work (the inner menu input machines, loaders, SFX, render) stays dispatched to
-// the retained PSX content/system code. Full RE map: docs/engine_re.md "DEMO / front-end MENU stage".
+// game/scene/demo.cpp — the DEMO / front-end MENU stage state machine (title, attract, options).
 //
-// The DEMO stage lives in the DEMO overlay (loaded at base 0x80106228 — it ALIASES the GAME.BIN base,
-// so the same addresses hold DIFFERENT code per overlay; the scan below distinguishes them by the
-// root-dispatcher prologue signature). It runs as task-0's cooperative coroutine: the root dispatcher
-// 0x801062E4 has a one-time prologue then a per-frame loop @0x80106388 that reads sm[0x48] (the
-// SUBSTATE, sm = *0x1F800138), dispatches via word table @0x8010622C with `jr v0`, and the selected
-// substate body ends by jumping to one of the TAIL labels (0x80106650 cf2c+attract / 0x80106658
-// attract / 0x80106670 none), which bumps the frame counter (0x1F800198) and yields once via
-// FUN_80051f80 (the SINGLE yield per frame), then loops.
+// The DEMO overlay loads at base 0x80106228, aliasing GAME.BIN and told apart by its root-dispatcher prologue
+// 0x801062E4 (`addiu sp,sp,-48`). Task-0's loop at 0x80106388 reads sm[0x48] (sm = *0x1F800138) and dispatches
+// through the table at 0x8010622C; each substate jumps to a TAIL (0x80106650 cf2c+attract / 0x80106658 attract
+// / 0x80106670 none) that bumps the frame counter 0x1F800198 and yields once through FUN_80051F80.
 //
-// Each substate body is an INLINE block within the root function, reached by the loop's computed
-// `jr v0` (so it runs with ra unchanged) and exited by `j <TAIL>`. This is exactly the ov_game_s4c
-// shape: a native override at the body's address does the native work and guest-continuations to the
-// chosen TAIL (the guest TAIL then runs the yield in-context). We do NOT override the root function,
-// so the guest prologue/loop/yield run unchanged; the loop's `jr v0` into an owned body address
-// triggers the override (the dynamic guest executor fires overrides on computed jumps — interp.cpp:481).
-//
-// OWNED HERE: s1, s2, s3, s6 — the substates whose only sub-call is SYNCHRONOUS (verified yield-free
-// via tools/yield_reach.py: the inner machines 0x80106f80 / 0x8010696c / 0x80106ac4 / 0x8007b45c and
-// the engine-update 0x8001cf2c / commit pair 0x80106824+0x80106690 / page-close 0x800750d8 never
-// reach FUN_80051f80). Their inner machine is typed runtime address dispatch'd synchronously, then the engine owns the
-// transition LOGIC (sm[0x48] selection + field writes) natively. The DEEP-YIELDING substates — s0
-// (loaders 0x80045080/0x80044bd4 yield + falls into s1), s4 (0x8007bf20 yields), s5 (0x80052078
-// stage-restart yields), s7 (loader 0x80106c24 yields) — stay as guest code for now; owning them
-// needs the guest-continuation-INTO-the-yielder handshake (a plain typed runtime address dispatch of a deep yielder
-// longjmps out and destroys the override C frame, killing task 0 — later-169). The inner menu sub-machines and
-// loader/SFX/render callees stay dispatched until separately ported.
-//
-// REGISTER VALUES from the root prologue (the body comparisons use them): s2reg=1, s1reg=2, s3reg=3.
-// (Disasm: 0x8010633c addiu s2,zero,1 · 0x80106340 addiu s1,zero,2 · 0x80106344 addiu s3,zero,3.)
+// Owned here: s1, s2, s3, s6 (their only sub-call is synchronous) and the s7 phase machine; the transition
+// logic is native and the inner machines stay dispatched. The deep-yielding s0 loaders, s4 and s5 stay guest
+// through the guest-continuation handshake. Prologue register state: s2reg=1, s1reg=2, s3reg=3.
 
 #include "card_load_machine.h"
 #include "cd/engine_cd_loader.h"
