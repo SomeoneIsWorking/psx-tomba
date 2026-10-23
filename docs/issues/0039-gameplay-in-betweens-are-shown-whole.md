@@ -35,8 +35,10 @@ attributes them:
 `0x8013E9D8` (A00, the rope/anchor render fn) calls `FUN_8013DD34` — a GT4-style textured-quad emitter from two
 3-s16 node points (`node+0x14` record and `node+0x4e/50/52`) with a 16-entry colour ramp — and then
 `Render::perObjRenderDispatch`. `FUN_8013DD34`'s packets are written outside any emission scope, so the whole
-record is shown whole. Porting `FUN_8013DD34` as an emitter and keying `0x8013E9D8` (with a state render moving
-the two points by t) is the remaining step, then `0x80122974`, `LetterboxBars` and `subPartWalk`'s unkeyed span.
+record is shown whole. Either port `FUN_8013DD34` as an emitter and key `0x8013E9D8`, or — since it is guest code
+not worth porting — key the node and give it a `GuestRedraw` state render that writes the two points at t and runs
+`0x8013E9D8` again inside the logic frame, the way Spyro's `field_redraw`/`effect_pools` do. Then `0x80122974`
+(the objListWalk case), `LetterboxBars` and `subPartWalk`'s unkeyed span.
 
 ## Fix (2026-10-23)
 The effect is part of the object. `perObjRenderDispatch` now makes the node's effect an `ObjectEffect`
