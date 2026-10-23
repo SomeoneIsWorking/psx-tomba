@@ -2,7 +2,8 @@
 
 Features: F-FPS60.
 
-Status: fixed (2026-10-23).
+Status: partial (2026-10-23) — gameplay, the intro and the fisherman cutscene compose every in-between; the
+title menu and the attract demo (which shows the areas) do not, because their emitters have no producer.
 
 ## Observed
 Real-speed walk from boot, 8x on a 3840x2160 sink, fps60 (`scratch/judder-check/walk-b3`, load 1.6 to 1.0):
@@ -22,6 +23,21 @@ The rest of the queue (unkeyed primitives in the same runs), all writers with no
 `warp 1`: 0x800286CC 701 (from 0x8003C048), 0x80122974 252, 0x8013E9D8 180 (rope anchor), 0x80027A4C 90 (from
 0x80027E5C), 0x80026864 82 (`LetterboxBars::tick`); `warp 8`: 0x80117628 8720, 0x80117E84 2128, 0x8002DBE4 612,
 0x80027A4C 460.
+
+## Open — the title and the attract demo (2026-10-23)
+`scratch/interp-regression/judge6` (real speed, 8x, 3840x2160): boot 466 whole, title 107 whole, attract demo
+mostly whole (`attract1`: 3177 whole of 3471), while intro, field, `warp 1` and `warp 8` compose every in-between.
+`PSXPORT_PRODUCERS=1` in the attract demo (`attract2`) attributes the unkeyed packets:
+`0x8013CDD4` (A00) 10073, `0x80129114` (A01) 6129, `0x80132358` (A01 scenery walker) 2879, `0x8013E08C` (A00/A06)
+1064, `0x8002847C` (`PackedMesh::emitScreen`) 900, `0x8012D9E8` (A01) 234, plus span-miss 1800 — the A00 emitter is a
+416-instruction scripted quad emitter (FUN_8013CDD4) that writes its packets outside any scope. Each needs its own
+producer and state render, as `AnchorQuads` did for A00's other quad emitters.
+
+Two broad keyings were tried and REVERTED, because a scope that keys packets without a matching state render makes
+the composer show those records whole (`keyed without render`): wrapping `Render::frame`/`frameX` in one scope
+regressed `warp 1`/`warp 8` from fully composed to whole, and keying `HudGaugeEmitter::emitFrame` to the gauge table
+left 5044 of 5512 keyed primitives with no state. The owner must be the emitter, and its state must be the packets
+it links (quad_state.h), not a whole-frame catch-all.
 
 ## The village and cutscenes (2026-10-23)
 Free roam in the starting village (`scratch/interp-regression/field2`, `PSXPORT_PRODUCERS=1`) first composed 69 of
