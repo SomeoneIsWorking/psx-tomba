@@ -463,7 +463,7 @@ void OverlayGroundGt3Gt4::entityLoop(Core *c) {
 
 void OverlayGroundGt3Gt4::leaf(Core *c, std::uint32_t entry, bool quad, const ListDepth &depth) {
   const tomba::render::ListCall call = tomba::render::ListCall::fromRegisters(*c);
-  const tomba::render::EmitterObject object(c->emission, entry, call.list);
+  const tomba::render::EmitterObject object(*c, entry, call.list);
   tomba::render::ListJobWriter job =
       tomba::render::modelListJob(*c, quad ? 1u : 0u, call, quad ? tomba::render::kModelGt4 : tomba::render::kModelGt3);
   c->r[2] = quad ? emitGt4(*c, call, depth) : emitGt3(*c, call, depth);

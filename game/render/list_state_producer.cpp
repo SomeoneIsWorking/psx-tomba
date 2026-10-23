@@ -3,6 +3,7 @@
 
 #include "entry/session.h"
 #include "gte_control.h"
+#include "gte_registers.h"
 #include "guest_ordering_table.h"
 #include "packet_chains.h"
 
@@ -10,6 +11,7 @@
 #include <cmath>
 #include <cstring>
 #include <optional>
+#include <span>
 #include <vector>
 
 namespace tomba::render {
@@ -21,6 +23,7 @@ constexpr std::uint32_t kOtBytes = OrderingTable::kBucketCount * 4u;
 // The OT region also holds the tail the guest links its chains to; a body only writes bucket heads.
 constexpr std::uint32_t kStackBelow = 0x100u;
 constexpr std::uint32_t kStackAbove = 0x80u;
+constexpr std::size_t kCameraWords = 8; // CR0-7
 
 // Both calls drew the same list through the same body.
 bool samePart(const ListJob &a, const ListJob &b) {
@@ -55,17 +58,65 @@ std::uint16_t lerpWrapped(const WrappedSpan &span, float t) {
   return static_cast<std::uint16_t>(static_cast<std::int16_t>(from) + psx::present::lerpInt(0, delta, t));
 }
 
+template <class Word> Word wordAt(std::span<const std::byte> bytes, std::size_t index) {
+  Word word{};
+  std::memcpy(&word, bytes.data() + index * sizeof(Word), sizeof(Word));
+  return word;
+}
+
+template <class Word> void putWord(std::vector<std::byte> &bytes, std::size_t index, Word word) {
+  std::memcpy(bytes.data() + index * sizeof(Word), &word, sizeof(Word));
+}
+
+// CR0-7 words `t` of the way between two saves: the rotation as the GTE control blend moves it.
+void blendCamera(std::span<const std::byte> from, std::vector<std::byte> &to, float t) {
+  psx::gte::RotationWords before{};
+  psx::gte::RotationWords after{};
+  for (std::size_t word = 0; word < psx::gte::kRotationWords; ++word) {
+    before[word] = wordAt<std::uint32_t>(from, word);
+    after[word] = wordAt<std::uint32_t>(to, word);
+  }
+  const psx::gte::RotationWords rotation = psx::present::rotationBetween(before, after, t);
+  for (std::size_t word = 0; word < psx::gte::kRotationWords; ++word) {
+    putWord(to, word, rotation[word]);
+  }
+  for (std::size_t word = psx::gte::kRotationWords; word < kCameraWords; ++word) {
+    putWord(to, word, psx::present::lerpWord(wordAt<std::uint32_t>(from, word), wordAt<std::uint32_t>(to, word), t));
+  }
+}
+
 // The bytes of input `index` of `to`, moved toward `from`'s by `t` as the input says.
 std::vector<std::byte> blendedInput(std::size_t index, const ListJob &from, const ListJob &to, float t) {
   const ListJobInput &input = to.inputs()[index];
+  const std::span<const std::byte> before = from.inputs()[index].bytes;
   std::vector<std::byte> bytes(input.bytes.begin(), input.bytes.end());
-  if (input.blend == InputBlend::Wrapped && bytes.size() == sizeof(std::uint16_t) && t < 1.0f) {
-    std::uint16_t before = 0;
-    std::uint16_t after = 0;
-    std::memcpy(&before, from.inputs()[index].bytes.data(), sizeof(before));
-    std::memcpy(&after, bytes.data(), sizeof(after));
-    const std::uint16_t moved = lerpWrapped({.from = before, .to = after, .modulus = input.modulus}, t);
-    std::memcpy(bytes.data(), &moved, sizeof(moved));
+  if (t >= 1.0f) {
+    return bytes;
+  }
+  switch (input.blend) {
+  case InputBlend::Held:
+    break;
+  case InputBlend::Wrapped:
+    if (bytes.size() == sizeof(std::uint16_t)) {
+      const std::uint16_t moved = lerpWrapped(
+          {.from = wordAt<std::uint16_t>(before, 0), .to = wordAt<std::uint16_t>(bytes, 0), .modulus = input.modulus},
+          t);
+      putWord(bytes, 0, moved);
+    }
+    break;
+  case InputBlend::Lanes16:
+    for (std::size_t lane = 0; lane < bytes.size() / sizeof(std::int16_t); ++lane) {
+      putWord(bytes,
+              lane,
+              static_cast<std::int16_t>(
+                  psx::present::lerpInt(wordAt<std::int16_t>(before, lane), wordAt<std::int16_t>(bytes, lane), t)));
+    }
+    break;
+  case InputBlend::Camera:
+    if (bytes.size() == kCameraWords * sizeof(std::uint32_t)) {
+      blendCamera(before, bytes, t);
+    }
+    break;
   }
   return bytes;
 }
@@ -128,7 +179,9 @@ void ListStateProducer::render(const psx::present::StateInterval &states, psx::p
     const psx::present::GteGuard gte(core_.gte());
     const RegisterGuard registers(core_);
     psx::present::writeGteControl(core_.gte(), control);
-    emit(psx::present::EmitMemory(core_, *host), header.variant, header.call);
+    const psx::present::EmitMemory memory(core_, *host);
+    emit(memory, header.variant, header.call);
+    header.effect.apply(memory, header.pool, PacketPool(memory).cursor());
   }
 
   const psx::present::BucketHeads heads{header.call.ot,

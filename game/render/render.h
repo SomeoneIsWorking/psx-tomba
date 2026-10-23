@@ -1,13 +1,9 @@
-// class Render — Tomba! 2's guest-time render ports, one instance per Core, reached as `rend(c)->...`.
-//
-// Every method here is a native body of a guest render function: it writes the same guest state
-// (GTE registers, scratchpad, packet pool, ordering table) the guest body writes. The picture is the
-// guest's GP0 output on the GPU device; nothing here draws to the host.
-//
-// Owned by Core via a pointer (`Core::mRender`), constructed by Session.
+// game/render/render.h — class Render, Tomba! 2's guest-time render ports, reached as `rend(c)->...`.
+// Each method is a native body of a guest render function writing the same GTE/scratchpad/pool/OT state.
 #pragma once
 #include "margin_render.h"
 #include "node_xform.h"
+#include "object_effect.h"
 #include <cstdint>
 class Core;
 
@@ -17,15 +13,15 @@ class Render {
 public:
   Core *mCore = nullptr;
 
-  NodeXform mNodeXform;  // scene-node world-transform builder (guest FUN_80051844)
-  MarginRenderer margin; // widescreen margin re-include set (collected in the cull)
+  NodeXform mNodeXform;              // scene-node world-transform builder (guest FUN_80051844)
+  MarginRenderer margin;             // widescreen margin re-include set (collected in the cull)
+  render::ObjectEffect objectEffect; // the dispatching node's effect leaf, applied to the packets now emitted
 
   // Per-frame render orchestrators: guest 0x8003F9A8 (field) and 0x8003FA44 (mid-transition).
   void frame();
   void frameX();
 
-  // FUN_8003F698's routing rule: the guest emitter a cmd with this `flag` reaches. `*caseLabelOut` is
-  // the jump-table label used, or 0 for the generic emitter.
+  // FUN_8003F698's routing rule: the guest emitter a cmd with this `flag` reaches (0 for the generic emitter).
   uint32_t resolvePerModeEmitter(Core *c, uint32_t flag, uint32_t *caseLabelOut);
 
   // FUN_8003CDD8 (a0=node, a1=flag): composes each active render command's world transform into
@@ -36,7 +32,7 @@ public:
   void perModeDispatch();
 
   // FUN_8003CCA4 (a0=node): per-object render-type dispatch; every case runs cmdListDispatch and four
-  // of them then rewrite the emitted packet span with an effect modifier below.
+  // of them then rewrite the emitted packet span with an ObjectEffect.
   void perObjRenderDispatch();
   // Billboard composes (a0=node): build the node's local matrix, compose the camera onto its world
   // position, then billboardEmit. FUN_8003C2D4 / 8003C464 / 8003C788 / 8003C5F8.
@@ -44,21 +40,11 @@ public:
   void billboardCompose2();
   void billboardCompose3();
   void billboardComposeC5F8();
+  // FUN_8004CC88 (a0=node): each shown instance of the node's table, placed and composed, as one object draw.
+  void billboardInstances();
   // FUN_8003C8F4 (a0=node, a1=flag): projects each particle of the node's active sub-list and links a
   // GT4-style packet into the OT.
   void billboardEmit();
-
-  // Effect modifiers over a just-emitted packet-pool span [lo,hi) (effect_mod.cpp).
-  void effectSemiOn(uint32_t node, uint32_t lo, uint32_t hi);  // FUN_8003F3F4
-  void effectSemiOff(uint32_t node, uint32_t lo, uint32_t hi); // FUN_8003F4C4
-  struct EffectRangeArgs {
-    uint32_t node;
-    uint32_t lo;
-    uint32_t hi;
-  };
-  void effectClutSwap(const EffectRangeArgs &args); // FUN_8003F344
-  void effectFlatTint(const EffectRangeArgs &args); // FUN_8003F594
-  void effectColorAdd(const EffectRangeArgs &args); // FUN_8003D584
 
   static void composeTintGate(Core *c);     // FUN_8003EF9C — per-type render gate
   static void subPartWalk(Core *c);         // FUN_8003F174 — articulated sub-part submit

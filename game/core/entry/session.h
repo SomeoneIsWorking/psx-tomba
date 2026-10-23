@@ -1,4 +1,4 @@
-// session.h — Tomba! 2's per-Core state and its accessors (eng, fade, rngOf, ...).
+// game/core/entry/session.h — Tomba! 2's per-Core state and its accessors (eng, fade, rngOf, ...).
 #pragma once
 
 #include "audio/audio.h"
@@ -23,6 +23,7 @@
 #include "math/trig.h"
 #include "render.h"
 #include "render/call_site_objects.h"
+#include "render/object_draw.h"
 #include "render/screen_fade.h"
 #include "state_producer.h"
 #include "ui/save_menu.h"
@@ -50,6 +51,7 @@ public:
   MusicList music_list;     // the Sound Test catalogue and the area BGM driver
   std::unique_ptr<Render> render;
   render::CallSiteObjects callSites; // the objects of the 2D writers, counted per logic frame
+  render::ObjectDraw objectDraw;     // the object draw open now, whose emitter calls are its parts
   EngineCd cd;
   EngineCdState cdState{cd};
   sched::Scheduler scheduler; // after `cd`, which it holds slot 2 for

@@ -172,6 +172,8 @@ set(GAME_SRC
   game/ui/ui_sprite_compose.cpp
   game/ui/ui_sprite.cpp
   game/ui/ui_sprite_quads.cpp
+  game/ui/dialog_glyphs.cpp
+  game/ui/panel_build.cpp
   game/ui/panel_fill.cpp
   game/ui/dialog_backdrop.cpp
   game/ui/dialog_text_stream.cpp
@@ -236,15 +238,19 @@ set(GAME_SRC
   game/render/drop_shadow.cpp
   game/render/hud_gauge_emitter.cpp
   game/render/fx_sprite_swarm.cpp        # FUN_800281EC — per-particle member of the sprite family
-  game/render/fx_sprite_anchored.cpp     # FUN_80027CB4, FUN_80027E5C — single-anchor members
+  game/render/fx_sprite_anchored.cpp     # FUN_80027CB4 and variants — single-anchor members
   game/render/fx_sprite_publish.cpp      # the sprite family's shared anchor projection
+  game/render/scaled_sprites.cpp         # FUN_80027A4C — scaled sprite-record writer
   game/render/perobj_dispatch.cpp
   game/render/perobj_billboard.cpp
   game/render/billboard_state.cpp
   game/render/subpart_walk_shared.cpp
   game/render/subpart_walk.cpp
   game/render/compose_tint_gate.cpp
-  game/render/effect_mod.cpp
+  game/render/object_effect.cpp
+  game/render/object_draw.cpp
+  game/render/line_strip.cpp
+  game/render/area_map.cpp
   game/render/text_label.cpp
   game/render/render_walk_dispatch.cpp
   game/render/overlay_type_dispatch.cpp

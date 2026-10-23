@@ -30,7 +30,7 @@ ModelDepth depthOf(const UnlitModelEmitter::DepthRule &rule, std::uint32_t flags
 
 template <std::uint32_t Entry, bool Quad, const UnlitModelEmitter::Variant &Data> void emitAt(Core *core) {
   const ListCall call = ListCall::fromRegisters(*core);
-  const EmitterObject object(core->emission, Entry, call.list);
+  const EmitterObject object(*core, Entry, call.list);
   const Visibility visible = horizontal_cull::forDrawWindow(core);
   const ModelShape &shape = Quad ? kModelGt4 : kModelGt3;
   ListJobWriter job(*core, Quad ? 1u : 0u, call, call.count * shape.packetBytes);

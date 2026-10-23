@@ -392,7 +392,7 @@ constexpr uint32_t kA08Gt4 = 0x801411D8u;
 // A leaf's call is its own drawing object: (leaf, the object that reached it), or (leaf, list) outside one.
 template <uint32_t Entry, bool Quad, uint32_t Scroll> void emitAt(Core *c) {
   const ListCall call = ListCall::fromRegisters(*c);
-  const tomba::render::EmitterObject object(c->emission, Entry, call.list);
+  const tomba::render::EmitterObject object(*c, Entry, call.list);
   const tomba::render::ModelShape &shape = Quad ? tomba::render::kModelGt4 : tomba::render::kModelGt3;
   tomba::render::ListJobWriter job(*c, Quad ? 1u : 0u, call, call.count * shape.packetBytes);
   job.input(*c, call.list, call.count * shape.recordBytes);

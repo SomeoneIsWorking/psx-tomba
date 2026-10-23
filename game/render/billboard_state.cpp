@@ -6,6 +6,7 @@
 #include "gte_control.h"
 #include "gte_registers.h"
 #include "guest_ordering_table.h"
+#include "object_draw.h"
 #include "state_bytes.h"
 
 #include <algorithm>
@@ -117,11 +118,12 @@ void BillboardState::save(Core &core) const {
   psx::present::StateWriter state;
   state.put(Header{slot->table, slot->index, static_cast<std::uint32_t>(particles_.size() / kParticleWords), control_});
   state.putAll(std::span<const std::uint32_t>(particles_));
-  core.frameStates.save(core.emission.current(), state.bytes());
+  saveEmitterState(core, state.bytes());
 }
 
 void BillboardState::registerStateRenders(psx::present::StateProducerTable &renders, Core &core) {
   renders.install(kEmitter, std::make_unique<BillboardRender>(core));
+  renders.install(kInstances, std::make_unique<ObjectDrawRender>(renders));
 }
 
 } // namespace tomba::render

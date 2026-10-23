@@ -1,3 +1,4 @@
+// game/core/entry/runtime.cpp — Tomba! 2's Runtime: boot sequence, override registration and title commands.
 #include "entry/runtime.h"
 
 #include "cd/engine_cd.h"
@@ -8,6 +9,8 @@
 #include "entry/main_handoff.h"
 #include "entry/session.h"
 #include "frame/frame_driver.h"
+#include "fx_sprite_anchored.h"
+#include "fx_sprite_swarm.h"
 #include "game.h"
 #include "guest_call.h"
 #include "lit_model_emitter.h"
@@ -17,8 +20,11 @@
 #include "overrides/register_overrides.h"
 #include "platform_hle.h"
 #include "rain_streaks.h"
+#include "render/area_map.h"
 #include "render/billboard_state.h"
 #include "render/guest_ordering_table.h"
+#include "render/line_strip.h"
+#include "render/object_draw.h"
 #include "render/packed_mesh.h"
 #include "render/screen_fade.h"
 #include "resident_natives.h"
@@ -26,7 +32,9 @@
 #include "sched/task_slot_layout.h"
 #include "sway_model_emitter.h"
 #include "tile_grid_layer.h"
+#include "ui/dialog_glyphs.h"
 #include "ui/font.h"
+#include "ui/panel.h"
 #include "ui/ui_sprite.h"
 #include "unlit_model_emitter.h"
 
@@ -129,6 +137,13 @@ void Runtime::registerOverrides(Game &game) {
   UiSprite::registerStateRenders(renders);
   tomba::render::BillboardState::registerStateRenders(renders, game.core);
   tomba::render::PackedMesh::registerStateRenders(renders, game.core);
+  FxSpriteAnchored::registerStateRenders(renders, game.core);
+  FxSpriteSwarm::registerStateRenders(renders, game.core);
+  tomba::render::ObjectDraws::registerStateRenders(renders);
+  tomba::render::LineStrip::registerStateRenders(renders, game.core);
+  tomba::render::AreaMap::registerStateRenders(renders, game.core);
+  Panel::registerStateRenders(renders, game.core);
+  DialogGlyphs::registerStateRenders(renders);
 }
 
 // Only immediately after the resident load; an overlay supplies its own image declarations.

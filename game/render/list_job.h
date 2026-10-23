@@ -1,14 +1,11 @@
 // game/render/list_job.h — one packet-emitter call as a state producer's saved state.
-//
-// A model list emitter takes (a0 = record list, a1 = OT base, a2 = count, a3) and links packets from the
-// pool into the OT through the GTE. Its call is its own drawing object: `EmitterObject` opens the scope the
-// packets are bound to, and `ListJobWriter` saves what a render needs to run the same body again, over host
-// memory, with the GTE transform at another t: the call, the GTE control registers, the record bytes and the
-// few guest words the body reads that change from frame to frame.
+// A model list emitter takes (a0 = record list, a1 = OT base, a2 = count, a3); ListJobWriter saves what a render needs.
 #pragma once
 
 #include "core.h"
 #include "gte_control.h"
+#include "object_draw.h"
+#include "object_effect.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -29,17 +26,6 @@ struct ListCall {
   static ListCall fromRegisters(const Core &core);
 };
 
-// The drawing object of one emitter call: (emitter, the object that reached it), or (emitter, list) when the
-// guest called the emitter outside any object. A call twice in one object is ambiguous and keeps its packets.
-class EmitterObject {
-public:
-  EmitterObject(psx::present::EmissionScope &scope, std::uint32_t emitter, std::uint32_t list)
-      : guard_(scope, emitter, scope.isOpen() ? scope.current().object : list, 0) {}
-
-private:
-  psx::present::EmissionScope::Guard guard_;
-};
-
 // The saved call, as a flat byte string.
 struct ListJobHeader {
   std::uint32_t variant = 0; // which emitter body, in the family's own numbering
@@ -50,12 +36,15 @@ struct ListJobHeader {
   std::uint32_t slot = 0;
   std::uint32_t inputs = 0; // ranges that follow the header
   psx::present::GteControl control{};
+  ObjectEffect effect; // the dispatching node's, applied over the packets the call wrote
 };
 
 // How an input between two calls of one list moves with t.
 enum class InputBlend : std::uint8_t {
   Held,    // the later call's bytes
   Wrapped, // an s16 position that repeats every `modulus`, moved the short way round
+  Lanes16, // s16 coordinates or sizes, each moved by t
+  Camera,  // GTE CR0-7 words, rotation then translation, moved as a transform
 };
 
 // One turn of the 12-bit angles the models turn by.
