@@ -50,6 +50,8 @@ Tomba's frame cuts stay `tomba::FrameCut`.
 | 0x80113628 A02 `AreaMap` | the area-map call | the OT slot and bucket, the map's texture page and the player's position | the player's position moves by t; the map sprite and its marker are re-emitted |
 | 0x8007CC00 `DialogGlyphs` | the dialog box's glyphs, by the box | `AnchoredPackets`: the box's rect, each glyph packet's bucket and command words | the box's rect moves by t and every glyph with it |
 | 0x8005019C `Panel::build`, 0x8004FFB4 `Panel::fillQuad` | one call, by call site as the 2D writers | `AnchoredPackets` from the panel's rect | the rect moves by t |
+| 0x8013E9D8 `AnchorQuads::rope`, 0x80122974 `AnchorQuads::chain`, 0x80039F4C `ov_textLabelEmit` | the node the render fn draws (its render-record life) | the quads the body linked into the OT (`quad_state.h`): each packet's bucket and command words | the packets' screen vertices move by t and are emitted into the saved slot |
+| 0x80026864 `LetterboxBars::tick` | one call, by its slot | the two bars' height and the OT slot (`Saved`) | the bar height moves by t and both rects are re-emitted |
 
 Not state producers: `SopGround::draw` 0x80109FE0, `Render::cmdListDispatch` 0x8003CDD8, `Render::subPartWalk`
 0x8003F174, `Render::sharedTransformWalk` 0x8003F07C and `OverlayGroundGt3Gt4::entityLoop` 0x801401B8 open

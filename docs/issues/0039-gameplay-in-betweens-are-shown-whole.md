@@ -2,8 +2,7 @@
 
 Features: F-FPS60.
 
-Status: partial (2026-10-23) — areas 1 and 8 compose every in-between; the village/cutscene areas still show
-records whole, because the writers below have no producer.
+Status: fixed (2026-10-23).
 
 ## Observed
 Real-speed walk from boot, 8x on a 3840x2160 sink, fps60 (`scratch/judder-check/walk-b3`, load 1.6 to 1.0):
@@ -24,21 +23,25 @@ The rest of the queue (unkeyed primitives in the same runs), all writers with no
 0x80027E5C), 0x80026864 82 (`LetterboxBars::tick`); `warp 8`: 0x80117628 8720, 0x80117E84 2128, 0x8002DBE4 612,
 0x80027A4C 460.
 
-## Open — the village and cutscenes (2026-10-23)
-Free roam in the starting village (`scratch/interp-regression/field2`, `PSXPORT_PRODUCERS=1`) composes 69 of 2298
-in-betweens; `PSXPORT_DEBUG=compose` reports 1352 records shown whole for an unkeyed packet, and the census
-attributes them:
-`0x8013E9D8 no producer unkeyed 5622`, `0x80122974 no producer unkeyed 258`, `0x8003F174 producer unkeyed 159`
-(a producer whose own body still writes unkeyed packets), `0x80026864 no producer unkeyed 84`
+## The village and cutscenes (2026-10-23)
+Free roam in the starting village (`scratch/interp-regression/field2`, `PSXPORT_PRODUCERS=1`) first composed 69 of
+2298 in-betweens; `PSXPORT_DEBUG=compose` reported 1352 records shown whole for an unkeyed packet, and the census
+blamed `0x8013E9D8 no producer unkeyed 5622`, `0x80122974 258`, `0x8003F174 159`, `0x80026864 84`
 (`LetterboxBars::tick`), `span-miss 1839`.
 
-`0x8013E9D8` (A00, the rope/anchor render fn) calls `FUN_8013DD34` — a GT4-style textured-quad emitter from two
-3-s16 node points (`node+0x14` record and `node+0x4e/50/52`) with a 16-entry colour ramp — and then
-`Render::perObjRenderDispatch`. `FUN_8013DD34`'s packets are written outside any emission scope, so the whole
-record is shown whole. Either port `FUN_8013DD34` as an emitter and key `0x8013E9D8`, or — since it is guest code
-not worth porting — key the node and give it a `GuestRedraw` state render that writes the two points at t and runs
-`0x8013E9D8` again inside the logic frame, the way Spyro's `field_redraw`/`effect_pools` do. Then `0x80122974`
-(the objListWalk case), `LetterboxBars` and `subPartWalk`'s unkeyed span.
+`0x8013E9D8` (A00, the rope/anchor render fn) and `0x80122974` (A00, a quad/segment chain) both draw through the
+guest `FUN_8013DD34` — a GT4-style textured-quad emitter from two 3-s16 node points — with no native body to
+re-run, and `0x80039F4C` (`Render::textLabelEmit`) draws its per-character glyph quads the same way. These are
+guest render fns, not worth porting, so they are keyed to their node and their state is the packets they linked
+(`quad_state.*`): the render moves each quad's screen vertices by t. Fixed alongside: `LetterboxBars` saves its two
+bars' height and re-emits them, keyed by its slot.
+
+Result (`scratch/interp-regression/judge4`, real speed, 8x, 3840x2160; and `field6`/`cut1`): the village composes
+every in-between except the boot cards, the intro 238 of 238, and `warp 1`/`warp 8` all of them; `warp 8` turning
+moves ~8 px per present with each in-between halfway between its neighbours. The census is down to
+`unkeyed attributed 0`, `span-miss 124`. The one remaining blocker is a textured sprite per frame (tpage 768,256,
+CLUT 0x7FE8) whose writer the pool-address tools cannot pin down (the packet pool is reused every frame, so a
+sealed record's `sourceAddress` names a different packet by the time it is queried).
 
 ## Fix (2026-10-23)
 The effect is part of the object. `perObjRenderDispatch` now makes the node's effect an `ObjectEffect`
