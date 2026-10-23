@@ -9,6 +9,8 @@
 #include "guest_ordering_table.h"
 #include "list_state_producer.h"
 #include "model_element.h"
+#include "ordering_table.h"
+#include "quad_state.h"
 
 #include <memory>
 
@@ -285,12 +287,19 @@ void PackedMesh::registerOverrides(native::NativeOverrideCatalog &natives) {
                  .a1 = core->r[5]});
   });
   natives.declare(kScreenWriter, "PackedMesh::writeScreen", [](Core *core) {
+    const std::uint32_t object =
+        core->emission.isOpen() ? core->r[4] : sessionOf(core).callSites.object(core->r[31], core->r[4]);
+    const psx::present::EmissionScope::Guard scope(core->emission, kScreenWriter, object, 0);
+    const std::uint32_t before = PacketPool(*core).cursor();
     emitScreen(*core, {.list = core->r[4], .clutRows = core->r[5], .ot = core->mem_r32(OrderingTable::kBasePointer)});
+    saveQuads(*core,
+              {.emitter = kScreenWriter, .object = object, .before = before, .after = PacketPool(*core).cursor()});
   });
 }
 
 void PackedMesh::registerStateRenders(psx::present::StateProducerTable &renders, Core &core) {
   renders.install(kWriter, std::make_unique<MeshStateProducer>(core));
+  renders.install(kScreenWriter, std::make_unique<QuadStateRender>());
 }
 
 } // namespace tomba::render

@@ -23,6 +23,13 @@ struct QuadRange {
 // The packets `emitter` linked into the OT between `before` and `after`, keyed to `object`.
 void saveQuads(Core &core, const QuadRange &range);
 
+// Runs a guest render body (the original at `emitter`) with its own packets keyed to `object`, and saves
+// them as that object's state. One guest leaf's packets, re-emitted at t by QuadStateRender.
+void runGuestEmitter(Core &core, std::uint32_t emitter, std::uint32_t object, const char *owner);
+
+// The object of the node in a0, folded with the generation of the record it names.
+std::uint32_t nodeObject(Core &core);
+
 class QuadStateRender final : public psx::present::StateProducer {
 public:
   void render(const psx::present::StateInterval &states, psx::present::PrimitiveSink &sink) const override;

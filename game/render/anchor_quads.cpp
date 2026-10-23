@@ -16,14 +16,7 @@ namespace tomba::render {
 namespace {
 
 template <std::uint32_t Emitter> void drawForGuest(Core *core) {
-  const std::uint32_t node = core->r[4];
-  const std::uint32_t object = eng(core).graphicsBind.records.object(node);
-  const psx::present::EmissionScope::Guard scope(core->emission, Emitter, object, 0);
-  const std::uint32_t before = PacketPool(*core).cursor();
-  psx::cpu::callOriginalToReturn(*core, Emitter, psx::cpu::ExecutionBudget::currentTurn(*core), "AnchorQuads");
-  if (core->otTables.slotOf(OrderingTable::active(*core).base())) {
-    saveQuads(*core, {.emitter = Emitter, .object = object, .before = before, .after = PacketPool(*core).cursor()});
-  }
+  runGuestEmitter(*core, Emitter, nodeObject(*core), "AnchorQuads");
 }
 
 } // namespace
