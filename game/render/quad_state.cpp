@@ -58,18 +58,60 @@ void lerpVertex(psx::present::RecordVertex &vertex, const psx::present::RecordVe
   vertex.v = static_cast<std::uint8_t>(psx::present::lerpInt(from.v, vertex.v, t));
 }
 
+void lerpPrimitive(psx::present::DrawPrimitive &primitive, const psx::present::DrawPrimitive &from, float t) {
+  if (from.kind != primitive.kind || from.vertexCount != primitive.vertexCount) {
+    return;
+  }
+  for (int vertex = 0; vertex < primitive.vertexCount; ++vertex) {
+    lerpVertex(
+        primitive.vertices[static_cast<std::size_t>(vertex)], from.vertices[static_cast<std::size_t>(vertex)], t);
+  }
+}
+
+// A saved packet's primitives in draw order: a poly-line's segments, or the one polygon, line or sprite. A draw
+// mode packet sets `drawMode` and draws nothing.
+std::vector<psx::present::DrawPrimitive> decodePacket(std::span<const std::uint32_t> words,
+                                                      psx::present::DrawModeTracker &drawMode) {
+  std::vector<psx::present::DrawPrimitive> primitives;
+  if (words.empty() || drawMode.take(words)) {
+    return primitives;
+  }
+  const psx::gpu::PacketView packet{.words = words, .places = {}};
+  if (psx::gpu::Gp0Command(words[0]).isPolyLine()) {
+    psx::gpu::decodePolyLine(packet, [&](psx::present::DrawPrimitive segment) {
+      primitives.push_back(segment);
+    });
+  } else if (std::optional<psx::present::DrawPrimitive> primitive = psx::gpu::decodePacketPrimitive(packet)) {
+    primitives.push_back(*primitive);
+  }
+  for (psx::present::DrawPrimitive &primitive : primitives) {
+    drawMode.apply(primitive);
+  }
+  return primitives;
+}
+
 void savePackets(Core &core, std::uint32_t emitter, std::uint32_t object, std::uint32_t before, std::uint32_t after) {
   const OrderingTable ot = OrderingTable::active(core);
   const auto slot = core.otTables.slotOf(ot.base());
   if (!slot) {
     return;
   }
-  // A zero span takes every packet the key names; otherwise only those a call linked.
+  // A zero span takes every packet the key names; otherwise only those a call linked. The pool cursor and
+  // the OT's next fields are 24-bit, so the span is compared as main-RAM offsets.
   const bool spanned = before != after;
+  const std::uint32_t spanBegin = psx::gpu::mainRamOffsetOf(before);
+  const std::uint32_t spanEnd = psx::gpu::mainRamOffsetOf(after);
   std::vector<Packet> packets;
   for (std::uint32_t bucket = 0; bucket < OrderingTable::kBucketCount; ++bucket) {
-    for (std::uint32_t packet = core.mem_r32(ot.slot(bucket)); !spanned || (packet >= before && packet < after);) {
-      const psx::gpu::OtNode node(psx::gpu::mainRamOffsetOf(packet), psx::gpu::OtHeaderWord{core.mem_r32(packet)});
+    psx::gpu::OtNode node(psx::gpu::mainRamOffsetOf(ot.slot(bucket)),
+                          psx::gpu::OtHeaderWord{core.mem_r32(ot.slot(bucket))});
+    // A bucket's packets run from its slot to the next bucket's slot.
+    while (!node.endsChain() && !core.otTables.slotOf(psx::gpu::guestAddressOf(node.nextRamOffset()))) {
+      const std::uint32_t packet = psx::gpu::guestAddressOf(node.nextRamOffset());
+      node = psx::gpu::OtNode(node.nextRamOffset(), psx::gpu::OtHeaderWord{core.mem_r32(packet)});
+      if (spanned && (node.ramOffset() < spanBegin || node.ramOffset() >= spanEnd)) {
+        continue;
+      }
       const std::optional<psx::present::RecordKey> key = core.emission.keyFor(packet);
       if (key && key->producer == emitter && key->object == object) {
         Packet saved;
@@ -80,10 +122,6 @@ void savePackets(Core &core, std::uint32_t emitter, std::uint32_t object, std::u
         }
         packets.push_back(std::move(saved));
       }
-      if (node.endsChain()) {
-        break;
-      }
-      packet = psx::gpu::guestAddressOf(node.nextRamOffset());
     }
   }
   if (packets.empty()) {
@@ -131,25 +169,25 @@ void QuadStateRender::render(const psx::present::StateInterval &states, psx::pre
   const Saved later(to);
   const std::optional<Saved> earlier = from.data() == to.data() ? std::nullopt : std::optional<Saved>(from);
   const bool paired = earlier && earlier->packets.size() == later.packets.size();
+  psx::present::DrawModeTracker drawMode;
+  psx::present::DrawModeTracker earlierDrawMode;
   for (std::size_t index = 0; index < later.packets.size(); ++index) {
     const Packet &packet = later.packets[index];
-    auto primitive = psx::gpu::decodePacketPrimitive({.words = packet.words, .places = {}});
-    if (!primitive) {
-      continue;
-    }
+    std::vector<psx::present::DrawPrimitive> primitives = decodePacket(packet.words, drawMode);
     if (paired) {
-      const auto before = psx::gpu::decodePacketPrimitive({.words = earlier->packets[index].words, .places = {}});
-      if (before && before->kind == primitive->kind && before->vertexCount == primitive->vertexCount) {
-        for (int vertex = 0; vertex < primitive->vertexCount; ++vertex) {
-          lerpVertex(primitive->vertices[static_cast<std::size_t>(vertex)],
-                     before->vertices[static_cast<std::size_t>(vertex)],
-                     t);
+      const std::vector<psx::present::DrawPrimitive> before =
+          decodePacket(earlier->packets[index].words, earlierDrawMode);
+      if (before.size() == primitives.size()) {
+        for (std::size_t at = 0; at < primitives.size(); ++at) {
+          lerpPrimitive(primitives[at], before[at], t);
         }
       }
     }
-    sink.emit(psx::present::OtSlot{static_cast<std::uint16_t>(later.header.table),
-                                   static_cast<std::uint16_t>(later.header.slot + packet.bucket)},
-              *primitive);
+    for (const psx::present::DrawPrimitive &primitive : primitives) {
+      sink.emit(psx::present::OtSlot{static_cast<std::uint16_t>(later.header.table),
+                                     static_cast<std::uint16_t>(later.header.slot + packet.bucket)},
+                primitive);
+    }
   }
 }
 

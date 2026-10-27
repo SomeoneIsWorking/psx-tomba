@@ -1,8 +1,8 @@
 // game/render/quad_state.h — the state a guest quad emitter's packets are saved as, and its render.
 //
-// A guest render fn that draws textured quads through a shared emitter (FUN_8013DD34, FUN_80039F4C's
-// glyphs) has no native body to re-run, so its state is the packets it linked: keyed to its node, and the
-// render moves each quad's screen vertices by t.
+// A guest render fn that draws through a shared emitter (FUN_8013DD34's quads and poly-lines, FUN_80039F4C's
+// glyphs) has no native body to re-run, so its state is the packets it linked into its OT buckets: keyed to
+// its node, and the render moves each primitive's screen vertices by t under the draw mode packets saved with them.
 #pragma once
 
 #include "state_producer.h"
