@@ -1,11 +1,15 @@
 # 0042: the owner journal's screen key misses the field after a warp
 
-Status: open. Owner: `game/core/debug/debug_menu.cpp` (`screen`).
+Status: closed (2026-10-27). Owner: `game/core/debug/debug_menu.cpp` (`screen`).
 
 ## Observed
-Tomba 2 through the title route and `warp 1` (2026-10-27): the journal's rows after the warp carry a screen key with
-the field bit 0 and an empty route, although the field is running and area 1 composes.
+Tomba 2 through the title route and `warp 1`: the journal's rows after the warp carried route `warp 0 0` although
+area 1 was running.
 
-## Next
-Read `DevWarp::phase` at the frame the journal observes the screen; the key may be sampled while the warp's own
-transition still reports `Unavailable`, and a key that never changes again keeps that label.
+## Cause
+The key read the warp destination word `0x800BF83A`, which is cleared once the area is entered.
+
+## Fix
+The key reads the current-area byte `FrameCut::kAreaByte` (`0x800BF870`) while the field runs; stages before GAME
+route as `pick tomba2`. Shown in `scratch/redesign-review/t2field5`: the area-1 row carries key `0x8010637C00010001`
+and route `warp 1`.

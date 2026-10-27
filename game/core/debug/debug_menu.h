@@ -9,6 +9,10 @@ namespace tomba {
 class DebugMenu final : public psx::game::TitleDebugMenu {
 public:
   DebugMenu();
+
+  // MAIN.EXE and the overlays as the disc provisioner extracts them to scratch/bin.
+  std::optional<psx::game::DecompImage>
+  decompImage(Core &core, std::string_view imageName, bool resident) const override;
 };
 
 } // namespace tomba
