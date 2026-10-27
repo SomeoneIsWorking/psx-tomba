@@ -5,18 +5,24 @@
 #include "debug/dev_warp.h"
 
 #include <cstdint>
-#include <string>
 
 class Core;
 
 namespace tomba {
 
-// The title's developer commands on the control channel: `warp`, `items` and `flag`. Each is parsed and armed
-// between frames, and written by the frame driver at its next frame boundary.
+// The debug menu's warp, item and flag requests: armed between frames and written by the frame driver at its
+// next frame boundary.
 class DevControl {
 public:
-  // True when the command word is one of ours; `reply` then holds the answer for the client.
-  bool handle(Core &core, const psx::debug::CommandArgs &args, std::string &reply);
+  DevWarp &warp() {
+    return warp_;
+  }
+  DevItems &items() {
+    return items_;
+  }
+  DevFlags &flags() {
+    return flags_;
+  }
   void applyArmed(Core &core, uint32_t frame);
 
 private:

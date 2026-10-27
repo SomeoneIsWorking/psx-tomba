@@ -1,10 +1,9 @@
-// game/core/entry/runtime.cpp — Tomba! 2's Runtime: boot sequence, override registration and title commands.
+// game/core/entry/runtime.cpp — Tomba! 2's Runtime: boot sequence and override registration.
 #include "entry/runtime.h"
 
 #include "cd/engine_cd.h"
 #include "core.h"
 #include "crt0_boot.h"
-#include "debug/repl_commands.h"
 #include "engine/engine.h"
 #include "entry/main_handoff.h"
 #include "entry/session.h"
@@ -55,9 +54,6 @@ namespace tomba {
 namespace {
 
 constexpr std::uint32_t kGameMain = 0x80050B08u;
-constexpr std::array<psx::debug::VerbUsage, 1> kCommandUsage{{
-    {"tp [x y z]", "pin the camera at x y z; no arguments returns it to the player"},
-}};
 constexpr GuestAddressRange kResidentText{0x00010000u, 0x000BE800u};
 constexpr std::uint32_t kChangeThread = 0x80080880u;
 constexpr std::uint32_t kCdReady = 0x8008A96Cu;
@@ -246,61 +242,12 @@ void Runtime::bootInit(Core &core) {
   FrameDriver::enterLoop(core);
 }
 
-bool Runtime::titleCommand(Core &core, const psx::game::TitleCommandLine &input, std::FILE *reply) {
-  const auto [command, args] = input;
-  std::string answer;
-  if (core.game->frameDriverAs<FrameDriver>().devControl().handle(core, args, answer)) {
-    std::fprintf(reply, "%s\n", answer.c_str());
-    return true;
-  }
-  if (std::strcmp(command, "tp") == 0) {
-    const std::optional<int> x = args.integer(1);
-    const std::optional<int> y = args.integer(2);
-    const std::optional<int> z = args.integer(3);
-    if (args.size() == 4 && x && y && z) {
-      eng(&core).camTeleport({.x = *x, .y = *y, .z = *z});
-      std::fprintf(reply, "tp camera -> (%d,%d,%d)\n", *x, *y, *z);
-    } else {
-      eng(&core).camTeleportOff();
-      std::fprintf(reply, "tp off (camera follows player)\n");
-    }
-    return true;
-  }
-  // The other developer commands (bgm, invtest, ...) answer through the log.
-  const bool handled = replCommand(core, args);
-  if (handled) {
-    std::fprintf(reply, "ok: %s\n", command);
-  }
-  return handled;
-}
-
-std::span<const psx::debug::VerbUsage> Runtime::commandUsage() const {
-  return kCommandUsage;
-}
-
 psx::game::TitleAudio *Runtime::audio(Core &core) const {
   return &sessionOf(&core).audio;
 }
 
-psx::game::TitleDevWarp *Runtime::devWarp(Core &core) const {
-  return &sessionOf(&core).devWarp;
-}
-
-// Tomba's position from the scratchpad camera target, and the stage task 0 runs.
 psx::state::NativeStatePort *Runtime::nativeState(Core &core) const {
   return &sessionOf(&core).cdState;
-}
-
-std::string Runtime::worldReadout(Core &core) const {
-  char text[96];
-  std::snprintf(text,
-                sizeof text,
-                "pos (%d, %d, %d)  stage %s",
-                core.mem_r16s(0x1F8000D2u),
-                core.mem_r16s(0x1F8000D6u),
-                core.mem_r16s(0x1F8000DAu),
-                sched::stageName(core.mem_r32(sched::kTaskTableBase + sched::kTaskEntry)));
-  return text;
 }
 
 const psx::game::HostIdentity *Runtime::hostIdentity() const {

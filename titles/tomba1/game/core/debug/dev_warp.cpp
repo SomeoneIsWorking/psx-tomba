@@ -12,29 +12,14 @@ bool DevWarp::fieldRunning(Core &core) {
          core.mem_r16(record + kStateOffset) == kFieldRunning;
 }
 
-std::string DevWarp::arm(Core &core, const psx::debug::CommandArgs &args) {
-  const std::optional<std::uint32_t> areaWord = args.number(1);
-  const std::optional<std::uint32_t> sectionWord = args.size() < 3 ? 0u : args.number(2);
-  const std::optional<std::uint32_t> entryWord = args.size() < 4 ? 0u : args.number(3);
-  if (args.size() > 4 || !areaWord || !sectionWord || !entryWord) {
-    return "usage: warp <area> [section] [entry]";
-  }
-  const std::uint32_t area = *areaWord;
-  const std::uint32_t section = *sectionWord;
-  const std::uint32_t entry = *entryWord;
-  const std::uint32_t lastArea = core.mem_r16(kLastArea);
-  if (area > lastArea) {
-    return lucent::format("refused: area {} is out of range (0..{})", area, lastArea);
-  }
+int DevWarp::areaCount(Core &core) {
+  return static_cast<int>(core.mem_r16(kLastArea)) + 1;
+}
+
+std::string DevWarp::arm(Core &core, std::uint32_t area, std::uint32_t section, std::uint32_t entry) {
   const std::uint32_t sections = core.mem_r16(kSectionCounts + area * 2u);
   if (section >= sections) {
     return lucent::format("refused: area {} has {} sections, not {}", area, sections, section);
-  }
-  if (entry > kMaxEntry) {
-    return lucent::format("refused: entry {} is out of range (0..{})", entry, kMaxEntry);
-  }
-  if (!fieldRunning(core)) {
-    return "refused: a warp is legal only while the field is running";
   }
   area_ = area;
   section_ = section;

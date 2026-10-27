@@ -289,8 +289,6 @@ public:
 
   // drawOTag (libgpu FUN_80081560): walks the guest OT into the GPU device. Called by FrameDriver.
   void drawOTag(uint32_t otHead);
-  // While a bug report takes this frame, hand its ordering table to the report's PSX render.
-  void captureBugReportReference();
 
   // startBinStage: the stage-0 START.BIN task body (StartBinStage), then the stage swap to DEMO.
   void startBinStage();

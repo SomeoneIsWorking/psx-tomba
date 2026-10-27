@@ -139,15 +139,6 @@ void Engine::drawOTag(uint32_t otHead) { // called directly from FrameDriver; no
   Core *c = this->core;
   lucent::debug("drawotag", "f{} drawOTag otHead={:08X}", c->game->display.frame(), otHead);
   psx::gpu::dma2LinkedList(*c, otHead);
-  captureBugReportReference();
-}
-
-// A B-key bug report is taking this frame: put the PSX render of the same ordering table beside the
-// native picture (psx::debug::BugReportSession). Read-only over the frame just drawn.
-void Engine::captureBugReportReference() {
-  if (core->game->bugReport.capturingFrame()) {
-    core->game->bugReport.captureReferenceFrame(*core);
-  }
 }
 
 void perobj_dispatch_install(native::NativeOverrideCatalog &natives);

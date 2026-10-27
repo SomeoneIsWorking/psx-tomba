@@ -6,9 +6,9 @@
 #include "stock_libgte.h"
 #include "stock_pad_buffers.h"
 #include "stock_vsync.h"
+#include "tomba1/game/core/debug/debug_menu.h"
 
 #include <cstdint>
-#include <cstdio>
 #include <memory>
 
 namespace tomba1 {
@@ -24,9 +24,12 @@ public:
   void deliverPad(Core &core, const psx::input::PadDelivery &delivery) override;
   void stockCdReadLanded(Core &core, const psx::cd::StockReadLanding &landing) override;
   const psx::present::GuestWidescreenProjection *guestWidescreenProjection() const override;
-  bool titleCommand(Core &core, const psx::game::TitleCommandLine &input, std::FILE *reply) override;
+  const psx::game::TitleDebugMenu &debugMenu() const override {
+    return debugMenu_;
+  }
 
 private:
+  DebugMenu debugMenu_;
   psx::hle::StockVSync vsync_;
   psx::cd::StockLibcd libcd_;
   psx::hle::StockLibgte libgte_;

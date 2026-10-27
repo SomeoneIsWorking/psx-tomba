@@ -48,24 +48,7 @@ DevWarp::Phase DevWarp::phase(Core &core) {
   return Phase::Unavailable;
 }
 
-std::string DevWarp::arm(Core &core, const psx::debug::CommandArgs &args) {
-  const std::optional<uint32_t> areaWord = args.number(1);
-  const std::optional<uint32_t> entryWord = args.size() == 2 ? 0u : args.number(2);
-  if ((args.size() != 2 && args.size() != 3) || !areaWord || !entryWord) {
-    return "usage: warp <area> [entry]";
-  }
-  const uint32_t area = *areaWord;
-  const uint32_t entry = *entryWord;
-  const int count = kAreaCount;
-  if (area >= static_cast<uint32_t>(count)) {
-    return lucent::format("refused: area {} is out of range, this game has {} areas (0..{})", area, count, count - 1);
-  }
-  if (entry > kMaxEntry) {
-    return lucent::format("refused: entry {} is out of range (0..{})", entry, kMaxEntry);
-  }
-  if (phase(core) == Phase::Unavailable) {
-    return "refused: a warp is legal only while the field is running";
-  }
+std::string DevWarp::arm(uint32_t area, uint32_t entry) {
   area_ = area;
   entry_ = entry;
   armed_ = true;

@@ -27,9 +27,18 @@ void Audio::mixFrame(std::int16_t *pcm, int frames) {
   }
 }
 
-const char *Audio::nowPlayingName() const {
+std::string_view Audio::nowPlayingName() const {
   const int track = tracks_.nowPlaying();
-  return track >= 0 ? tracks_.name(track) : nullptr;
+  return track >= 0 ? trackName(track) : std::string_view{};
+}
+
+int Audio::trackCount() const {
+  return tracks_.count();
+}
+
+std::string_view Audio::trackName(int track) const {
+  const char *name = tracks_.name(track);
+  return name != nullptr ? std::string_view(name) : std::string_view{};
 }
 
 void Audio::soundTestPlay(int track) {
