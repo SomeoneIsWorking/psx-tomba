@@ -1,8 +1,9 @@
-# 0026 — dialog music into gameplay after the newgame intro dialog: not reproduced headless
+# 0026 — dialog tone into gameplay after the intro: the Start-skip tone is reproduced, its source is not found
 
 Features: F-AUDIO, F-DEBUG.
 
-Status: open. The warp half of the report is fixed (below); the newgame half has no reproduction.
+Status: open. The warp half of the report is fixed (below). The Start-spam half is reproduced headless (a held
+351 Hz tone); its source is not found. The natural end of the newgame dialog is still not driven headless.
 
 ## What the guest does
 
@@ -85,10 +86,14 @@ What it is not:
   skip) is inactive, and the tone outlives the switch to area 3's clip.
 - Not a voice waiting for a key-off. The warp keys off all 24 voices (`KOFF 18C=FFFF 18E=00FF`) and the tone stays.
 
-A pure tone that survives a full key-off and decays slowly points at the SPU reverb ringing on what the skip left in
-its work area or registers. The `spu` debug channel logs no reverb-register writes, and the console oracle reads main
-RAM only, so neither side shows the reverb state yet.
+Not reverb either. The `spu` debug channel now logs the reverb registers and each voice's ADSR writes
+(`psxport runtime/psx/audio/spu_beetle.cpp`). On the same route (`start-spam/rv1`, `rv2`) the reverb output volume
+`0x184/0x186` is written four times, all 0, so reverb never reaches the mix; the tone is there from 4 s on all the same.
+Every voice's release is exponential at shift 10 or 13 (`ADSR2` `D5EA`, `D3ED`) or linear at shift 0 (`1FC0`), so no
+keyed-off voice can ring for 30 s, and `XaStream::pullSample` (the SPU's CD input) returns 0 when inactive. The source
+is still unknown; what is left is a voice whose key-off does not take, which needs each voice's ENVX at the warp.
 
-Next step: log the reverb registers (`0x1A2`, `0x184/0x186`, `0x198/0x19A`, `0x1C0..0x1FF`) and each voice's ENVX
-at the skip and at the warp, then run the same Start taps on the console and compare its audio hash windows with
-the product's.
+Whether retail does the same is not settled. The console reference (`external/psxport/tools/oracle/CONSOLE.md`)
+emulates the SPU, but exposes audio only as a SHA-256 over a hash window's samples; it exports no samples, so it cannot
+say whether a 351 Hz tone is present on its route, and it has no per-voice audio comparison. Settling it needs the
+console's audio samples (or its voice ENVX) across the same Start taps.
