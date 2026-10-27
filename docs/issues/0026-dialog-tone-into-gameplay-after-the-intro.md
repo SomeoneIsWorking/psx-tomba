@@ -2,8 +2,8 @@
 
 Features: F-AUDIO, F-DEBUG.
 
-Status: open. The warp half of the report is fixed (below). The Start-spam half is reproduced headless (a held
-351 Hz tone); its source is not found. The natural end of the newgame dialog is still not driven headless.
+Status: open. The warp half and the Start-spam held tone are fixed (below). The natural end of the newgame dialog
+is still not driven headless.
 
 ## What the guest does
 
@@ -71,29 +71,29 @@ before the guest keys off its voices.
 Next step: on the Start-spam route, compare the SPU voice key-on/off and pitch registers per field
 against Beetle.
 
-### Reproduced headless, 2026-10-27; cause not found
+### Fixed, 2026-10-27: the song stop never keyed off its voices
 
-Route: `scratch/player-bugs/start-spam/spam_120.pad` (Start 3 frames on, 5 off, for 120 pad frames from boot, then
-nothing), run unpaced with `PSXPORT_WAV`. Start skips the intro text and the fisherman cutscene; gameplay starts near
-pad frame 160. From the skip (about 4.5 s into the WAV) to the end of the run the mix carries a steady 351 Hz tone,
-under the area music. After `warp 3` it is left alone: a pure 351 Hz tone (peak/mean about 9000) decaying by about
-1.5% every 2 s for over 30 s.
+Route: `scratch/player-bugs/start-spam/spam_120.pad` (Start 3 frames on, 5 off, for 120 pad frames from boot), run
+unpaced with `PSXPORT_WAV`. Before the fix the mix carried a steady 351 Hz tone from the skip (about 4.5 s) to the end
+of the run.
 
-What it is not:
-- Not the native libsnd sequencer. Its override differential (`nat_seqChannelDispatch` and the bodies it calls, every
-  call) mismatches, but a run that continues from the original bodies (`diff2`) has the same tone.
-- Not the XA stream. `XaStream::pullSample` returns silence once the dialog clip (chan 7, stopped at LBA 66851 by the
-  skip) is inactive, and the tone outlives the switch to area 3's clip.
-- Not a voice waiting for a key-off. The warp keys off all 24 voices (`KOFF 18C=FFFF 18E=00FF`) and the tone stays.
+The oracle compare (`tools/oracle_compare.py`, which now compares SPU voices) and a per-frame trace of both cores on
+the free-roam Start leg (`scratch/player-bugs-2/keyoff_trace.py`) show it: song 4 keys voice 1 (start `0x1D770`,
+pitch `0x721`) on both cores. The console's song keys it off 19 frames later while the area load holds. The product's
+load finishes at once, so `FUN_80074E48` stops song 4 four frames after the key-on, and voice 1 stayed keyed for good.
 
-Not reverb either. The `spu` debug channel now logs the reverb registers and each voice's ADSR writes
-(`psxport runtime/psx/audio/spu_beetle.cpp`). On the same route (`start-spam/rv1`, `rv2`) the reverb output volume
-`0x184/0x186` is written four times, all 0, so reverb never reaches the mix; the tone is there from 4 s on all the same.
-Every voice's release is exponential at shift 10 or 13 (`ADSR2` `D5EA`, `D3ED`) or linear at shift 0 (`1FC0`), so no
-keyed-off voice can ring for 30 s, and `XaStream::pullSample` (the SPU's CD input) returns 0 when inactive. The source
-is still unknown; what is left is a voice whose key-off does not take, which needs each voice's ENVX at the warp.
+Cause: `Sequencer::channelKeyEventScan` (`game/audio/sequencer_channel_flags.cpp`, guest `0x80095B90`, the voice scan
+under `SsSeqStop`) read its voice count from `0x00005CEC`, the cluster offset `kSpuKeyScanCount` used as an address,
+instead of `0x80105CEC`. The count read 0, so no stop ever keyed off a sequence's voices.
 
-Whether retail does the same is not settled. The console reference (`external/psxport/tools/oracle/CONSOLE.md`)
-emulates the SPU, but exposes audio only as a SHA-256 over a hash window's samples; it exports no samples, so it cannot
-say whether a 351 Hz tone is present on its route, and it has no per-voice audio comparison. Settling it needs the
-console's audio samples (or its voice ENVX) across the same Start taps.
+Fix: read `kBase + kSpuKeyScanCount`. On the same leg the stop now arms the key-off for voices 0-4 and voice 1
+releases the next frame. On the Start-spam WAV the 351 Hz share of each second (+-4 Hz) goes from 29/61/20/44/52/42/32%
+over 4-10 s to 26/10/0.7/0.1/0.1/4/6%. At the oracle's `free_roam` and `gameplay[0]` checkpoints voice 1 no longer
+sounds on the product alone.
+
+The same trace found `AreaSlots::updateTail` (guest `0x80075A80`) calling the key-off `FUN_80098F90(0, mask)`
+without loading the mask into `a1`. On this route its one drain keyed off `0x80` (the stale `a1`) instead of the armed
+voices `0x7FF00`. It now passes the mask as the guest does.
+
+The earlier note "the warp keys off all 24 voices and the tone stays" came from another product defect: a key latch
+written twice in one field keeps only the second value (psxport issue 0183).
