@@ -5,6 +5,7 @@
 #include "debug/diagnostics.h"
 #include "engine/engine.h"
 #include "entry/session.h"
+#include "frame/frame_cut.h"
 #include "frame/frame_driver.h"
 #include "game.h"
 #include "sched/task_slot_layout.h"
@@ -12,6 +13,7 @@
 #include <lucent/log.h>
 
 #include <array>
+#include <cctype>
 #include <string_view>
 
 namespace tomba {
@@ -40,16 +42,21 @@ std::string gameStageRefusal(Core &core) {
 } // namespace
 
 DebugMenu::DebugMenu() {
-  // A screen is the scheduler's stage and the last door destination; a field screen is reached by warping there.
+  // A screen is the scheduler's stage and, while the field runs, its area. A field screen is reached by warping there,
+  // a stage before GAME by starting the title; the GAME stage outside the field (the opening) has no route.
   screen(
       [](Core &core) {
+        const bool field = DevWarp::phase(core) == DevWarp::Phase::Running;
         return (std::uint64_t{core.mem_r32(sched::kTaskTableBase + sched::kTaskEntry)} << 32) |
-               (std::uint64_t{DevWarp::phase(core) != DevWarp::Phase::Unavailable} << 16) |
-               core.mem_r16(DevWarp::kDestination);
+               (std::uint64_t{field} << 16) | (field ? std::uint64_t{core.mem_r8(FrameCut::kAreaByte)} : 0u);
       },
-      [](Core &, std::uint64_t key) {
-        const auto destination = static_cast<std::uint16_t>(key);
-        return (key & 0x10000u) != 0 ? lucent::format("warp {} {}", destination >> 8, destination & 0xFFu) : std::string();
+      [](Core &core, std::uint64_t key) {
+        if ((key & 0x10000u) != 0) {
+          return lucent::format("warp {}", key & 0xFFu);
+        }
+        const bool gameStage = static_cast<std::uint32_t>(key >> 32) == sched::kStageGameEntry;
+        return !gameStage && core.game->title != nullptr ? lucent::format("pick {}", core.game->title->slug)
+                                                         : std::string();
       });
   section("Area Warp");
   readout("Position", [](Core &core) {
@@ -216,6 +223,19 @@ DebugMenu::DebugMenu() {
           },
       .inMenu = false,
   });
+}
+
+std::optional<psx::game::DecompImage>
+DebugMenu::decompImage(Core & /*core*/, std::string_view imageName, bool resident) const {
+  if (resident) {
+    return psx::game::DecompImage{"tomba2", "scratch/bin/tomba2/MAIN.EXE"};
+  }
+  // The catalog names an overlay by its disc file stem (A00..A0L, SOP, OPN, CRD, START, DEMO, GAME).
+  std::string manifest = "tomba2_";
+  for (const char c : imageName) {
+    manifest.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
+  }
+  return psx::game::DecompImage{manifest, "scratch/bin/overlays/" + std::string(imageName) + ".BIN"};
 }
 
 } // namespace tomba
