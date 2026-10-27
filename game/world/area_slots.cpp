@@ -173,8 +173,9 @@ void AreaSlots::updateTail() {
   }
   c->r[21] = S5;
 
-  // (3) Mask-drain: if any bit set, call FUN_80098F90(0) then clear the mask.
-  if (c->mem_r32(0x800BE358u) != 0) {
+  // (3) Mask-drain: key off the armed voices with FUN_80098F90(0, mask), then clear the mask.
+  c->r[5] = c->mem_r32(0x800BE358u);
+  if (c->r[5] != 0) {
     c->r[4] = 0;
     c->r[31] = 0x80075C4Cu;
     psx::cpu::callGuestNow(*c, __func__, 0x80098F90u);

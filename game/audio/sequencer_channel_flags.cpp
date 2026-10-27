@@ -141,7 +141,7 @@ void Sequencer::channelKeyRegisterMerge() {
 // (stride 56); on a match it stamps the value and calls channelKeyRegisterMerge().
 void Sequencer::channelKeyEventScan() {
   Core *c = core;
-  int8_t count = (int8_t)c->mem_r8(libsnd::kSpuKeyScanCount);
+  int8_t count = (int8_t)c->mem_r8(libsnd::kBase + libsnd::kSpuKeyScanCount);
   // FIX: gen spills s0(r16) here -- prior draft omitted it entirely.
   constexpr GuestFrameSpill kSpills[] = {{16, 16}, {31, 28}, {18, 24}, {17, 20}}; // -32
   GuestFrame<32, 4> frame(c, kSpills);
@@ -149,7 +149,7 @@ void Sequencer::channelKeyEventScan() {
   r16 = 0u;
   if (count > 0) {
     int32_t target = sext16(c->r[4]);
-    for (int32_t i = 0; i < c->mem_r8s(libsnd::kSpuKeyScanCount); i++) {
+    for (int32_t i = 0; i < c->mem_r8s(libsnd::kBase + libsnd::kSpuKeyScanCount); i++) {
       uint32_t voiceBit = 1u << (uint32_t)(i & 31);
       if ((c->mem_r32(libsnd::kHardwareVoiceActive) & voiceBit) != 0u) {
         continue; // voice busy, skip
