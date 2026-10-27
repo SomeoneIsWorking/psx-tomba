@@ -287,7 +287,7 @@ void Asset::uploadImage(const UploadImageArgs &args) {
   for (std::size_t i = 0; i < pixels.size(); i++) {
     pixels[i] = c->mem_r16(src + static_cast<std::uint32_t>(i * 2u));
   }
-  c->gpuDevice().loadImage({x, y, w, h}, pixels);
+  c->gpuDevice().loadImage({x, y, w, h}, pixels, c->owners.port(psx::present::WriterKind::LoadImage));
 }
 
 // ===== Stage-0/stage-1 area/asset PRELOAD — PC-native + SYNCHRONOUS (moved from native_boot.cpp,

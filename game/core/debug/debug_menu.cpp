@@ -40,6 +40,17 @@ std::string gameStageRefusal(Core &core) {
 } // namespace
 
 DebugMenu::DebugMenu() {
+  // A screen is the scheduler's stage and the last door destination; a field screen is reached by warping there.
+  screen(
+      [](Core &core) {
+        return (std::uint64_t{core.mem_r32(sched::kTaskTableBase + sched::kTaskEntry)} << 32) |
+               (std::uint64_t{DevWarp::phase(core) != DevWarp::Phase::Unavailable} << 16) |
+               core.mem_r16(DevWarp::kDestination);
+      },
+      [](Core &, std::uint64_t key) {
+        const auto destination = static_cast<std::uint16_t>(key);
+        return (key & 0x10000u) != 0 ? lucent::format("warp {} {}", destination >> 8, destination & 0xFFu) : std::string();
+      });
   section("Area Warp");
   readout("Position", [](Core &core) {
     return lucent::format("({}, {}, {})  stage {}",
