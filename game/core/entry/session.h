@@ -7,7 +7,6 @@
 #include "cd/engine_cd.h"
 #include "cd/engine_cd_state.h"
 #include "core.h"
-#include "core/debug/dev_areas.h"
 #include "core/debug/verification_counters.h"
 #include "core/engine/engine.h"
 #include "core/entry/settings.h"
@@ -56,7 +55,6 @@ public:
   EngineCdState cdState{cd};
   sched::Scheduler scheduler; // after `cd`, which it holds slot 2 for
   Audio audio;
-  DevAreas devWarp;
   psx::present::StateProducerTable stateProducers;
   // The host memory a state render runs its emitter over, kept so renders allocate none.
   psx::present::Kept<psx::present::HostMemory> renderMemory;

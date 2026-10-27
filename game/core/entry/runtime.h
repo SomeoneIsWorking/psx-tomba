@@ -1,5 +1,6 @@
 #pragma once
 
+#include "debug/debug_menu.h"
 #include "game_runtime.h"
 #include "guest_widescreen_projection.h"
 #include "stock_libcd.h"
@@ -33,11 +34,10 @@ public:
   bool sealedFrameIsCut(Core &core) const override;
   int displayHeight() const override;
   const psx::present::GuestWidescreenProjection *guestWidescreenProjection() const override;
-  bool titleCommand(Core &core, const psx::game::TitleCommandLine &input, std::FILE *reply) override;
-  std::span<const psx::debug::VerbUsage> commandUsage() const override;
+  const psx::game::TitleDebugMenu &debugMenu() const override {
+    return debugMenu_;
+  }
   psx::game::TitleAudio *audio(Core &core) const override;
-  psx::game::TitleDevWarp *devWarp(Core &core) const override;
-  std::string worldReadout(Core &core) const override;
   psx::state::NativeStatePort *nativeState(Core &core) const override;
   const psx::game::HostIdentity *hostIdentity() const override;
 
@@ -46,6 +46,7 @@ private:
   void bootInit(Core &core);
   void bindLoadedResident(Core &core);
 
+  DebugMenu debugMenu_;
   psx::hle::StockVSync vsync_;
   psx::cd::StockLibcd libcd_;
   psx::hle::StockLibgpu libgpu_;

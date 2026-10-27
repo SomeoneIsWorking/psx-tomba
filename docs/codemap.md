@@ -25,9 +25,9 @@ function owners in `docs/guest-addresses.md`, producers in `docs/producers.md`, 
 | `NativeOverrideCatalog`, `registerOverrides` | `game/core/overrides/` | Every native-override declaration, keyed by image identity and address; the guest call conventions (`guest_jal.h`, `guest_resume.h`) |
 | `installResidentNatives`, `Engine::frameUpdate`, `Engine::drawOTag` | `game/resident_natives.h` | Natives outside any subsystem's registration; the per-VBlank update and the OT draw |
 | guest structure types | `game/engine_types.h` | Native mirrors of the engine's in-RAM structures |
-| `DevControl`, `DevWarp`, `DevItems`, `DevFlags`, `DevGate` | `game/core/debug/dev_*` | `warp`, `items`, `flag`: parsed between frames, applied by the frame driver at a frame boundary |
-| `tomba::DevAreas` | `game/core/debug/dev_areas.h` | The picker's warp list (`TitleDevWarp`) |
-| `replCommand` | `game/core/debug/repl_commands.h` | The remaining title control-channel commands: `ents`, `node`, `geomblk`, `stage`, `seq`, `bgm`, `musictest`, ... |
+| `tomba::DebugMenu` | `game/core/debug/debug_menu.h` | The title debug menu (psxport `TitleDebugMenu`): area warp with the area names and position readout, items, event flags, sound test, `tp`, and the diagnostics verbs |
+| `DevControl`, `DevWarp`, `DevItems`, `DevFlags`, `DevGate` | `game/core/debug/dev_*` | `warp`, `items`, `flag` requests: armed by the debug menu, applied by the frame driver at a frame boundary |
+| `tomba::diagnostics` | `game/core/debug/diagnostics.h` | Diagnostic verbs' bodies: `ents`, `node`, `geomblk`, `stage`, `seq`, `bgm`, `invtest`, ... |
 | `AutoDrive` | `game/core/debug/auto_drive.h` | `PSXPORT_AUTO_SKIP`: the front end driven into GAME free-roam at frame boundaries |
 | `VerificationCounters` | `game/core/debug/verification_counters.h` | Title verification tallies on the diagnostics channel |
 | `LibapiIntr` | `game/core/hle/` | libapi interrupt-mask primitives and the VBlank count mirror |

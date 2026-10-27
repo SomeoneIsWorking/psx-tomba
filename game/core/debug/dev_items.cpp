@@ -1,7 +1,6 @@
 #include "debug/dev_items.h"
 
 #include "core.h"
-#include "debug/dev_gate.h"
 #include "items/inventory_layout.h"
 #include "items/item_grant.h"
 
@@ -9,26 +8,12 @@
 
 namespace tomba {
 
-std::string DevItems::arm(Core &core, const psx::debug::CommandArgs &args) {
-  const std::optional<uint32_t> itemWord = args.number(1);
-  const std::optional<uint32_t> amountWord = args.size() == 2 ? 1u : args.number(2);
-  const bool all = args.size() == 2 && args.word(1) == "all";
-  const bool one = (args.size() == 2 || args.size() == 3) && itemWord && amountWord;
-  if (!all && !one) {
-    return "usage: items all | items <id 0..255> [amount 1..99]";
-  }
-  if (!DevGate::inGameStage(core)) {
-    return "refused: enter the GAME field before changing inventory";
-  }
-  if (all) {
-    request_ = Request::All;
-    return "ok: grant all items armed";
-  }
-  const uint32_t item = *itemWord;
-  const uint32_t amount = *amountWord;
-  if (item > kMaxItemId || amount < 1 || amount > kMaxAmount) {
-    return "refused: item id is 0..255 and amount is 1..99";
-  }
+std::string DevItems::armAll() {
+  request_ = Request::All;
+  return "ok: grant all items armed";
+}
+
+std::string DevItems::armOne(uint32_t item, uint32_t amount) {
   request_ = Request::One;
   item_ = item;
   amount_ = amount;

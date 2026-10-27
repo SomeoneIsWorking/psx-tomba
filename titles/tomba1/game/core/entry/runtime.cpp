@@ -91,12 +91,4 @@ const psx::present::GuestWidescreenProjection *Runtime::guestWidescreenProjectio
   return &widescreenPolicy_;
 }
 
-bool Runtime::titleCommand(Core &core, const psx::game::TitleCommandLine &input, std::FILE *reply) {
-  if (std::strcmp(input.command, "warp") != 0) {
-    return false;
-  }
-  std::fprintf(reply, "%s\n", context(core).warp.arm(core, input.args).c_str());
-  return true;
-}
-
 } // namespace tomba1

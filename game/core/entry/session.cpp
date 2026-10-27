@@ -4,8 +4,7 @@
 namespace tomba {
 
 Session::Session(Core &core)
-    : render(std::make_unique<Render>()), cd(core), scheduler(*core.game, cd), audio(native_music, music_list),
-      devWarp(core) {
+    : render(std::make_unique<Render>()), cd(core), scheduler(*core.game, cd), audio(native_music, music_list) {
   Core *c = &core;
   verification.bind(core);
   screenFade.core = c;

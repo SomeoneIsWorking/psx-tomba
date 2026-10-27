@@ -1,6 +1,6 @@
 #pragma once
 
-#include "command_args.h"
+#include <array>
 #include <cstdint>
 #include <string>
 
@@ -8,7 +8,7 @@ class Core;
 
 namespace tomba {
 
-// The control-channel `warp <area> [entry]` request. It writes the destination words and the pending-transition
+// The debug menu's `warp <area> [entry]` request. It writes the destination words and the pending-transition
 // byte that the game's own field machine consumes (the pair the community debug menu's WARP TOOLS page writes).
 // Armed between frames, applied at the next frame boundary.
 //
@@ -28,8 +28,33 @@ public:
   inline static constexpr uint8_t kScriptedOpening = 2;
   inline static constexpr uint8_t kOrdinaryPlay = 4;
   inline static constexpr uint32_t kMaxEntry = 0x3f;
-  // Areas 0..21: one A0* overlay each on the disc.
+  // Areas 0..21: one A0* overlay each on the disc, 22 entries in each of MAIN's per-area handler tables, and
+  // GAME.BIN's next-table zeroed at 22. Area load is file `area + 3` of the table at 0x800BE118, so 22 would load
+  // START.BIN.
   inline static constexpr int kAreaCount = 22;
+  // Sourced names only; an empty name shows as its number.
+  inline static constexpr std::array<const char *, kAreaCount> kAreaNames{"",
+                                                                          "",
+                                                                          "",
+                                                                          "",
+                                                                          "",
+                                                                          "",
+                                                                          "",
+                                                                          "",
+                                                                          "Water Temple", // 8: USER 2026-07-23
+                                                                          "",
+                                                                          "",
+                                                                          "",
+                                                                          "Ghost Pig boss", // 12: USER 2026-07-23
+                                                                          "",
+                                                                          "",
+                                                                          "",
+                                                                          "",
+                                                                          "",
+                                                                          "",
+                                                                          "",
+                                                                          "",
+                                                                          ""};
 
   // Where the field machine is, as far as a request is concerned.
   enum class Phase : uint8_t {
@@ -40,8 +65,8 @@ public:
 
   static Phase phase(Core &core);
 
-  // The returned text answers the client.
-  std::string arm(Core &core, const psx::debug::CommandArgs &args);
+  // Arms the request; the returned text answers the client. The debug menu checked the ranges and the phase.
+  std::string arm(uint32_t area, uint32_t entry);
   // Writes the armed request at a frame boundary.
   void applyArmed(Core &core, uint32_t frame);
 

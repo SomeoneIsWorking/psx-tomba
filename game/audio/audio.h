@@ -4,6 +4,7 @@
 #include "game_runtime.h"
 
 #include <cstdint>
+#include <string_view>
 
 namespace tomba {
 
@@ -19,7 +20,9 @@ public:
   Audio(NativeMusic &music, MusicList &tracks) : music_(music), tracks_(tracks) {}
 
   void mixFrame(std::int16_t *pcm, int frames) override;
-  const char *nowPlayingName() const override;
+  std::string_view nowPlayingName() const override;
+  int trackCount() const override;
+  std::string_view trackName(int track) const override;
   void soundTestPlay(int track) override;
 
 private:

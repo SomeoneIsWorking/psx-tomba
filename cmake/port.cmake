@@ -40,8 +40,8 @@ set(GAME_SRC
   game/core/entry/main_handoff.cpp
   game/core/entry/catalog.cpp
   game/core/entry/identity.cpp
-  game/core/debug/dev_areas.cpp
-  game/core/debug/repl_commands.cpp
+  game/core/debug/debug_menu.cpp
+  game/core/debug/diagnostics.cpp
   game/core/overrides/register_overrides.cpp
   game/core/assets/str.cpp
   game/math/mathlib.cpp
