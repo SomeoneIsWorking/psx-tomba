@@ -109,3 +109,13 @@ on the product only (peak 4346 against 0); `free_roam` sounds `[0, 1, 2, 4]` aga
 voice 0's pitch is `0x400` against `0x47D` from `free_roam` on. The `field` checkpoint's SPUCNT CD-enable and CD
 volume difference is the guest's own CD-mix sequence at a different point (the product reaches `field` 288 game
 frames sooner); they agree again at `gameplay[0]`.
+
+### The remaining oracle divergences are the removed loads, 2026-10-28
+Traced per frame on both cores (`scratch/player-bugs-3/song_trace.log`, `game_leg.log`, `gameplay_notes.log`):
+`game_stage` voices 12/13 are the menu confirm sound, 17 frames on both cores, which the console plays inside its
+37-frame title-to-game load; `free_roam`'s voice sets and voice 0 pitch `0x400`/`0x47D` come from song 4 keying three
+more notes during the console's 30-frame area load (sm[0x4e]=8), which the product finishes in one frame; at
+`gameplay[1]` those extra releasing voices make libsnd allocate and steal different voices for song 2. The
+sequencer, the Start skip and the SPU adapter play the same notes on the same frames otherwise. With silent voices'
+leftover registers informational (psxport `tools/oracle/spu_state.py`), `gameplay[0]` matches across cores
+(`scratch/player-bugs-3/oracle-b.log`). What stays open here is the natural end of the newgame dialog (above).
