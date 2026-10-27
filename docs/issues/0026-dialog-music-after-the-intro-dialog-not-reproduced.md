@@ -69,3 +69,26 @@ before the guest keys off its voices.
 
 Next step: on the Start-spam route, compare the SPU voice key-on/off and pitch registers per field
 against Beetle.
+
+### Reproduced headless, 2026-10-27; cause not found
+
+Route: `scratch/player-bugs/start-spam/spam_120.pad` (Start 3 frames on, 5 off, for 120 pad frames from boot, then
+nothing), run unpaced with `PSXPORT_WAV`. Start skips the intro text and the fisherman cutscene; gameplay starts near
+pad frame 160. From the skip (about 4.5 s into the WAV) to the end of the run the mix carries a steady 351 Hz tone,
+under the area music. After `warp 3` it is left alone: a pure 351 Hz tone (peak/mean about 9000) decaying by about
+1.5% every 2 s for over 30 s.
+
+What it is not:
+- Not the native libsnd sequencer. Its override differential (`nat_seqChannelDispatch` and the bodies it calls, every
+  call) mismatches, but a run that continues from the original bodies (`diff2`) has the same tone.
+- Not the XA stream. `XaStream::pullSample` returns silence once the dialog clip (chan 7, stopped at LBA 66851 by the
+  skip) is inactive, and the tone outlives the switch to area 3's clip.
+- Not a voice waiting for a key-off. The warp keys off all 24 voices (`KOFF 18C=FFFF 18E=00FF`) and the tone stays.
+
+A pure tone that survives a full key-off and decays slowly points at the SPU reverb ringing on what the skip left in
+its work area or registers. The `spu` debug channel logs no reverb-register writes, and the console oracle reads main
+RAM only, so neither side shows the reverb state yet.
+
+Next step: log the reverb registers (`0x1A2`, `0x184/0x186`, `0x198/0x19A`, `0x1C0..0x1FF`) and each voice's ENVX
+at the skip and at the warp, then run the same Start taps on the console and compare its audio hash windows with
+the product's.
