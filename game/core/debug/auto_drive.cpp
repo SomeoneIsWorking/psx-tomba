@@ -15,8 +15,8 @@ namespace {
 constexpr uint32_t kTask0 = sched::kTaskTableBase;
 constexpr uint32_t kTaskEntryOffset = sched::kTaskEntry;
 constexpr uint32_t kCutsceneActive = 0x1f800137u;
-// Input turns a press is held.
-constexpr int kTapTurns = 6;
+// Pad frames a press is held.
+constexpr int kTapFrames = 6;
 
 } // namespace
 
@@ -36,7 +36,7 @@ void AutoDrive::beforeFrame(Core &core, uint32_t frame) {
   case SkipPhase::ReachGame:
     if (stage != sched::kStageGameEntry) {
       if ((frame % 12u) == 0) {
-        game.hostInput.padButtons(psx::input::kButtonCross, psx::input::InjectedPress::Tap, kTapTurns);
+        game.hostInput.padButtons(psx::input::kButtonCross, psx::input::InjectedPress::Tap, kTapFrames);
       }
     }
     break;
@@ -46,7 +46,7 @@ void AutoDrive::beforeFrame(Core &core, uint32_t frame) {
     if (cutsceneActive) {
       cutsceneIdleFrames_ = 0;
       if ((frame % 40u) == 0) {
-        game.hostInput.padButtons(psx::input::kButtonStart, psx::input::InjectedPress::Tap, kTapTurns);
+        game.hostInput.padButtons(psx::input::kButtonStart, psx::input::InjectedPress::Tap, kTapFrames);
       }
     } else if (++cutsceneIdleFrames_ >= 60) {
       skipPhase_ = SkipPhase::Done;
