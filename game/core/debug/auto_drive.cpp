@@ -3,6 +3,7 @@
 #include "core.h"
 #include "entry/session.h"
 #include "game.h"
+#include "host_input.h"
 #include "sched/task_slot_layout.h"
 
 #include <cstring>
@@ -14,8 +15,8 @@ namespace {
 constexpr uint32_t kTask0 = sched::kTaskTableBase;
 constexpr uint32_t kTaskEntryOffset = sched::kTaskEntry;
 constexpr uint32_t kCutsceneActive = 0x1f800137u;
-constexpr uint16_t kTapCross = 0xbfffu;
-constexpr uint16_t kTapStart = 0xfff7u;
+// Input turns a press is held.
+constexpr int kTapTurns = 6;
 
 } // namespace
 
@@ -35,7 +36,7 @@ void AutoDrive::beforeFrame(Core &core, uint32_t frame) {
   case SkipPhase::ReachGame:
     if (stage != sched::kStageGameEntry) {
       if ((frame % 12u) == 0) {
-        game.pad.driveTap({.activeLowMask = kTapCross, .frames = 6});
+        game.hostInput.padButtons(psx::input::kButtonCross, psx::input::InjectedPress::Tap, kTapTurns);
       }
     }
     break;
@@ -45,10 +46,9 @@ void AutoDrive::beforeFrame(Core &core, uint32_t frame) {
     if (cutsceneActive) {
       cutsceneIdleFrames_ = 0;
       if ((frame % 40u) == 0) {
-        game.pad.driveTap({.activeLowMask = kTapStart, .frames = 6});
+        game.hostInput.padButtons(psx::input::kButtonStart, psx::input::InjectedPress::Tap, kTapTurns);
       }
     } else if (++cutsceneIdleFrames_ >= 60) {
-      game.pad.driveRelease();
       skipPhase_ = SkipPhase::Done;
       lucent::info("autoskip", "free-roam reached at frame {} (cutscene ended)", frame);
     }
