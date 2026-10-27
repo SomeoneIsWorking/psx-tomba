@@ -97,3 +97,15 @@ voices `0x7FF00`. It now passes the mask as the guest does.
 
 The earlier note "the warp keys off all 24 voices and the tone stays" came from another product defect: a key latch
 written twice in one field keeps only the second value (psxport issue 0183).
+
+### Re-measured on the timed SPU, 2026-10-27
+psxport now runs the SPU to the guest's time at every register access (issue 0183). Same route
+(`scratch/player-bugs-2/spam-timed`, 1900 fence steps): the 351 Hz share is 24.8/9.4/0.9/0.1/0.1/4.2/5.2% over 4-10 s,
+then 0-8.5% to 30 s (8.5% at 11 s, 8.3% at 18 s). The skip second (4 s) still carries a quarter of the energy at
+351 Hz; the held tone after it is gone.
+
+Still divergent at the oracle checkpoints (`scratch/player-bugs-2/oracle5.log`): `game_stage` sounds voices 12 and 13
+on the product only (peak 4346 against 0); `free_roam` sounds `[0, 1, 2, 4]` against the console's `[0, 1, 2, 3, 6]`;
+voice 0's pitch is `0x400` against `0x47D` from `free_roam` on. The `field` checkpoint's SPUCNT CD-enable and CD
+volume difference is the guest's own CD-mix sequence at a different point (the product reaches `field` 288 game
+frames sooner); they agree again at `gameplay[0]`.
