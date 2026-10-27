@@ -9,7 +9,7 @@ Start-spam route (`scratch/player-bugs/start-spam/spam_120.pad`, unpaced, ires 0
 `[ledger:error] producer 0x8013e9d8 recorded 6 primitive(s) and the composed present drew none`, plus
 `0x80122974` (`AnchorQuads::chain`, f665-f699) and `0x80106690` (DEMO edge sprites, f574-f588).
 
-What the player saw (present dumps f570-f700, `scratch/player-bugs-3/rope-before` against `rope-after`):
+What the player saw (present dumps f570-f700 before and after the fix; crops in `scratch/player-bugs-3/evidence/`):
 - f574-f588: the title screen's art was black on every present; only the NewGame/LoadGame labels drew.
 - f666-f699: the anchor chain drew only its newest packet per bucket, so its segments sat in the wrong place.
 - The rope (0x8013E9D8) was dropped from every composed present; on this route its poly-lines lie above the top
