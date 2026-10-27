@@ -58,3 +58,14 @@ at the frame where the dialog closes.
 Warp 5 aborts on HEAD as well (issue 0035). Warp 3 loads since issue 0034.
 
 Because of these, the "warp into an area with a cutscene" route was only checked for area 1.
+
+## User report, 2026-10-27: one frozen note after spamming Start
+
+Spamming Start to get into the game leaks the fisherman cutscene's dialog tone into gameplay, held on
+one note. A held note points to an SPU voice left keyed on, not a SEQ still playing. The song-index
+comparison above cannot see that. The 200-500 RMS left after the Start skip in the headless WAV may be
+that voice. The route is the Start skip itself: check whether a title-owned skip leaves the cutscene
+before the guest keys off its voices.
+
+Next step: on the Start-spam route, compare the SPU voice key-on/off and pitch registers per field
+against Beetle.
