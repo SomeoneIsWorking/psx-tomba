@@ -108,3 +108,29 @@ tricks that hide a wait are not implementations of this goal. Loading removal is
 oracle comparison.
 
 Contributing state: S023, S024.
+
+## G006 — Better water
+
+Draw Tomba! 2's water (rivers, lakes, waterfalls, splashes) with more detail than the original:
+finer surface geometry, smooth animation and clean transparency at high internal resolution.
+
+**Success conditions.** The water is a title-owned native render driven by the RE'd state of the
+game's own water: surface, flow phase and the objects in it. It moves exactly where the original
+water moves. It draws in the original's ordering-table slots, interpolates at 60 fps and fills the
+widescreen margins.
+
+**Constraints and non-goals.** No change to collision, swimming or any guest state. No new art
+assets. It is a saved setting, off in the faithful mode and under oracle comparison.
+
+## G007 — Better fire
+
+Draw Tomba! 2's fire (torches, burning objects, fire attacks and their particles) with more detail
+than the original: smoother flame shapes and gradients, and more particles.
+
+**Success conditions.** The fire is a title-owned native render driven by the RE'd state of each fire
+effect: emitter, lifetime and phase. It appears, moves and goes out exactly when the original fire
+does. It draws in the original's ordering-table slots, interpolates at 60 fps and fills the
+widescreen margins.
+
+**Constraints and non-goals.** No change to damage, hit timing or any guest state. No new art
+assets. It is a saved setting, off in the faithful mode and under oracle comparison.
