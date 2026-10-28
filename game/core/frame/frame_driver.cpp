@@ -155,7 +155,6 @@ void FrameDriver::stepFrame(Core &core, uint32_t frame) {
   // is the defect FrameCadence exists to prevent.
   eng(&core).cadence().endLogicFrame(frame);
   diagnostics_.afterFrame(core, frame);
-  autoDrive_.afterFrame(core, frame);
 }
 
 } // namespace tomba
