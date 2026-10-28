@@ -4,6 +4,8 @@ Where the code lives and what each owner owns. Feature chains are in `docs/featu
 function owners in `docs/guest-addresses.md`, producers in `docs/producers.md`, Tomba! 1 in
 `titles/tomba1/docs/codemap.md`; the framework side is `external/psxport/docs/codemap.md`.
 
+Frame loop: owned. `tomba::FrameDriver` runs one pass of `0x80050B08` (update `0x800788AC`, scheduler `0x80051E60`); `FrameCadence` replaces its VBlank gate. Tomba! 1: `titles/tomba1/docs/codemap.md`.
+
 ## Owners
 
 | owner | path | owns |

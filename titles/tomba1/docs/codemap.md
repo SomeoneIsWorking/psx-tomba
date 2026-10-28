@@ -4,6 +4,8 @@ Where Tomba! 1's code lives. It reuses only psxport's executor and services; no 
 owner or render policy crosses into `titles/tomba1/`. The product catalog is root `docs/codemap.md`;
 feature chains are root `docs/features.md`.
 
+Frame loop: owned. `tomba1::FrameDriver` runs the guest task pass and delivers the frame's requested fields `0x1F8001EA`; no guest VSync wait runs.
+
 ## Owners
 
 | owner | path | owns |
