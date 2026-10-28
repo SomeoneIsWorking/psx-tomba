@@ -5,6 +5,23 @@ This repository contains two isolated PlayStation-to-PC ports:
 - **Tomba! 2: The Evil Swine Return** (`SCUS_944.54`) is the active title.
 - **Tomba!** (`SCUS_942.36`) follows after Tomba! 2 completes its execution migration.
 
+## Screenshots
+
+Tomba! 2 running in this port at 16:9, captured from the product.
+
+![Interpolation comparison: the original 30 fps beside the interpolated 60 fps](docs/media/interpolation-comparison.webp)
+
+The attract demo's village, the same frames at the original 30 fps (left) and interpolated to 60 fps (right).
+
+![Widescreen comparison: the original 4:3 picture beside the 16:9 picture](docs/media/widescreen-comparison.png)
+
+The same frame at 4:3 and 16:9: the widened view draws the catapult and the tower the original leaves out.
+
+| | |
+|---|---|
+| ![Tomba launched over the seaside village](docs/media/seaside-village.png) | ![Tomba beside his hut in the village](docs/media/village-start.png) |
+| ![Tomba in the rain-soaked Water Temple](docs/media/water-temple.png) | ![A boss on the snow garden's ice peak](docs/media/snow-garden.png) |
+
 The intended product is a native/dynarec hybrid. Readable C++ subsystems and native overrides own
 deliberately ported behavior; every remaining guest instruction is translated on demand from the
 user's authenticated game image by the shared `psxport` Lightrec executor. The gameplay binary contains
@@ -66,20 +83,6 @@ external/psxport/tools/port/consumer_build.py --build build/agent --target tomba
 workflow records and provisions their revisions. Representative gameplay and
 image-qualified override verification
 remain open ([issue 0005](docs/issues/0005-prove-tomba2-image-aware-lightrec-override-dispatch.md)).
-
-## Historical presentation captures
-
-These images record the native Tomba! 2 renderer before the execution migration. They preserve visual
-baseline evidence; they are not Lightrec-product verification.
-
-| | |
-|---|---|
-| ![Seaside field](docs/screenshots/01-seaside-field.png) | ![Lava cave](docs/screenshots/02-lava-cave.png) |
-| Seaside field | Volcanic interior |
-| ![Night sky](docs/screenshots/03-night-sky.png) | ![Boss arena](docs/screenshots/04-boss-arena.png) |
-| Night sky and parallax backdrop | Boss arena interior |
-| ![Item menu](docs/screenshots/05-item-menu.png) | ![Dialog](docs/screenshots/06-dialog.png) |
-| Native item-menu producer | In-world dialog box |
 
 ## Intended fresh-install contract
 
