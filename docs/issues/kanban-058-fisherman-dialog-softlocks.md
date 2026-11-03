@@ -22,7 +22,7 @@ DIAGNOSIS METHOD (state, not crash — the process keeps running):
 
 REPRO: no replay exists for the fisherman yet. The fisherman is near the seaside fishing spot. CUT ONE FROM THE USER'S LIVE SESSION — `python3 external/psxport/tools/dbgclient.py padrec save replays/bugs/fisherman-dialog-softlock.pad` while they are at/near the lock (the whole session from boot is kept in memory, so it can be cut after the fact), then add a replays/README.md entry in the same commit. That is how house-on-the-point.pad was captured.
 
-## 2026-11-03: not reproduced on HEAD
+## 2026-11-03: no recording to run, still open
 
 No recording of this route was ever cut. The `pc_skip` fork, the flat-setjmp GAME task and `tools/findings.py`
 named above no longer exist. Next step: a phase-keyed `padrec save` from a player session at the fisherman.

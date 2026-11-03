@@ -19,7 +19,7 @@ F5 IS RULED OUT AS THE CAUSE OF STATE LOSS, measured rather than argued: two ide
 
 So the likely neighbours are #47 (pc_skip: entering 'House on the Point' corrupts state — music stops, camera unfollows) and #57 (hut interior decorations missing, suspected occlusion), not the renderer toggle. NOT yet determined: whether the two NPCs are absent from GUEST STATE (a load/unload or behaviour bug) or present-but-unproduced (a render gap). The entity dump above is the start of that: neither list shows an obvious interior NPC, so find where the hut sub-scene keeps its objects before concluding.
 
-## 2026-11-03: not reproduced on HEAD
+## 2026-11-03: repro not runnable (retired recording format), still open
 
 The recorded repro is the retired raw pad format: the player refuses it (`[padrec:error] replay REFUSED: ...: not a
 phase-keyed pad recording`), so it reaches nothing on HEAD. Replaying its button runs frame by frame from autoskip's

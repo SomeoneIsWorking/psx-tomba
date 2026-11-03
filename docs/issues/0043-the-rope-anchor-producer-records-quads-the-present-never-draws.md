@@ -37,4 +37,4 @@ producer` (before: every gameplay present). Before/after crops: `scratch/player-
 
 ## Re-shown (2026-11-03)
 Autoskip to free roam and a run east through area 0 on HEAD: `[ledger] run-end: 1539 composed t=1 present(s)
-reconciled, 0 with a dropped producer` (`scratch/tomba2/bucket2/run.log`).
+reconciled, 0 with a dropped producer` (`scratch/tomba2/evidence/0043_bucket2_ledger_runend.txt`).

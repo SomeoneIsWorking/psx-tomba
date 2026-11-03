@@ -18,7 +18,7 @@ REPRO (cut from the user's live session with padrec): replays/bugs/house-on-the-
 VERIFICATION METHOD — this is a STATE bug, do NOT crash-check: a headless replay exits 0 while the state is wrong. Verify by observing the actual symptoms: (a) camera-follow — probe the camera-target/follow latch and whether it tracks Tomba's world pos after exit; (b) music — the BGM sequencer state (0x801054B0 open-seq / 0x80104C28 playmask, PSXPORT_DEBUG=seq) going silent on entry; (c) interior vibration — capture consecutive frames of the interior and diff for per-vertex jitter. Compare against a CORRECT house entry if one can be reached, or against the oracle (PSXPORT_GATE=1 + the same replay) to see whether the corruption is exec-state (present on the oracle too = a real state bug) or pc_render-only.
 FIRST TRIAGE STEP: run the replay under PSXPORT_GATE=1 (retired comparison path, the oracle) and see if the symptoms reproduce there. If yes, it is a genuine game-state corruption in the transition logic (highest priority, a pc_faithful/Job-#1-class bug); if the symptoms are pc_render-only, it is a render/producer issue.
 
-## 2026-11-03: not reproduced on HEAD
+## 2026-11-03: repro not runnable (retired recording format), still open
 
 The recorded repro is the retired raw pad format: the player refuses it (`[padrec:error] replay REFUSED: ...: not a
 phase-keyed pad recording`), so it reaches nothing on HEAD. Replaying its button runs frame by frame from autoskip's

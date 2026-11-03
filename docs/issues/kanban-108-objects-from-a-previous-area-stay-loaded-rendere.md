@@ -27,7 +27,7 @@ Run the same spot with 1 vs 4. If the floating objects vanish at 1 and return at
 
 ALSO WORTH MEASURING WHILE THERE: the user's lag suspicion. A ×4 far limit means a much larger kept set every frame, and the kept set drives both the render queues and the per-frame simulate walk. Count the kept objects per frame at MULT=1 vs MULT=4 — with a denominator, i.e. kept of inspected — before crediting or clearing it as a perf cause.
 
-## 2026-11-03: the named lever is gone; not reproduced
+## 2026-11-03: the named lever is gone; no recording to run, still open
 
 `CULL_FAR_MULT` no longer exists: `Cull::decide`/`performBaseCull` (`game/render/cull.cpp`) keep the guest's own near,
 far and cone limits, and the margin re-include that collected extra nodes was deleted (kanban-080). The attract demo

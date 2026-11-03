@@ -36,4 +36,4 @@ press refusal in `Pad::injectButtons` instead of a driver guard: the same screen
 ## Re-shown (2026-11-03)
 Hidden unpaced run from boot with the title's executable as the argument: `front end at frame 563`, `opening movie at
 frame 564`, `scripted opening at frame 682`, `free roam at frame 794`; Tomba in the first field
-(`scratch/tomba2/walk1/sheet.jpg`).
+(`scratch/tomba2/evidence/0044_boot_walk_sheet_small.jpg`, `0044_boot_walk_autoskip.txt`).

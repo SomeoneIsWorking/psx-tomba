@@ -9,7 +9,7 @@ features: [F-LOAD]
 
 USER live 2026-07-15: picking up a bucket initiates a cutscene that SOFTLOCKS under the default config (pc_skip=true). Likely a collapsed-init/wait fork in the cutscene trigger where the pc_skip shortcut branch fails to advance (a wait that never completes, or a phase-gate counter not bumped — cf. the pc_skip frame-counter-bump rule). Repro: replay the bucket-pickup pad capture default config, watch for the cutscene hang after bucket pickup; compare pc_skip=false (SBS Core A / MODE=skip) which should progress. Blocks gameplay progress.
 
-## 2026-11-03: not reproduced on HEAD
+## 2026-11-03: repro not runnable (retired recording format), still open
 
 The recorded repro is the retired raw pad format: the player refuses it (`[padrec:error] replay REFUSED: ...: not a
 phase-keyed pad recording`), so it reaches nothing on HEAD. Replaying its button runs frame by frame from autoskip's
