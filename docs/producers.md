@@ -55,6 +55,7 @@ Tomba's frame cuts stay `tomba::FrameCut`.
 | 0x8002847C `PackedMesh::emitScreen` | the call: under an open scope its object, otherwise its call site (`CallSiteObjects::object(returnAddress, list)`) | the GT4 quads it linked (`quad_state.h`) | the packets' screen vertices move by t |
 | 0x80129114, 0x8012D9E8, 0x8013E08C `GuestKeyedEmitters` A01/A00 leaves; 0x80106690 `::demoEdgeSprites`, 0x801311FC `::a01Effect` | the node in a0 for a leaf, one screen for a body that takes no object (`quad_state.h`, `runGuestEmitter`) | the packets the guest body linked (`quad_state.h`) | the packets' screen vertices move by t |
 | 0x80026864 `LetterboxBars::tick` | one call, by its slot | the two bars' height and the OT slot (`Saved`) | the bar height moves by t and both rects are re-emitted |
+| 0x80114178 (A0E) `GradientBackdrop::emit` | one call a frame | the camera-pitch row the bands hang from, their columns and the OT slot (`Saved`) | the pitch row moves by t and the four G4 bands are re-emitted across the later frame's columns |
 | 0x8004FD30 `HudGaugeEmitter::emitFrame` | the frame's gauge: one call, the n-th from the site (`CallSiteObjects::object(returnAddress, 0)`) | the packets it linked (`quad_state.h`, `saveKeyedQuads`: the body puts the pool cursor back, so the key, not an address span, names them) | the packets' screen vertices move by t; its glyph rows come from the still-guest FUN_8004EB94 |
 
 Not state producers: `SopGround::draw` 0x80109FE0, `Render::cmdListDispatch` 0x8003CDD8, `Render::subPartWalk`

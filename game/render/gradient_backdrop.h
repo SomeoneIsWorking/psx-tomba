@@ -1,6 +1,8 @@
 // game/render/gradient_backdrop.h — A0E's boss arena sky FUN_80114178: four gouraud bands behind the scene.
 #pragma once
 
+#include "state_producer.h"
+
 struct Core;
 
 namespace tomba::native {
@@ -15,6 +17,8 @@ public:
   static void emit(Core *c);
 
   static void registerOverrides(native::NativeOverrideCatalog &natives);
+  // One call is one object; the render moves the bands with the camera pitch.
+  static void registerStateRenders(psx::present::StateProducerTable &renders);
 };
 
 } // namespace tomba::render
