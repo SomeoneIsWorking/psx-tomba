@@ -105,6 +105,7 @@ DebugMenu::DebugMenu() {
       .places = &warpAreas,
       .refusal = fieldRefusal,
   });
+  section("Player");
   readout("Position", [](Core &core) {
     return lucent::format("({}, {}, {})  stage {}",
                           core.mem_r16s(0x1F8000D2u),

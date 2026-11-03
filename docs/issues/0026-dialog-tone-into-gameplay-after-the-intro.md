@@ -23,7 +23,7 @@ hold back the looping XA area music. So a dialog song that is never stopped also
 
 ## Fixed: cold warp out of a dialog
 
-To reproduce: `newgame`, `run 1300` (the fisherman dialog, song 4 current), `warp 1`.
+To reproduce: `newgame`, `run 1300` (the fisherman dialog, song 4 current), `warp 1/0`.
 
 Before the fix, the song index stayed 4 for the whole run. Area 1's looping XA request
 (`voice_play chan=1 loop=1`) was held back, so the dialog song played on in the new area.
@@ -32,7 +32,7 @@ Cause: the old synchronous cold warp (`applyColdWarp`) entered the destination w
 that every guest area transition runs.
 
 Fix: the warp now raises the game's own transition (issue 0034), whose `FieldTransition::main` runs
-`FUN_80074E48`. After the warp (song 4 started with `FUN_80074BF8`, `warp 1`) the index is -1 and the area music starts (`coord song=65535 xa_active=1 loop=1`).
+`FUN_80074E48`. After the warp (song 4 started with `FUN_80074BF8`, `warp 1/0`) the index is -1 and the area music starts (`coord song=65535 xa_active=1 loop=1`).
 
 ## Not reproduced: newgame intro dialog → gameplay
 

@@ -4,7 +4,7 @@ Features: F-DEBUG.
 
 Status: open.
 
-`warp 4` and `warp 5` from the field (after `@padgame` to the GAME stage) run the game's transition, load the
+`warp 4/0` and `warp 5/0` from the field (after `@padgame` to the GAME stage) run the game's transition, load the
 area, and then abort with `dispatchObj required a completed guest call, but execution exited as budget-exhausted`:
 area 4 at `0x80117CA4`, area 5 at `0x8013500C`, each after about 564k cycles. Area 4 is a `DrawSync(0)` spin in a
 handler that waits for a draw the product never completes inside one turn.

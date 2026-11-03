@@ -7,26 +7,26 @@ cards (deliberately stepped) and one `AnchorQuads` object.
 
 ## Observed
 Real-speed walk from boot, 8x on a 3840x2160 sink, fps60 (`scratch/judder-check/walk-b3`, load 1.6 to 1.0):
-`warp 1` moving and turning, 252 and 254 presents, 0 composed in-betweens; `warp 8` 3 and 30 composed of 126
+`warp 1/0` moving and turning, 252 and 254 presents, 0 composed in-betweens; `warp 8/0` 3 and 30 composed of 126
 and 127. The simulated 60.00 Hz display shows no repeats or drops, so every in-between repeats its real
 present: gameplay moves at 30 Hz. The same counts come from a HEAD build without this pass's changes.
 
 ## Cause
 The composer keeps a record whole when any primitive in it is unkeyed (psxport `frame_composer.cpp:index`).
-`PSXPORT_PRODUCERS=1`, stepped `warp 1` turning: 22150 unkeyed primitives, 20839 of them under
+`PSXPORT_PRODUCERS=1`, stepped `warp 1/0` turning: 22150 unkeyed primitives, 20839 of them under
 `game/render/perobj_billboard.cpp:Render::perObjRenderDispatch`. Its effect leaves (`effect_mod.cpp`:
 `effectColorAdd`, `effectClutSwap`, `effectSemiOn`/`Off`, `effectFlatTint`) rewrite the command word of every
 packet `cmdListDispatch` just keyed, outside any emission scope, which unbinds the key; and a state render that
 re-runs the emitters would not apply the effect either.
 
 The rest of the queue (unkeyed primitives in the same runs), all writers with no producer:
-`warp 1`: 0x800286CC 701 (from 0x8003C048), 0x80122974 252, 0x8013E9D8 180 (rope anchor), 0x80027A4C 90 (from
-0x80027E5C), 0x80026864 82 (`LetterboxBars::tick`); `warp 8`: 0x80117628 8720, 0x80117E84 2128, 0x8002DBE4 612,
+`warp 1/0`: 0x800286CC 701 (from 0x8003C048), 0x80122974 252, 0x8013E9D8 180 (rope anchor), 0x80027A4C 90 (from
+0x80027E5C), 0x80026864 82 (`LetterboxBars::tick`); `warp 8/0`: 0x80117628 8720, 0x80117E84 2128, 0x8002DBE4 612,
 0x80027A4C 460.
 
 ## The title and the attract demo (2026-10-23)
 `scratch/interp-regression/judge6` measured boot 466 whole, title 107 whole, attract mostly whole
-(`attract1`: 3177 whole of 3471), while intro, field, `warp 1` and `warp 8` composed every in-between.
+(`attract1`: 3177 whole of 3471), while intro, field, `warp 1/0` and `warp 8/0` composed every in-between.
 `PSXPORT_PRODUCERS=1` in the attract (`attract2`) named the writers: `0x8013CDD4` (A00) 10073,
 `0x80129114` (A01) 6129, `0x80132358` (A01 scenery walker) 2879, `0x8013E08C` (A00) 1064,
 `0x8002847C` (`PackedMesh::emitScreen`) 900, `0x8012D9E8` (A01) 234, span-miss 1800.
@@ -41,7 +41,7 @@ why that address read as unreferenced; it and the other non-MODE overlays now ca
 
 Result: `attract12` composes 1919 of 2556 in-between records (was 625 of 2556), and `judge7` (real speed,
 8x, 3840x2160) shows title 108 of 108 composed (was 1 of 108), boot 162 of 467 (was 0 of 467), and intro,
-field, `warp 1`, `warp 8` unchanged and fully composed. The census is down to `unkeyed attributed 0`.
+field, `warp 1/0`, `warp 8/0` unchanged and fully composed. The census is down to `unkeyed attributed 0`.
 
 Two families were still whole in the attract: 116 records `object 0x8003C8F4/0x000EDD18 has no render or state` (a
 `billboardEmit` object the state did not pair with) and about 200 records whose packet sat at the packet
@@ -64,7 +64,7 @@ The four are all `object 0x8013E9D8/...` (`AnchorQuads`' rope) and are NOT yet r
 reached from one site (guest 0x8003C2AC) with one object per node and once per frame per node, and each call
 links into a non-empty pool span; the census still counts 24 primitives with no state over a 60 s attract run.
 Making the object the call (site, n-th, node — as `billboardEmit` now does) changed the object but not the
-count, so the cause is not two calls of one node; finding it is the next RE step. `warp 1`, `warp 8`, the
+count, so the cause is not two calls of one node; finding it is the next RE step. `warp 1/0`, `warp 8/0`, the
 village and the intro have no such primitive and are fully composed.
 
 The boot's 305 uncomposed in-betweens are the SCEA card, the logo and the capped movie in `frame/boot_cards.cpp`,
@@ -77,7 +77,7 @@ with several serials — ambiguous, hence no state. A body that calls produced e
 `ObjectDrawScope` (one object, its emitter calls as numbered parts), never a bare scope.
 
 Two earlier broad keyings were tried and REVERTED for the same reason: wrapping `Render::frame`/`frameX` in
-one scope regressed `warp 1`/`warp 8` from fully composed to whole, and keying `HudGaugeEmitter::emitFrame`
+one scope regressed `warp 1/0`/`warp 8/0` from fully composed to whole, and keying `HudGaugeEmitter::emitFrame`
 to the gauge table left 5044 of 5512 keyed primitives with no state. The owner must be the emitter, and its
 state must be the packets it links, not a whole-frame catch-all.
 
@@ -95,7 +95,7 @@ guest render fns, not worth porting, so they are keyed to their node and their s
 bars' height and re-emits them, keyed by its slot.
 
 Result (`scratch/interp-regression/judge4`, real speed, 8x, 3840x2160; and `field6`/`cut1`): the village composes
-every in-between except the boot cards, the intro 238 of 238, and `warp 1`/`warp 8` all of them; `warp 8` turning
+every in-between except the boot cards, the intro 238 of 238, and `warp 1/0`/`warp 8/0` all of them; `warp 8/0` turning
 moves ~8 px per present with each in-between halfway between its neighbours. The census is down to
 `unkeyed attributed 0`, `span-miss 124`. The one remaining blocker is a textured sprite per frame (tpage 768,256,
 CLUT 0x7FE8) whose writer the pool-address tools cannot pin down (the packet pool is reused every frame, so a
@@ -116,7 +116,7 @@ calls as numbered parts), `FxSpriteAnchored` (0x80027CB4 and the three siblings)
 `Lanes16` and `Camera` blends so a moved list or the scene camera moves by t.
 
 Judged 2026-10-23 (`scratch/interp-regression/judge3`, real speed, 8x, 3840x2160, moving and turning in areas 1
-and 8): area 1 and area 8 gameplay compose every in-between (`whole-in-between=0`); `warp 8` turning, the only
+and 8): area 1 and area 8 gameplay compose every in-between (`whole-in-between=0`); `warp 8/0` turning, the only
 screen with clear camera motion, moves every present a sub-pixel step of ~8 px with each in-between landing
 halfway between its neighbours; the new-game intro still composes its in-betweens.
 

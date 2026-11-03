@@ -5,7 +5,7 @@ Features: F-FPS60.
 Status: open.
 
 ## Observed
-Real-window play check, `warp 1`, fps60 on (2026-10-16): `records: backwards=1` at record present 126, the
+Real-window play check, `warp 1/0`, fps60 on (2026-10-16): `records: backwards=1` at record present 126, the
 area-load end (f686). Shown records 124, 123, 124: records 125 and 126 draw nothing and write nothing but the
 2x1 self-copy fence, while the display flips each pass.
 

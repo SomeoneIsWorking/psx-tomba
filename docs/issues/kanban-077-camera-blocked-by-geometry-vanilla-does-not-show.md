@@ -17,14 +17,14 @@ BLOCKED ON TWO INSTRUMENT DEFECTS, both measured 2026-08-06 (see the two sibling
 
 ## 2026-11-03: a candidate spot
 
-`warp 0 5` (area 0, entry 5) puts the camera behind the tower with the A00 windmill lattice sweeping across the
+`warp 0/5` (area 0, entry 5) puts the camera behind the tower with the A00 windmill lattice sweeping across the
 left of the picture; camera `0x1F8000D2/D6/DA` = (22291, -3180, 7134)
 (`scratch/tomba2/evidence/kanban077_area0_entry5.png`). Its large polygons are written by `0x801401B8` and A00's
 plain GT4 `0x801467BC`; none exceeds the GPU's 1023x511 primitive limit, so the console would draw them too. Whether
 retail shows this view needs the full-console reference driven to the same warp; the console host has no RAM write
 command yet, so the warp cannot be applied there.
 
-Decided 2026-11-03: at `warp 0 5` the lattice is the game's own draw, not a port defect. A 4:3 run
+Decided 2026-11-03: at `warp 0/5` the lattice is the game's own draw, not a port defect. A 4:3 run
 (`aspect=0`, unpaced) with `PSXPORT_OVERRIDE_DIFF=0x801401B8,0x801467BC,0x801465EC` sampled 41 / 959 / 959 calls
 across free roam and the warp. The leaves' mismatch onsets differ only in `v1`, a void body's scratch result, never in
 a RAM or scratchpad byte. `OverlayGroundGt3Gt4::entityLoop` also left different GTE CR0-7: it loaded the camera block

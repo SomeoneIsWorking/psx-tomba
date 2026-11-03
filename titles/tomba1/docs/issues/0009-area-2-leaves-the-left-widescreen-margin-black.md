@@ -5,7 +5,7 @@ Status: open (S005).
 ## Reproduction
 
 `tomba2_port scratch/bin/tomba1/SCUS_942.36`, hidden, unpaced, ires 0, sink 1920x1080, aspect 16:9: Start at the
-title until the first field, then `warp 1`, `warp 2`, a `shot` 25 s after each.
+title until the first field, then `warp area 1/section 0`, `warp area 2/section 0`, a `shot` 25 s after each.
 
 ## Observed vs expected
 

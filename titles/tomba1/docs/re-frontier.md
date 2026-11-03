@@ -67,7 +67,7 @@ executable-grounded startup and CD facts while introducing the shared Lightrec p
 - deps: T1-06
 - evidence: Ghidra on `SCUS_942.36` (names from psx_tomba's symbol map, addresses cross-checked): `gameplayStateDispatcher` `0x8001AC00` switches on the gameplay task record (`*0x1F8001D4`) `+0x4C`, the area machine: 0 area select/load `0x8001B0A4`, 1 field `0x8001B2B4` (state 1 ticks), 2..6 area modes, 7 `areaTransitionHandler` `0x8001CFCC`, 8 game over; a pending pair `0x1F8001DC`/`0x1F8001DE` is applied when `0x1F8001CE` is set. The door at `0x8002CFFC` writes the destination u16s `0x8009C0FC` area, `0x8009C0FE` section, `0x8009C108` entry, calls `stopBgm` `0x80020C00`(1) when the area changes, then sets machine 7 state 0 (`0x8002D498`). State 3 of `0x8001CFCC` copies the destination to the current area `0x8009BCC8`/`0x8009BCCA` and loads it. The debug area select `0x8001AD58` bounds the area by `0x8007B290` and the section by the u16 table `0x8007B294`.
 - where: `game/core/debug/dev_warp.cpp`
-- gap: Entry numbers per area are not catalogued; the warp accepts 0..255.
+- gap: Entry numbers per area are not catalogued, so every warp arrival lands on entry 0 of its section (issue 0010).
 
 ### T1-08 — Remove the Tomba! 1 guest-source path
 - status: re-verified
