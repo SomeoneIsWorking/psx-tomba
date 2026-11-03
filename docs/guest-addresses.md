@@ -580,6 +580,7 @@ calls it. A row whose handler is file-local names the file that declares the ove
 | 0x80113C5C | LIVE | `Behaviors::areaSeasidePerframe` | game/ai/area_seaside_perframe.cpp | 0x8002288C |  |
 | 0x80113EB4 | LIVE | `UnlitModelEmitter::gt3` (A0C) | game/render/unlit_model_emitter.cpp |  | Flagged unlit GT3 (kFlagged). |
 | 0x80114158 | LIVE | `UnlitModelEmitter::gt4` (A0C) | game/render/unlit_model_emitter.cpp |  | Flagged unlit GT4 (kFlagged). |
+| 0x80114178 | LIVE | `GradientBackdrop::emit` (A0E) | game/render/gradient_backdrop.cpp |  | Boss arena sky: four G4 bands across the draw window at bucket 0x7FF. |
 | 0x801141B0 | LIVE | `TileGridLayer::emitUnbiased` (A0B) | game/render/tile_grid_layer.cpp |  | Tile grid with no V bias; producer, object = map cell. |
 | 0x801142EC | LIVE | `TileGridLayer::emitUnbiased` (A0A) | game/render/tile_grid_layer.cpp |  | Tile grid with no V bias; producer, object = map cell. |
 | 0x80114458 | LIVE | `UnlitModelEmitter::gt3` (A0E) | game/render/unlit_model_emitter.cpp |  | Flagged unlit GT3 (kFlagged). |
