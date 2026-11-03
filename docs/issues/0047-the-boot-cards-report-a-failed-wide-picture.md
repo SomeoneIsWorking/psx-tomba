@@ -2,7 +2,9 @@
 
 Features: F-WIDE.
 
-Status: cards fixed (2026-11-03); the one handover frame is open. Owner: `game/core/entry/runtime.h` (`AspectPolicy`).
+Status: cards fixed (2026-11-03); the handover frames are open, cause traced to psxport (2026-11-03). Owners:
+`game/core/entry/runtime.h` (`AspectPolicy`); for the handover, psxport `runtime/psx/render/render_present.cpp`
+(`RenderState::buildDisplay`) and `runtime/psx/present/display_presenter.cpp` (`DisplayPresenter::buildDisplay`).
 
 ## Reproduction
 
@@ -32,9 +34,20 @@ Same run: the cards announce `aspect=0 native_width=256 render_width=256` with n
 across 16:9 (`scratch/tomba2/evidence/boot_walk_free_roam_small.png`, frame 1034). Announcements:
 `boot_wide_announcements.txt`.
 
-## Open
+## Open: the handover frames 562 and 563
 
-The game's first frame after the cards (frame 562, where autoskip arms) still announces `aspect=1 native_width=256
-render_width=256` with the warning: the display area is the GPU's 256-wide reset until the guest's front end sets 320
-at frame 563 (`render_width=342`, then `428` from the opening movie at 564). Not traced: what that one frame shows, and
-why the front end's first 320-wide frame renders 342 rather than 428.
+The game's first frame after the cards (562) announces `aspect=1 native_width=256 render_width=256` with the
+warning, and 563, the front end's first 320-wide frame, `render_width=342`; 428 follows from 564.
+
+Cause: the width is taken from the previous present's projection plan. `DisplayPresenter::buildDisplay` announces
+(`picture::announceOnChange`) and `RenderState::buildDisplay` sizes `lastDisplay_` from
+`present::widePresentation`/`widePresentationWidth`, both reading `guestDisplay.plan()`, before
+`RenderState::presentRecord` latches this present's plan (`present::latchRecordDisplay`, `record_present.cpp`). At 562
+the plan is still the cards' 4:3 one, so a 16:9 request reads as unwidened; at 563 it is the 256-wide reset display's,
+widened (256 x 4/3 = 342) where the 320 display needs 428. The record picture itself is laid out from the plan
+latched in `presentRecord`, so only the announcement and `lastDisplay_` lag.
+
+Fix (psxport, not applied from the Tomba lane; psxport `present`/`record` files belong to another lane in this pass):
+latch the plan for the presented display before announcing and sizing, one latch per present, in the display
+presenter, and have `presentRecord` use that plan instead of latching again. It lands with the psxport all-title
+rebuild.
