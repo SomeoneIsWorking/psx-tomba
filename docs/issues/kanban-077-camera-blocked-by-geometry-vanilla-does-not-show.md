@@ -23,3 +23,11 @@ left of the picture; camera `0x1F8000D2/D6/DA` = (22291, -3180, 7134)
 plain GT4 `0x801467BC`; none exceeds the GPU's 1023x511 primitive limit, so the console would draw them too. Whether
 retail shows this view needs the full-console reference driven to the same warp; the console host has no RAM write
 command yet, so the warp cannot be applied there.
+
+Decided 2026-11-03: at `warp 0 5` the lattice is the game's own draw, not a port defect. A 4:3 run
+(`aspect=0`, unpaced) with `PSXPORT_OVERRIDE_DIFF=0x801401B8,0x801467BC,0x801465EC` sampled 41 / 959 / 959 calls
+across free roam and the warp; every mismatch onset differs only in `v1` (a void body's scratch result) or, for
+`entityLoop`, the GTE rotation left behind, never in a RAM or scratchpad byte, so the packets are the original
+code's (`scratch/tomba2b/evidence/kanban077_entry5_override_diff.txt`). Entry 5 is a real area 0 entry, so a player
+arriving there sees the same view. The user's two spots stay open: their area is still unknown, and calls after a
+mismatch onset are counted but not itemised by the differential.
