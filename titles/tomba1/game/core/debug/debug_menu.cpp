@@ -4,30 +4,39 @@
 #include "core.h"
 #include "dev_warp.h"
 
+#include <lucent/log.h>
+
+#include <vector>
+
 namespace tomba1 {
 
 DebugMenu::DebugMenu() {
-  using psx::game::DebugCall;
-  using psx::game::DebugParam;
-  section("Area Warp");
-  verb({
-      .name = "warp",
-      .summary = "Warp there through the door transition",
-      .params = {DebugParam::named("area",
-                                   {
-                                       [](Core &core) {
-                                         return DevWarp::areaCount(core);
-                                       },
-                                       [](Core &, int) {
-                                         return std::string();
-                                       },
-                                   }),
-                 DebugParam::integer("section", 0, 0xFF).orAbsent(),
-                 DebugParam::integer("entry", 0, DevWarp::kMaxEntry).orAbsent()},
-      .run =
-          [](const DebugCall &call) {
-            call.reply =
-                context(call.core).warp.arm(call.core, call.values.u32(0), call.values.u32(1), call.values.u32(2));
+  warp({
+      .levels = {"area", "section"},
+      .places =
+          [](Core &core) {
+            std::vector<psx::game::WarpPlace> areas;
+            if (!DevWarp::fieldRunning(core)) {
+              return areas;
+            }
+            for (int area = 0; area < DevWarp::areaCount(core); ++area) {
+              psx::game::WarpPlace place{.name = lucent::format("area {}", area)};
+              const std::uint32_t sections =
+                  core.mem_r16(DevWarp::kSectionCounts + static_cast<std::uint32_t>(area) * 2u);
+              for (std::uint32_t section = 0; section < sections; ++section) {
+                place.places.push_back({
+                    .name = lucent::format("section {}", section),
+                    .arrive =
+                        [area, section](Core &target) {
+                          return context(target).warp.arm(target, static_cast<std::uint32_t>(area), section, 0u);
+                        },
+                });
+              }
+              if (!place.places.empty()) {
+                areas.push_back(std::move(place));
+              }
+            }
+            return areas;
           },
       .refusal =
           [](Core &core) {

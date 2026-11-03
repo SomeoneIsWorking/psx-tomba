@@ -2,6 +2,7 @@
 
 #include "core.h"
 #include "debug/dev_gate.h"
+#include "debug/dev_warp.h"
 #include "debug/diagnostics.h"
 #include "engine/engine.h"
 #include "entry/session.h"
@@ -9,12 +10,15 @@
 #include "frame/frame_driver.h"
 #include "game.h"
 #include "sched/task_slot_layout.h"
+#include "world/area_entries.h"
 
 #include <lucent/log.h>
 
 #include <array>
 #include <cctype>
+#include <string>
 #include <string_view>
+#include <vector>
 
 namespace tomba {
 namespace {
@@ -25,6 +29,9 @@ using psx::game::DebugParam;
 
 constexpr std::array<std::string_view, 2> kFlagOps{"get", "set"};
 constexpr std::int64_t kCameraLimit = 32767;
+// An entry record's u16 flags after its s16 x, y, z; the room id is the top nibble.
+constexpr std::uint32_t kEntryFlags = 6u;
+constexpr unsigned kRoomShift = 12u;
 
 DevControl &devControl(Core &core) {
   return core.game->frameDriverAs<FrameDriver>().devControl();
@@ -39,6 +46,40 @@ std::string gameStageRefusal(Core &core) {
   return DevGate::inGameStage(core) ? std::string() : "enter the GAME field before changing inventory";
 }
 
+std::string areaName(std::uint32_t area) {
+  const std::string_view sourced = DevWarp::kAreaNames[area];
+  return sourced.empty() ? lucent::format("area {}", area) : std::string(sourced);
+}
+
+// MAIN's areas by their sourced names, each with its entry records; empty before the GAME stage maps MAIN.
+std::vector<psx::game::WarpPlace> warpAreas(Core &core) {
+  std::vector<psx::game::WarpPlace> areas;
+  if (!DevGate::inGameStage(core)) {
+    return areas;
+  }
+  for (std::uint32_t area = 0; area < AreaEntries::kAreaCount; ++area) {
+    const std::uint32_t entries = AreaEntries::count(core, area);
+    if (entries == 0u) {
+      continue;
+    }
+    psx::game::WarpPlace place{.name = areaName(area)};
+    for (std::uint32_t entry = 0; entry < entries; ++entry) {
+      const std::uint16_t flags = core.mem_r16(AreaEntries::record(core, area, entry) + kEntryFlags);
+      place.places.push_back({
+          .name = (flags & AreaEntries::kRoomEntry) != 0
+                      ? lucent::format("entry {} (room {})", entry, flags >> kRoomShift)
+                      : lucent::format("entry {}", entry),
+          .arrive =
+              [area, entry](Core &target) {
+                return devControl(target).warp().arm(target, area, entry);
+              },
+      });
+    }
+    areas.push_back(std::move(place));
+  }
+  return areas;
+}
+
 } // namespace
 
 DebugMenu::DebugMenu() {
@@ -51,31 +92,25 @@ DebugMenu::DebugMenu() {
                (std::uint64_t{field} << 16) | (field ? std::uint64_t{core.mem_r8(FrameCut::kAreaByte)} : 0u);
       },
       [](Core &core, std::uint64_t key) {
+        const auto area = static_cast<std::uint32_t>(key & 0xFFu);
         if ((key & 0x10000u) != 0) {
-          return lucent::format("warp {}", key & 0xFFu);
+          return area < AreaEntries::kAreaCount ? lucent::format("warp {}/0", areaName(area)) : std::string();
         }
         const bool gameStage = static_cast<std::uint32_t>(key >> 32) == sched::kStageGameEntry;
         return !gameStage && core.game->title != nullptr ? lucent::format("pick {}", core.game->title->slug)
                                                          : std::string();
       });
-  section("Area Warp");
+  warp({
+      .levels = {"area", "entry"},
+      .places = &warpAreas,
+      .refusal = fieldRefusal,
+  });
   readout("Position", [](Core &core) {
     return lucent::format("({}, {}, {})  stage {}",
                           core.mem_r16s(0x1F8000D2u),
                           core.mem_r16s(0x1F8000D6u),
                           core.mem_r16s(0x1F8000DAu),
                           sched::stageName(core.mem_r32(sched::kTaskTableBase + sched::kTaskEntry)));
-  });
-  verb({
-      .name = "warp",
-      .summary = "Warp there through the door transition",
-      .params = {DebugParam::named("area", DebugNames::of(DevWarp::kAreaNames)),
-                 DebugParam::integer("entry", 0, DevWarp::kMaxEntry).orAbsent()},
-      .run =
-          [](const DebugCall &call) {
-            call.reply = devControl(call.core).warp().arm(call.core, call.values.u32(0), call.values.u32(1));
-          },
-      .refusal = fieldRefusal,
   });
 
   section("Items and Event Flags");

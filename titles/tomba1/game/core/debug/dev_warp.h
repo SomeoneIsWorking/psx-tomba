@@ -7,7 +7,7 @@ class Core;
 
 namespace tomba1 {
 
-// The debug menu's `warp <area> [section] [entry]` request. Armed between frames and applied at the next frame
+// The warp catalogue's area-section arrival. Armed between frames and applied at the next frame
 // boundary the way a door does it (0x8002CFFC): the destination words, stopBgm(1) when the area changes, then the
 // area machine to the transition handler 0x8001CFCC, which fades, loads and enters the destination.
 class DevWarp {
@@ -28,7 +28,6 @@ public:
   // The debug area select's bounds (0x8001AD58): the last area, and each area's section count.
   inline static constexpr std::uint32_t kLastArea = 0x8007B290u;
   inline static constexpr std::uint32_t kSectionCounts = 0x8007B294u;
-  inline static constexpr std::uint32_t kMaxEntry = 0xFFu;
   inline static constexpr std::uint32_t kStopBgm = 0x80020C00u;
 
   static bool fieldRunning(Core &core);

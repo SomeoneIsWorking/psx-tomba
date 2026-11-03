@@ -108,5 +108,5 @@ T1 runs at 60 fps natively; it joins no F-FPS60 hop.
 | 3 | T2 | psxport F-DEBUG.2 | `game/core/debug/dev_warp.h:DevWarp::kAreaNames` — the Debug tab's area names |
 | 4 | T2 | psxport F-DEBUG.3 | `game/core/debug/debug_menu.cpp:tomba::DebugMenu` — the Position readout and the sound test over `tomba::Audio` track names |
 | 5 | T2 | title | `game/core/debug/auto_drive.cpp:AutoDrive` — `PSXPORT_AUTO_SKIP` into GAME free-roam |
-| 6 | T1 | psxport F-DEBUG.1 | `titles/tomba1/game/core/debug/debug_menu.cpp:tomba1::DebugMenu` — `warp <area> [section] [entry]` |
+| 6 | T1 | psxport F-DEBUG.1 | `titles/tomba1/game/core/debug/debug_menu.cpp:tomba1::DebugMenu` — `warp <area>/<section>` (entry 0), sections from the debug area select's table |
 | 7 | T1 | psxport F-DEBUG.1 | `titles/tomba1/game/core/debug/dev_warp.cpp:tomba1::DevWarp::applyArmed` — applied by `FrameDriver::stepFrame` before the tasks run |
