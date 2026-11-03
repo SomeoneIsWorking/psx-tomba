@@ -3,7 +3,10 @@
 
 #include "core.h"
 
+#include <lucent/log.h>
+
 #include <cstdint>
+#include <cstdlib>
 
 namespace tomba {
 
@@ -24,10 +27,15 @@ public:
     return core.mem_r32(kTables + area * 4u) + entry * kRecordBytes;
   }
 
-  // How many entries `area` has.
+  // How many entries `area` has; a table out of area order is a corrupt image and fatal.
   static std::uint32_t count(Core &core, std::uint32_t area) {
+    const std::uint32_t begin = core.mem_r32(kTables + area * 4u);
     const std::uint32_t end = area + 1u < kAreaCount ? core.mem_r32(kTables + (area + 1u) * 4u) : kTables;
-    return (end - core.mem_r32(kTables + area * 4u)) / kRecordBytes;
+    if (end < begin || (end - begin) % kRecordBytes != 0u) {
+      lucent::error("warp", "area {} entry records [{:08X},{:08X}) are not in area order", area, begin, end);
+      std::abort();
+    }
+    return (end - begin) / kRecordBytes;
   }
 };
 

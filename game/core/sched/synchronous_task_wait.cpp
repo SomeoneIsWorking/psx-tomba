@@ -129,12 +129,13 @@ void Scheduler::spawnAndWait(const SpawnAndWaitArgs &args) {
   core.r[31] = kSyncWaitFinishRa;
   completeSyncWait(core.mem_r32(kCurrentTaskPointer), core.r[19]);
 
-  if (core.mem_r8(kSyncWaitDoneFlag) == 0) {
+  // Flag 1 leaves the task running, as the guest does; every other flag waits for its done flag.
+  if (flag != kSyncWaitNoWait && core.mem_r8(kSyncWaitDoneFlag) == 0) {
     runSyncSlot(1);
-  }
-  if (core.mem_r8(kSyncWaitDoneFlag) == 0) {
-    lucent::error("sched", "FATAL: synchronous task 0x{:08X} ended without raising the done flag", fn);
-    std::abort();
+    if (core.mem_r8(kSyncWaitDoneFlag) == 0) {
+      lucent::error("sched", "FATAL: synchronous task 0x{:08X} ended without raising the done flag", fn);
+      std::abort();
+    }
   }
 
   core.r[31] = core.mem_r32(core.r[29] + 32);

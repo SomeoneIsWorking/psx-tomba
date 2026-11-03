@@ -140,6 +140,7 @@ calls it. A row whose handler is file-local names the file that declares the ove
 | 0x80044BD4 | LIVE | `Demo::s0PreYield` | game/scene/demo.cpp |  |  |
 | 0x80044BD4 | LIVE | `FieldTransition::areaLoadBd4` | game/scene/field_transition.cpp |  | Native replacement for FUN_80044bd4(0x800452c0, area, mode, 1): seed t… |
 | 0x80044BD4 | LIVE | `StartBinStage::advanceWithBootPreload` | game/scene/start_bin_stage.cpp |  | native_sync only — the pc_faithful body splits these writes across the… |
+| 0x80044BD4 | LIVE | `Scheduler::spawnAndWait` | game/core/sched/synchronous_task_wait.cpp |  | Guest calls: spawns slot 1 and, unless the flag is 1, runs it until the done flag 0x1F80019B rises. |
 | 0x80044D8C | LIVE | `Asset::lzDecompress` | game/core/assets/asset.cpp |  |  |
 | 0x80044E84 | LIVE | `Asset::unpackGroup` | game/core/assets/asset.cpp | 0x80080F6C | PC-owned texture-group unpacker — replaces guest FUN_80044E84 (0x80044… |
 | 0x80044E84 | LIVE | `Asset::unpackGroupFaithful` | game/core/assets/asset.cpp | 0x80080F6C 0x80081218 | FAITHFUL texture-group unpacker — FUN_80044E84 with full guest-stack d… |
@@ -376,6 +377,7 @@ calls it. A row whose handler is file-local names the file that declares the ove
 | 0x8007B2C0 | LIVE | `Engine::seedDirectionMasks` | game/scene/startup.cpp |  | direction-mask seeder. Called with 0 at boot (initEntityPool above) an… |
 | 0x8007B328 | LIVE | `Engine::initEntityPool` | game/scene/startup.cpp |  | engine SUBSYSTEM init (init-prefix slot, dispatched at native_boot.cpp… |
 | 0x8007B3F4 | LIVE | `Engine::reloadEntityPool` | game/scene/startup.cpp |  | re-copy the staged per-area entity-pool control bytes onto the live he… |
+| 0x8007CDD4 | LIVE | `DialogGlyphs::prompt` | game/ui/dialog_glyphs.cpp |  | The blinking button prompt in a dialog box's corner (FUN_8007D594 case 3); producer, object = box. |
 | 0x8007D0D0 | LIVE | `DialogTextStream::applyRenderMode` | game/ui/dialog_text_stream.cpp |  | (obj a0) -- LEAF (guest 0x8007D0D0 has no `sp` descent). Cross-checked… |
 | 0x8007DC38 | LIVE | `beh_variant_overlay_lifecycle` | game/ai/beh_variant_overlay_lifecycle.cpp | 0x8007C0D0 | NOT port_check-able as it stands: this is a hand-written REBUILD, not … |
 | 0x8007E038 | LIVE | `Spawn::spawnOverlayVariantBody` | game/world/spawn.cpp |  | VARIANT-OVERLAY SPAWN primitive. RE'd from disas 0x8007E038..0x8007E10… |
@@ -563,6 +565,8 @@ calls it. A row whose handler is file-local names the file that declares the ove
 | 0x8010EA80 | LIVE | `ActorBump::respondToContact` | game/ai/actor_bump.cpp |  | ORACLE: overlay guest 0x8010EA80 |
 | 0x801103F4 | LIVE | `UnlitModelEmitter::gt3` (A0A) | game/render/unlit_model_emitter.cpp |  | Flagged unlit GT3 (kFlagged). |
 | 0x80110698 | LIVE | `UnlitModelEmitter::gt4` (A0A) | game/render/unlit_model_emitter.cpp |  | Flagged unlit GT4 (kFlagged). |
+| 0x80110CA4 | LIVE | `BackdropPlane::draw` (A0E) | game/render/backdrop_plane.cpp |  | Boss arena waterfall: 10x7 GT4 plane mirrored about y 0 and a 10-quad additive haze band, then FUN_801104D0. |
+| 0x80111E14 | LIVE | `BackdropSprites::draw` (A0E) | game/render/backdrop_sprites.cpp | 0x80027A4C | Boss arena background sprites: eight seeded anchors stamped by ScaledSprites at bucket 0x7FE; producer. |
 | 0x80112188 | LIVE | `ActorMeleeEngage::doIt` | game/ai/actor_melee_engage.cpp | 0x80022C78 0x80055844 0x80084080 |  |
 | 0x80112188 | LIVE | `ActorMeleeEngage::registerOverrides` | game/ai/actor_melee_engage.cpp |  |  |
 | 0x80112A24 | LIVE | `UnlitModelEmitter::gt3` (A0B) | game/render/unlit_model_emitter.cpp |  | SOP's GT3 body. |
@@ -577,11 +581,10 @@ calls it. A row whose handler is file-local names the file that declares the ove
 | 0x80113788 | LIVE | `UnlitModelEmitter::gt3` (A0C) | game/render/unlit_model_emitter.cpp |  | SOP's GT3 body. |
 | 0x801139EC | LIVE | `UnlitModelEmitter::gt4` (A0D) | game/render/unlit_model_emitter.cpp |  | Flagged unlit GT4 (kFlagged). |
 | 0x80113A54 | LIVE | `UnlitModelEmitter::gt4` (A0C) | game/render/unlit_model_emitter.cpp |  | SOP's GT4 body. |
+| 0x80113AEC / 0x80113DE0 | LIVE | `UnlitModelEmitter` gt3 / gt4 (A0E, `kA0eArena`) | game/render/unlit_model_emitter.cpp |  | Boss arena geometry from walker 0x80114320; hides west records by model x while 0x1F80009C is set. |
 | 0x80113C5C | LIVE | `Behaviors::areaSeasidePerframe` | game/ai/area_seaside_perframe.cpp | 0x8002288C |  |
 | 0x80113EB4 | LIVE | `UnlitModelEmitter::gt3` (A0C) | game/render/unlit_model_emitter.cpp |  | Flagged unlit GT3 (kFlagged). |
 | 0x80114158 | LIVE | `UnlitModelEmitter::gt4` (A0C) | game/render/unlit_model_emitter.cpp |  | Flagged unlit GT4 (kFlagged). |
-| 0x80110CA4 | LIVE | `BackdropPlane::draw` (A0E) | game/render/backdrop_plane.cpp |  | Boss arena waterfall: 10x7 GT4 plane mirrored about y 0 and a 10-quad additive haze band, then FUN_801104D0. |
-| 0x80113AEC / 0x80113DE0 | LIVE | `UnlitModelEmitter` gt3 / gt4 (A0E, `kA0eArena`) | game/render/unlit_model_emitter.cpp |  | Boss arena geometry from walker 0x80114320; hides west records by model x while 0x1F80009C is set. |
 | 0x80114178 | LIVE | `GradientBackdrop::emit` (A0E) | game/render/gradient_backdrop.cpp |  | Boss arena sky: four G4 bands across the draw window at bucket 0x7FF. |
 | 0x801141B0 | LIVE | `TileGridLayer::emitUnbiased` (A0B) | game/render/tile_grid_layer.cpp |  | Tile grid with no V bias; producer, object = map cell. |
 | 0x801142EC | LIVE | `TileGridLayer::emitUnbiased` (A0A) | game/render/tile_grid_layer.cpp |  | Tile grid with no V bias; producer, object = map cell. |
@@ -744,17 +747,17 @@ psxport stock classes and `PlatformHle::bindStock` own these; the guest body nev
 
 | addr | owner |
 |------|-------|
-| 0x80085900 | `StockVSync` (guest VSync is fatal) |
-| 0x8008AC34 | `StockLibcd::command` (CD_cw) |
-| 0x8008A6EC | `StockLibcd::sync` (CdSync) |
+| 0x80080880 | `tomba::sched::Scheduler::yield` (ChangeThread; a native override) |
 | 0x80080F6C | `StockLibgpu` DrawSync |
 | 0x800834A0 | `StockLibgpu` GPU timeout arm |
 | 0x800834D4 | `StockLibgpu` GPU timeout check |
 | 0x800846D0 | `StockLibgte` SetGeomOffset |
 | 0x800846F0 | `StockLibgte` SetGeomScreen |
+| 0x80085900 | `StockVSync` (guest VSync is fatal) |
+| 0x8008A6EC | `StockLibcd::sync` (CdSync) |
 | 0x8008A96C | `cdReady` (CdReady) |
+| 0x8008AC34 | `StockLibcd::command` (CD_cw) |
 | 0x8008B2D8 | `PlatformHle::completeImmediately` (CdInit handshake) |
 | 0x8008B4B8 | `PlatformHle::completeImmediately` (CdDataSync) |
 | 0x8009CAEC | `PlatformHle::completeImmediately` (DecDCTinSync) |
 | 0x8009CB80 | `PlatformHle::completeImmediately` (DecDCToutSync) |
-| 0x80080880 | `tomba::sched::Scheduler::yield` (ChangeThread; a native override) |

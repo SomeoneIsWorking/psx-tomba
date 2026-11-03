@@ -1,4 +1,4 @@
-// game/ui/dialog_glyphs.cpp — DialogGlyphs, guest FUN_8007CC00. See dialog_glyphs.h.
+// game/ui/dialog_glyphs.cpp — DialogGlyphs, guest FUN_8007CC00 and FUN_8007CDD4. See dialog_glyphs.h.
 #include "ui/dialog_glyphs.h"
 
 #include "core.h"
@@ -7,6 +7,8 @@
 #include "render/anchored_packets.h"
 #include "render/guest_ordering_table.h"
 #include "render/libgpu_draw_mode.h"
+
+#include <iterator>
 
 namespace tomba {
 namespace {
@@ -46,6 +48,16 @@ constexpr std::uint32_t kTexturePage = 0x1Fu;
 constexpr std::uint32_t kFrameBytes = 0x20u;
 constexpr GuestFrameSpill kSpills[2] = {{31 /*ra*/, 0x1C}, {16, 0x18}};
 constexpr std::uint32_t kWindowArg = 0x10u; // SetDrawMode's fifth argument, on the stack
+
+// The prompt: a 16x16 sprite 16 pixels in from the rect's right and bottom edges.
+constexpr std::uint32_t kPromptFrameBytes = 0x28u;
+constexpr GuestFrameSpill kPromptSpills[3] = {{31 /*ra*/, 0x20}, {17, 0x1C}, {16, 0x18}};
+constexpr std::uint16_t kPromptClut = 0x7C3F;
+constexpr std::uint16_t kPromptSize = 16;
+constexpr std::uint8_t kPromptV = 0x78;
+// 0x800BFE4C: the button layout; 0 and 1 pick the prompt's column, any other leaves u as the pool holds it.
+constexpr std::uint32_t kButtonLayout = 0x800BFE4Cu;
+constexpr std::uint8_t kLayoutColumns[2] = {0x00, 0x10};
 
 } // namespace
 
@@ -98,12 +110,47 @@ void DialogGlyphs::emit(Core *c) {
   drawn.save(*c);
 }
 
+void DialogGlyphs::prompt(Core *c) {
+  const std::uint32_t rect = c->r[4];
+  ::GuestFrame<kPromptFrameBytes, 3> frame(c, kPromptSpills);
+  const psx::present::EmissionScope::Guard object(c->emission, kPrompt, rect, 0);
+  render::AnchoredPackets drawn(c->mem_r32(rect), kTexturePage);
+
+  const render::PacketPool pool(*c);
+  const std::uint32_t packet = pool.cursor();
+  c->mem_w8(packet + 7u, kSprite);
+  c->mem_w16(packet + 0xEu, kPromptClut);
+  c->mem_w16(packet + 8u, static_cast<std::uint16_t>(c->mem_r16(rect) + c->mem_r16(rect + 4u) - kPromptSize));
+  c->mem_w16(packet + 0xAu, static_cast<std::uint16_t>(c->mem_r16(rect + 2u) + c->mem_r16(rect + 6u) - kPromptSize));
+  const std::uint8_t layout = c->mem_r8(kButtonLayout);
+  if (layout < std::size(kLayoutColumns)) {
+    c->mem_w8(packet + 0xCu, kLayoutColumns[layout]);
+  }
+  c->mem_w8(packet + 0xDu, kPromptV);
+  c->mem_w16(packet + 0x10u, kPromptSize);
+  c->mem_w16(packet + 0x12u, kPromptSize);
+  render::OrderingTable::active(*c).link({.packet = packet, .words = kSpriteWords, .bucket = kBucket});
+  const std::uint32_t command[kSpriteWords] = {
+      c->mem_r32(packet + 4u), c->mem_r32(packet + 8u), c->mem_r32(packet + 0xCu), c->mem_r32(packet + 0x10u)};
+  drawn.add(kBucket, command);
+
+  const std::uint32_t mode = packet + kSpriteBytes;
+  pool.setCursor(mode + kModeBytes);
+  c->mem_w32(c->r[29] + kWindowArg, 0);
+  render::setDrawMode(*c, {.packet = mode, .drawOnDisplay = 0, .dither = 0, .texturePage = kTexturePage, .window = 0});
+  render::OrderingTable::active(*c).link({.packet = mode, .words = kModeWords, .bucket = kBucket});
+  c->r[2] = c->mem_r32(mode);
+  drawn.save(*c);
+}
+
 void DialogGlyphs::registerOverrides(native::NativeOverrideCatalog &natives) {
   natives.declare(kEmit, "DialogGlyphs::emit", &DialogGlyphs::emit);
+  natives.declare(kPrompt, "DialogGlyphs::prompt", &DialogGlyphs::prompt);
 }
 
 void DialogGlyphs::registerStateRenders(psx::present::StateProducerTable &renders) {
   renders.install(kEmit, render::AnchoredPackets::render());
+  renders.install(kPrompt, render::AnchoredPackets::render());
 }
 
 } // namespace tomba

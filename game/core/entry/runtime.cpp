@@ -24,6 +24,7 @@
 #include "render/area_map.h"
 #include "render/billboard_state.h"
 #include "render/backdrop_plane.h"
+#include "render/backdrop_sprites.h"
 #include "render/gradient_backdrop.h"
 #include "render/guest_keyed_emitters.h"
 #include "render/guest_ordering_table.h"
@@ -58,6 +59,7 @@ namespace {
 constexpr std::uint32_t kGameMain = 0x80050B08u;
 constexpr GuestAddressRange kResidentText{0x00010000u, 0x000BE800u};
 constexpr std::uint32_t kChangeThread = 0x80080880u;
+constexpr std::uint32_t kSpawnAndWait = 0x80044BD4u;
 constexpr std::uint32_t kCdReady = 0x8008A96Cu;
 constexpr std::uint32_t kCdDataSync = 0x8008B4B8u;
 constexpr std::uint32_t kCdInitHandshake = 0x8008B2D8u; // waits on a controller-reset IRQ
@@ -77,6 +79,11 @@ constexpr psx::game::HostIdentity kHostIdentity{.userDataName = "tomba2"};
 
 void changeThread(Core *core) {
   sched::taskScheduler(*core).yield(*core);
+}
+
+void spawnAndWait(Core *core) {
+  sched::taskScheduler(*core).spawnAndWait(
+      {.fn = core->r[4], .p2 = core->r[5], .p3 = core->r[6], .flag = core->r[7]});
 }
 
 // CdReady(mode, result): the drive is always idle and its result buffer empty.
@@ -126,6 +133,7 @@ void Runtime::registerOverrides(Game &game) {
   register_engine_overrides(game, natives);
   EngineCd::declareOverrides(natives);
   natives.declare(kChangeThread, "Scheduler::yield", changeThread);
+  natives.declare(kSpawnAndWait, "Scheduler::spawnAndWait", spawnAndWait);
   bindLoadedResident(game.core);
   psx::present::StateProducerTable &renders = sessionOf(&game.core).stateProducers;
   tomba::render::UnlitModelEmitter::registerStateRenders(renders, game.core);
@@ -140,6 +148,7 @@ void Runtime::registerOverrides(Game &game) {
   tomba::render::LetterboxBars::registerStateRenders(renders);
   tomba::render::BackdropPlane::registerStateRenders(renders, game.core);
   tomba::render::GradientBackdrop::registerStateRenders(renders);
+  tomba::render::BackdropSprites::registerStateRenders(renders, game.core);
   UiSprite::registerStateRenders(renders);
   tomba::render::BillboardState::registerStateRenders(renders, game.core);
   tomba::render::PackedMesh::registerStateRenders(renders, game.core);

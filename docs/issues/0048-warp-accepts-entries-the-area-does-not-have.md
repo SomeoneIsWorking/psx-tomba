@@ -2,8 +2,9 @@
 
 Features: F-DEBUG.
 
-Status: bound fixed (2026-11-03); the room entry, area 0 entry 7, is open. Owners: `game/world/area_entries.h`
-(`AreaEntries`), `game/core/debug/dev_warp.cpp` (`DevWarp::arm`).
+Status: fixed (2026-11-03). Owners: `game/world/area_entries.h`
+(`AreaEntries`), `game/core/debug/dev_warp.cpp` (`DevWarp::arm`), `game/core/sched/synchronous_task_wait.cpp`
+(`Scheduler::spawnAndWait`).
 
 ## Reproduction
 
@@ -39,10 +40,24 @@ requesting them after entry 7 had left the field off its running state.
 `warp 0 12` and `warp 0 16` answer `refused: area 0 has entries 0-11`; `warp 0 9` in the same run lands Tomba in the
 field (`scratch/tomba2b/eref/drive.log`).
 
-## Open: entry 7
+`AreaEntries::count` aborts on a table out of area order; `arm` refuses an area with no entries.
+
+## Entry 7
 
 Entry 7's record (20224, -3775, 5220, flags 0x2B32) is the only area 0 record with flag 0x800, a room entry
-(`Pool::setupViewScroll` sets 0x800BF816 and the room id 2 into 0x800BF817). After the warp the field machine moves to
-area machine 3 (`sm[4c=3 4e=1]`), the display stops flipping and no in-between is presented again; Tomba's position
-is the record's (`[cw]` stores in `scratch/tomba2b/e7b/run.log`, `0048_area0_entry7_small.jpg`). Not traced: what
-machine 3 waits for on a room entry that the door into that room supplies and the warp's door request does not.
+(`Pool::setupViewScroll` sets 0x800BF816 and the room id 2 into 0x800BF817).
+
+Cause: on that entry A00's Tomba init FUN_8010AC20 sets 0x1F80019C to 3, puts the area machine in state 3
+(`sm[4c=3 4e=1]`) and calls the guest FUN_80044BD4(FUN_8010C740, 0x1C, 0, 3): spawn the room task in slot 1 and wait
+for its done flag 0x1F80019B. The guest wait yields through FUN_80051F80 inside the native GAME stanza, which cannot
+resume a guest continuation; `Scheduler::runGameStanza` catches the yield and the rest of FUN_8010AC20 (clearing
+0x1F80019C, starting the area through 0x80074F24) never runs. State 3 waits on that flag forever: the OT stays empty
+and the display stops flipping. `Scheduler::spawnAndWait` already held the native body but had no caller.
+
+Fix: `Scheduler::spawnAndWait` is the override at 0x80044BD4. A flag other than 1 runs slot 1 inline
+(`runSyncSlot`) until it ends and aborts if the done flag is still clear.
+
+Shown: `warp 0 7` from free roam lands Tomba inside the tower room, 0x1F80019C 00, 702 polygons, the display
+flipping; `warp 0 8` to `warp 0 11` requested after it in the same run all land
+(`scratch/tomba2c/evidence/0048_area0_entries7to11_seq_small.jpg`, `scratch/tomba2c/e8/out/drive.log`). The runs
+from boot to free roam, `warp 1` and `warp 14` log no FATAL and no caught GAME yield.

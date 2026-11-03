@@ -50,6 +50,9 @@ DevWarp::Phase DevWarp::phase(Core &core) {
 
 std::string DevWarp::arm(Core &core, uint32_t area, uint32_t entry) {
   const uint32_t entries = AreaEntries::count(core, area);
+  if (entries == 0u) {
+    return lucent::format("refused: area {} has no entries", area);
+  }
   if (entry >= entries) {
     return lucent::format("refused: area {} has entries 0-{}", area, entries - 1u);
   }

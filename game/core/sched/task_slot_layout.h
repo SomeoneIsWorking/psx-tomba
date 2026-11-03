@@ -46,6 +46,8 @@ constexpr std::uint32_t taskSlotBase(int slot) {
 
 // FUN_80044BD4's synchronous spawn-and-wait words and call-site return addresses.
 inline constexpr std::uint32_t kSyncWaitDoneFlag = 0x1F80019Bu;
+// The flag that spawns without waiting.
+inline constexpr std::uint32_t kSyncWaitNoWait = 1u;
 inline constexpr std::uint32_t kSyncWaitParam2 = 0x801FE0DEu;
 inline constexpr std::uint32_t kSyncWaitParam3 = 0x801FE0DDu;
 inline constexpr std::uint32_t kScratchpadBase = 0x1F800000u;
