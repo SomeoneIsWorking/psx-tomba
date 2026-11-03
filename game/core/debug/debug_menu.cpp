@@ -73,7 +73,7 @@ DebugMenu::DebugMenu() {
                  DebugParam::integer("entry", 0, DevWarp::kMaxEntry).orAbsent()},
       .run =
           [](const DebugCall &call) {
-            call.reply = devControl(call.core).warp().arm(call.values.u32(0), call.values.u32(1));
+            call.reply = devControl(call.core).warp().arm(call.core, call.values.u32(0), call.values.u32(1));
           },
       .refusal = fieldRefusal,
   });

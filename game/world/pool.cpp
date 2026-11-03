@@ -12,6 +12,7 @@
 #include "entry/session.h"
 #include "mtx.h"       // class Mtx — libgte helpers (identity)
 #include "placement.h" // Placement::spawnWithParent (FUN_80072DDC)
+#include "world/area_entries.h"
 #include <stdint.h>
 
 // 0x800796DC — zero the 104-byte control block at 0x800BF808, seed two bytes, clear ~30 scratchpad
@@ -255,8 +256,7 @@ void Pool::setupViewScroll() {
       c->mem_w8(S0 + 348, 0);
       c->mem_w8(S0 + 42, vb);
     } else {
-      uint32_t tbl = c->mem_r32(0x800A54A8u + mode * 4u);
-      uint32_t a0 = tbl + (uint32_t)c->mem_r8(A + 1) * 8u;
+      uint32_t a0 = AreaEntries::record(*c, mode, c->mem_r8(A + 1));
       int16_t h0 = (int16_t)c->mem_r16(a0 + 0);
       int16_t s17e = (int16_t)c->mem_r16(S0 + 382);
       c->mem_w32(S0 + 44, (uint32_t)((int32_t)h0 << 16));
@@ -269,7 +269,7 @@ void Pool::setupViewScroll() {
       c->mem_w8(S0 + 42, (uint8_t)(a0h & 0x7f));
       c->mem_w8(S0 + 348, (uint8_t)((a0h >> 7) & 1));
       c->mem_w8(S0 + 327, (uint8_t)((a0h >> 8) & 1));
-      if (a0h & 0x800) {
+      if (a0h & AreaEntries::kRoomEntry) {
         c->mem_w8(0x800BF816u, 1);
         c->mem_w8(0x800BF817u, (uint8_t)(((uint32_t)((int32_t)(int16_t)a0h & 0xf000)) >> 12));
       }

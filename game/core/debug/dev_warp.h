@@ -1,5 +1,7 @@
 #pragma once
 
+#include "world/area_entries.h"
+
 #include <array>
 #include <cstdint>
 #include <string>
@@ -28,12 +30,8 @@ public:
   inline static constexpr uint8_t kScriptedOpening = 2;
   inline static constexpr uint8_t kOrdinaryPlay = 4;
   inline static constexpr uint32_t kMaxEntry = 0x3f;
-  // Areas 0..21: one A0* overlay each on the disc, 22 entries in each of MAIN's per-area handler tables, and
-  // GAME.BIN's next-table zeroed at 22. Area load is file `area + 3` of the table at 0x800BE118, so 22 would load
-  // START.BIN.
-  inline static constexpr int kAreaCount = 22;
   // Sourced names only; an empty name shows as its number.
-  inline static constexpr std::array<const char *, kAreaCount> kAreaNames{"",
+  inline static constexpr std::array<const char *, AreaEntries::kAreaCount> kAreaNames{"",
                                                                           "",
                                                                           "",
                                                                           "",
@@ -65,8 +63,9 @@ public:
 
   static Phase phase(Core &core);
 
-  // Arms the request; the returned text answers the client. The debug menu checked the ranges and the phase.
-  std::string arm(uint32_t area, uint32_t entry);
+  // Arms the request; the returned text answers the client. The debug menu checked the area and the phase; an entry
+  // past the area's records (`AreaEntries::count`) is refused.
+  std::string arm(Core &core, uint32_t area, uint32_t entry);
   // Writes the armed request at a frame boundary.
   void applyArmed(Core &core, uint32_t frame);
 

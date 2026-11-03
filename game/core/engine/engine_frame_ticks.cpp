@@ -18,6 +18,7 @@
 #include "entry/session.h"
 #include "game.h" // Game — the per-Core product the Engine drives
 #include "guest_call.h"
+#include "world/area_entries.h"
 #include "level_load.h"
 #include "math/rng.h" // class Rng
 #include "overrides/native_override_catalog.h"
@@ -217,11 +218,7 @@ void Engine::startBinStage() {
 // no frame, no callees. ORACLE: guest 0x80078824
 void Engine::setAreaStartPos() {
   Core *c = this->core;
-  const uint32_t START_TABLE = 0x800A54A8u;                             // per-area start-pos table base
-  uint32_t area = c->mem_r8(0x800BF870);                                // current area index
-  uint32_t sub = c->mem_r8(0x800BF871);                                 // current sub-area index
-  uint32_t rec = c->mem_r32(START_TABLE + (area << 2));                 // area's 8-byte-record sub-table
-  rec += sub << 3;                                                      // record[sub]
+  const uint32_t rec = AreaEntries::record(*c, c->mem_r8(0x800BF870), c->mem_r8(0x800BF871));
   c->mem_w32(0x800BF890, (uint32_t)(int16_t)c->mem_r16(rec + 0) << 16); // start X (<<16 fixed)
   c->mem_w32(0x800BF894, (uint32_t)(int16_t)c->mem_r16(rec + 2) << 16); // start Y
   c->mem_w32(0x800BF898, (uint32_t)(int16_t)c->mem_r16(rec + 4) << 16); // start Z

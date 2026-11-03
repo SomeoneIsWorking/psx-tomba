@@ -16,6 +16,7 @@
 #include "entry/session.h"
 #include "game.h"
 #include "guest_call.h"
+#include "world/area_entries.h"
 #include <lucent/log.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -32,8 +33,7 @@ void SceneTransition::areaMaskTrigger(uint8_t area, uint8_t sub) {
 
   auto impl = [&](uint8_t a, uint8_t s) {
     if (a < 9) {
-      uint32_t tbl_entry = c->mem_r32(0x800A54A8u + (uint32_t)a * 4u);
-      uint16_t h = c->mem_r16(tbl_entry + (uint32_t)s * 8u + 6u);
+      uint16_t h = c->mem_r16(AreaEntries::record(*c, a, s) + 6u);
       uint8_t base = c->mem_r8(0x800A55B0u + a);
       uint32_t shift = ((uint32_t)base + (((uint32_t)h & 0x0600u) >> 9)) & 0x1Fu;
       uint32_t reg = c->mem_r32(0x800BFE50u);
