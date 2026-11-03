@@ -82,7 +82,6 @@ calls it. A row whose handler is file-local names the file that declares the ove
 | 0x8003C8F4 | LIVE | `ov_billboardEmit` | game/render/perobj_billboard.cpp |  |  |
 | 0x8003CCA4 | LIVE | `Render::perObjRenderDispatch` | game/render/perobj_billboard.cpp |  |  |
 | 0x8003CCA4 | LIVE | `ov_perObjRenderDispatch` | game/render/perobj_billboard.cpp |  | Engine/game natives installed into the per-Core image-qualified runtim… |
-| 0x8003CDD8 | LIVE | `MarginRenderer::collect` | game/render/margin_render.cpp |  | Record a re-include-eligible node (deduped within the frame). FILTER t… |
 | 0x8003CDD8 | LIVE | `Render::cmdListDispatch` | game/render/perobj_dispatch.cpp |  | per-object cmd-list dispatch: composes the WORLD object transform (cam… |
 | 0x8003CDD8 | LIVE | `ov_cmdListDispatch` | game/render/perobj_dispatch.cpp |  |  |
 | 0x8003D0BC | LIVE | `Render::overlayTypeDispatch` | game/render/overlay_type_dispatch.cpp | 0x8010AA20 0x8010B0B8 0x8010B5BC 0x8010BA40 0x8010C2A4 0x8011024C … |  |
@@ -326,7 +325,6 @@ calls it. A row whose handler is file-local names the file that declares the ove
 | 0x8007703C | LIVE | `Cull::enqueueByClass` | game/render/cull.cpp |  | Cull::enqueueByClass — PC-native FUN_8007703C body. Class-keyed queue … |
 | 0x8007712C | LIVE | `Cull::decide` | game/render/cull.cpp |  | Pure (read-only) cull decision — reproduces FUN_8007712c's control flo… |
 | 0x8007712C | LIVE | `Cull::performBaseCull` | game/render/cull.cpp |  | Cull::performBaseCull — byte-exact PC-native FUN_8007712C body (no mar… |
-| 0x8007712C | LIVE | `Cull::objectCull` | game/render/cull.cpp |  |  |
 | 0x8007712C | LIVE | `Cull::performBaseCullFramed` | game/render/cull.cpp |  | performBaseCullFramed — mirrors FUN_8007712C's OWN real 40-byte guest-… |
 | 0x80077768 | LIVE | `Trig::angleCmp` | game/math/trig.cpp |  |  |
 | 0x8007778C | LIVE | `Cull::wrapFrame` | game/render/cull.cpp |  | camera-relative cull WRAPPER. Computes obj-cam delta (wrapping s16, si… |

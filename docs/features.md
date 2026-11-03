@@ -63,7 +63,7 @@ Tomba! 1 (`titles/tomba1/game/`, shortened to `t1/` below).
 |---|---|---|---|
 | 1 | T2 | psxport F-WIDE.1 | `game/core/entry/runtime.cpp:tomba::Runtime::guestWidescreenProjection` — the stock projection policy |
 | 2 | T2 | psxport F-WIDE.2 | `game/render/horizontal_visibility_cull.h:Visibility` — every native X gate over the draw window |
-| 3 | T2 | psxport F-WIDE.2 | `game/render/cull.cpp:Cull` — per-object cull with the margin re-include |
+| 3 | T2 | psxport F-WIDE.2 | `game/render/cull.cpp:Cull` — per-object cull at the guest's own limits |
 | 4 | T2 | psxport F-WIDE.2 | `game/render/letterbox_bars.cpp:LetterboxBars` — bars across the canvas margins |
 | 5 | T1 | psxport F-WIDE.1 | `t1/core/entry/runtime.cpp:tomba1::Runtime::guestWidescreenProjection` — the stock projection policy |
 

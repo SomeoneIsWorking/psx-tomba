@@ -172,7 +172,7 @@ public:
   Bit bit;                                   // game progress-flag bitmap bit-test (FUN_8004D7EC / D868)
   Spawn spawn;                               // entity spawn/despawn dispatcher (FUN_8007A980 / A624 / 3116C)
   BehaviorDispatch behaviors;                // per-object handler dispatch registry (50 native behaviors)
-  Cull cull;                                 // per-object visibility cull / margin re-include
+  Cull cull;                                 // per-object visibility cull
   SceneEvents sceneEvents;                   // field-wide scene-event arm primitive (FUN_80040B48)
   Sfx sfx;                                   // sound-FX trigger dispatcher (FUN_80074590)
   AudioDispatch audioDispatch;               // field-audio dispatch/settle cluster

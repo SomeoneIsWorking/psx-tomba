@@ -70,7 +70,7 @@ Frame loop: owned. `tomba::FrameDriver` runs one pass of `0x80050B08` (update `0
 | `ScreenFade`, `LetterboxBars`, `HudGaugeEmitter` | `game/render/screen_fade.h`, `game/render/letterbox_bars.h`, `game/render/hud_gauge_emitter.h` | The fade leaf FUN_8007E9C8, the cutscene letterbox FUN_80026864, the HUD gauge FUN_8004FD30 (keyed: its glyph rows draw through the still-guest FUN_8004EB94) |
 | `NodeXform`, `ObjModelView`, `QuadRtptSubmit`, `LibgpuDrawEnv` | `game/render/` | Node transforms, model-view setup, the shared quad submit, DRAWENV compile |
 | `Cull`, `Visibility` | `game/render/cull.h`, `game/render/horizontal_visibility_cull.h` | Per-object cull and LOD; the one horizontal visibility test over the draw window |
-| widescreen | `game/render/wide_window.h`, `game/render/margin_render.h`, `game/render/widescreen_margin_quad.h`, `game/render/wide_re_*.cpp` | The draw window and margin width, margin re-include, margin quads, retained-width libgpu leaves |
+| widescreen | `game/render/wide_window.h`, `game/render/widescreen_margin_quad.h`, `game/render/wide_re_*.cpp` | The draw window and margin width, margin quads, retained-width libgpu leaves |
 | packet emitters | `game/render/fx_sprite_*`, `game/render/tile_grid_layer.h`, `game/render/sop_ground.h`, `game/render/rain_streaks.h`, `game/render/*walk*`, `game/render/perobj_*` | One port per remaining guest draw family |
 | Tomba! 1 | `titles/tomba1/` | The second title, isolated from `game/`; `titles/tomba1/docs/codemap.md` |
 | build | `CMakeLists.txt`, `cmake/port.cmake`, `titles/tomba1/cmake/` | `tomba2_port` (both titles), `tomba2_game`, `tomba1_runtime`, the tests and policy gate |

@@ -1,7 +1,6 @@
 // game/render/render.h — class Render, Tomba! 2's guest-time render ports, reached as `rend(c)->...`.
 // Each method is a native body of a guest render function writing the same GTE/scratchpad/pool/OT state.
 #pragma once
-#include "margin_render.h"
 #include "node_xform.h"
 #include "object_effect.h"
 #include <cstdint>
@@ -14,7 +13,6 @@ public:
   Core *mCore = nullptr;
 
   NodeXform mNodeXform;              // scene-node world-transform builder (guest FUN_80051844)
-  MarginRenderer margin;             // widescreen margin re-include set (collected in the cull)
   render::ObjectEffect objectEffect; // the dispatching node's effect leaf, applied to the packets now emitted
 
   // Per-frame render orchestrators: guest 0x8003F9A8 (field) and 0x8003FA44 (mid-transition).

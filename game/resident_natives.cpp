@@ -47,7 +47,6 @@
 #include "ui/panel.h"         // Panel::install — FUN_8005019C panel, FUN_8004FFB4 its fill quad
 #include <stdio.h>
 #include <stdlib.h>
-// g_render_object retired 2026-07-03 — was defined + written by Cull::objectCull but never read; dead.
 // g_fps60_on retired — read g_mods.fps60 (mods.h)
 // SpuAudio methods are called via c->game->spu_audio (owner: Game, see runtime/psx/spu_audio.h).
 

@@ -9,7 +9,6 @@
 #include "engine_types.h" // T2_OBJLIST_HEAD_1/2, T2OBJ_HANDLER/NEXT/RENDER_FLAG
 #include "entry/session.h"
 #include "game.h"
-#include "render.h" // rend(c)->margin.flush
 #include <lucent/log.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -70,7 +69,6 @@ void ObjectList::walkAll() {
   long nodes = 0;
   walk_list(c, c->mem_r32(T2_OBJLIST_HEAD_1), &nodes);
   walk_list(c, c->mem_r32(T2_OBJLIST_HEAD_2), &nodes);
-  rend(c)->margin.flush(c);
 
   if ((mWalksAll % 300) == 0) {
     lucent::debug("engine", "objwalk #{}: {} nodes", mWalksAll, nodes);
@@ -82,8 +80,6 @@ void ObjectList::walkList2() {
   Core *c = core;
   long nodes = 0;
   walk_list(c, c->mem_r32(T2_OBJLIST_HEAD_2), &nodes);
-  // NB: no MarginRenderer::flush here — that belongs to walkAll (walkList2 is a distinct call site
-  // from Sop::fieldUpdate, not a replacement of the whole entity walk).
 
   if ((mWalksL2 % 300) == 0) {
     lucent::debug("engine", "objwalk_l2 #{}: {} nodes", mWalksL2, nodes);

@@ -4,7 +4,6 @@
 #include "core/overrides/native_override_catalog.h"
 #include "entry/session.h"
 #include "game.h"
-#include "render.h"     // rend(c)->margin (widescreen margin collect)
 #include <lucent/log.h> // `cullpush` push-time submission census (kanban #77)
 #include <stdio.h>
 #include <stdlib.h>
@@ -12,11 +11,6 @@
 namespace tomba {
 
 uint32_t eng_isqrt16(uint32_t);
-// g_render_object retired (was defined + written but never read anywhere; dead).
-
-static inline uint16_t obj_r16(Core *c, uint32_t a) {
-  return (uint16_t)(c->mem_r8(a) | (c->mem_r8(a + 1) << 8));
-}
 
 // The guest cull FUN_8007712c (RE'd from the disasm: tools/disas.py 0x8007712c → jump table at
 // 0x80016cc0, 5 state handlers) culls each object by TWO tests, both reproduced natively below:
@@ -27,24 +21,6 @@ static inline uint16_t obj_r16(Core *c, uint32_t a) {
 //       the handlers — depth/(dist*4) ≈ cos·1024, so ~848 ≈ a ±34° half-cone). That ±34° cone is FAR
 //       narrower than even the 4:3 view frustum, so edge objects pop in/out as the camera pans, and the
 //       widescreen-widened side/corner geometry (incl. static terrain/water tiles) gets dropped entirely.
-// objectCull runs that decision unchanged, then collects culled type-0x03 nodes inside a wider region
-// into host memory for the future margin producer (no +1 poke, no packet; see margin_render.h).
-static unsigned isqrt32(unsigned v) {
-  unsigned r = 0, b = 1u << 30;
-  while (b > v) {
-    b >>= 2;
-  }
-  while (b) {
-    if (v >= r + b) {
-      v -= r + b;
-      r = (r >> 1) + b;
-    } else {
-      r >>= 1;
-    }
-    b >>= 2;
-  }
-  return r;
-}
 
 // ---- PC-native reimplementation of the guest cull body FUN_8007712c ------------------------
 // Owns the per-object visibility decision (the per-object CULL/LOD engine system) PC-native instead
@@ -154,9 +130,9 @@ Cull::Decision Cull::decide() {
   return R;
 }
 
-// Cull::performBaseCull — byte-exact PC-native FUN_8007712C body (no margin re-include). The public
+// Cull::performBaseCull — byte-exact PC-native FUN_8007712C body. The public
 // entry Actor::boundsCull dispatches to (replaces the last typed runtime address dispatch(0x8007712C) in the cull
-// chain). Same guest ABI as objectCull: taxi input in r[4]/r[5]/r[6]/r[7], side effects on obj[+1] + per-class
+// chain). Taxi input in r[4]/r[5]/r[6]/r[7], side effects on obj[+1] + per-class
 // render-list push, return in r[2]. Was the file-scope `cull_native_body` helper.
 void Cull::performBaseCull() {
   Core *c = core;
@@ -372,67 +348,9 @@ uint32_t Cull::enqueueQueueC(uint32_t obj) {
   return newCnt;
 }
 
-void Cull::objectCull() {
-  Core *c = core;
-  uint32_t o = c->r[4]; // a0 = object* (MIPS arg register $a0)
-
-  lucent::debug("obj",
-                "obj={:08x} type={:02x} pos=({},{},{})",
-                o,
-                c->mem_r8(o + 0x0c),
-                (int16_t)obj_r16(c, o + 0x2e),
-                (int16_t)obj_r16(c, o + 0x32),
-                (int16_t)obj_r16(c, o + 0x36));
-  int p2 = (int16_t)c->r[5], p3 = (int16_t)c->r[6], p4 = (int16_t)c->r[7]; // pos - camera (s16 each)
-  performBaseCull(); // PC-native cull (byte-exact FUN_8007712C body)
-  // The engine OWNS this margin, so it is ALWAYS active — not gated on widescreen. Even at 4:3 the
-  // stock ±34° cone over-culls (edge pop-in), so we keep the wide region in every aspect; widescreen
-  // then needs no extra special-casing.
-// FAR limit (engine units, same scale as `dist`) for the engine-owned wide RE-INCLUDE of margin
-// geometry the stock body culled. The widest stock far is 7169 (0x1C01).
-//   CULL_MARGIN_FAR = 0x10000 ≈ 9.1x the stock far. The re-include only collects type-0x03 nodes into
-//   host memory (MarginRenderer::collect); it never marks a node visible or writes a packet.
-#ifndef CULL_MARGIN_FAR
-#define CULL_MARGIN_FAR 0x10000 // ~9.1x the widest stock far (7169) — generous render-margin reach
-#endif
-  constexpr int cull_far = CULL_MARGIN_FAR;
-// FOV-cone threshold for depth/(dist*4) [≈ cos·1024]. The engine keeps objects to the EDGE of the view
-// and a bit beyond: 0 = the full forward hemisphere (±90°, well past the widescreen frustum's ~±40°);
-// a small NEGATIVE value extends past 90° so an object whose ORIGIN is just behind the camera plane but
-// whose widened geometry still grazes the screen edge is not dropped (this is the "beyond WS" margin the
-// user asked for). -0x60 ≈ cos(93.4°): ~3.4° past the side, enough to cover wide edge geometry without
-// re-including things squarely behind the camera. (vs the stock 848..880 ≈ only ±34°.)
-// Named/tunable (issue #22): CULL_MARGIN_FOV = -0x60 already keeps the full forward hemisphere and
-// ~3.4° past the side; that is generous enough for off-screen edge geometry, so we keep it but name
-// it.
-#ifndef CULL_MARGIN_FOV
-#define CULL_MARGIN_FOV (-0x60) // ≈ cos(93.4°): full hemisphere + ~3.4° past the side
-#endif
-  constexpr int cull_fov = CULL_MARGIN_FOV;
-  if (c->mem_r8(o + 1) == 0) { // the game CULLED it — reconsider with engine bounds
-    unsigned dist = isqrt32((unsigned)(p2 * p2 + p3 * p3 + p4 * p4)) & 0xFFFF;
-    // NEAR floor 0x80 (was 0x200): the stock body culls anything closer than ~512, so on-camera objects
-    // right by Tomba (e.g. the ground/water tile he stands on) pop at the inner edge too. 0x80 keeps them
-    // while staying above the degenerate dist→0 case where the forward-dot direction test is meaningless;
-    // the cone test below still rejects near objects that are actually behind the camera.
-    if (dist >= 0x80 && dist <= (unsigned)cull_far) {
-      int fx = (int16_t)obj_r16(c, 0x1F8000E8), fy = (int16_t)obj_r16(c, 0x1F8000EA),
-          fz = (int16_t)obj_r16(c, 0x1F8000EC);
-      long depth = (long)fx * p2 + (long)fy * p3 + (long)fz * p4, den = ((long)dist * 0x1000) >> 10;
-      if (den < 1) {
-        den = 1;
-      }
-      if (depth / den >= cull_fov) {
-        // Read-only: margin geometry is collected for the host, the object stays culled in guest state.
-        rend(c)->margin.collect(c, o);
-      }
-    }
-  }
-}
-
 // FUN_8007778C — camera-relative cull WRAPPER. Computes obj-cam delta (wrapping s16, sign-extended),
 // zeros the cull scratchpad flags 0x1F800080/0x1F800084, then forwards to the per-object cull body
-// FUN_8007712C via typed runtime address dispatch (so current-object tracking + the widescreen margin still fire).
+// FUN_8007712C via typed runtime address dispatch (so current-object tracking still fires).
 // Camera pos @0x1F8000D0 (+2=X,+6=Z,+10=Y, u16). Was ov_cull_wrapper.
 // Cull::wrapFrame — shared frame mirror for the whole cullWrapper* family (RE'd instruction-exact
 // from authenticated executable/overlay evidence{0,1,2,4,5,7}.c: guest 0x8007778C/800777FC/80077ACC/800779D0/80077A4C/

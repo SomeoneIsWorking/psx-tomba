@@ -3,8 +3,7 @@
 // class Cull — instance subsystem owned by Engine. Holds the per-object cull body (FUN_8007712C), its
 // camera-relative wrappers, and the standalone view-cone cull (FUN_8002B278). Visibility is the
 // guest's own decision with the guest's near/far/cone limits: obj+1 drives simulation as well as
-// drawing, and the packet pool is sized for what retail keeps. The margin re-include only collects
-// host-side nodes for a future widescreen producer.
+// drawing, and the packet pool is sized for what retail keeps.
 #pragma once
 #include <cstdint>
 class Core;
@@ -19,15 +18,8 @@ class Cull {
 public:
   Core *core = nullptr;
 
-  // objectCull (FUN_8007712C): per-object cull body + widescreen margin re-include. Taxi-parameter
-  // c->r[4] = object, c->r[5]/[6]/[7] = camera-relative dx/dz/dy (s16 each). Was ov_object_cull.
-  void objectCull();
-
-  // performBaseCull — the byte-exact PC-native reimplementation of FUN_8007712C's body ALONE (no
-  // widescreen margin re-include). Called from Actor::boundsCull to replace the last typed runtime address dispatch
-  // in the bounds-cull chain — same taxi convention as objectCull (r[4]=obj, r[5]/[6]/[7]=dx/dy/dz),
-  // same side effects (obj[+1] flag + per-class render-list push), same return in r[2]. Was the
-  // file-scope `cull_native_body` helper — now the public entry point Actor::boundsCull dispatches to.
+  // FUN_8007712C: taxi r[4]=obj, r[5]/[6]/[7]=camera-relative dx/dy/dz; sets obj[+1] and pushes the
+  // per-class render queue, returns the flag in r[2]. Actor::boundsCull calls it directly.
   void performBaseCull();
 
   // cullWrapper (FUN_8007778C): camera-relative delta + flag reset → cull body. Taxi c->r[4] = object.
