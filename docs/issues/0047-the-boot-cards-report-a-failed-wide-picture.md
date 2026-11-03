@@ -2,7 +2,7 @@
 
 Features: F-WIDE.
 
-Status: cards fixed (2026-11-03); the handover frames are open, cause traced to psxport (2026-11-03). Owners:
+Status: fixed (2026-11-03). Owners:
 `game/core/entry/runtime.h` (`AspectPolicy`); for the handover, psxport `runtime/psx/render/render_present.cpp`
 (`RenderState::buildDisplay`) and `runtime/psx/present/display_presenter.cpp` (`DisplayPresenter::buildDisplay`).
 
@@ -47,7 +47,10 @@ the plan is still the cards' 4:3 one, so a 16:9 request reads as unwidened; at 5
 widened (256 x 4/3 = 342) where the 320 display needs 428. The record picture itself is laid out from the plan
 latched in `presentRecord`, so only the announcement and `lastDisplay_` lag.
 
-Fix (psxport, not applied from the Tomba lane; psxport `present`/`record` files belong to another lane in this pass):
-latch the plan for the presented display before announcing and sizing, one latch per present, in the display
-presenter, and have `presentRecord` use that plan instead of latching again. It lands with the psxport all-title
-rebuild.
+Fix (psxport): `RenderState::buildDisplay` latches this present's plan (`RenderState::latchDisplay`) before it sizes
+`lastDisplay_`, and `DisplayPresenter::buildDisplay` announces after it; `presentRecord` reads the latched plan
+instead of latching again.
+
+Shown, same reproduction from boot: the cards announce `aspect=0 native_width=256 render_width=256`, 562
+`aspect=1 native_width=256 render_width=342`, 563 `aspect=1 native_width=320 render_width=428`, and no `[wide:warn]`
+line (`scratch/tomba2c/evidence/0047_handover_announcements.txt`).

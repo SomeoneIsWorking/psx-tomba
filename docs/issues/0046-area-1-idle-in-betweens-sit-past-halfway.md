@@ -2,7 +2,7 @@
 
 Features: F-60FPS.
 
-Status: open; cause traced to psxport (2026-11-03). Owner: psxport `runtime/psx/present/blend.h` (`lerpInt`).
+Status: fixed (2026-11-03). Owner: psxport `runtime/psx/present/blend.h` (`lerpInt`).
 
 ## Reproduction
 
@@ -38,5 +38,18 @@ probe reads 0.503 (median 0.502). The title's producer is correct; the lean is 0
 
 ## Fix
 
-At the owner: `lerpInt` rounds ties half to even, so no tie favours either frame. It is a psxport change shared by
-every title's blends, so it lands with psxport's all-title rebuild and real-time run; not applied from the Tomba lane.
+`lerpInt` rounds the blended value to the nearest integer with ties to even, so no tie favours either frame;
+`lerpTurn` and this title's `lerpWrapped` (`list_state_producer.cpp`) round the absolute value the same way instead
+of rounding the step alone. Values that are not ties are unchanged, so every other title's blends move only on ties.
+
+## Shown
+
+Same reproduction (`warp 1`, fences 2950-3100), the vertex probe as above (a temporary build, removed): Tomba's
+sub-part lists land at a vertex-weighted 0.502, median 0.5015, over 4047 native pixels of motion
+(`scratch/tomba2c/evidence/0046_vertex_shares_after.txt`). Other titles with the same pixel measure, hidden and
+unpaced: Spyro 1 `warp 10` hub idle, fences 1500-1650, mean 0.505, median 0.505 (n=143,
+`0046_spyro1_hub10_shares.txt`); Crash Bash `arena 1` rules screen, fences 2400-2600, mean 0.504, median 0.504
+(n=200, `0046_crashbash_arena1_shares.txt`).
+
+Not judged: pacing on the simulated 60.00 Hz display. The host load stayed 16-30 for the whole pass, so no
+real-time run was taken; it is owed with psxport's all-title real-time run.

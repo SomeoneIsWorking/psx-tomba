@@ -54,7 +54,8 @@ std::uint16_t lerpWrapped(const WrappedSpan &span, float t) {
   const auto [from, to, modulus] = span;
   const std::int32_t step =
       psx::present::ringStep(static_cast<std::int16_t>(from), static_cast<std::int16_t>(to), modulus);
-  return static_cast<std::uint16_t>(static_cast<std::int16_t>(from) + psx::present::lerpInt(0, step, t));
+  const std::int32_t start = static_cast<std::int16_t>(from);
+  return static_cast<std::uint16_t>(psx::present::lerpInt(start, start + step, t));
 }
 
 template <class Word> Word wordAt(std::span<const std::byte> bytes, std::size_t index) {
