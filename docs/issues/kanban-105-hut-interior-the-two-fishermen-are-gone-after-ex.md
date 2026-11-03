@@ -18,3 +18,12 @@ Reproduce: PSXPORT_PAD_RESUME=replays/bugs/hut-fishermen-missing.pad ./scratch/b
 F5 IS RULED OUT AS THE CAUSE OF STATE LOSS, measured rather than argued: two identical replay legs, one with a live renderpath psx->native round trip mid-run, both dumping 2 MB of guest RAM at pad frame 1700 -> 0 of 2097152 bytes differ. The comparison is not blind: the same pipeline with a one-byte poke (w8 800BF880 55) reports exactly 1 differing byte at that address. Scope of that negative: one replay, one scene, one round trip, 4:3 + fps60 on, NOT across a scene transition. What the switch DOES change is the presented picture's centring (the two present paths differ), which is what the user noticed alongside this.
 
 So the likely neighbours are #47 (pc_skip: entering 'House on the Point' corrupts state — music stops, camera unfollows) and #57 (hut interior decorations missing, suspected occlusion), not the renderer toggle. NOT yet determined: whether the two NPCs are absent from GUEST STATE (a load/unload or behaviour bug) or present-but-unproduced (a render gap). The entity dump above is the start of that: neither list shows an obvious interior NPC, so find where the hut sub-scene keeps its objects before concluding.
+
+## 2026-11-03: not reproduced on HEAD
+
+The recorded repro is the retired raw pad format: the player refuses it (`[padrec:error] replay REFUSED: ...: not a
+phase-keyed pad recording`), so it reaches nothing on HEAD. Replaying its button runs frame by frame from autoskip's
+free roam (`pause`, `hold`, `step`) diverges within seconds, because the boot and front end no longer take the frames
+they took when it was cut. The next step is a phase-keyed capture: `padrec save <path>` from a player session at the
+lock, then reproduce it headless.
+The F5 render-path switch is gone (record is the only path).

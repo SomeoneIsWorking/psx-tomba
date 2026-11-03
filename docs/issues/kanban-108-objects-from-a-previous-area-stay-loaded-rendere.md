@@ -26,3 +26,12 @@ THE EXPERIMENT THAT SETTLES IT, and it needs no code change — the A/B knob alr
 Run the same spot with 1 vs 4. If the floating objects vanish at 1 and return at 4, CULL_FAR_MULT is the cause and the fix is to separate the two concerns: keep the FOV-cone widening (that IS the widescreen fix) and either drop the distance multiplier or scale it far less. FALSIFIER: if the objects are still there at MULT=1, the cull far limit is NOT the cause and the leak is in the area load/unload path instead — look at what tears down an area's object list on transition, because the terrain clearly went away while the objects did not.
 
 ALSO WORTH MEASURING WHILE THERE: the user's lag suspicion. A ×4 far limit means a much larger kept set every frame, and the kept set drives both the render queues and the per-frame simulate walk. Count the kept objects per frame at MULT=1 vs MULT=4 — with a denominator, i.e. kept of inspected — before crediting or clearing it as a perf cause.
+
+## 2026-11-03: the named lever is gone; not reproduced
+
+`CULL_FAR_MULT` no longer exists: `Cull::decide`/`performBaseCull` (`game/render/cull.cpp`) keep the guest's own near,
+far and cone limits, and the margin re-include that collected extra nodes was deleted (kanban-080). The attract demo
+on HEAD passes the seaside cliff over the ocean with its terrain drawn (`scratch/tomba2/evidence/kanban070_attract_demo.png`,
+left); the reported state (terrain unloaded, the start area's objects left over the ocean) was not reached. The
+evidence screenshot cited above came from a live session with no recording. Next step: a phase-keyed `padrec save`
+at the spot.

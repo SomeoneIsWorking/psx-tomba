@@ -14,3 +14,12 @@ MECHANISM UNIDENTIFIED. Do NOT invent a distance/ID/alpha cull — that is a ban
 BLOCKED ON TWO INSTRUMENT DEFECTS, both measured 2026-08-06 (see the two sibling cards):
  - the report carries no AREA/SUB, and the HUD does not print one, so the coordinate cannot be resolved to a place;
  - psx_render draws no world geometry, so the pc-vs-psx reference comparison that would split 'vanilla culls it' from 'the object should be unloaded' cannot be run at all.
+
+## 2026-11-03: a candidate spot
+
+`warp 0 5` (area 0, entry 5) puts the camera behind the tower with the A00 windmill lattice sweeping across the
+left of the picture; camera `0x1F8000D2/D6/DA` = (22291, -3180, 7134)
+(`scratch/tomba2/evidence/kanban077_area0_entry5.png`). Its large polygons are written by `0x801401B8` and A00's
+plain GT4 `0x801467BC`; none exceeds the GPU's 1023x511 primitive limit, so the console would draw them too. Whether
+retail shows this view needs the full-console reference driven to the same warp; the console host has no RAM write
+command yet, so the warp cannot be applied there.
