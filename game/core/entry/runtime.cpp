@@ -129,7 +129,6 @@ void Runtime::registerOverrides(Game &game) {
   game.platform_hle.bindStock(kCdInitHandshake, PlatformHle::completeImmediately);
   game.platform_hle.bindStock(kCdReady, cdReady);
   installResidentNatives(natives);
-  game.memcard.install();
   register_engine_overrides(game, natives);
   EngineCd::declareOverrides(natives);
   natives.declare(kChangeThread, "Scheduler::yield", changeThread);
