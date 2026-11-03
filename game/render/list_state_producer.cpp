@@ -52,10 +52,9 @@ struct WrappedSpan {
 // The position `t` of the way from `from` to `to`, the short way round.
 std::uint16_t lerpWrapped(const WrappedSpan &span, float t) {
   const auto [from, to, modulus] = span;
-  const auto turn = static_cast<std::int32_t>(modulus);
-  const std::int32_t gap = static_cast<std::int16_t>(to) - static_cast<std::int16_t>(from) + turn / 2;
-  const std::int32_t delta = (gap % turn + turn) % turn - turn / 2;
-  return static_cast<std::uint16_t>(static_cast<std::int16_t>(from) + psx::present::lerpInt(0, delta, t));
+  const std::int32_t step =
+      psx::present::ringStep(static_cast<std::int16_t>(from), static_cast<std::int16_t>(to), modulus);
+  return static_cast<std::uint16_t>(static_cast<std::int16_t>(from) + psx::present::lerpInt(0, step, t));
 }
 
 template <class Word> Word wordAt(std::span<const std::byte> bytes, std::size_t index) {
