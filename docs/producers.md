@@ -56,6 +56,7 @@ Tomba's frame cuts stay `tomba::FrameCut`.
 | 0x80129114, 0x8012D9E8, 0x8013E08C `GuestKeyedEmitters` A01/A00 leaves; 0x80106690 `::demoEdgeSprites`, 0x801311FC `::a01Effect` | the node in a0 for a leaf, one screen for a body that takes no object (`quad_state.h`, `runGuestEmitter`) | the packets the guest body linked (`quad_state.h`) | the packets' screen vertices move by t |
 | 0x80026864 `LetterboxBars::tick` | one call, by its slot | the two bars' height and the OT slot (`Saved`) | the bar height moves by t and both rects are re-emitted |
 | 0x80114178 (A0E) `GradientBackdrop::emit` | one call a frame | the camera-pitch row the bands hang from, their columns and the OT slot (`Saved`) | the pitch row moves by t and the four G4 bands are re-emitted across the later frame's columns |
+| 0x80110CA4 (A0E) `BackdropPlane::draw` | the node in a0 | a `ListJob`: the node's view in GTE CR0-7, the pool cursor, the OT slot, the texture-frame clock 0x1F80017C and the arena phase 0x800BF850 | `ListStateProducer`: the view moves by t and the waterfall plane, its reflection and the haze band are projected again; the screen gate is the draw window, so the plane fills the margins |
 | 0x8004FD30 `HudGaugeEmitter::emitFrame` | the frame's gauge: one call, the n-th from the site (`CallSiteObjects::object(returnAddress, 0)`) | the packets it linked (`quad_state.h`, `saveKeyedQuads`: the body puts the pool cursor back, so the key, not an address span, names them) | the packets' screen vertices move by t; its glyph rows come from the still-guest FUN_8004EB94 |
 
 Not state producers: `SopGround::draw` 0x80109FE0, `Render::cmdListDispatch` 0x8003CDD8, `Render::subPartWalk`
@@ -89,6 +90,7 @@ Element namers (not producers; they name elements of the innermost open object):
 | 0x80112A24 / 0x80112CF0 | A0B | `UnlitModelEmitter` gt3 / gt4 (SOP's body) | not traced |
 | 0x80113788 / 0x80113A54 | A0C | `UnlitModelEmitter` gt3 / gt4 (SOP's body) | not traced |
 | 0x801103F4 / 0x80110698 and the same body in A0B-A0F, A0H-A0J | A0A-A0J | `UnlitModelEmitter` gt3 / gt4 (`kFlagged`) | not traced |
+| 0x80113AEC / 0x80113DE0 | A0E | `UnlitModelEmitter` gt3 / gt4 (`kA0eArena`: SOP's body plus the west-record hide by model x while 0x1F80009C is set) | arena walker 0x80114320 |
 | 0x8010BC40 / 0x8010BF28 (A0G), 0x8010B3DC / 0x8010B6C4 (A0I), 0x8010AF58 / 0x8010B240 (A0H), 0x8010A3AC / 0x8010A69C (A0J) | A0G-A0J | `UnlitModelEmitter` gt3 / gt4 (`kSopNear`, `kSopNearWide`, `kSopNearLifted`) | not traced |
 
 The scenery walkers (A01, A02, A05-A08, A0L) are guest code and open no scope; there an emitter call is its
@@ -102,7 +104,7 @@ Not yet producers, by census rank: SOP effect 0x8010BF54, A01 0x80132DC0
 and the GT3/GT4 emitter copies of the overlays not listed above
 whose bodies differ from the natives: A02 0x80124DB8/0x80125100, A03 0x80110094/0x80110290, A04
 0x801175FC/0x801178A0 and 0x8013D0F8/0x8013D568, A05 0x8013484C/0x80134B74 and 0x8013AC90/0x8013AF0C, A07
-0x8012DBB4/0x8012DE60, A0A 0x8010F97C/0x8010FD74, A0D 0x80112DE4/0x801131B0, A0E 0x80113AEC/0x80113DE0,
+0x8012DBB4/0x8012DE60, A0A 0x8010F97C/0x8010FD74, A0D 0x80112DE4/0x801131B0,
 A0F 0x80114A5C/0x80114E70, A0G 0x8010C3A4/0x8010C664, A0K 0x80114F1C/0x8011562C and 0x801163E0/0x80116708
 (issue 0028).
 

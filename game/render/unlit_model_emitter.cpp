@@ -35,7 +35,7 @@ template <std::uint32_t Entry, bool Quad, const UnlitModelEmitter::Variant &Data
   const ModelShape &shape = Quad ? kModelGt4 : kModelGt3;
   ListJobWriter job(*core, Quad ? 1u : 0u, call, call.count * shape.packetBytes);
   job.input(*core, call.list, call.count * shape.recordBytes);
-  if (Data.hideFlag != 0u) {
+  if (Data.hideFlag != 0u || Data.xHide.active) {
     job.input(*core, kHideWord, sizeof(std::uint32_t));
   }
   if (Data.uScroll != 0u) {
@@ -79,6 +79,7 @@ constexpr const auto &kSopNearWide = UnlitModelEmitter::kSopNearWide;
 constexpr const auto &kSopNearLifted = UnlitModelEmitter::kSopNearLifted;
 constexpr const auto &kA06 = UnlitModelEmitter::kA06;
 constexpr const auto &kA06Scroll = UnlitModelEmitter::kA06Scroll;
+constexpr const auto &kA0eArena = UnlitModelEmitter::kA0eArena;
 
 constexpr Copy kCopies[] = {
     {{},
@@ -120,6 +121,12 @@ constexpr Copy kCopies[] = {
      &emitAt<0x80113748u, false, kFlagged>,
      &emitAt<0x801139ECu, true, kFlagged>,
      &kFlagged},
+    {"A0E",
+     0x80113AECu,
+     0x80113DE0u,
+     &emitAt<0x80113AECu, false, kA0eArena>,
+     &emitAt<0x80113DE0u, true, kA0eArena>,
+     &kA0eArena},
     {"A0E",
      0x80114458u,
      0x801146FCu,
@@ -193,6 +200,9 @@ std::uint32_t UnlitModelEmitter::emit(const psx::present::EmitMemory &memory,
   const ModelShape &shape = quad ? kModelGt4 : kModelGt3;
   const std::uint32_t frame = call.sp - (quad ? variant.gt4FrameBytes : variant.gt3FrameBytes);
   return emitModelList(memory, call, shape, variant.stage, [&](const ModelPacket &packet) {
+    if (packet.hiddenByX(variant.xHide)) {
+      return false;
+    }
     bool projected = false;
     if (!quad) {
       projected = packet.projectGt3(variant.colourMask, visible);

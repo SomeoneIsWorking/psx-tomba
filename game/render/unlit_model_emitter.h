@@ -16,7 +16,8 @@
 //     jumps past its link after sorting a farthest/nearest record, so only averaged quads are drawn;
 //   - SOP's body with a near clamp in A0G, A0H, A0I and A0J;
 //   - SOP's body with the lit emitters' depth code and a hide flag in A06;
-//   - A06 0x8013CF00/0x8013D1E4, the drawer 0x8013D568's unlit pair, with a U scroll.
+//   - A06 0x8013CF00/0x8013D1E4, the drawer 0x8013D568's unlit pair, with a U scroll;
+//   - A0E 0x80113AEC/0x80113DE0, SOP's body hiding the arena's west records by model x.
 // Each takes (a0 = record list, a1 = OT base, a2 = count) and returns the address past the list in v0.
 // The screen cull goes through horizontal_visibility_cull.h, so at 4:3 the packets are the guest's.
 #pragma once
@@ -68,6 +69,7 @@ public:
     std::uint32_t hideFlag; // hides the record while 0x1F80009C is set; 0 for none
     bool cue;
     std::uint32_t uScroll; // flag bit 3 adds this u16 >> 4 to every corner's U; 0 for none
+    ModelXHide xHide;
   };
   static constexpr Variant kResident{kResidentStage,
                                      kColourCodeMask,
@@ -78,7 +80,8 @@ public:
                                      {ModeCode::OneFarTwoNear, 3u, Staging::PerMode, kNoNearClamp, false},
                                      0u,
                                      false,
-                                     0u};
+                                     0u,
+                                     kNoXHide};
   static constexpr Variant kSop{kOverlayStage,
                                 kColourMask,
                                 kColourCodeMask,
@@ -88,7 +91,8 @@ public:
                                 {ModeCode::OneFarTwoNear, 0xFFu, Staging::PerMode, kNoNearClamp, false},
                                 0u,
                                 false,
-                                0u};
+                                0u,
+                                kNoXHide};
   static constexpr Variant kA01Cue{kOverlayStage,
                                    kColourCodeMask,
                                    kColourCodeMask,
@@ -98,7 +102,8 @@ public:
                                    {ModeCode::OneFarTwoNear, 0xFFu, Staging::Always, kNoNearClamp, false},
                                    0u,
                                    true,
-                                   0u};
+                                   0u,
+                                   kNoXHide};
   static constexpr Variant kFlagged{kOverlayStage,
                                     kColourMask,
                                     kColourCodeMask,
@@ -108,7 +113,8 @@ public:
                                     {ModeCode::ZeroAverage, 0xFFu, Staging::Unaveraged, kNoNearClamp, true},
                                     0u,
                                     false,
-                                    0u};
+                                    0u,
+                                    kNoXHide};
   // SOP's body with the bucket depth pulled to the near depth from `reach` in front of it (A0G, A0I),
   // further (A0H), or after a lift of 0x50 (A0J).
   static constexpr Variant kSopNear{kOverlayStage,
@@ -120,7 +126,8 @@ public:
                                     {ModeCode::OneFarTwoNear, 0xFFu, Staging::PerMode, {0, 0x1B7u}, false},
                                     0u,
                                     false,
-                                    0u};
+                                    0u,
+                                    kNoXHide};
   static constexpr Variant kSopNearWide{kOverlayStage,
                                         kColourMask,
                                         kColourCodeMask,
@@ -130,7 +137,8 @@ public:
                                         {ModeCode::OneFarTwoNear, 0xFFu, Staging::PerMode, {0, 0x27Fu}, false},
                                         0u,
                                         false,
-                                        0u};
+                                        0u,
+                                        kNoXHide};
   static constexpr Variant kSopNearLifted{kOverlayStage,
                                           kColourMask,
                                           kColourCodeMask,
@@ -140,7 +148,8 @@ public:
                                           {ModeCode::OneFarTwoNear, 0xFFu, Staging::PerMode, {0x50, 0x1B7u}, false},
                                           0u,
                                           false,
-                                          0u};
+                                          0u,
+                                          kNoXHide};
   // SOP's body with the lit emitters' depth code, hiding flag bit 2 records while 0x1F80009C is set.
   static constexpr Variant kA06{kOverlayStage,
                                 kColourMask,
@@ -151,7 +160,8 @@ public:
                                 {ModeCode::LowBits, 3u, Staging::PerMode, kNoNearClamp, false},
                                 4u,
                                 false,
-                                0u};
+                                0u,
+                                kNoXHide};
   // A06's third pair: A01's with flagged depth from the low 2 bits, the resident stage, the resident GT4
   // corner order and a U scroll.
   static constexpr Variant kA06Scroll{kResidentStage,
@@ -163,7 +173,21 @@ public:
                                       {ModeCode::ZeroAverage, 3u, Staging::Unaveraged, kNoNearClamp, false},
                                       0u,
                                       false,
-                                      0x8014A450u};
+                                      0x8014A450u,
+                                      kNoXHide};
+
+  // SOP's body hiding by model x while 0x1F80009C is set: A0E's boss arena, drawn by the walker 0x80114320.
+  static constexpr Variant kA0eArena{kOverlayStage,
+                                     kColourMask,
+                                     kColourCodeMask,
+                                     false,
+                                     0x18u,
+                                     0x20u,
+                                     {ModeCode::OneFarTwoNear, 0xFFu, Staging::PerMode, kNoNearClamp, false},
+                                     0u,
+                                     false,
+                                     0u,
+                                     {true, 0x24EA, 0x2508}};
 
   // The guest call: the registers in, the end of the list in v0, and the call saved under the open object.
   static void gt3(Core &core, const horizontal_cull::Visibility &visible, const Variant &variant);

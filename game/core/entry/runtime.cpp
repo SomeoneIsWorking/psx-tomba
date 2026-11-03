@@ -23,6 +23,7 @@
 #include "render/anchor_quads.h"
 #include "render/area_map.h"
 #include "render/billboard_state.h"
+#include "render/backdrop_plane.h"
 #include "render/gradient_backdrop.h"
 #include "render/guest_keyed_emitters.h"
 #include "render/guest_ordering_table.h"
@@ -137,6 +138,7 @@ void Runtime::registerOverrides(Game &game) {
   Font::registerStateRenders(renders);
   ScreenFade::registerStateRenders(renders);
   tomba::render::LetterboxBars::registerStateRenders(renders);
+  tomba::render::BackdropPlane::registerStateRenders(renders, game.core);
   tomba::render::GradientBackdrop::registerStateRenders(renders);
   UiSprite::registerStateRenders(renders);
   tomba::render::BillboardState::registerStateRenders(renders, game.core);

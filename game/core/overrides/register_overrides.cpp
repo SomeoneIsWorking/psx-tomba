@@ -27,6 +27,7 @@
 #include "demo.h"            // class Demo — DEMO main-menu title cursor sub-machine (registerOverrides)
 #include "fx_sprite_anchored.h"
 #include "fx_sprite_swarm.h"
+#include "backdrop_plane.h"
 #include "gradient_backdrop.h"
 #include "graphics_bind.h"         // class GraphicsBind — object render-bind subsystem (recordArrayInit)
 #include "gte_transform3.h"        // class GteTransform3 — GTE 3-vertex rotate+pack (0x80084250)
@@ -107,6 +108,7 @@ void register_engine_overrides(Game &game, native::NativeOverrideCatalog &native
       natives); // A00-overlay GROUND/SCENE GT3/GT4 + entity loop (0x8013FB88/8013FE58/801401B8)
   TileGridLayer::registerOverrides(
       natives); // A00-overlay field scroll-wrap + tile-grid sprite emitter (0x8011534C/0x80115598)
+  render::BackdropPlane::registerOverrides(natives);    // A0E boss arena waterfall plane (0x80110CA4)
   render::GradientBackdrop::registerOverrides(natives); // A0E boss arena sky bands (0x80114178)
   WidescreenMarginQuad::registerOverrides(natives); // A00-overlay widescreen-margin OT.GT4 quad emitter (0x8013CDD4)
   ObjModelView::registerOverrides(natives);         // shared effect-mesh model-view compose into GTE CR0-7 (0x800318A0)

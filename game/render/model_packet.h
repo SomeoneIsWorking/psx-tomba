@@ -85,6 +85,13 @@ enum class ModelDepth : std::uint8_t { Average, Farthest, Nearest };
 // The flag bit that hides an A01 record while the scratchpad word 0x1F80009C is set.
 inline constexpr std::uint32_t kHideFlag = 0x40u;
 inline constexpr std::uint32_t kHideWord = 0x1F80009Cu;
+// While 0x1F80009C is set, A0E's arena keeps a GT3 whose corner 2, or a GT4 whose corner 0 or 1, lies past model x `gt3`/`gt4`.
+struct ModelXHide {
+  bool active;
+  std::int32_t gt3;
+  std::int32_t gt4;
+};
+inline constexpr ModelXHide kNoXHide{false, 0, 0};
 
 // The bucket depth a near record is pulled to.
 inline constexpr std::int32_t kNearDepth = 0x28;
@@ -162,6 +169,7 @@ public:
   static ModelDepth flaggedDepth(std::uint32_t flags);
   // `hideFlag` hides the record while the scratchpad word 0x1F80009C is set.
   static bool hidden(const psx::present::EmitMemory &memory, std::uint32_t flags, std::uint32_t hideFlag = kHideFlag);
+  bool hiddenByX(const ModelXHide &rule) const;
 
   // Packet offsets of each corner's colour and SXY; a corner's SY is its SX + 2.
   static constexpr std::array<std::uint32_t, 4> kColour{4u, 0x10u, 0x1Cu, 0x28u};

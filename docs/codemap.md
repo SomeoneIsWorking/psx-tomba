@@ -64,6 +64,7 @@ Frame loop: owned. `tomba::FrameDriver` runs one pass of `0x80050B08` (update `0
 | `PackedMesh`, `DropShadow` | `game/render/packed_mesh.h`, `game/render/drop_shadow.h` | The packed-mesh writer FUN_80027768 and the drop shadow FUN_8002AB5C |
 | `ListJob`, `ListStateProducer` | `game/render/list_job.h`, `game/render/list_state_producer.h` | An emitter call saved as state and replayed over host memory between frames |
 | `ObjectEffect`, `ObjectDraw` | `game/render/object_effect.h`, `game/render/object_draw.h` | The dispatcher's per-object effect over an emitted packet span, saved with each emitter's state; a multi-call draw as one object with numbered parts |
+| `BackdropPlane` | `game/render/backdrop_plane.h` | A0E's boss arena waterfall plane FUN_80110CA4: its grid, reflection and haze band |
 | `GradientBackdrop` | `game/render/gradient_backdrop.h` | A0E's boss arena sky FUN_80114178: gouraud bands across the draw window |
 | `LineStrip`, `AreaMap`, `ScaledSprites` | `game/render/line_strip.h`, `game/render/area_map.h`, `game/render/scaled_sprites.h` | A08's node strip and A02's map+marker; the scaled sprite-record writer the FX sprite emitters stamp through |
 | `AnchorQuads`, `GuestKeyedEmitters`, `QuadStateRender` | `game/render/anchor_quads.h`, `game/render/guest_keyed_emitters.h`, `game/render/quad_state.h` | The guest render fns keyed to their node (A00's anchor/chain quads, the A01/A00 unported leaves, the DEMO and A01 bodies that take no object) and the text-label glyph quads: state = the packets they linked, render moves the screen vertices |

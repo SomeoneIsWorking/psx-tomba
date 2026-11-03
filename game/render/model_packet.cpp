@@ -271,6 +271,17 @@ ModelDepth ModelPacket::depthOf(std::uint32_t flags, std::uint32_t modeMask) {
   }
 }
 
+bool ModelPacket::hiddenByX(const ModelXHide &rule) const {
+  if (!rule.active || mMemory.mem_r32(kHideWord) == 0u) {
+    return false;
+  }
+  if (mShape.list == ModelList::Gt3) {
+    return mMemory.mem_r16s(mRecord + mShape.corners[2].x) <= rule.gt3;
+  }
+  return mMemory.mem_r16s(mRecord + mShape.corners[0].x) <= rule.gt4 &&
+         mMemory.mem_r16s(mRecord + mShape.corners[1].x) <= rule.gt4;
+}
+
 bool ModelPacket::hidden(const psx::present::EmitMemory &memory, std::uint32_t flags, std::uint32_t hideFlag) {
   return (flags & hideFlag) != 0u && memory.mem_r32(kHideWord) != 0u;
 }
