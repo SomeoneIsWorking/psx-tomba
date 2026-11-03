@@ -2,7 +2,7 @@
 
 Features: F-60FPS.
 
-Status: open; cause not traced.
+Status: open; cause traced to psxport (2026-11-03). Owner: psxport `runtime/psx/present/blend.h` (`lerpInt`).
 
 ## Reproduction
 
@@ -19,8 +19,24 @@ they sit 0.51-0.91 of the way toward the next real present, mean 0.71, 200 above
 Crash Bash and Spyro 2 in-betweens measure with the same tool. A consistent lean toward the next pose is
 possible judder: the motion steps short, then long.
 
-## Next step
+## What the measure saw
 
-Find the producer that draws Tomba's model in area 1 (`docs/producers.md` element-namer table) and check whether
-its `render(from, to, t)` blends a word that is already the next frame's (pose, keyframe index or matrix) or
-lerps a ring value the long way.
+The whole-frame pixel share mixes two things. The bottom-right fire changes its sprite frame on some intervals; a
+frame of a texture animation cannot be halved, so those in-betweens show the later frame (share 1.00,
+`scratch/tomba2b/evidence/0046_fire_frame_step.png`), while the fire sprite's vertices sit at 0.498. Over Tomba's crop
+alone the pixel share is 0.56 (`0046_vertex_shares.txt`).
+
+## Cause
+
+Measured on the vertices instead of pixels: each Tomba sub-part list (`ListStateProducer::render`, lists
+`0x8017C868`-`0x8017ECF4`) rendered at t=0, 0.5 and 1 and matched by texture coordinates lands at a vertex-weighted
+0.565 (median 0.61) of a 0.6-native-pixel idle step. psxport `present/blend.h:lerpInt`, which
+`blendGteControl` uses for the translation words CR5-7, rounds with `llround`: at t=0.5 an odd span is a tie, and half
+away from zero always lands on the later frame's side. With the ties rounded half to even (a temporary build) the same
+probe reads 0.503 (median 0.502). The title's producer is correct; the lean is 0.04 native pixels (0.3 output pixels at
+8x).
+
+## Fix
+
+At the owner: `lerpInt` rounds ties half to even, so no tie favours either frame. It is a psxport change shared by
+every title's blends, so it lands with psxport's all-title rebuild and real-time run; not applied from the Tomba lane.
