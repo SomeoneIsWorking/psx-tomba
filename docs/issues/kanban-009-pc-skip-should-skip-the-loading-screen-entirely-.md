@@ -61,10 +61,12 @@ the attract launch window f457..f461, where the screen presents nothing at all.
 ## The change that landed
 
 `game/ui/loading_text.cpp` / `.h` are deleted, and the caller-less `Engine::submode1Faithful` — the
-last writer of the guest multi-tick cadence — is removed. Nothing else: the native owner that WAS
-tried for `FUN_80044BD4` itself (`tomba::sched::Scheduler::spawnAndWait` declared as the override) was reverted.
+last writer of the guest multi-tick cadence — is removed. `tomba::sched::Scheduler::spawnAndWait` is now the
+override at `FUN_80044BD4` (2026-11-03, issue 0048): A00's room init FUN_8010AC20 reaches it on area 0 entry 7,
+where the guest wait yielded inside the native GAME frame and the room never started. It runs the task to its end
+within the caller's field, so neither the wait nor the card presents a field.
 
-**Why no override.** A/B with it installed and commented out, over two 2000-frame runs and a 10-area
+**Why no override (2026-10-03, superseded by issue 0048).** A/B with it installed and commented out, over two 2000-frame runs and a 10-area
 cold-warp run, was byte-identical apart from the declaration counters (`declarations=251 installed=197`
 vs `252/198`): a clean no-regression result AND a no-effect result. An override no route reaches is not
 landed — least of all this one, whose body carries `SynchronousTaskWait`'s abort when a loader does not
@@ -73,8 +75,8 @@ raise `0x1F80019B` synchronously. See the section below for why no route can rea
 ## Still open
 
 The card and its wait are gone for the same reason they were never seen: every load the product
-performs is already synchronous at its own native owner, and the one wait that could present a card has
-no reachable caller.
+performs is synchronous at its own native owner, and the one wait that could present a card,
+`FUN_80044BD4`, is native and presents no field.
 
 ## Who the 22 call sites belong to, and why none of them is reachable (2026-10-03, Ghidra/disas)
 
@@ -102,7 +104,7 @@ integer argument. `0x8011C740` is present byte-identically in every MODE overlay
 record (`lw v0,0xc4(v1)`) before calling `0x80083E80` — a per-object streamer, not a load screen. It
 streams one actor, and the guest never put a screen up for it.
 
-**Reachability: not reached.** Every one of the 22 sites is the guest image of code the port has
+**Reachability (2026-10-03; A00's FUN_8010AC20 on area 0 entry 7 is a reached caller, issue 0048).** Every one of the 22 sites is the guest image of code the port has
 already replaced with a synchronous native owner. They execute only when `Engine::frame()` hands the
 frame back to the cooperative guest loop, which is exactly the unowned condition it reports:
 `sm[0x4a] ∉ {0,1}` (plus the SOP-not-loaded case at `s4a==0`). Nothing driven reaches it — boot,
@@ -110,9 +112,8 @@ the attract cycle, `newgame`, the prologue, the first area, the in-field transit
 all keep `s4a` at 0, 1 or 5 (the area-change transition, now owned by `Engine::frame`). This is a native-ownership
 boundary, not an input problem, so a cold warp or a phase-keyed pad replay cannot reach it either.
 
-Consequence for the change: the override is correct by construction and harmless (A/B byte-identical
-over 5000 frames and 10 cold warps), but it cannot be shown taking a call, so it stays unlanded
-pending a decision.
+Consequence then: the override was harmless (A/B byte-identical over 5000 frames and 10 cold warps) but not shown
+taking a call. Issue 0048 shows it taking one, and it is landed.
 
 ## Ghidra now works for Tomba! 2 (2026-10-03)
 

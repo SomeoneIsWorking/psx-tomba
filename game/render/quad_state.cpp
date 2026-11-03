@@ -10,6 +10,7 @@
 #include "ordering_table.h"
 #include "state_bytes.h"
 
+#include <cmath>
 #include <memory>
 #include <utility>
 #include <vector>
@@ -46,16 +47,41 @@ struct Saved {
   }
 };
 
+// A screen coordinate as its whole pixel and the fraction past it.
+struct Place {
+  int whole;
+  float sub;
+};
+struct PlaceSpan {
+  Place from;
+  Place to;
+};
+// The place `t` of the way along a span, unrounded so a rigid move keeps every span.
+Place lerpPlace(const PlaceSpan &span, float t) {
+  const double from = span.from.whole + static_cast<double>(span.from.sub);
+  const double at = from + (span.to.whole + static_cast<double>(span.to.sub) - from) * static_cast<double>(t);
+  const double floored = std::floor(at);
+  return {.whole = static_cast<int>(floored), .sub = static_cast<float>(at - floored)};
+}
+
+// A texel offset has no fraction, so the step rounds: equal steps stay equal and a texture moved whole keeps
+// its span.
+std::uint8_t lerpTexel(std::uint8_t from, std::uint8_t to, float t) {
+  return static_cast<std::uint8_t>(from + psx::present::lerpInt(0, to - from, t));
+}
+
 void lerpVertex(psx::present::RecordVertex &vertex, const psx::present::RecordVertex &from, float t) {
-  vertex.x = psx::present::lerpInt(from.x, vertex.x, t);
-  vertex.y = psx::present::lerpInt(from.y, vertex.y, t);
-  vertex.subX = from.subX + (vertex.subX - from.subX) * t;
-  vertex.subY = from.subY + (vertex.subY - from.subY) * t;
+  const Place x = lerpPlace({.from = {from.x, from.subX}, .to = {vertex.x, vertex.subX}}, t);
+  const Place y = lerpPlace({.from = {from.y, from.subY}, .to = {vertex.y, vertex.subY}}, t);
+  vertex.x = x.whole;
+  vertex.subX = x.sub;
+  vertex.y = y.whole;
+  vertex.subY = y.sub;
   vertex.r = static_cast<std::uint8_t>(psx::present::lerpInt(from.r, vertex.r, t));
   vertex.g = static_cast<std::uint8_t>(psx::present::lerpInt(from.g, vertex.g, t));
   vertex.b = static_cast<std::uint8_t>(psx::present::lerpInt(from.b, vertex.b, t));
-  vertex.u = static_cast<std::uint8_t>(psx::present::lerpInt(from.u, vertex.u, t));
-  vertex.v = static_cast<std::uint8_t>(psx::present::lerpInt(from.v, vertex.v, t));
+  vertex.u = lerpTexel(from.u, vertex.u, t);
+  vertex.v = lerpTexel(from.v, vertex.v, t);
 }
 
 void lerpPrimitive(psx::present::DrawPrimitive &primitive, const psx::present::DrawPrimitive &from, float t) {

@@ -8,7 +8,7 @@ Status: fixed (2026-11-03); the fight is unchecked. Owners:
 
 ## Reproduction
 
-Hidden, unpaced, ires 0, fps60 1, aspect 16:9, sink 3840x2160: autoskip to free roam, `warp 14`, run to the Evil Water
+Hidden, unpaced, ires 0, fps60 1, aspect 16:9, sink 3840x2160: autoskip to free roam, `warp 14/0`, run to the Evil Water
 Pig's entrance dialog.
 
 ## Observed
@@ -33,7 +33,7 @@ Each holds its interval: an in-between present repeats a real frame instead of b
   by a `ListStateProducer` under the blended view. Its screen gate is the draw window, so the wall fills 16:9
   (`scratch/tomba2b/b14i/w1100_small.png`). The 0x8003C048 row (block 0x801110D4) was this body's GT4 path.
 
-Shown on `warp 14` with the same reproduction: the owner journal no longer reports 0x80113AEC, 0x80113DE0 or
+Shown on `warp 14/0` with the same reproduction: the owner journal no longer reports 0x80113AEC, 0x80113DE0 or
 0x8003C048 (`scratch/tomba2b/evidence/0049_a14_owner_rows_after.txt`).
 
 ## The sprite and dialog movers
@@ -57,6 +57,13 @@ fences 1850-2149) the in-betweens blend: intervals without a texture-frame step 
 intervals where the clock 0x1F80017C steps the waterfall's texture frame read 0.80 (n=139), since a texture frame
 cannot be halved (as the fire in 0046). Fence 1900 interp vs previous/next MAE 18.9/3.6, fence 1901 3.8/0.6
 (`0049_a14_waterfall_shares.txt`).
+
+Differenced, same reproduction with `PSXPORT_OVERRIDE_DIFF=0x80111E14,0x8007CDD4`
+(`scratch/tomba2c/evidence/0049_a14_override_diff.txt`): `BackdropSprites::draw` 1326 calls seen, 36 sampled, and
+`DialogGlyphs::prompt` 107 seen, 17 sampled; the tool's verdict is FAILED for both, every sample mismatching. Call 1 of
+each differs only in `v1`, a void body's scratch result, with every RAM and scratchpad byte equal; the side-effect
+logs differ by the nested overrides the guest calls (0x80027A4C `ScaledSprites`, 0x80083DE0) and the native does
+inline. Later calls are counted, not itemised, so the packets are shown equal at call 1 only.
 
 ## Open
 

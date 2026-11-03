@@ -64,6 +64,7 @@ public:
   };
   // FUN_80044BD4: spawns slot 1 and, unless `flag` is 1, runs it until it raises the done flag. The guest body
   // yields while it waits, which a native frame cannot resume, so guest callers reach this override.
+  // The task ends within the caller's field, so flag 2's per-field counter bump and Loading card never happen.
   void spawnAndWait(const SpawnAndWaitArgs &args);
   // FUN_80044BD4's tail for a wait whose task already ran: flag != 1 stamps the task with the RNG.
   SyncWaitCompletion completeSyncWait(std::uint32_t taskBase, std::uint32_t flag);
