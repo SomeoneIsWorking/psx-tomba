@@ -32,3 +32,8 @@ the shot at 90 s is Tomba in the first field (`scratch/player-bugs-4/autoskip2/e
 press refusal in `Pad::injectButtons` instead of a driver guard: the same screens at the same frames (563, 564, 682,
 794) and Tomba in the first field (`scratch/player-bugs-4/autoskip3/run.log`, `end_small.png`).
 
+
+## Re-shown (2026-11-03)
+Hidden unpaced run from boot with the title's executable as the argument: `front end at frame 563`, `opening movie at
+frame 564`, `scripted opening at frame 682`, `free roam at frame 794`; Tomba in the first field
+(`scratch/tomba2/walk1/sheet.jpg`).

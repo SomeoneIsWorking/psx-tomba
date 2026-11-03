@@ -34,3 +34,7 @@ segments and applies the saved draw mode packets (`DrawModeTracker`), as `Packet
 Same route to f1900 after the fix: `[ledger] run-end: 1312 composed t=1 present(s) reconciled, 0 with a dropped
 producer` (before: every gameplay present). Before/after crops: `scratch/player-bugs-3/evidence/0043_demo_f580_before_after.png`
 (title art restored) and `0043_chain_f690_real_before_after.png`.
+
+## Re-shown (2026-11-03)
+Autoskip to free roam and a run east through area 0 on HEAD: `[ledger] run-end: 1539 composed t=1 present(s)
+reconciled, 0 with a dropped producer` (`scratch/tomba2/bucket2/run.log`).

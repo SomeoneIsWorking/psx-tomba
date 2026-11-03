@@ -1,5 +1,10 @@
 # Replay library
 
+Every `.pad` here is the retired raw format (one 2-byte mask per frame, no header). The player now accepts only
+phase-keyed recordings (`PSXPADPH`, psxport `runtime/psx/input/pad_recording.h`) and refuses these with
+`not a phase-keyed pad recording`, so none of them reproduces its scenario on HEAD; the entries below record what
+each one once reached. A new repro is cut with `padrec save <path>` from a player session.
+
 Deterministic pad-capture replays — each is a recorded button sequence (2-byte active-low PSX pad
 mask per frame, written by `PSXPORT_PAD_RECORD=<path>`) that reproduces a specific game scenario
 **headlessly, bit-for-bit**. Use these to reproduce a bug or reach a game state WITHOUT live user
