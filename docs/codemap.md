@@ -13,7 +13,7 @@ Frame loop: owned. `tomba::FrameDriver` runs one pass of `0x80050B08` (update `0
 | `tomba::Catalog`, `createCatalog` | `game/core/entry/catalog.h` | The product catalog: index 0 Tomba! 1, index 1 Tomba! 2, one picker panel each; the only place both title trees are named |
 | `bootStubIdentity`, `mainExecutableIdentity` | `game/core/entry/identity.h` | SCUS_944.54 and MAIN.EXE size, SHA-256, PS-X EXE header and disc paths, from `config/images.json` |
 | `loadMainExecutable` | `game/core/entry/main_handoff.h` | The stub-to-MAIN.EXE handoff: read from the disc, authenticate, load, set the entry registers |
-| `tomba::Runtime` | `game/core/entry/runtime.h` | The `GameRuntime`: CRT0 and `bootInit`, stock library bindings and overrides, session, frame driver, scheduler, pad delivery, packet pool, producers, frame cuts, widescreen, commands, audio, dev warp, world readout |
+| `tomba::Runtime` | `game/core/entry/runtime.h` | The `GameRuntime`: CRT0 and `bootInit`, stock library bindings and overrides, session, frame driver, scheduler, pad delivery, packet pool, producers, frame cuts, widescreen (`AspectPolicy`: 4:3 over the boot cards), commands, audio, dev warp, world readout |
 | `tomba::Session` | `game/core/entry/session.h` | Per-Game title state: `Engine`, render, CD and its save-state port, scheduler, audio, dev warp, override catalog, state producers, call sites; the `eng()`/`rend()`/`fade()` accessors |
 | `tomba::Settings` | `game/core/entry/settings.h` | `PSXPORT_NO_FMV`, `PSXPORT_AUTO_SKIP`, read once from the CVar registry |
 | `Engine`, `StepReturn` | `game/core/engine/` | The stage driver: field run, frame ticks, task machine, object leaves, state dispatch, scene frame |

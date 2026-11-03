@@ -19,6 +19,12 @@ inline constexpr psx::hle::StockLibgpu::Entries kStockLibgpu{.drawSync = 0x80080
                                                              .timeoutFlagWord = 0x800A5AE0u};
 
 // Process-lifetime owner of Tomba! 2's framework-facing behavior.
+// The player's aspect, held at 4:3 while the publisher cards show: they are host pictures with no projection.
+class AspectPolicy final : public psx::present::GuestWidescreenProjection {
+public:
+  psx::present::PresentationAspect presentationAspect(const Core &core) const override;
+};
+
 class Runtime final : public psx::game::GameRuntime {
 public:
   Runtime();
@@ -52,7 +58,7 @@ private:
   psx::hle::StockLibgpu libgpu_;
   psx::hle::StockLibgte libgte_;
   psx::input::StockPadBuffers pad_;
-  psx::present::GuestWidescreenProjection aspectPolicy_;
+  AspectPolicy aspectPolicy_;
 };
 
 } // namespace tomba

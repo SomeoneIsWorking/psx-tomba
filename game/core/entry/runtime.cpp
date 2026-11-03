@@ -23,6 +23,7 @@
 #include "render/anchor_quads.h"
 #include "render/area_map.h"
 #include "render/billboard_state.h"
+#include "render/gradient_backdrop.h"
 #include "render/guest_keyed_emitters.h"
 #include "render/guest_ordering_table.h"
 #include "render/letterbox_bars.h"
@@ -136,6 +137,7 @@ void Runtime::registerOverrides(Game &game) {
   Font::registerStateRenders(renders);
   ScreenFade::registerStateRenders(renders);
   tomba::render::LetterboxBars::registerStateRenders(renders);
+  tomba::render::GradientBackdrop::registerStateRenders(renders);
   UiSprite::registerStateRenders(renders);
   tomba::render::BillboardState::registerStateRenders(renders, game.core);
   tomba::render::PackedMesh::registerStateRenders(renders, game.core);
@@ -193,6 +195,14 @@ bool Runtime::sealedFrameIsCut(Core &core) const {
 
 int Runtime::displayHeight() const {
   return kDisplayLines;
+}
+
+psx::present::PresentationAspect AspectPolicy::presentationAspect(const Core &core) const {
+  const auto *driver = core.game->frameDriverIf<FrameDriver>();
+  if (driver == nullptr || !driver->pastBootPrefix()) {
+    return psx::present::PresentationAspect::Standard4x3;
+  }
+  return psx::present::GuestWidescreenProjection::presentationAspect(core);
 }
 
 const psx::present::GuestWidescreenProjection *Runtime::guestWidescreenProjection() const {
