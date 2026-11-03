@@ -421,9 +421,11 @@ void OverlayGroundGt3Gt4::entityLoop(Core *c) {
   uint32_t otBase = tomba::render::OrderingTable::active(*c).base();
   uint32_t table = c->mem_r32(list + 12);
 
-  // camera GTE control block (8 words, CR0..CR7 — matches the guest instruction path's own 8-word load)
-  for (int i = 0; i < 8; i++) {
-    c->gte().writeControl((uint32_t)i, c->mem_r32(CAMERA_GTE_CTRL + (uint32_t)i * 4));
+  // An empty list returns before the camera load and leaves CR0-7 as the caller had them.
+  if (count != 0) {
+    for (int i = 0; i < 8; i++) {
+      c->gte().writeControl((uint32_t)i, c->mem_r32(CAMERA_GTE_CTRL + (uint32_t)i * 4));
+    }
   }
 
   while (idxCursor < idxEnd) {
