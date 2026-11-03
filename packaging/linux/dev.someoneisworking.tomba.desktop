@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Tomba!
+GenericName=Platform-adventure game
+Comment=PC-native port of Tomba! and Tomba! 2: The Evil Swine Return
+Icon=dev.someoneisworking.tomba
+Terminal=false
+Categories=Game;ActionGame;
+Keywords=Tomba;Pink hair;PlayStation;Platformer;Port;
+StartupNotify=true
