@@ -5,7 +5,6 @@ scratch/
 # User-supplied disc assets are provisioned locally, never committed
 *.chd
 .env
-/psxport_settings.ini
 # The framework submodule's own working-tree noise
 external/psxport/build/
 external/psxport/scratch/
