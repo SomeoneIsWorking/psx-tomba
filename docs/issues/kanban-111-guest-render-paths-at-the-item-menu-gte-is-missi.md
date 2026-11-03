@@ -1,7 +1,7 @@
 ---
 id: kanban-111
 title: Guest render paths at the item menu: gte is missing 58% of the picture, psx draws NOTHING
-status: open
+status: closed
 labels: [render, oracle, bug]
 features: [F-RENDER]
 ---
@@ -35,3 +35,12 @@ REPRO (now reliable — it was NOT before psxport 088c4722, which stopped the he
   PSXPORT_PAD_RESUME=replays/bugs/ingame-item-menu.pad ./scratch/bin/tomba2_port scratch/bin/tomba2/MAIN.EXE
 
 SUPERSEDES the open question from 2026-08-19 about whether to delete the gte path. The answer is now measured rather than argued: gte is not empty (it draws 37.1% of the frame here and 76,786 non-black px at free-roam), it is BROKEN — and psx is the one that draws nothing at this frame. Deleting gte would have hidden a rasterizer bug that psx has too.
+
+## Closed (2026-11-03)
+
+The gte and psx render paths this card measured no longer exist: the record path is the only picture
+(`PSXPORT_RENDER_PATH = record`), and `replays/bugs/ingame-item-menu.pad` is the retired raw pad format, which the
+player now refuses (`not a phase-keyed pad recording`). Shown on HEAD instead: autoskip to free roam, `tap t`,
+`pshot` at 3840x2160, ires 0, fps60 1. The item menu draws whole: inside the 4:3 picture, mean RGB
+(81.5, 75.4, 46.2) and 96.2% non-black, the native leg's brightness and coverage above
+(`scratch/tomba2/evidence/kanban111_item_menu.png`).
