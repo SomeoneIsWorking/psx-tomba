@@ -66,7 +66,11 @@ overwriting writer; area 10 is 0.50-0.51, area 15 0.69-0.79 (the texel-step back
 Still unowned (`scratch/tomba2e/r9/reduced/shares.txt` and its journal; area 13 again in `scratch/tomba2e/r10`):
 - `warp 3/0`: 0x8010F1A0, 0x8010F968, 0x80110290, 0x80110094 (A03 emitter copies), 0x80109EEC (0x64), 0x80110B00 (0x3A).
 - `warp 4/0`: 0x8013F418/0x8013F6E4 (A04 lit pair conditioned on 0x1F800207 and 0x1F80009C), 0x8013AD90 (0x60).
-- `warp 11/0`: 0x8003C048 (MAIN 0x60 rect).
+- `warp 11/0`: the journal names the render dispatcher 0x8003C048; the writer it dispatched is A0B 0x801110BC
+  (block 0x80111334), a dust field of 513 points from an LCG seeded by node+0x50, wrapped around the camera
+  (0x1F8000D2/D6/DA plus 0x1F800104-0x108), RTPS-projected and linked as 1x1 or 2x2 white rects at bucket 0x100.
+  It keeps only x < 0x140, so the margins get no dust either. Its producer is a native body over `EmitMemory` with
+  the scene camera blended and the cull widened to the draw window.
 - `warp 13/0`: 0x80112DE4/0x801131B0 (A0D pair; its bit-4 branch calls rsin). Its 0x80027A4C stamps are owned by
   A0D 0x80110C14.
 
