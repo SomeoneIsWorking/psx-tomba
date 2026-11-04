@@ -2,7 +2,6 @@
 
 #include "world/area_entries.h"
 
-#include <array>
 #include <cstdint>
 #include <string>
 
@@ -29,31 +28,6 @@ public:
   inline static constexpr uint32_t kLoadMode = 0x800bf89cu;
   inline static constexpr uint8_t kScriptedOpening = 2;
   inline static constexpr uint8_t kOrdinaryPlay = 4;
-  // Sourced names only; an empty name shows as its number.
-  inline static constexpr std::array<const char *, AreaEntries::kAreaCount> kAreaNames{
-      "",
-      "",
-      "",
-      "",
-      "",
-      "",
-      "",
-      "",
-      "Water Temple", // 8: USER 2026-07-23
-      "",
-      "",
-      "",
-      "Ghost Pig boss", // 12: USER 2026-07-23
-      "",
-      "",
-      "",
-      "",
-      "",
-      "",
-      "",
-      "",
-      ""};
-
   // Where the field machine is, as far as a request is concerned.
   enum class Phase : uint8_t {
     Unavailable, // not in a state that consumes a request

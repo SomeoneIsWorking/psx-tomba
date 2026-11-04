@@ -105,7 +105,7 @@ T1 runs at 60 fps natively; it joins no F-FPS60 hop.
 |---|---|---|---|
 | 1 | T2 | psxport F-DEBUG.1 | `game/core/debug/debug_menu.cpp:tomba::DebugMenu` — `warp`/`item`/`items-all`/`flag`, `tp`, the diagnostics verbs |
 | 2 | T2 | psxport F-DEBUG.1 | `game/core/debug/dev_control.cpp:DevControl::applyArmed` — applied by the frame driver at a frame boundary |
-| 3 | T2 | psxport F-DEBUG.2 | `game/core/debug/dev_warp.h:DevWarp::kAreaNames` — the Debug tab's area names |
+| 3 | T2 | psxport F-DEBUG.2 | `game/world/area_entries.h:AreaEntries::regionName`/`placeName` — the Debug tab's area and entry names, from the map screen's tables |
 | 4 | T2 | psxport F-DEBUG.3 | `game/core/debug/debug_menu.cpp:tomba::DebugMenu` — the Position readout and the sound test over `tomba::Audio` track names |
 | 5 | T2 | title | `game/core/debug/auto_drive.cpp:AutoDrive` — `PSXPORT_AUTO_SKIP` into GAME free-roam |
 | 6 | T1 | psxport F-DEBUG.1 | `titles/tomba1/game/core/debug/debug_menu.cpp:tomba1::DebugMenu` — `warp <area>/<section>` (entry 0), sections from the debug area select's table |

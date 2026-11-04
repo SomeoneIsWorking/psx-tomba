@@ -29,9 +29,6 @@ using psx::game::DebugParam;
 
 constexpr std::array<std::string_view, 2> kFlagOps{"get", "set"};
 constexpr std::int64_t kCameraLimit = 32767;
-// An entry record's u16 flags after its s16 x, y, z; the room id is the top nibble.
-constexpr std::uint32_t kEntryFlags = 6u;
-constexpr unsigned kRoomShift = 12u;
 
 DevControl &devControl(Core &core) {
   return core.game->frameDriverAs<FrameDriver>().devControl();
@@ -46,12 +43,12 @@ std::string gameStageRefusal(Core &core) {
   return DevGate::inGameStage(core) ? std::string() : "enter the GAME field before changing inventory";
 }
 
-std::string areaName(std::uint32_t area) {
-  const std::string_view sourced = DevWarp::kAreaNames[area];
-  return sourced.empty() ? lucent::format("area {}", area) : std::string(sourced);
+// An area by the map screen's region and the place of its entry 0; areas of one region differ by their place.
+std::string areaName(Core &core, std::uint32_t area) {
+  return lucent::format("{}: {}", AreaEntries::regionName(core, area), AreaEntries::placeName(core, area, 0));
 }
 
-// MAIN's areas by their sourced names, each with its entry records; empty before the GAME stage maps MAIN.
+// MAIN's areas by the map screen's names, each with its entry records; empty before the GAME stage maps MAIN.
 std::vector<psx::game::WarpPlace> warpAreas(Core &core) {
   std::vector<psx::game::WarpPlace> areas;
   if (!DevGate::inGameStage(core)) {
@@ -62,13 +59,14 @@ std::vector<psx::game::WarpPlace> warpAreas(Core &core) {
     if (entries == 0u) {
       continue;
     }
-    psx::game::WarpPlace place{.name = areaName(area)};
+    psx::game::WarpPlace place{.name = areaName(core, area)};
     for (std::uint32_t entry = 0; entry < entries; ++entry) {
-      const std::uint16_t flags = core.mem_r16(AreaEntries::record(core, area, entry) + kEntryFlags);
+      const std::uint16_t flags = AreaEntries::flags(core, area, entry);
+      const std::string name = AreaEntries::placeName(core, area, entry);
       place.places.push_back({
           .name = (flags & AreaEntries::kRoomEntry) != 0
-                      ? lucent::format("entry {} (room {})", entry, flags >> kRoomShift)
-                      : lucent::format("entry {}", entry),
+                      ? lucent::format("{} (room {})", name, flags >> AreaEntries::kRoomShift)
+                      : name,
           .arrive =
               [area, entry](Core &target) {
                 return devControl(target).warp().arm(target, area, entry);
@@ -94,7 +92,7 @@ DebugMenu::DebugMenu() {
       [](Core &core, std::uint64_t key) {
         const auto area = static_cast<std::uint32_t>(key & 0xFFu);
         if ((key & 0x10000u) != 0) {
-          return area < AreaEntries::kAreaCount ? lucent::format("warp {}/0", areaName(area)) : std::string();
+          return area < AreaEntries::kAreaCount ? lucent::format("warp {}/0", area) : std::string();
         }
         const bool gameStage = static_cast<std::uint32_t>(key >> 32) == sched::kStageGameEntry;
         return !gameStage && core.game->title != nullptr ? lucent::format("pick {}", core.game->title->slug)

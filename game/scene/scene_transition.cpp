@@ -33,9 +33,7 @@ void SceneTransition::areaMaskTrigger(uint8_t area, uint8_t sub) {
 
   auto impl = [&](uint8_t a, uint8_t s) {
     if (a < 9) {
-      uint16_t h = c->mem_r16(AreaEntries::record(*c, a, s) + 6u);
-      uint8_t base = c->mem_r8(0x800A55B0u + a);
-      uint32_t shift = ((uint32_t)base + (((uint32_t)h & 0x0600u) >> 9)) & 0x1Fu;
+      uint32_t shift = AreaEntries::placeIndex(*c, a, s) & 0x1Fu;
       uint32_t reg = c->mem_r32(0x800BFE50u);
       c->mem_w32(0x800BFE50u, reg | (1u << shift));
     }

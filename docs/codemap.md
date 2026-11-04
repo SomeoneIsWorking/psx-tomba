@@ -38,7 +38,7 @@ Frame loop: owned. `tomba::FrameDriver` runs one pass of `0x80050B08` (update `0
 | `Behaviors`, `tomba::ai::*` | `game/ai/` | Per-object and per-area behaviours, one `beh_*` file per handler; `zoned_attacker_abi.h` |
 | `Actor`, `BehaviorDispatch`, `ObjectList`, `Animation` | `game/object/` | The guest object lens, behaviour dispatch, entity-list walks, animation VM, rewards, cube text |
 | `ActorTomba`, `ActorInteraction`, `Collision`, `ActorTargeting` | `game/player/` | Tomba's actor (G block), item interaction, collision grid, targeting |
-| `Spawn`, `Pool`, `AreaSlots`, `ObjectTable`, `Placement`, `CollisionResolve`, `GraphicsBind`, `AreaEntries` | `game/world/` | Field object population, placement, collision resolve, render binding and the per-area entry records |
+| `Spawn`, `Pool`, `AreaSlots`, `ObjectTable`, `Placement`, `CollisionResolve`, `GraphicsBind`, `AreaEntries` | `game/world/` | Field object population, placement, collision resolve, render binding and the per-area entry records with their map-screen names |
 | `RenderRecordPool` | `game/world/render_record_pool.h` | The render-record free stack FUN_8007AAE8 and each record's life, the object key of record-keyed producers |
 | `Demo`, `Sop`, `StartBinStage` | `game/scene/demo.h`, `game/scene/sop.h`, `game/scene/start_bin_stage.h` | The DEMO front end (OP.STR), the SOP intro field, task-0's disc tables and boot preloads |
 | `ScriptInterp`, `ScriptObject` | `game/scene/script_*` | The cutscene script interpreter and its vocabulary |
