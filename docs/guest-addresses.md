@@ -528,6 +528,7 @@ calls it. A row whose handler is file-local names the file that declares the ove
 | 0x8010957C | LIVE | `AreaFadeSequencer::step` | game/scene/area_fade_sequencer.cpp | 0x8007E9C8 0x8010CC68 0x8010D030 | A0L per-node fade sequencer run by `Engine::fieldRun` while sm[0x4e]==0xb. |
 | 0x801099B4 | LIVE | `UnlitModelEmitter::gt3` (SOP) | game/render/unlit_model_emitter.cpp |  | SOP unlit GT3; A0B and A0C copy its body. |
 | 0x80109C80 | LIVE | `UnlitModelEmitter::gt4` (SOP) | game/render/unlit_model_emitter.cpp |  | SOP unlit GT4. |
+| 0x80109EEC | LIVE | `GuestKeyedEmitters::a03Hud` (A03) | game/render/guest_keyed_emitters.cpp |  | The area HUD, keyed as one screen. |
 | 0x80109FE0 | LIVE | `SopGround::draw` | game/render/sop_ground.cpp | 0x801099B4 0x80109C80 | SOP ground blocks; producer, object = block |
 | 0x8010A0E0 | LIVE | `Sop::scenePrepass` | game/scene/sop.cpp |  | SOP scene cam-frustum prepass — native ownership of FUN_8010A0E0 (Ghid… |
 | 0x8010A3AC | LIVE | `Sop::sceneGridGather` | game/scene/sop.cpp |  | sceneGridGather — native port of guest FUN_8010A3AC (Ghidra decomp |
@@ -565,20 +566,26 @@ calls it. A row whose handler is file-local names the file that declares the ove
 | 0x8010EA80 | LIVE | `ActorBump::respondToContact` | game/ai/actor_bump.cpp |  | ORACLE: overlay guest 0x8010EA80 |
 | 0x8010F97C | LIVE | `UnlitModelEmitter::gt3` (A0A) | game/render/unlit_model_emitter.cpp |  | Depth from the SZ registers, byte UV scroll on flags 4/8 (kA0a). |
 | 0x8010FD74 | LIVE | `UnlitModelEmitter::gt4` (A0A) | game/render/unlit_model_emitter.cpp |  | Depth from the SZ registers, byte UV scroll on flags 4/8 (kA0a). |
+| 0x80110094 | LIVE | `UnlitModelEmitter::gt3` (A03) | game/render/unlit_model_emitter.cpp |  | SOP body, always averaged, two-sided on flag bit 0 (kA03). |
+| 0x80110290 | LIVE | `SubdividedGround::draw` (A03) | game/render/subdivided_ground.cpp |  | Ground GT4 with 0x8010F968 (screen split) and 0x8010F1A0 (model split) folded in. |
 | 0x801103F4 | LIVE | `UnlitModelEmitter::gt3` (A0A) | game/render/unlit_model_emitter.cpp |  | Flagged unlit GT3 (kFlagged). |
 | 0x80110698 | LIVE | `UnlitModelEmitter::gt4` (A0A) | game/render/unlit_model_emitter.cpp |  | Flagged unlit GT4 (kFlagged). |
 | 0x80110C14 | LIVE | `GuestKeyedEmitters::a0dRing` (A0D) | game/render/guest_keyed_emitters.cpp | 0x80027A4C | The node's ring of 21 sprite stamps, keyed to the node. |
 | 0x80110CA4 | LIVE | `BackdropPlane::draw` (A0E) | game/render/backdrop_plane.cpp |  | Boss arena waterfall: 10x7 GT4 plane mirrored about y 0 and a 10-quad additive haze band, then FUN_801104D0. |
+| 0x801110BC | LIVE | `DustField::draw` (A0B) | game/render/dust_field.cpp |  | 513 lattice points as white rects; producer, object = node. |
+| 0x801113B4 | LIVE | `GuestKeyedEmitters::a03Ribbon` (A03) | game/render/guest_keyed_emitters.cpp |  | The node ribbon through 0x80110B00, keyed to the node; A0B has another body here. |
 | 0x80111E14 | LIVE | `BackdropSprites::draw` (A0E) | game/render/backdrop_sprites.cpp | 0x80027A4C | Boss arena background sprites: eight seeded anchors stamped by ScaledSprites at bucket 0x7FE; producer. |
 | 0x80112188 | LIVE | `ActorMeleeEngage::doIt` | game/ai/actor_melee_engage.cpp | 0x80022C78 0x80055844 0x80084080 |  |
 | 0x80112188 | LIVE | `ActorMeleeEngage::registerOverrides` | game/ai/actor_melee_engage.cpp |  |  |
 | 0x80112A24 | LIVE | `UnlitModelEmitter::gt3` (A0B) | game/render/unlit_model_emitter.cpp |  | SOP's GT3 body. |
 | 0x80112A60 | LIVE | `aux_list_walk` | game/ai/area_seaside_perframe.cpp |  | Walk the aux render list, dispatching FUN_80112A60(item) per item type… |
 | 0x80112CF0 | LIVE | `UnlitModelEmitter::gt4` (A0B) | game/render/unlit_model_emitter.cpp |  | SOP's GT4 body. |
+| 0x80112DE4 | LIVE | `UnlitModelEmitter::gt3` (A0D) | game/render/unlit_model_emitter.cpp |  | kA0a body with the flag-4 screen wave (kA0d). |
 | 0x80112DEC | LIVE | `OverlayGt3Gt4::gt3` (A0L) | game/render/overlay_gt3gt4.cpp |  | A00's GT3 body. |
 | 0x80112FBC | LIVE | `OverlayGt3Gt4::gt4` (A0L) | game/render/overlay_gt3gt4.cpp |  | A00's GT4 body. |
 | 0x801130C4 | LIVE | `ActorTomba::postInteractWalk` | game/player/actor_tomba.cpp |  |  |
 | 0x80113150 | LIVE | `UnlitModelEmitter::gt3` (A0B) | game/render/unlit_model_emitter.cpp |  | Flagged unlit GT3 (kFlagged). |
+| 0x801131B0 | LIVE | `UnlitModelEmitter::gt4` (A0D) | game/render/unlit_model_emitter.cpp |  | kA0a body with the flag-4 screen wave (kA0d). |
 | 0x801133F4 | LIVE | `UnlitModelEmitter::gt4` (A0B) | game/render/unlit_model_emitter.cpp |  | Flagged unlit GT4 (kFlagged). |
 | 0x80113628 | LIVE | `AreaMap::emit` (A02) | game/render/area_map.cpp |  | The area's map and the player's blinking marker; producer, the player's position moves by t. |
 | 0x80113748 | LIVE | `UnlitModelEmitter::gt3` (A0D) | game/render/unlit_model_emitter.cpp |  | Flagged unlit GT3 (kFlagged). |
@@ -649,6 +656,7 @@ calls it. A row whose handler is file-local names the file that declares the ove
 | 0x801280D0 | LIVE | `beh_a08_scene_actor` | game/ai/beh_a08_scene_actor.cpp |  |  |
 | 0x801281B8 | LIVE | `RopeSwing::swingTickAndBendSegments` | game/ai/rope_swing.cpp |  | ORACLE: overlay guest 0x801281B8 |
 | 0x80128760 | LIVE | `beh_linked_advance_branch` | game/ai/beh_linked_advance_branch.cpp |  |  |
+| 0x80129AF8 | LIVE | `GuestKeyedEmitters::a06Line` (A06) | game/render/guest_keyed_emitters.cpp |  | Three-point line, keyed by call site. |
 | 0x80129BAC | LIVE | `LitModelEmitter::gt3` (A08) | game/render/lit_model_emitter.cpp |  | Lit GT3 list emitter; the A05 and A07 copies share the native. |
 | 0x80129C00 | LIVE | `beh_anim_trigger_gates` | game/ai/beh_anim_trigger_gates.cpp |  |  |
 | 0x8012A06C | LIVE | `LitModelEmitter::gt4` (A08) | game/render/lit_model_emitter.cpp |  | Lit GT4 list emitter. |
@@ -712,6 +720,7 @@ calls it. A row whose handler is file-local names the file that declares the ove
 | 0x8013AA14 | LIVE | `beh_a06_scripted_actor` | game/ai/beh_a06_scripted_actor.cpp |  |  |
 | 0x8013AC34 | LIVE | `Spawn::spawnTypedChild` | game/world/spawn.cpp |  | TYPED-CHILD SPAWN wrappers (A00 overlay, |
 | 0x8013AC34 | LIVE | `Spawn::spawnChildTrigChild` | game/world/spawn.cpp |  |  |
+| 0x8013AD90 | LIVE | `DustField::drawSnow` (A04) | game/render/dust_field.cpp |  | Fixed-seed lattice snow kept inside the cave mouth. |
 | 0x8013ADBC | LIVE | `beh_box_rearm_sub` | game/ai/beh_box_rearm_sub.cpp |  |  |
 | 0x8013AEF0 | LIVE | `beh_a06_spawn_follow_obj_8013AEF0` | game/ai/beh_a06_script_fades.cpp |  | FUN_8013AEF0 — spawn a follow-obj and hook it |
 | 0x8013AFD8 | LIVE | `beh_a06_sound_cmd_wait_8013AFD8` | game/ai/beh_a06_script_fades.cpp | 0x800708B4 | FUN_8013AFD8 — kick a sound-command sequence and wait for scratchpa… |
@@ -736,6 +745,8 @@ calls it. A row whose handler is file-local names the file that declares the ove
 | 0x8013CDD4 | LIVE | `WidescreenMarginQuad::emit` | game/render/widescreen_margin_quad.cpp |  |  |
 | 0x8013CF00 | LIVE | `UnlitModelEmitter::gt3` (A06) | game/render/unlit_model_emitter.cpp |  | A06 drawer unlit GT3 with U scroll (kA06Scroll). |
 | 0x8013D1E4 | LIVE | `UnlitModelEmitter::gt4` (A06) | game/render/unlit_model_emitter.cpp |  | A06 drawer unlit GT4 with U scroll (kA06Scroll). |
+| 0x8013F418 | LIVE | `FogModelEmitter` gt3 (A04) | game/render/fog_model_emitter.cpp |  | Fogged GT3 by AVSZ3. |
+| 0x8013F6E4 | LIVE | `FogModelEmitter` gt4 (A04) | game/render/fog_model_emitter.cpp |  | Fogged GT4 by AVSZ4. |
 | 0x8013FB88 | LIVE | `OverlayGroundGt3Gt4::gt3` | game/render/overlay_ground_gt3gt4.cpp |  | ground/scene POLY_GT3 emit. Record = 36 bytes, SAME field layout as th… |
 | 0x8013FE58 | LIVE | `OverlayGroundGt3Gt4::gt4` | game/render/overlay_ground_gt3gt4.cpp |  | ground/scene POLY_GT4 emit. Record = 44 bytes: {+0 rgb0(rgb1=rgb0<<4)\|… |
 | 0x801401B8 | LIVE | `OverlayGroundGt3Gt4::entityLoop` | game/render/overlay_ground_gt3gt4.cpp |  | the ground-entity render list walker. list=a0: +6 (u8) entry count, +1… |
@@ -744,6 +755,7 @@ calls it. A row whose handler is file-local names the file that declares the ove
 | 0x801409C0 | LIVE | `ActorZonedAttacker::pickAttackByRange` | game/ai/actor_zoned_attacker.cpp |  | ActorZonedAttacker::pickAttackByRange(c) — FUN_801409c0(node[, unused … |
 | 0x80140FBC | LIVE | `OverlayGt3Gt4::gt3` (A08) | game/render/overlay_gt3gt4.cpp |  | A00's GT3 body plus the UV scroll at 0x80145A6E. |
 | 0x801411D8 | LIVE | `OverlayGt3Gt4::gt4` (A08) | game/render/overlay_gt3gt4.cpp |  | A00's GT4 body plus the UV scroll. |
+| 0x80141A94 | LIVE | `TileGridLayer::emitClamped` (A06) | game/render/tile_grid_layer.cpp | 0x80083DE0 | Tile grid whose rows clamp; producer, object = grid node. |
 | 0x80143A00 | LIVE | `ActorZonedAttacker::defaultSubStateMachine` | game/ai/actor_zoned_attacker.cpp |  | ActorZonedAttacker::defaultSubStateMachine(c) — FUN_80143a00(node). Th… |
 | 0x80144928 | LIVE | `ActorZonedAttacker::approachAndFace` | game/ai/actor_zoned_attacker.cpp |  | ActorZonedAttacker::approachAndFace(c) — FUN_80144928(node) -> v0. A s… |
 | 0x80144B50 | LIVE | `ActorZonedAttacker::idleTick` | game/ai/actor_zoned_attacker.cpp |  | ActorZonedAttacker::idleTick(c) — FUN_80144b50(node). The "idle" state… |

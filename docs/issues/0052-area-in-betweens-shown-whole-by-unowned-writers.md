@@ -2,8 +2,9 @@
 
 Features: F-FPS60.
 
-Status: open (2026-11-04); areas 7, 10 and 15 owned. Owners: `UnlitModelEmitter` (kA0a, kA0f), `QuadRtptSubmit`,
-`ObjectDraws::hangingStrip`, `AreaMap`, `TileGridLayer`, `GuestKeyedEmitters`.
+Status: fixed (2026-11-04); every listed area owned. Owners: `UnlitModelEmitter` (kA0a, kA0f, kA0d, kA03),
+`QuadRtptSubmit`, `ObjectDraws::hangingStrip`, `AreaMap`, `TileGridLayer`, `GuestKeyedEmitters`, `DustField`,
+`FogModelEmitter`, `SubdividedGround`.
 
 ## Reproduction
 `warp <area>/0` from free roam for each area, unpaced, `ires=0`, `fps60=1`, `PSXPORT_PRESENT_SINK=3840x2160`, debug
@@ -68,18 +69,29 @@ Proof run `scratch/tomba2e/r12/reduced/` (`shares.txt`, `owners.txt`): areas 2, 
 overwriting writer; area 10 is 0.50-0.51, area 15 0.69-0.79 (the flag-8 veil layer above), areas 2 and 7 move at
 0.40-0.65 with the 1.00s on the map marker's blink.
 
-Still unowned (`scratch/tomba2e/r9/reduced/shares.txt` and its journal; area 13 again in `scratch/tomba2e/r10`):
-- `warp 3/0`: 0x8010F1A0, 0x8010F968, 0x80110290, 0x80110094 (A03 emitter copies), 0x80109EEC (0x64), 0x80110B00 (0x3A).
-- `warp 4/0`: 0x8013F418/0x8013F6E4 (A04 lit pair conditioned on 0x1F800207 and 0x1F80009C), 0x8013AD90 (0x60).
-- `warp 11/0`: the journal names the render dispatcher 0x8003C048; the writer it dispatched is A0B 0x801110BC
-  (block 0x80111334), a dust field of 513 points from an LCG seeded by node+0x50, wrapped around the camera
-  (0x1F8000D2/D6/DA plus 0x1F800104-0x108), RTPS-projected and linked as 1x1 or 2x2 white rects at bucket 0x100.
-  It keeps only x < 0x140, so the margins get no dust either. Its producer is a native body over `EmitMemory` with
-  the scene camera blended and the cull widened to the draw window.
-- `warp 13/0`: 0x80112DE4/0x801131B0 (A0D pair; its bit-4 branch calls rsin). Its 0x80027A4C stamps are owned by
-  A0D 0x80110C14.
+## Areas 3, 4, 11 and 13 owned
+- `warp 13/0`: A0D's pair 0x80112DE4/0x801131B0 is `UnlitModelEmitter` kA0d, kA0a's body whose flag-4 records move
+  each corner's SY by rsin(phase 0x8011CC68 + model x * 4) >> 10 and sort 0x80 buckets back; the phase's low half is
+  a wrapped input.
+- `warp 11/0`: A0B 0x801110BC is `DustField`. The 513 points come from `CameraLattice`, the cube rain already used,
+  now one owner for both; the camera is blended and the guest's SX < 320 cut is the draw window, so the dust fills
+  the margins.
+- `warp 4/0`: A04's pair 0x8013F418/0x8013F6E4 is `FogModelEmitter` (AVSZ fog into DPCT/DPCS, hidden on 0x1F800207
+  15-17 or 0x1F80009C); 0x8013AD90 is `DustField::drawSnow`, the lattice from the fixed seed 0x12D687 with node+0x52
+  + 1 points, each kept only inside the cave mouth, skipped whole when the pool has under 0x8000 bytes left
+  (`PacketPool::hasRoom`).
+- `warp 3/0`: 0x80110290 is `SubdividedGround` with 0x8010F968 (fade and 2x2 split on screen) and 0x8010F1A0 (model
+  quad split twice and projected again) folded in, since only it calls them; 0x80110094 is `UnlitModelEmitter` kA03
+  (two-sided on flag bit 0). 0x80110B00's only caller 0x801113B4 and the HUD 0x80109EEC are `GuestKeyedEmitters`; a
+  wrapped emitter has to be in `kEmitters` too, or its state has no render and every interval is held (`no-state`).
+  The guest links a far subdivided quad whose bucket is out of range one slot before the OT; the render skips that
+  link, which no OT walk reaches.
+
+Proof run `scratch/tomba2f/w11/reduced/` (`shares.txt`, `display60_a*.txt`, `a*_small.jpg`), unpaced, ires 0, fps60,
+3840x2160: areas 3, 4, 11 and 13 sit at 0.43-0.59, 0.49-0.51, 0.47-0.53 and 0.48-0.56 after the first sample, every
+present composed (64/64) on the simulated 60.00 Hz display, one repeat, no skip or backward step, and the journal
+names no unowned or overwriting writer. Area 3's cave walls, area 4's snow and scenery and area 11's dust reach both
+16:9 edges.
 
 ## Next
-Per area, decompile each writer and give it the producer its pattern takes (`docs/producers.md`): emitter copies
-become `UnlitModelEmitter`/`LitModelEmitter` variants, leaves that link their own packets take `quad_state.h`.
-Start with 0x8003B320, the one MAIN writer shared by three areas.
+None for this issue; area 15's flag-8 veil layer is the integer-UV limit above.

@@ -74,6 +74,7 @@ Frame loop: owned. `tomba::FrameDriver` runs one pass of `0x80050B08` (update `0
 | `NodeXform`, `ObjModelView`, `QuadRtptSubmit`, `LibgpuDrawEnv` | `game/render/` | Node transforms, model-view setup, the shared quad submit, DRAWENV compile |
 | `Cull`, `Visibility` | `game/render/cull.h`, `game/render/horizontal_visibility_cull.h` | Per-object cull and LOD; the one horizontal visibility test over the draw window |
 | widescreen | `game/render/wide_window.h`, `game/render/widescreen_margin_quad.h`, `game/render/wide_re_*.cpp` | The draw window and margin width, margin quads, retained-width libgpu leaves |
+| `CameraLattice`, `DustField`, `FogModelEmitter`, `SubdividedGround` | `game/render/camera_lattice.h`, `game/render/dust_field.h`, `game/render/fog_model_emitter.h`, `game/render/subdivided_ground.h` | The camera-trailing point cube A08's rain and A0B/A04's dust and snow draw from; A04's fogged GT3/GT4 pair; A03's ground GT4 with its near subdivisions |
 | packet emitters | `game/render/fx_sprite_*`, `game/render/tile_grid_layer.h`, `game/render/sop_ground.h`, `game/render/rain_streaks.h`, `game/render/*walk*`, `game/render/perobj_*` | One port per remaining guest draw family |
 | Tomba! 1 | `titles/tomba1/` | The second title, isolated from `game/`; `titles/tomba1/docs/codemap.md` |
 | build | `CMakeLists.txt`, `cmake/port.cmake`, `titles/tomba1/cmake/` | `tomba2_port` (both titles), `tomba2_game`, `tomba1_runtime`, the tests and policy gate |

@@ -2,8 +2,8 @@
 
 Features: F-FPS60.
 
-Status: open (2026-11-04). Areas 0 and 9 traced (below); area 8's water is not confirmed; area 6 waits on two
-unowned writers; 14 and 21 not yet traced.
+Status: open (2026-11-04). Areas 0, 8 and 9 traced (below); area 6 owned with one remainder; 14 and 21 not yet
+traced.
 
 ## Reproduction
 `warp <area>/0` from free roam, 330 frames, then debug `fps60dump` for 30 frames; unpaced, `ires=0`, `fps60=1`,
@@ -49,10 +49,19 @@ in a separate run area 21's first one is not (0.64), so that first sample is not
   logic frame (`vkpix`): A09 FUN_8010A060 runs nine palette animations, each `LoadImage` 0x80081218 of one 16-colour
   row from its table at 0x8010E05C + frame * 0x20. A palette swap in VRAM has no halfway for a primitive producer,
   so the glow steps on the in-between before each real present. Tomba's motion is halfway (0.43-0.64).
-- Area 6: A06's tile grid 0x80141A94 is unowned. It is not a `TileGridLayer` copy: its rows clamp to the map's first
-  or last row by the camera's direction (0x1F8000F0) instead of wrapping, and it draws nothing while 0x800BF871 is
-  0x13. Also unowned: 0x80129AF8 (GP0 0x5A).
+- Area 8 confirmed (`scratch/tomba2f/w2/reduced/a08_water_word.txt`, a store watch on 0x80145A6C-0x80145A70): the
+  water's word 0x80145A6E is rewritten every logic frame by A08's scenery GT4 0x801411D8 (from the walker,
+  ra 0x8012A948). Its low byte U cycles 0x00, 0x40, 0x80 each frame and its high byte V steps 0x40 every third
+  frame: a nine-frame 3x3 flipbook of 64-texel cells, not a scroll. A flipbook frame has no halfway, so the
+  in-between takes the later cell (a held input) and the water shows each cell for two presents. A limit of the
+  effect, not a missing producer; the rest of area 8 is halfway.
+- Area 6 owned: the tile grid 0x80141A94 is `TileGridLayer::emitClamped` (rows clamp by 0x1F8000F0, nothing while
+  0x800BF871 is 0x13) and the line 0x80129AF8 a `GuestKeyedEmitters` leaf keyed by call site. The journal is clean
+  and every present composes, but the shares stay 0.23-0.76 (`scratch/tomba2f/w11/reduced/shares.txt`): the off
+  pixels sit in (0-96, 192-336) at 960x540 (`scratch/tomba2f/w4/reduced/a06_left_f1978.png`), the idle leafy NPC in the
+  left margin, its tiles alternating near 0.1 and 0.9 over a few hundred changed pixels. Not yet traced to its
+  writer.
 - Areas 12 and 14 read halfway from the first sample in the base run (`base/`).
 
 ## Next
-Area 6: port 0x80141A94 as a `TileGridLayer` walk with clamped rows, then 0x80129AF8. Then areas 14 and 21.
+Area 6: find which producer draws the left-margin NPC and why its in-betweens alternate. Then areas 14 and 21.
