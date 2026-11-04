@@ -22,9 +22,9 @@
 #include "rain_streaks.h"
 #include "render/anchor_quads.h"
 #include "render/area_map.h"
-#include "render/billboard_state.h"
 #include "render/backdrop_plane.h"
 #include "render/backdrop_sprites.h"
+#include "render/billboard_state.h"
 #include "render/gradient_backdrop.h"
 #include "render/guest_keyed_emitters.h"
 #include "render/guest_ordering_table.h"
@@ -82,8 +82,7 @@ void changeThread(Core *core) {
 }
 
 void spawnAndWait(Core *core) {
-  sched::taskScheduler(*core).spawnAndWait(
-      {.fn = core->r[4], .p2 = core->r[5], .p3 = core->r[6], .flag = core->r[7]});
+  sched::taskScheduler(*core).spawnAndWait({.fn = core->r[4], .p2 = core->r[5], .p3 = core->r[6], .flag = core->r[7]});
 }
 
 // CdReady(mode, result): the drive is always idle and its result buffer empty.

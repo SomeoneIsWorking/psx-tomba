@@ -21,14 +21,14 @@
 #include "actor_tomba.h"          // class ActorTomba — Tomba's postInteractWalk sub-handler leaves
 #include "actor_zoned_attacker.h" // class ActorZonedAttacker — 0x8014xxxx zoned-attacker sub-behavior cluster
 #include "assembly_rider.h"       // class AssemblyRider — pump arm-end rider per-frame tick (0x80118B10)
-#include "collision_resolve.h"    // class CollisionResolve — actor-vs-object cylinder resolve (0x80023D48)
-#include "cube_text_ledger.h"     // class CubeTextLedger — cube-text popup ledger (deactivate/spawn)
+#include "backdrop_plane.h"
+#include "backdrop_sprites.h"
+#include "collision_resolve.h" // class CollisionResolve — actor-vs-object cylinder resolve (0x80023D48)
+#include "cube_text_ledger.h"  // class CubeTextLedger — cube-text popup ledger (deactivate/spawn)
 #include "cutscene_camera.h" // class CutsceneCamera — resetFollowAccum/pushMode/restoreMode/snapToMasterOffsetY200/orbitTick
 #include "demo.h"            // class Demo — DEMO main-menu title cursor sub-machine (registerOverrides)
 #include "fx_sprite_anchored.h"
 #include "fx_sprite_swarm.h"
-#include "backdrop_plane.h"
-#include "backdrop_sprites.h"
 #include "gradient_backdrop.h"
 #include "graphics_bind.h"         // class GraphicsBind — object render-bind subsystem (recordArrayInit)
 #include "gte_transform3.h"        // class GteTransform3 — GTE 3-vertex rotate+pack (0x80084250)
