@@ -30,7 +30,7 @@ public:
     uint32_t object;
     uint32_t handler;
   };
-  // Runs the native behavior registered for the handler, else the guest handler through Lightrec.
+  // Runs the native behavior registered for the handler, else the guest handler, resumed across fields until it returns.
   void dispatchObj(const ObjectTick &tick);
 
   // dispatchNative(handler): table lookup + call. Returns true if the handler was owned natively

@@ -8,6 +8,7 @@
 #include "behavior_dispatch.h"
 #include "core.h"
 #include "core/engine/engine.h" // class Engine (for Core::engine)
+#include "core/overrides/guest_jal.h"
 #include "game.h"
 #include "guest_call.h"
 #include <cstdint>
@@ -188,8 +189,9 @@ void BehaviorDispatch::dispatchObj(const ObjectTick &tick) {
                   c->mem_r16(0x800E7E68u),
                   c->mem_r8(0x800E7E80u));
   }
+  // An area's init handler can outlast a field (A04's FUN_801169E8 re-tints 2464 CLUT rows).
   if (!dispatchNative(handler)) {
-    psx::cpu::callGuestNow(*c, __func__, handler);
+    tomba::guest::dispatchHandlerToReturnResuming(*c, handler, __func__);
   }
 }
 
