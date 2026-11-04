@@ -1,4 +1,4 @@
-// game/render/dust_field.cpp — A0B FUN_801110BC. See dust_field.h.
+// game/render/dust_field.cpp — A0B FUN_801110BC and A04 FUN_8013AD90. See dust_field.h.
 #include "dust_field.h"
 
 #include "camera_lattice.h"
@@ -18,15 +18,9 @@
 namespace tomba::render {
 namespace {
 
-constexpr std::uint32_t kEntry = 0x801110BCu;
-constexpr GuestFrameSpill kSpills[] = {
-    {31, 0x38}, {23, 0x34}, {22, 0x30}, {21, 0x2C}, {20, 0x28}, {19, 0x24}, {18, 0x20}, {17, 0x1C}, {16, 0x18}};
-constexpr std::uint32_t kCornerLocal = 0x10u; // s16 x, y, z
-
-constexpr std::uint32_t kMultiplier = 0x8011C030u;
+constexpr std::uint32_t kCornerLocal = 0x10u;       // s16 x, y, z
 constexpr std::uint32_t kPointVector = 0x1F8000C0u; // SVECTOR handed to RTPS
 constexpr std::uint32_t kScratchDepth = 0x1F800080u;
-constexpr std::uint32_t kPointCount = 0x201u;
 constexpr std::uint32_t kRectWords = 3u;
 constexpr std::uint32_t kRectBytes = 0x10u;
 constexpr std::uint32_t kWhiteRect = 0x60FFFFFFu;
@@ -35,40 +29,79 @@ constexpr std::uint32_t kFarSize = 0x00010001u;
 constexpr std::int32_t kNearDepth = 0x600;
 constexpr std::uint32_t kBucket = 0x100u;
 
+constexpr std::uint32_t kDustEntry = 0x801110BCu;
+constexpr GuestFrameSpill kDustSpills[] = {
+    {31, 0x38}, {23, 0x34}, {22, 0x30}, {21, 0x2C}, {20, 0x28}, {19, 0x24}, {18, 0x20}, {17, 0x1C}, {16, 0x18}};
+constexpr std::uint32_t kDustMultiplier = 0x8011C030u;
+constexpr std::uint32_t kDustCount = 0x201u;
+
+constexpr std::uint32_t kSnowEntry = 0x8013AD90u;
+constexpr GuestFrameSpill kSnowSpills[] = {{31, 0x44},
+                                           {30, 0x40},
+                                           {23, 0x3C},
+                                           {22, 0x38},
+                                           {21, 0x34},
+                                           {20, 0x30},
+                                           {19, 0x2C},
+                                           {18, 0x28},
+                                           {17, 0x24},
+                                           {16, 0x20}};
+constexpr std::uint32_t kSnowSeedLocal = 0x18u; // node + 0x50
+constexpr std::uint32_t kSnowSeed = 0x0012D687u;
+constexpr std::uint32_t kSnowMultiplier = 0x7D2B89DDu;
+constexpr std::uint32_t kSnowCount = 0x52u; // s16 at node: last point index
+constexpr std::uint32_t kSnowPoolReserve = 0x8000u;
+// A snow point is kept only inside the cave mouth: near in z, or low and not far.
+constexpr std::int32_t kSnowNearZ = 0x2711;
+constexpr std::int32_t kSnowLowY = -0x2327;
+constexpr std::int32_t kSnowFarZ = 0x2CED;
+
+enum Variant : std::uint32_t { kDust = 0, kSnow = 1 };
+
 // The next lattice point from the seed, wrapped into the cube.
 class PointStream {
 public:
-  PointStream(const psx::present::EmitMemory &memory, std::uint32_t seed, CameraLattice::Offset offset)
-      : mMemory(memory), mSeed(seed), mOffset(offset) {}
+  PointStream(std::uint32_t seed, std::uint32_t multiplier, CameraLattice::Offset offset)
+      : mSeed(seed), mMultiplier(multiplier), mOffset(offset) {}
 
   // Draws x, y and z, stepping between them; `lead` steps once before the first.
-  void next(bool lead) {
+  CameraLattice::Point next(bool lead) {
     if (lead) {
       advance();
     }
-    store(0u, mOffset.x);
+    const std::int16_t x = wrap(mOffset.x);
     advance();
-    store(2u, mOffset.y);
+    const std::int16_t y = wrap(mOffset.y);
     advance();
-    store(4u, mOffset.z);
+    return {x, y, wrap(mOffset.z)};
   }
   void advance() {
-    mSeed = CameraLattice::step(mMemory, mSeed, kMultiplier);
+    mSeed = CameraLattice::step(mSeed, mMultiplier);
   }
 
 private:
-  void store(std::uint32_t lane, std::int32_t offset) const {
-    const std::int32_t axis = (static_cast<std::int32_t>(mSeed) >> 16) + offset;
-    mMemory.mem_w16(kPointVector + lane,
-                    static_cast<std::uint16_t>(axis & static_cast<std::int32_t>(CameraLattice::kExtent)));
+  std::int16_t wrap(std::int32_t offset) const {
+    return static_cast<std::int16_t>(((static_cast<std::int32_t>(mSeed) >> 16) + offset) &
+                                     static_cast<std::int32_t>(CameraLattice::kExtent));
   }
 
-  psx::present::EmitMemory mMemory;
   std::uint32_t mSeed;
+  std::uint32_t mMultiplier;
   CameraLattice::Offset mOffset;
 };
 
-void drawPoints(const psx::present::EmitMemory &memory, const ListCall &call) {
+void storePoint(const psx::present::EmitMemory &memory, CameraLattice::Point point) {
+  memory.mem_w16(kPointVector + 0u, static_cast<std::uint16_t>(point.x));
+  memory.mem_w16(kPointVector + 2u, static_cast<std::uint16_t>(point.y));
+  memory.mem_w16(kPointVector + 4u, static_cast<std::uint16_t>(point.z));
+}
+
+bool insideCaveMouth(CameraLattice::Point corner, CameraLattice::Point point) {
+  const std::int32_t z = corner.z + point.z;
+  return z < kSnowNearZ || (corner.y + point.y < kSnowLowY && z < kSnowFarZ);
+}
+
+void drawPoints(const psx::present::EmitMemory &memory, std::uint32_t variant, const ListCall &call) {
   const std::uint32_t node = call.list;
   const CameraLattice::Point corner = CameraLattice::corner(memory);
   memory.mem_w16(call.sp + kCornerLocal, static_cast<std::uint16_t>(corner.x));
@@ -77,19 +110,28 @@ void drawPoints(const psx::present::EmitMemory &memory, const ListCall &call) {
   const CameraLattice::Offset offset = CameraLattice::nodeOffset(memory, node, corner);
   CameraLattice::loadView(memory, corner);
 
+  const bool snow = variant == kSnow;
+  PointStream points =
+      snow ? PointStream(kSnowSeed, kSnowMultiplier, offset)
+           : PointStream(memory.mem_r32(node + CameraLattice::kNodeSeed), memory.mem_r32(kDustMultiplier), offset);
+  storePoint(memory, points.next(false));
+  points.advance();
+  const std::int32_t count = snow ? memory.mem_r16s(node + kSnowCount) + 1 : static_cast<std::int32_t>(kDustCount);
+
   const horizontal_cull::Visibility visible = horizontal_cull::forDrawWindow(&memory.core());
   const OrderingTable ot(memory, call.ot);
   psx::cpu::Gte &gte = memory.core().gte();
-  PointStream points(memory, memory.mem_r32(node + CameraLattice::kNodeSeed), offset);
-  points.next(false);
-  points.advance();
   const PacketPool pool(memory);
   std::uint32_t packet = pool.cursor();
-  for (std::uint32_t point = 0; point < kPointCount; ++point) {
+  for (std::int32_t point = 0; point < count; ++point) {
     gte.writeData(psx::gte::kVxy0, memory.mem_r32(kPointVector));
     gte.writeData(psx::gte::kVz0, memory.mem_r32(kPointVector + 4u));
     gte.execute(psx::gte::kRtps);
-    points.next(point != 0u);
+    const CameraLattice::Point next = points.next(snow || point != 0);
+    if (snow && !insideCaveMouth(corner, next)) {
+      continue;
+    }
+    storePoint(memory, next);
     memory.mem_w32(kScratchDepth, gte.readControl(psx::gte::kFlag));
     if (static_cast<std::int32_t>(memory.mem_r32(kScratchDepth)) < 0) {
       continue;
@@ -114,38 +156,64 @@ public:
   using ListStateProducer::ListStateProducer;
 
 protected:
-  void emit(const psx::present::EmitMemory &memory, std::uint32_t, const ListCall &call) const override {
-    drawPoints(memory, call);
+  void emit(const psx::present::EmitMemory &memory, std::uint32_t variant, const ListCall &call) const override {
+    drawPoints(memory, variant, call);
   }
 };
+
+// Saves the camera and node inputs every variant blends, then draws.
+ListJobWriter cameraJob(Core &core, std::uint32_t variant, const ListCall &call, std::uint32_t points) {
+  ListJobWriter job(core, variant, call, points * kRectBytes);
+  job.input(core, CameraLattice::kCameraMatrix, CameraLattice::kCameraBytes, InputBlend::Camera);
+  for (std::uint32_t axis = 0; axis < 3u; ++axis) {
+    job.input(core, CameraLattice::kCameraPosition + axis * 4u, sizeof(std::int16_t), InputBlend::Lanes16);
+  }
+  job.input(core, call.list + CameraLattice::kNodeOrigin, 3u * sizeof(std::int16_t), InputBlend::Lanes16);
+  return job;
+}
+
+ListCall callOf(Core &core) {
+  const std::uint32_t ot = OrderingTable::active(psx::present::EmitMemory(core)).base();
+  return {.list = core.r[4], .ot = ot, .count = 0, .a3 = 0, .sp = core.r[psx::cpu::kSp], .a1 = ot};
+}
 
 } // namespace
 
 void DustField::draw(Core *c) {
-  const std::uint32_t node = c->r[4];
-  GuestFrame<0x40, 9> frame(c, kSpills);
+  GuestFrame<0x40, 9> frame(c, kDustSpills);
+  const ListCall call = callOf(*c);
+  const EmitterObject object(*c, kDustEntry, OwnObject{call.list});
+  ListJobWriter job = cameraJob(*c, kDust, call, kDustCount);
+  job.input(*c, call.list + CameraLattice::kNodeSeed, sizeof(std::uint32_t));
+  job.input(*c, kDustMultiplier, sizeof(std::uint32_t));
+  drawPoints(psx::present::EmitMemory(*c), kDust, call);
+  job.save(*c);
+}
+
+void DustField::drawSnow(Core *c) {
+  GuestFrame<0x48, 10> frame(c, kSnowSpills);
+  const ListCall call = callOf(*c);
+  c->mem_w32(call.sp + kSnowSeedLocal, call.list + CameraLattice::kNodeSeed);
   const psx::present::EmitMemory memory(*c);
-  const std::uint32_t ot = OrderingTable::active(memory).base();
-  const ListCall call{.list = node, .ot = ot, .count = 0, .a3 = 0, .sp = c->r[psx::cpu::kSp], .a1 = ot};
-  const EmitterObject object(*c, kEntry, OwnObject{node});
-  ListJobWriter job(*c, 0u, call, kPointCount * kRectBytes);
-  job.input(*c, CameraLattice::kCameraMatrix, CameraLattice::kCameraBytes, InputBlend::Camera);
-  for (std::uint32_t axis = 0; axis < 3u; ++axis) {
-    job.input(*c, CameraLattice::kCameraPosition + axis * 4u, sizeof(std::int16_t), InputBlend::Lanes16);
+  if (!PacketPool(memory).hasRoom(kSnowPoolReserve)) {
+    return;
   }
-  job.input(*c, node + CameraLattice::kNodeOrigin, 3u * sizeof(std::int16_t), InputBlend::Lanes16);
-  job.input(*c, node + CameraLattice::kNodeSeed, sizeof(std::uint32_t));
-  job.input(*c, kMultiplier, sizeof(std::uint32_t));
-  drawPoints(memory, call);
+  const EmitterObject object(*c, kSnowEntry, OwnObject{call.list});
+  const std::int32_t last = c->mem_r16s(call.list + kSnowCount);
+  ListJobWriter job = cameraJob(*c, kSnow, call, last < 0 ? 0u : static_cast<std::uint32_t>(last) + 1u);
+  job.input(*c, call.list + kSnowCount, sizeof(std::int16_t));
+  drawPoints(memory, kSnow, call);
   job.save(*c);
 }
 
 void DustField::registerOverrides(native::NativeOverrideCatalog &natives) {
-  natives.declareOverlay("A0B", kEntry, "DustField::draw", &DustField::draw);
+  natives.declareOverlay("A0B", kDustEntry, "DustField::draw", &DustField::draw);
+  natives.declareOverlay("A04", kSnowEntry, "DustField::drawSnow", &DustField::drawSnow);
 }
 
 void DustField::registerStateRenders(psx::present::StateProducerTable &renders, Core &core) {
-  renders.install(kEntry, std::make_unique<DustFieldRender>(core));
+  renders.install(kDustEntry, std::make_unique<DustFieldRender>(core));
+  renders.install(kSnowEntry, std::make_unique<DustFieldRender>(core));
 }
 
 } // namespace tomba::render

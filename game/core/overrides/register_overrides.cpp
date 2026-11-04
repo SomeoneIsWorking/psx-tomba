@@ -49,6 +49,7 @@
 #include "render/area_map.h"
 #include "render/drop_shadow.h"
 #include "render/dust_field.h"
+#include "render/fog_model_emitter.h"
 #include "render/guest_keyed_emitters.h"
 #include "render/line_strip.h"
 #include "render/object_draw.h"
@@ -125,6 +126,7 @@ void register_engine_overrides(Game &game, native::NativeOverrideCatalog &native
   SopGround::registerOverrides(natives);                        // SOP intro ground blocks (0x80109FE0)
   RainStreaks::registerOverrides(natives);                      // A08 rain streaks (0x80116904)
   tomba::render::DustField::registerOverrides(natives);         // A0B dust field (0x801110BC)
+  tomba::render::FogModelEmitter::registerOverrides(natives);   // A04 fogged GT3/GT4 emitters
   tomba::render::LetterboxBars::registerOverrides(natives);     // cutscene letterbox bars (0x80026864)
   ScreenFade::registerOverrides(natives);                       // full-screen fade (0x8007E9C8)
   NodeXform::registerOverrides(natives);                        // child-transform-propagate family

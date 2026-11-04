@@ -97,6 +97,8 @@ public:
   void setCursor(std::uint32_t address) const;
   // Bumps the cursor past `bytes` and returns the packet it pointed at.
   std::uint32_t allocate(std::uint32_t bytes) const;
+  // True while the cursor sits more than `reserve` bytes before the current pass's pool end.
+  bool hasRoom(std::uint32_t reserve) const;
 
 private:
   psx::present::EmitMemory mMemory;

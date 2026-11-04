@@ -40,8 +40,10 @@ public:
   // Loads the camera rotation and the corner's translation into the GTE, as SetRotMatrix, ApplyRotMatrix into the
   // scratch matrix 0x1F800000's translation plus the camera's, and SetTransMatrix do in the guest.
   static void loadView(const psx::present::EmitMemory &memory, Point corner);
-  // One LCG step with the multiplier word at `multiplier`.
-  static std::uint32_t step(const psx::present::EmitMemory &memory, std::uint32_t seed, std::uint32_t multiplier);
+  // One LCG step.
+  static std::uint32_t step(std::uint32_t seed, std::uint32_t multiplier) {
+    return seed * multiplier + 1u;
+  }
 };
 
 } // namespace tomba::render

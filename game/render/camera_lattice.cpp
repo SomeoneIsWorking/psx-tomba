@@ -47,9 +47,4 @@ void CameraLattice::loadView(const psx::present::EmitMemory &memory, Point corne
   }
 }
 
-std::uint32_t
-CameraLattice::step(const psx::present::EmitMemory &memory, std::uint32_t seed, std::uint32_t multiplier) {
-  return seed * memory.mem_r32(multiplier) + 1u;
-}
-
 } // namespace tomba::render

@@ -182,13 +182,17 @@ public:
   // Packet offsets of each corner's UV.
   static constexpr std::array<std::uint32_t, 4> kUv{0xCu, 0x18u, 0x24u, 0x30u};
 
+  // Corners 0..2 into the GTE for RTPT, and their projections into the packet.
+  void loadTriangle() const;
+  void storeTriangle() const;
+  // Corner 3 into the GTE for RTPS.
+  void loadCornerThree() const;
+  // The screen cull over the packet's corners.
+  bool onScreen(const horizontal_cull::Visibility &visible) const;
+
 private:
   bool transformFailed() const;
   bool facesAway() const;
-  void loadTriangle() const;
-  void storeTriangle() const;
-  void loadCornerThree() const;
-  bool onScreen(const horizontal_cull::Visibility &visible) const;
   void storeDepth(ModelDepth mode, const std::array<std::int32_t, 4> &depths) const;
 
   psx::present::EmitMemory mMemory;
