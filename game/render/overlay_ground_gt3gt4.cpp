@@ -90,8 +90,7 @@ namespace tomba {
 
 static int32_t ground_otz_index(int32_t z) {
   using tomba::render::OrderingTable;
-  const int32_t idx = OrderingTable::compressDepth(z);
-  return OrderingTable::inDepthRange(idx) ? idx : OrderingTable::kNoBucket;
+  return OrderingTable::bucketOf(z);
 }
 
 // Flag&3==1 takes the farthest SZ, ==2 the nearest; both end in the guest's `>> 2` before the OTZ

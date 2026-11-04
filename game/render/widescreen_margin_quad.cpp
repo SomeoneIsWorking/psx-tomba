@@ -165,8 +165,7 @@ uint8_t fogShade(uint8_t base, int32_t delta) {
 // This leaf's OT bucket for its z-combine, or kNoBucket outside [4, 2047].
 int32_t marginOtzIndex(int32_t zPlusBias) {
   using tomba::render::OrderingTable;
-  const int32_t idx = OrderingTable::compressDepth(zPlusBias);
-  return OrderingTable::inDepthRange(idx) ? idx : OrderingTable::kNoBucket;
+  return OrderingTable::bucketOf(zPlusBias);
 }
 
 // The override entry: the node keys the quads it draws, and their screen vertices are its state.

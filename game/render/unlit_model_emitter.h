@@ -5,7 +5,7 @@
 //   - the scratch words the GTE flag/MAC0 and the OT bucket are staged through (resident 0x1F800080/84,
 //     overlays 0x1F800000/04);
 //   - the colour mask (resident and A01 keep every code byte, the others only the first GT4 word's);
-//   - the depth mode and where its SZ words are staged (DepthRule);
+//   - the depth mode, where its SZ words are staged and the band bias of its compression (DepthRule);
 //   - the resident GT4 projects corner 3 before corners 0..2;
 //   - A01's depth cue of each corner by SZ / 4 once the bucket is known.
 // Copies:
@@ -19,7 +19,8 @@
 //   - A06 0x8013CF00/0x8013D1E4, the drawer 0x8013D568's unlit pair, with a U scroll;
 //   - A0E 0x80113AEC/0x80113DE0, SOP's body hiding the arena's west records by model x;
 //   - A0D 0x80112DE4/0x801131B0, the drawer 0x80113628's pair: A0A's body with a screen wave;
-//   - A03 0x80110094, the drawer 0x801109D4's GT3 (its GT4 is subdivided_ground.h): two-sided on flag bit 0;
+//   - A03 0x80110094, the drawer 0x801109D4's GT3 (its GT4 is subdivided_ground.h): SOP's projection, always
+//     averaged, its band picked from depth - 0xE9, two-sided on flag bit 0;
 //   - A02 0x80124DB8/0x80125100, the drawer 0x8012555C's pair: the resident body with flagged depth taken
 //     from the SZ registers and a U scroll picked by flag bit 4, 3 or 2.
 // Each takes (a0 = record list, a1 = OT base, a2 = count) and returns the address past the list in v0.
@@ -29,6 +30,7 @@
 #include "state_producer.h"
 
 #include "emit_memory.h"
+#include "guest_ordering_table.h"
 #include "list_job.h"
 #include "model_packet.h"
 
@@ -63,6 +65,7 @@ public:
     Staging staging;
     NearClamp nearClamp;
     bool gt4DropsSorted; // GT4 skips its link once a farthest/nearest record is sorted
+    std::int32_t bandBias; // OrderingTable::compressDepth's band bias
   };
   // How a scroll word reads: its u16 >> 4, or its low byte.
   enum class ScrollRead : std::uint8_t { HalfShift4, Byte };
@@ -111,7 +114,7 @@ public:
                                      true,
                                      0x18u,
                                      0x20u,
-                                     {ModeCode::OneFarTwoNear, 3u, Staging::PerMode, kNoNearClamp, false},
+                                     {ModeCode::OneFarTwoNear, 3u, Staging::PerMode, kNoNearClamp, false, 0},
                                      0u,
                                      false,
                                      kNoScroll,
@@ -124,7 +127,7 @@ public:
                                 false,
                                 0x18u,
                                 0x20u,
-                                {ModeCode::OneFarTwoNear, 0xFFu, Staging::PerMode, kNoNearClamp, false},
+                                {ModeCode::OneFarTwoNear, 0xFFu, Staging::PerMode, kNoNearClamp, false, 0},
                                 0u,
                                 false,
                                 kNoScroll,
@@ -137,7 +140,7 @@ public:
                                    false,
                                    0x10u,
                                    0x10u,
-                                   {ModeCode::OneFarTwoNear, 0xFFu, Staging::Always, kNoNearClamp, false},
+                                   {ModeCode::OneFarTwoNear, 0xFFu, Staging::Always, kNoNearClamp, false, 0},
                                    0u,
                                    true,
                                    kNoScroll,
@@ -150,7 +153,7 @@ public:
                                     false,
                                     0x10u,
                                     0x10u,
-                                    {ModeCode::ZeroAverage, 0xFFu, Staging::Unaveraged, kNoNearClamp, true},
+                                    {ModeCode::ZeroAverage, 0xFFu, Staging::Unaveraged, kNoNearClamp, true, 0},
                                     0u,
                                     false,
                                     kNoScroll,
@@ -165,7 +168,7 @@ public:
                                     false,
                                     0x18u,
                                     0x20u,
-                                    {ModeCode::OneFarTwoNear, 0xFFu, Staging::PerMode, {0, 0x1B7u}, false},
+                                    {ModeCode::OneFarTwoNear, 0xFFu, Staging::PerMode, {0, 0x1B7u}, false, 0},
                                     0u,
                                     false,
                                     kNoScroll,
@@ -178,7 +181,7 @@ public:
                                         false,
                                         0x18u,
                                         0x20u,
-                                        {ModeCode::OneFarTwoNear, 0xFFu, Staging::PerMode, {0, 0x27Fu}, false},
+                                        {ModeCode::OneFarTwoNear, 0xFFu, Staging::PerMode, {0, 0x27Fu}, false, 0},
                                         0u,
                                         false,
                                         kNoScroll,
@@ -191,7 +194,7 @@ public:
                                           false,
                                           0x18u,
                                           0x20u,
-                                          {ModeCode::OneFarTwoNear, 0xFFu, Staging::PerMode, {0x50, 0x1B7u}, false},
+                                          {ModeCode::OneFarTwoNear, 0xFFu, Staging::PerMode, {0x50, 0x1B7u}, false, 0},
                                           0u,
                                           false,
                                           kNoScroll,
@@ -205,7 +208,7 @@ public:
                                 false,
                                 0x18u,
                                 0x20u,
-                                {ModeCode::LowBits, 3u, Staging::PerMode, kNoNearClamp, false},
+                                {ModeCode::LowBits, 3u, Staging::PerMode, kNoNearClamp, false, 0},
                                 4u,
                                 false,
                                 kNoScroll,
@@ -220,7 +223,7 @@ public:
                                       true,
                                       0x10u,
                                       0x10u,
-                                      {ModeCode::ZeroAverage, 3u, Staging::Unaveraged, kNoNearClamp, false},
+                                      {ModeCode::ZeroAverage, 3u, Staging::Unaveraged, kNoNearClamp, false, 0},
                                       0u,
                                       false,
                                       {ScrollRead::HalfShift4, true, {{{8u, 0x8014A450u, 0u, 0}}}},
@@ -235,7 +238,7 @@ public:
                                      false,
                                      0x18u,
                                      0x20u,
-                                     {ModeCode::OneFarTwoNear, 0xFFu, Staging::PerMode, kNoNearClamp, false},
+                                     {ModeCode::OneFarTwoNear, 0xFFu, Staging::PerMode, kNoNearClamp, false, 0},
                                      0u,
                                      false,
                                      kNoScroll,
@@ -250,7 +253,7 @@ public:
                                 true,
                                 0u,
                                 0u,
-                                {ModeCode::ZeroAverage, 3u, Staging::Registers, kNoNearClamp, false},
+                                {ModeCode::ZeroAverage, 3u, Staging::Registers, kNoNearClamp, false, 0},
                                 0u,
                                 false,
                                 {ScrollRead::HalfShift4,
@@ -268,7 +271,7 @@ public:
       false,
       0u,
       0u,
-      {ModeCode::OneFarTwoNear, 3u, Staging::Registers, kNoNearClamp, false},
+      {ModeCode::OneFarTwoNear, 3u, Staging::Registers, kNoNearClamp, false, 0},
       0u,
       false,
       {ScrollRead::Byte, false, {{{4u, 0x8011BF14u, 0x8011BF16u, 0}, {8u, 0x8011BF1Au, 0x8011BF16u, 0}}}},
@@ -283,7 +286,7 @@ public:
       false,
       0u,
       0u,
-      {ModeCode::OneFarTwoNear, 3u, Staging::Registers, kNoNearClamp, false},
+      {ModeCode::OneFarTwoNear, 3u, Staging::Registers, kNoNearClamp, false, 0},
       0u,
       false,
       {ScrollRead::Byte, true, {{{4u, 0x8012092Eu, 0x80120930u, 0x7FB}, {8u, 0x80120938u, 0x8012093Au, 0x7FD}}}},
@@ -298,7 +301,7 @@ public:
                                 false,
                                 0u,
                                 0u,
-                                {ModeCode::OneFarTwoNear, 3u, Staging::Registers, kNoNearClamp, false},
+                                {ModeCode::OneFarTwoNear, 3u, Staging::Registers, kNoNearClamp, false, 0},
                                 0u,
                                 false,
                                 kNoScroll,
@@ -309,14 +312,15 @@ public:
                                  {0x801130C0u, 0x801130E4u, 0x80113108u},
                                  {0x80113514u, 0x80113538u, 0x8011355Cu, 0x80113580u}},
                                 0u};
-  // A03's GT3 0x80110094, under the drawer 0x801109D4: SOP's body, always averaged, two-sided on flag bit 0.
+  // A03's GT3 0x80110094, under the drawer 0x801109D4: SOP's projection, always averaged, compressed with
+  // kA03BandBias, two-sided on flag bit 0.
   static constexpr Variant kA03{kOverlayStage,
                                 kColourMask,
                                 kColourCodeMask,
                                 false,
                                 0u,
                                 0u,
-                                {ModeCode::OneFarTwoNear, 0u, Staging::PerMode, kNoNearClamp, false},
+                                {ModeCode::OneFarTwoNear, 0u, Staging::PerMode, kNoNearClamp, false, kA03BandBias},
                                 0u,
                                 false,
                                 kNoScroll,

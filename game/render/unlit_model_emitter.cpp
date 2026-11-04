@@ -310,7 +310,7 @@ std::uint32_t UnlitModelEmitter::emit(const psx::present::EmitMemory &memory,
       return false;
     }
     packet.clampNear(rule.nearClamp);
-    if (packet.bucket() < 0) {
+    if (packet.bucket(rule.bandBias) < 0) {
       return false;
     }
     if (variant.cue) {

@@ -53,10 +53,16 @@ public:
   // Points a packet chain's last tag at the bucket's head, keeping that tag's word count.
   void chainToHead(const ChainToHeadArgs &args) const;
 
-  // The log-scale depth compression: bits above 10 pick a band that both shifts and offsets the depth.
-  static constexpr std::int32_t compressDepth(std::int32_t depth) {
-    const std::int32_t band = depth >> 10;
+  // The log-scale depth compression: bits above 10 of depth - bandBias pick a band that both shifts and offsets
+  // the depth.
+  static constexpr std::int32_t compressDepth(std::int32_t depth, std::int32_t bandBias = 0) {
+    const std::int32_t band = (depth - bandBias) >> 10;
     return (depth >> (band & 31)) + band * 0x200;
+  }
+  // compressDepth, kNoBucket outside [kNearestBucket, kFarthestBucket].
+  static constexpr std::int32_t bucketOf(std::int32_t depth, std::int32_t bandBias = 0) {
+    const std::int32_t bucket = compressDepth(depth, bandBias);
+    return inDepthRange(bucket) ? bucket : kNoBucket;
   }
   // A blended record's depth: the farthest or nearest of its SZ FIFO values, quartered.
   static constexpr std::int32_t extremeDepth(bool farthest, std::span<const std::int32_t> depths) {
@@ -78,6 +84,9 @@ private:
 };
 
 static_assert(OrderingTable::kBasePointerPage - 10040u == OrderingTable::kBasePointer);
+
+// A03's GT3 0x80110094 and the leaves of 0x8010F1A0 and 0x8010F968 pick the band from depth - 0xE9.
+inline constexpr std::int32_t kA03BandBias = 0xE9;
 
 class PacketPool {
 public:

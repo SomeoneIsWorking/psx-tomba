@@ -100,8 +100,7 @@ public:
 
 // FUN_80116904's OTZ: SZ3/4 compressed, kNoBucket outside [4, 0x800).
 std::int32_t orderingIndex(std::int32_t sz3) {
-  const std::int32_t index = OrderingTable::compressDepth(sz3 >> 2);
-  return OrderingTable::inDepthRange(index) ? index : OrderingTable::kNoBucket;
+  return OrderingTable::bucketOf(sz3 >> 2);
 }
 
 } // namespace

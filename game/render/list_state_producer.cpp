@@ -20,6 +20,8 @@ namespace {
 constexpr std::uint32_t kScratchBase = 0x1F800000u;
 constexpr std::uint32_t kScratchBytes = 0x400u;
 constexpr std::uint32_t kOtBytes = OrderingTable::kBucketCount * 4u;
+// A leaf without the range gate links bucket kNoBucket into the word before the table.
+constexpr std::uint32_t kBelowOtBytes = 4u;
 // The OT region also holds the tail the guest links its chains to; a body only writes bucket heads.
 constexpr std::uint32_t kStackBelow = 0x100u;
 constexpr std::uint32_t kStackAbove = 0x80u;
@@ -172,7 +174,7 @@ void ListStateProducer::render(const psx::present::StateInterval &states, psx::p
   std::memcpy(cursor.data(), &header.pool, sizeof(header.pool));
   host->provide(PacketPool::kCursor, cursor);
   host->zero(header.pool, header.arenaBytes);
-  host->zero(header.call.ot, kOtBytes);
+  host->zero(header.call.ot - kBelowOtBytes, kBelowOtBytes + kOtBytes);
   host->zero(header.call.sp - kStackBelow, kStackBelow + kStackAbove);
 
   {

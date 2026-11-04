@@ -80,18 +80,13 @@ std::uint16_t halfwayUv(std::uint16_t a, std::uint16_t b) {
   return static_cast<std::uint16_t>((v << 8) | u);
 }
 
-// The guest's bucket of a depth, kNoBucket outside [4, 0x7FF].
-std::int32_t bucketOf(std::int32_t depth) {
-  const std::int32_t bucket = OrderingTable::compressDepth(depth);
-  return OrderingTable::inDepthRange(bucket) ? bucket : OrderingTable::kNoBucket;
-}
-
 bool splitBucket(std::int32_t bucket) {
   return bucket >= kFirstSplitBucket && bucket < kSplitBucketEnd;
 }
 
-std::int32_t farthest(const std::array<std::int32_t, 4> &depths) {
-  return std::ranges::max(depths);
+// The split and subdivided leaves' bucket: the farthest corner, compressed with A03's band bias.
+std::int32_t splitBucketOf(const std::array<std::int32_t, 4> &depths) {
+  return OrderingTable::bucketOf(OrderingTable::extremeDepth(true, depths), kA03BandBias);
 }
 
 void count(const psx::present::EmitMemory &memory, std::uint32_t counter) {
@@ -148,7 +143,7 @@ projectSubdivided(const Quad &quad, const Visibility &visible, std::uint32_t pac
   for (std::uint32_t corner = 0; corner < 4u; ++corner) {
     depths[corner] = static_cast<std::int32_t>(gte.readData(psx::gte::kSz0 + corner));
   }
-  const std::int32_t bucket = bucketOf(farthest(depths) >> 2);
+  const std::int32_t bucket = splitBucketOf(depths);
   if (static_cast<std::int32_t>(flag) < 0 || !splitBucket(bucket)) {
     return packet;
   }
@@ -228,7 +223,7 @@ splitOnScreen(const Quad &quad, std::uint32_t packet, const std::array<std::int3
     colour[corner] = memory.mem_r32(packet + ModelPacket::kColour[corner]);
   }
   count(memory, kSplitCount);
-  const std::int32_t bucket = bucketOf(farthest(depths) >> 2);
+  const std::int32_t bucket = splitBucketOf(depths);
   if (!splitBucket(bucket)) {
     return packet;
   }
@@ -294,10 +289,8 @@ std::uint32_t linkAveraged(const Quad &quad,
       model.shade({.corner = corner, .intensity = depths[static_cast<std::size_t>(corner)] - kFogDepth});
     }
   }
-  // An out-of-range bucket links one slot before the table, which no walk reaches; a render has no such slot.
-  if (bucket != OrderingTable::kNoBucket || !quad.memory.hosted()) {
-    quad.link(model.packet(), bucket);
-  }
+  // An out-of-range bucket links one slot before the table, which no walk reaches.
+  quad.link(model.packet(), bucket);
   return model.packet() + kModelGt4.packetBytes;
 }
 
@@ -332,7 +325,7 @@ std::uint32_t emitRecord(const psx::present::EmitMemory &memory,
     depths[corner] = static_cast<std::int32_t>(gte.readData(psx::gte::kSz0 + corner));
   }
   model.storeLastUv();
-  const std::int32_t far = farthest(depths);
+  const std::int32_t far = std::ranges::max(depths);
   if (far < kNearestDepth) {
     return packet;
   }
@@ -343,7 +336,7 @@ std::uint32_t emitRecord(const psx::present::EmitMemory &memory,
       return splitOnScreen(quad, packet, depths, true);
     }
     gte.execute(psx::gte::kAvsz4);
-    std::int32_t bucket = bucketOf(static_cast<std::int32_t>(gte.readData(psx::gte::kOtz)));
+    std::int32_t bucket = OrderingTable::bucketOf(static_cast<std::int32_t>(gte.readData(psx::gte::kOtz)));
     if (bucket < 5) {
       return packet;
     }
@@ -357,7 +350,8 @@ std::uint32_t emitRecord(const psx::present::EmitMemory &memory,
     return splitOnScreen(quad, packet, depths, false);
   }
   gte.execute(psx::gte::kAvsz4);
-  return linkAveraged(quad, model, depths, bucketOf(static_cast<std::int32_t>(gte.readData(psx::gte::kOtz))));
+  return linkAveraged(
+      quad, model, depths, OrderingTable::bucketOf(static_cast<std::int32_t>(gte.readData(psx::gte::kOtz))));
 }
 
 class SubdividedGroundRender final : public ListStateProducer {

@@ -230,13 +230,11 @@ void ModelPacket::clampNear(const NearClamp &clamp) const {
   }
 }
 
-std::int32_t ModelPacket::bucket() const {
-  const std::int32_t index = OrderingTable::compressDepth(static_cast<std::int32_t>(mMemory.mem_r32(mStage.bucket)));
+std::int32_t ModelPacket::bucket(std::int32_t bandBias) const {
+  const std::int32_t index =
+      OrderingTable::bucketOf(static_cast<std::int32_t>(mMemory.mem_r32(mStage.bucket)), bandBias);
   mMemory.mem_w32(mStage.bucket, static_cast<std::uint32_t>(index));
-  if (!OrderingTable::inDepthRange(index)) {
-    mMemory.mem_w32(mStage.bucket, static_cast<std::uint32_t>(OrderingTable::kNoBucket));
-  }
-  return static_cast<std::int32_t>(mMemory.mem_r32(mStage.bucket));
+  return index;
 }
 
 void ModelPacket::storeLastUv() const {

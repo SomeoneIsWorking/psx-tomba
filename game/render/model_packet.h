@@ -149,7 +149,7 @@ public:
   // The near clamp on the bucket stage; nothing for kNoNearClamp.
   void clampNear(const NearClamp &clamp) const;
   // Compresses the bucket stage into an OT bucket; kNoBucket outside [4, 0x7FF].
-  std::int32_t bucket() const;
+  std::int32_t bucket(std::int32_t bandBias = 0) const;
   // The packet's last UV word(s): GT3 its u16 at record 0x22, GT4 both halves of record 0x10.
   void storeLastUv() const;
   // Adds `u` to every corner's U and `v` to its V, each wrapping in its byte.
