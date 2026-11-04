@@ -620,7 +620,9 @@ calls it. A row whose handler is file-local names the file that declares the ove
 | 0x8012496C | LIVE | `OverlayGroundGt3Gt4::gt4` (A02) | game/render/overlay_ground_gt3gt4.cpp |  | Ground GT4 copy (kFarthest). |
 | 0x801249D4 | LIVE | `ReleaseTriggerMotion::doubleArcMotion` | game/ai/release_trigger_motion.cpp | 0x80077B5C |  |
 | 0x80124C6C | LIVE | `ReleaseTriggerMotion::circleOrbitMotion` | game/ai/release_trigger_motion.cpp | 0x80077B5C |  |
+| 0x80124DB8 | LIVE | `UnlitModelEmitter::gt3` (A02) | game/render/unlit_model_emitter.cpp |  | Drawer 0x8012555C's unlit GT3 (kA02). |
 | 0x80124E74 | LIVE | `beh_jumptable_release_trigger` | game/ai/beh_jumptable_release_trigger.cpp | 0x8004B0D8 0x8004DAEC 0x80051D90 0x80077B5C 0x80123E9C 0x801241BC … |  |
+| 0x80125100 | LIVE | `UnlitModelEmitter::gt4` (A02) | game/render/unlit_model_emitter.cpp |  | Drawer 0x8012555C's unlit GT4 (kA02). |
 | 0x80125E0C | LIVE | `beh_pure_substate_dispatch` | game/ai/beh_pure_substate_dispatch.cpp |  |  |
 | 0x80125FE0 | LIVE | `TiltFollower::applyHalvedOwnerPartPitch` | game/ai/tilt_follower.cpp |  | ORACLE: overlay guest 0x80125FE0 |
 | 0x80127420 | LIVE | `beh_arm_countdown_if_linked_ready_80127420` | game/ai/beh_toy_spawn_family.cpp |  | (obj) — arm a 20-frame countdown if the linked object (obj[+0x10]'s ta… |

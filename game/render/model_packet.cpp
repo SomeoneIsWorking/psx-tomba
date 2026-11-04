@@ -160,18 +160,35 @@ void ModelPacket::stageDepths(std::uint32_t address) const {
 }
 
 void ModelPacket::depth(ModelDepth mode, std::uint32_t staged) const {
+  std::array<std::int32_t, 4> depths{};
+  if (mode != ModelDepth::Average) {
+    for (int corner = 0; corner < mShape.cornerCount; ++corner) {
+      depths[corner] = static_cast<std::int32_t>(mMemory.mem_r32(staged + static_cast<std::uint32_t>(corner) * 4u));
+    }
+  }
+  storeDepth(mode, depths);
+}
+
+void ModelPacket::depthFromRegisters(ModelDepth mode) const {
+  std::array<std::int32_t, 4> depths{};
+  if (mode != ModelDepth::Average) {
+    for (int corner = 0; corner < mShape.cornerCount; ++corner) {
+      depths[corner] = static_cast<std::int32_t>(
+          mMemory.core().gte().readData(mShape.firstDepth + static_cast<std::uint32_t>(corner)));
+    }
+  }
+  storeDepth(mode, depths);
+}
+
+void ModelPacket::storeDepth(ModelDepth mode, const std::array<std::int32_t, 4> &depths) const {
   if (mode == ModelDepth::Average) {
     mMemory.core().gte().execute(mShape.average);
     mMemory.mem_w32(mStage.bucket, mMemory.core().gte().readData(psx::gte::kOtz));
     return;
   }
-  std::array<std::int32_t, 4> depths{};
-  for (int corner = 0; corner < mShape.cornerCount; ++corner) {
-    depths[corner] = static_cast<std::int32_t>(mMemory.mem_r32(staged + static_cast<std::uint32_t>(corner) * 4u));
-  }
-  const std::span<const std::int32_t> staged4(depths.data(), static_cast<std::size_t>(mShape.cornerCount));
+  const std::span<const std::int32_t> corners(depths.data(), static_cast<std::size_t>(mShape.cornerCount));
   mMemory.mem_w32(mStage.bucket,
-                  static_cast<std::uint32_t>(OrderingTable::extremeDepth(mode != ModelDepth::Nearest, staged4)));
+                  static_cast<std::uint32_t>(OrderingTable::extremeDepth(mode != ModelDepth::Nearest, corners)));
 }
 
 void ModelPacket::biasBucket(std::int32_t bias) const {

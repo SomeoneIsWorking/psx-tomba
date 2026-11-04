@@ -6,6 +6,7 @@
 #include "horizontal_visibility_cull.h"
 #include "list_state_producer.h"
 
+#include <algorithm>
 #include <memory>
 #include <string_view>
 
@@ -13,8 +14,6 @@ namespace tomba::render {
 namespace {
 
 using horizontal_cull::Visibility;
-
-constexpr std::uint32_t kScrollFlag = 8u;
 
 ModelDepth depthOf(const UnlitModelEmitter::DepthRule &rule, std::uint32_t flags) {
   switch (rule.code) {
@@ -38,8 +37,10 @@ template <std::uint32_t Entry, bool Quad, const UnlitModelEmitter::Variant &Data
   if (Data.hideFlag != 0u || Data.xHide.active) {
     job.input(*core, kHideWord, sizeof(std::uint32_t));
   }
-  if (Data.uScroll != 0u) {
-    job.input(*core, Data.uScroll, sizeof(std::uint16_t));
+  for (const UnlitModelEmitter::ScrollBit &bit : Data.uScroll) {
+    if (bit.flag != 0u) {
+      job.input(*core, bit.word, sizeof(std::uint16_t));
+    }
   }
   core->r[2] = UnlitModelEmitter::emit(*core, call, visible, Data, Quad);
   job.save(*core);
@@ -80,6 +81,7 @@ constexpr const auto &kSopNearLifted = UnlitModelEmitter::kSopNearLifted;
 constexpr const auto &kA06 = UnlitModelEmitter::kA06;
 constexpr const auto &kA06Scroll = UnlitModelEmitter::kA06Scroll;
 constexpr const auto &kA0eArena = UnlitModelEmitter::kA0eArena;
+constexpr const auto &kA02 = UnlitModelEmitter::kA02;
 
 constexpr Copy kCopies[] = {
     {{},
@@ -182,6 +184,7 @@ constexpr Copy kCopies[] = {
      &emitAt<0x8013D1E4u, true, kA06Scroll>,
      &kA06Scroll},
     {"A06", 0x8013BA44u, 0x8013BD40u, &emitAt<0x8013BA44u, false, kA06>, &emitAt<0x8013BD40u, true, kA06>, &kA06},
+    {"A02", 0x80124DB8u, 0x80125100u, &emitAt<0x80124DB8u, false, kA02>, &emitAt<0x80125100u, true, kA02>, &kA02},
     {"A0J",
      0x8010A3ACu,
      0x8010A69Cu,
@@ -224,10 +227,14 @@ std::uint32_t UnlitModelEmitter::emit(const psx::present::EmitMemory &memory,
     const bool perMode = rule.staging == Staging::PerMode;
     const std::uint32_t staged =
         frame + (perMode && mode == ModelDepth::Nearest ? static_cast<std::uint32_t>(shape.cornerCount) * 4u : 0u);
-    if (rule.staging == Staging::Always || mode != ModelDepth::Average) {
-      packet.stageDepths(staged);
+    if (rule.staging == Staging::Registers) {
+      packet.depthFromRegisters(mode);
+    } else {
+      if (rule.staging == Staging::Always || mode != ModelDepth::Average) {
+        packet.stageDepths(staged);
+      }
+      packet.depth(mode, staged);
     }
-    packet.depth(mode, staged);
     if (quad && rule.gt4DropsSorted && mode != ModelDepth::Average) {
       return false;
     }
@@ -241,8 +248,11 @@ std::uint32_t UnlitModelEmitter::emit(const psx::present::EmitMemory &memory,
       }
     }
     packet.storeLastUv();
-    if (variant.uScroll != 0u && (packet.flags() & kScrollFlag) != 0u) {
-      packet.scrollU(memory.mem_r16(variant.uScroll) >> 4);
+    const auto scroll = std::ranges::find_if(variant.uScroll, [&](const ScrollBit &bit) {
+      return (packet.flags() & bit.flag) != 0u;
+    });
+    if (scroll != variant.uScroll.end()) {
+      packet.scrollU(memory.mem_r16(scroll->word) >> 4);
     }
     packet.link(call.ot);
     return true;

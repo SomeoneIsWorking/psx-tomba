@@ -92,6 +92,7 @@ Element namers (not producers; they name elements of the innermost open object):
 | 0x80112A24 / 0x80112CF0 | A0B | `UnlitModelEmitter` gt3 / gt4 (SOP's body) | not traced |
 | 0x80113788 / 0x80113A54 | A0C | `UnlitModelEmitter` gt3 / gt4 (SOP's body) | not traced |
 | 0x801103F4 / 0x80110698 and the same body in A0B-A0F, A0H-A0J | A0A-A0J | `UnlitModelEmitter` gt3 / gt4 (`kFlagged`) | not traced |
+| 0x80124DB8 / 0x80125100 | A02 | `UnlitModelEmitter` gt3 / gt4 (`kA02`: the resident body, flagged depth from the SZ registers, a three-word U scroll) | drawer 0x8012555C via 0x8003F708 |
 | 0x80113AEC / 0x80113DE0 | A0E | `UnlitModelEmitter` gt3 / gt4 (`kA0eArena`: SOP's body plus the west-record hide by model x while 0x1F80009C is set) | arena walker 0x80114320 |
 | 0x8010BC40 / 0x8010BF28 (A0G), 0x8010B3DC / 0x8010B6C4 (A0I), 0x8010AF58 / 0x8010B240 (A0H), 0x8010A3AC / 0x8010A69C (A0J) | A0G-A0J | `UnlitModelEmitter` gt3 / gt4 (`kSopNear`, `kSopNearWide`, `kSopNearLifted`) | not traced |
 
@@ -104,7 +105,7 @@ pops it, so the next object on it gets another key.
 
 Not yet producers, by census rank: SOP effect 0x8010BF54, A01 0x80132DC0
 and the GT3/GT4 emitter copies of the overlays not listed above
-whose bodies differ from the natives: A02 0x80124DB8/0x80125100, A03 0x80110094/0x80110290, A04
+whose bodies differ from the natives: A03 0x80110094/0x80110290, A04
 0x801175FC/0x801178A0 and 0x8013D0F8/0x8013D568, A05 0x8013484C/0x80134B74 and 0x8013AC90/0x8013AF0C, A07
 0x8012DBB4/0x8012DE60, A0A 0x8010F97C/0x8010FD74, A0D 0x80112DE4/0x801131B0,
 A0F 0x80114A5C/0x80114E70, A0G 0x8010C3A4/0x8010C664, A0K 0x80114F1C/0x8011562C and 0x801163E0/0x80116708

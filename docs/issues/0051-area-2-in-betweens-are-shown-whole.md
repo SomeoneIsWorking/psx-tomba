@@ -2,7 +2,7 @@
 
 Features: F-FPS60.
 
-Status: open (2026-11-04). Owner: `game/render/unlit_model_emitter.cpp` (`UnlitModelEmitter`), reached from
+Status: fixed (2026-11-04). Owner: `game/render/unlit_model_emitter.cpp` (`UnlitModelEmitter`), reached from
 `game/render/perobj_dispatch.cpp` (`Render::perModeDispatch`).
 
 ## Reproduction
@@ -31,7 +31,17 @@ The pair is a copy of the unlit body none of `UnlitModelEmitter`'s variants desc
   `u16[0x8012C928] >> 4`;
 - a screen cull at x < 0x140, y < 0xF0 that does not go through `horizontal_visibility_cull.h`.
 
-## Next
-Port the pair as `UnlitModelEmitter` variants with these knobs (or a sibling emitter if the bucket rule does not fit
-the shared body), declared on A02 at 0x80124DB8/0x80125100 so their elements are named under the command's object
-and saved as `ListJob`s; the cull then widens with the rest.
+## Fix
+`UnlitModelEmitter` declares the pair on A02 as `kA02`: the resident projection (corner 3 first, every colour code
+byte kept), depth 0 average, 1 farthest, 2 and 3 nearest read straight from the SZ registers (`Staging::Registers`,
+`ModelPacket::depthFromRegisters`, so nothing is staged on the stack the guest never touches), and the U scroll as a
+table of flag bit and word, first set bit wins. The calls are saved as `ListJob`s under the command's object and the
+cull goes through the draw window like the other variants.
+
+## Shown
+`warp 2/0`, 200 frames, 20 dumped frames, unpaced, `ires=0`, `fps60=1`, sink 3840x2160
+(`scratch/tomba2e/a2/reduced/`): every presentseq row composed at `t=0.5`; shares 0.44-0.61 on every interval
+where geometry moves, Tomba's idle steps through each in-between (`tomba_seq.png`). The four 1.00 intervals change
+only a 14x14 HUD cell at (756, 487) in 960x540, which blinks. The owner journal's `IntervalHeld/no-state` rows for
+0x8003CDD8 (260 intervals before) are gone. The margins hold the room's walls at this camera before and after; no
+record here lay wholly outside the 4:3 window, so the widened cull is not separately visible.

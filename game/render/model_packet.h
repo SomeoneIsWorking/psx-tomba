@@ -85,7 +85,8 @@ enum class ModelDepth : std::uint8_t { Average, Farthest, Nearest };
 // The flag bit that hides an A01 record while the scratchpad word 0x1F80009C is set.
 inline constexpr std::uint32_t kHideFlag = 0x40u;
 inline constexpr std::uint32_t kHideWord = 0x1F80009Cu;
-// While 0x1F80009C is set, A0E's arena keeps a GT3 whose corner 2, or a GT4 whose corner 0 or 1, lies past model x `gt3`/`gt4`.
+// While 0x1F80009C is set, A0E's arena keeps a GT3 whose corner 2, or a GT4 whose corner 0 or 1, lies past model x
+// `gt3`/`gt4`.
 struct ModelXHide {
   bool active;
   std::int32_t gt3;
@@ -140,6 +141,8 @@ public:
   void stageDepths(std::uint32_t address) const;
   // The depth into the bucket stage: AVSZ, or the farthest/nearest of the SZ words at `staged`, / 4.
   void depth(ModelDepth mode, std::uint32_t staged) const;
+  // The same depth from the GTE's SZ registers, staging nothing.
+  void depthFromRegisters(ModelDepth mode) const;
   // Adds `bias` to the bucket stage, capped at the farthest bucket.
   void biasBucket(std::int32_t bias) const;
   // The near clamp on the bucket stage; nothing for kNoNearClamp.
@@ -184,6 +187,7 @@ private:
   void storeTriangle() const;
   void loadCornerThree() const;
   bool onScreen(const horizontal_cull::Visibility &visible) const;
+  void storeDepth(ModelDepth mode, const std::array<std::int32_t, 4> &depths) const;
 
   psx::present::EmitMemory mMemory;
   const ModelShape &mShape;
