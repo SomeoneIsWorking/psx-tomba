@@ -1,6 +1,7 @@
 // game/render/rain_streaks.cpp — FUN_80116904, A08's rain streaks.
 #include "rain_streaks.h"
 
+#include "camera_lattice.h"
 #include "core.h"
 #include "core/overrides/guest_jal.h"
 #include "core/overrides/native_override_catalog.h"
@@ -39,19 +40,11 @@ constexpr std::uint32_t kDropTrails = 0x801485E8u; // per drop {s16 x, s16 y} of
 constexpr std::uint32_t kNoTrail = 0x7FFF7FFFu;
 constexpr std::int16_t kNoTrailX = 0x7FFF;
 constexpr std::uint32_t kLcgMultiplier = 0x801450D8u;
-constexpr std::uint32_t kLattice = 0x7FFu;
-constexpr std::uint32_t kLatticeCell = 0x800u;
 
-constexpr std::uint32_t kNodeSeed = 0x50u;
-constexpr std::uint32_t kNodeOrigin = 0x2Cu;     // s16 x, y, z
+constexpr std::uint32_t kNodeSeed = tomba::render::CameraLattice::kNodeSeed;
 constexpr std::uint32_t kNodeLastOffset = 0x48u; // s16 x, y, z: last frame's lattice offset
 
-constexpr std::uint32_t kCameraPosition = 0x1F8000D2u; // u16 x at +0, y at +4, z at +8
-constexpr std::uint32_t kCameraLead = 0x1F800104u;     // s16 x, y, z
-constexpr std::uint32_t kCameraMatrix = 0x1F8000F8u;
-constexpr std::uint32_t kCameraTranslation = 0x1F80010Cu;
-constexpr std::uint32_t kScratchMatrix = 0x1F800000u; // MATRIX; its translation at +0x14
-constexpr std::uint32_t kDropVector = 0x1F8000C0u;    // SVECTOR handed to RTPS
+constexpr std::uint32_t kDropVector = 0x1F8000C0u; // SVECTOR handed to RTPS
 constexpr std::uint32_t kScratchDepth = 0x1F800080u;
 
 constexpr std::uint32_t kLineWords = 4u;
@@ -62,11 +55,9 @@ constexpr std::uint32_t kTpageWords = 2u;
 constexpr std::uint32_t kTpageBytes = 0xCu;
 constexpr std::uint32_t kTpageMode = 0x15u;
 
-constexpr std::uint32_t kSetRotMatrix = 0x80084660u;
-constexpr std::uint32_t kApplyMatrixSv = 0x80084220u;
-constexpr std::uint32_t kSetTransMatrix = 0x80084690u;
 constexpr std::uint32_t kDrawMode = 0x80083DE0u;
 
+using tomba::render::CameraLattice;
 using tomba::render::OrderingTable;
 
 // A drawn streak as the render needs it: where it links, and the screen points of its two ends.
@@ -123,21 +114,17 @@ void RainStreaks::draw(Core *c) {
   c->mem_w32(sp + 0x24u, kDropCount);
   c->mem_w32(sp + 0x38u, kNoTrail);
 
-  const std::int32_t leadX = c->mem_r16s(kCameraLead + 0u) >> 1;
-  const std::int32_t leadY = c->mem_r16s(kCameraLead + 2u) >> 1;
-  const std::int32_t leadZ = c->mem_r16s(kCameraLead + 4u) >> 1;
   std::uint32_t seed = c->mem_r32(node + kNodeSeed);
 
-  // The lattice origin: the camera's 2048-unit cell corner, led by its motion.
-  const auto cornerX = static_cast<std::int16_t>(c->mem_r16(kCameraPosition + 0u) - 0x400 + leadX);
-  const auto cornerY = static_cast<std::int16_t>(c->mem_r16(kCameraPosition + 4u) - 0x400 + leadY);
-  const auto cornerZ = static_cast<std::int16_t>(c->mem_r16(kCameraPosition + 8u) - 0x400 + leadZ);
-  c->mem_w16(sp + 0x18u, static_cast<std::uint16_t>(cornerX));
-  c->mem_w16(sp + 0x1Au, static_cast<std::uint16_t>(cornerY));
-  c->mem_w16(sp + 0x1Cu, static_cast<std::uint16_t>(cornerZ));
-  const std::int32_t offsetX = c->mem_r16s(node + kNodeOrigin + 0u) - cornerX;
-  const std::int32_t offsetY = c->mem_r16s(node + kNodeOrigin + 2u) - cornerY;
-  const std::int32_t offsetZ = c->mem_r16s(node + kNodeOrigin + 4u) - cornerZ;
+  const psx::present::EmitMemory memory(*c);
+  const CameraLattice::Point corner = CameraLattice::corner(memory);
+  c->mem_w16(sp + 0x18u, static_cast<std::uint16_t>(corner.x));
+  c->mem_w16(sp + 0x1Au, static_cast<std::uint16_t>(corner.y));
+  c->mem_w16(sp + 0x1Cu, static_cast<std::uint16_t>(corner.z));
+  const CameraLattice::Offset offset = CameraLattice::nodeOffset(memory, node, corner);
+  const std::int32_t offsetX = offset.x;
+  const std::int32_t offsetY = offset.y;
+  const std::int32_t offsetZ = offset.z;
   const std::int32_t lastX = c->mem_r16s(node + kNodeLastOffset + 0u);
   const std::int32_t lastY = c->mem_r16s(node + kNodeLastOffset + 2u);
   const std::int32_t lastZ = c->mem_r16s(node + kNodeLastOffset + 4u);
@@ -146,17 +133,7 @@ void RainStreaks::draw(Core *c) {
   c->mem_w32(sp + 0x30u, static_cast<std::uint32_t>(lastY));
   c->mem_w32(sp + 0x34u, static_cast<std::uint32_t>(lastZ));
 
-  c->r[4] = kCameraMatrix;
-  tomba::guest::dispatchJalToReturn(*c, {.target = kSetRotMatrix, .returnAddress = 0x80116A34u});
-  c->r[4] = sp + 0x18u;
-  c->r[5] = kScratchMatrix + 0x14u;
-  tomba::guest::dispatchJalToReturn(*c, {.target = kApplyMatrixSv, .returnAddress = 0x80116A48u});
-  for (std::uint32_t axis = 0; axis < 3u; axis++) {
-    const std::uint32_t word = kScratchMatrix + 0x14u + axis * 4u;
-    c->mem_w32(word, c->mem_r32(word) + c->mem_r32(kCameraTranslation + axis * 4u));
-  }
-  c->r[4] = kScratchMatrix;
-  tomba::guest::dispatchJalToReturn(*c, {.target = kSetTransMatrix, .returnAddress = 0x80116A84u});
+  CameraLattice::loadView(memory, corner);
 
   const tomba::render::PacketPool packets(*c);
   std::uint32_t pool = packets.cursor();
@@ -172,9 +149,9 @@ void RainStreaks::draw(Core *c) {
     const std::int32_t x = latticeX + offsetX;
     const std::int32_t y = latticeY + offsetY;
     const std::int32_t z = latticeZ + offsetZ;
-    c->mem_w16(kDropVector + 0u, static_cast<std::uint16_t>(x & kLattice));
-    c->mem_w16(kDropVector + 2u, static_cast<std::uint16_t>(y & kLattice));
-    c->mem_w16(kDropVector + 4u, static_cast<std::uint16_t>(z & kLattice));
+    c->mem_w16(kDropVector + 0u, static_cast<std::uint16_t>(x & CameraLattice::kExtent));
+    c->mem_w16(kDropVector + 2u, static_cast<std::uint16_t>(y & CameraLattice::kExtent));
+    c->mem_w16(kDropVector + 4u, static_cast<std::uint16_t>(z & CameraLattice::kExtent));
     c->gte().writeData(psx::gte::kVxy0, c->mem_r32(kDropVector + 0u));
     c->gte().writeData(psx::gte::kVz0, c->mem_r32(kDropVector + 4u));
     seed = static_cast<std::uint32_t>(psx::cpu::multiply(c, static_cast<std::int32_t>(seed), multiplier)) + 1u;
@@ -188,7 +165,7 @@ void RainStreaks::draw(Core *c) {
     const std::int32_t otz = orderingIndex(static_cast<std::int32_t>(c->gte().readData(psx::gte::kSz3)));
     c->mem_w32(kScratchDepth, static_cast<std::uint32_t>(otz));
     const bool wrapped = (((x ^ (latticeX + lastX)) | (y ^ (latticeY + lastY)) | (z ^ (latticeZ + lastZ))) &
-                          static_cast<std::int32_t>(kLatticeCell)) != 0;
+                          static_cast<std::int32_t>(CameraLattice::kCell)) != 0;
     if (otz < 0 || wrapped) {
       c->mem_w32(trail, kNoTrail);
       continue;

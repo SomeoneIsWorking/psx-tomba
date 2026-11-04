@@ -48,6 +48,7 @@
 #include "render/anchor_quads.h"
 #include "render/area_map.h"
 #include "render/drop_shadow.h"
+#include "render/dust_field.h"
 #include "render/guest_keyed_emitters.h"
 #include "render/line_strip.h"
 #include "render/object_draw.h"
@@ -123,6 +124,7 @@ void register_engine_overrides(Game &game, native::NativeOverrideCatalog &native
   tomba::render::SwayModelEmitter::registerOverrides(natives);  // A01 sway, scroll and cue GT3/GT4 emitters
   SopGround::registerOverrides(natives);                        // SOP intro ground blocks (0x80109FE0)
   RainStreaks::registerOverrides(natives);                      // A08 rain streaks (0x80116904)
+  tomba::render::DustField::registerOverrides(natives);         // A0B dust field (0x801110BC)
   tomba::render::LetterboxBars::registerOverrides(natives);     // cutscene letterbox bars (0x80026864)
   ScreenFade::registerOverrides(natives);                       // full-screen fade (0x8007E9C8)
   NodeXform::registerOverrides(natives);                        // child-transform-propagate family

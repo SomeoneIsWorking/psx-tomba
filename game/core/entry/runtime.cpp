@@ -26,6 +26,7 @@
 #include "render/backdrop_plane.h"
 #include "render/backdrop_sprites.h"
 #include "render/billboard_state.h"
+#include "render/dust_field.h"
 #include "render/gradient_backdrop.h"
 #include "render/guest_keyed_emitters.h"
 #include "render/guest_ordering_table.h"
@@ -142,6 +143,7 @@ void Runtime::registerOverrides(Game &game) {
   OverlayGroundGt3Gt4::registerStateRenders(renders, game.core);
   TileGridLayer::registerStateRenders(renders, game.core);
   RainStreaks::registerStateRenders(renders);
+  tomba::render::DustField::registerStateRenders(renders, game.core);
   Font::registerStateRenders(renders);
   ScreenFade::registerStateRenders(renders);
   tomba::render::LetterboxBars::registerStateRenders(renders);
