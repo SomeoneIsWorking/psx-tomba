@@ -61,8 +61,7 @@ calls it. A row whose handler is file-local names the file that declares the ove
 | 0x80039F4C | LIVE | `Render::textLabelEmit` | game/render/text_label.cpp |  |  |
 | 0x8003AD48 | LIVE | `beh_cube_text_spawn` | game/ai/beh_cube_text_spawn.cpp | 0x8003A790 0x8003A9A0 0x8003ABE4 0x8009A730 |  |
 | 0x8003B054 | LIVE | `QuadRtptSubmit::rotateQuadCorners` | game/render/quad_rtpt_submit.cpp |  |  |
-| 0x8003B054 | LIVE | `QuadRtptSubmit::registerOverrides` | game/render/quad_rtpt_submit.cpp |  | Wiring (frontier, 2026-07-08): both leaves are reached only via direct… |
-| 0x8003B320 | LIVE | `QuadRtptSubmit::submit` | game/render/quad_rtpt_submit.cpp |  | Flat GT4 quad from a 40-byte template; state producer keyed by the drawer's walked object. |
+| 0x8003B320 | LIVE | `QuadRtptSubmit::submit` | game/render/quad_rtpt_submit.cpp |  | POLY_FT4 from a 40-byte template; state producer keyed as in `quad_rtpt_submit.h`. |
 | 0x8003BB50 | LIVE | `Render::objListWalk1` | game/render/objlist_walk.cpp | 0x8002AE0C 0x8003C5F8 0x8003C788 0x80122974 |  |
 | 0x8003BB50 | LIVE | `ov_objListWalk1` | game/render/objlist_walk.cpp |  |  |
 | 0x8003BCF4 | LIVE | `Render::objListWalk2` | game/render/objlist_walk.cpp | 0x80123C14 0x801341E8 0x80136748 |  |

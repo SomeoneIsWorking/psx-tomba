@@ -1,8 +1,10 @@
 // game/render/quad_rtpt_submit.h — FUN_8003B054, a quad record's corner rotation, and FUN_8003B320, a POLY_FT4
 // template's four world corners projected through the GTE view and a copy linked into the active OT.
 //
-// FUN_8003B320's callers (0x8003B704's beam, 0x8003C048, 0x8003F898) build the template and the corners on their
-// stack each frame, so a call is keyed by its call site and n-th call from there and saved as a ListJob.
+// FUN_8003B320's callers (MAIN 0x8003B704's beam, 0x8003C048, 0x8003F898; the A0A 0x80114E64 and A0F 0x801175C0
+// hanging strips) build the template and corners on their stack each frame. Each call is saved as a ListJob: under
+// an open object draw as its next part, otherwise keyed by CallSiteObjects::object(call site, the open scope's
+// object or else the template address).
 #pragma once
 
 #include "emit_memory.h"
