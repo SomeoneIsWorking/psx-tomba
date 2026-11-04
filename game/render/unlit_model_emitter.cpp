@@ -27,6 +27,31 @@ ModelDepth depthOf(const UnlitModelEmitter::DepthRule &rule, std::uint32_t flags
   return ModelPacket::depthOf(flags, rule.modeMask);
 }
 
+std::uint32_t
+scrollAmount(const psx::present::EmitMemory &memory, UnlitModelEmitter::ScrollRead read, std::uint32_t word) {
+  if (word == 0u) {
+    return 0u;
+  }
+  return read == UnlitModelEmitter::ScrollRead::Byte ? memory.mem_r8(word) : memory.mem_r16(word) >> 4;
+}
+
+void scrollUv(const psx::present::EmitMemory &memory,
+              const ModelPacket &packet,
+              const UnlitModelEmitter::UvScroll &scroll) {
+  for (const UnlitModelEmitter::ScrollBit &bit : scroll.bits) {
+    if ((packet.flags() & bit.flag) == 0u) {
+      continue;
+    }
+    packet.scrollUv(scrollAmount(memory, scroll.read, bit.u), scrollAmount(memory, scroll.read, bit.v));
+    if (bit.bucket != 0) {
+      packet.setBucket(bit.bucket);
+    }
+    if (scroll.firstOnly) {
+      return;
+    }
+  }
+}
+
 template <std::uint32_t Entry, bool Quad, const UnlitModelEmitter::Variant &Data> void emitAt(Core *core) {
   const ListCall call = ListCall::fromRegisters(*core);
   const EmitterObject object(*core, Entry, call.list);
@@ -37,9 +62,12 @@ template <std::uint32_t Entry, bool Quad, const UnlitModelEmitter::Variant &Data
   if (Data.hideFlag != 0u || Data.xHide.active) {
     job.input(*core, kHideWord, sizeof(std::uint32_t));
   }
-  for (const UnlitModelEmitter::ScrollBit &bit : Data.uScroll) {
+  for (const UnlitModelEmitter::ScrollBit &bit : Data.uvScroll.bits) {
     if (bit.flag != 0u) {
-      job.input(*core, bit.word, sizeof(std::uint16_t));
+      job.input(*core, bit.u, sizeof(std::uint16_t));
+    }
+    if (bit.v != 0u) {
+      job.input(*core, bit.v, sizeof(std::uint16_t));
     }
   }
   core->r[2] = UnlitModelEmitter::emit(*core, call, visible, Data, Quad);
@@ -82,6 +110,8 @@ constexpr const auto &kA06 = UnlitModelEmitter::kA06;
 constexpr const auto &kA06Scroll = UnlitModelEmitter::kA06Scroll;
 constexpr const auto &kA0eArena = UnlitModelEmitter::kA0eArena;
 constexpr const auto &kA02 = UnlitModelEmitter::kA02;
+constexpr const auto &kA0a = UnlitModelEmitter::kA0a;
+constexpr const auto &kA0f = UnlitModelEmitter::kA0f;
 
 constexpr Copy kCopies[] = {
     {{},
@@ -184,6 +214,8 @@ constexpr Copy kCopies[] = {
      &emitAt<0x8013D1E4u, true, kA06Scroll>,
      &kA06Scroll},
     {"A06", 0x8013BA44u, 0x8013BD40u, &emitAt<0x8013BA44u, false, kA06>, &emitAt<0x8013BD40u, true, kA06>, &kA06},
+    {"A0A", 0x8010F97Cu, 0x8010FD74u, &emitAt<0x8010F97Cu, false, kA0a>, &emitAt<0x8010FD74u, true, kA0a>, &kA0a},
+    {"A0F", 0x80114A5Cu, 0x80114E70u, &emitAt<0x80114A5Cu, false, kA0f>, &emitAt<0x80114E70u, true, kA0f>, &kA0f},
     {"A02", 0x80124DB8u, 0x80125100u, &emitAt<0x80124DB8u, false, kA02>, &emitAt<0x80125100u, true, kA02>, &kA02},
     {"A0J",
      0x8010A3ACu,
@@ -248,12 +280,7 @@ std::uint32_t UnlitModelEmitter::emit(const psx::present::EmitMemory &memory,
       }
     }
     packet.storeLastUv();
-    const auto scroll = std::ranges::find_if(variant.uScroll, [&](const ScrollBit &bit) {
-      return (packet.flags() & bit.flag) != 0u;
-    });
-    if (scroll != variant.uScroll.end()) {
-      packet.scrollU(memory.mem_r16(scroll->word) >> 4);
-    }
+    scrollUv(memory, packet, variant.uvScroll);
     packet.link(call.ot);
     return true;
   });

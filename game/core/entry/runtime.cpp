@@ -19,6 +19,7 @@
 #include "overrides/native_override_catalog.h"
 #include "overrides/register_overrides.h"
 #include "platform_hle.h"
+#include "quad_rtpt_submit.h"
 #include "rain_streaks.h"
 #include "render/anchor_quads.h"
 #include "render/area_map.h"
@@ -154,6 +155,7 @@ void Runtime::registerOverrides(Game &game) {
   FxSpriteSwarm::registerStateRenders(renders, game.core);
   tomba::render::ObjectDraws::registerStateRenders(renders);
   tomba::render::LineStrip::registerStateRenders(renders, game.core);
+  QuadRtptSubmit::registerStateRenders(renders, game.core);
   tomba::render::AnchorQuads::registerStateRenders(renders, game.core);
   tomba::render::GuestKeyedEmitters::registerStateRenders(renders);
   HudGaugeEmitter::registerStateRenders(renders);

@@ -46,6 +46,8 @@ Tomba's frame cuts stay `tomba::FrameCut`.
 | 0x80027768 `PackedMesh::write` | the call: under an open scope its object (0x8002AB5C `DropShadow::draw` opens the shadow's record life around it), otherwise (call site, list, n-th call of that pair in the logic frame) (`CallSiteObjects::object(returnAddress, list)`; SOP 0x8010BF54 draws list 0x8010CC08 twice a frame, and a site whose set of lists changes keeps each list's object) | a `ListJob`: the records, the IR0 cue word and the GTE control | `ListStateProducer` over the mesh body |
 | 0x80117628 A08 `ObjectDraws::quarterTurnMesh` | the node's render-record life: one draw whose emitter calls are its numbered parts (`ObjectDrawScope`, `ObjectDraw`, `object_draw.h`) | per part a `ListJob` (the emitter and its bytes); the A08 draw writes the same mesh at four quarter turns, again faded, then two packed meshes | `ObjectDrawRender` pairs the parts of two saves by call number and producer and has each part's producer render the pair |
 | 0x80027CB4, 0x80027E5C, 0x8002801C, 0x8002DBE4, 0x800286CC `FxSpriteAnchored`; 0x800281EC `FxSpriteSwarm` | the sprite emitter call, by its `CallSiteObjects` object; each anchors a scale and screen point in the scratchpad and stamps records through the writer | the OT bucket, the screen anchor with its place and scale, the published IR0 and the record bytes (`fx_sprite_*`) | the anchor and scale move by t and the records are stamped again through `ScaledSprites` into the host OT |
+| 0x80114E64 A0A `ObjectDraws::hangingStrip` | the strip's render record: one draw whose 0x8003B320 calls are its numbered parts, up to 35 a strip in area 10 | per part the `QuadRtptSubmit` job | `ObjectDrawRender` as above |
+| 0x8003B320 `QuadRtptSubmit::submit` | under an open scope its object, otherwise the n-th call from the site for the list (`CallSiteObjects`) | a `ListJob`: the 40-byte template, the corner lanes and the OT base word | `ListStateProducer` over the submit: RTPT/RTPS again and the draw-window gate, so it fills the margins |
 | 0x80117E84 A08 `LineStrip` | the node's render-record life | the scene camera CR0-7, the node's world point and scale, the nine strip points | the camera, world point and scale move by t, then the body re-projects and links the strip |
 | 0x80113628 A02 `AreaMap` | the area-map call | the OT slot and bucket, the map's texture page and the player's position | the player's position moves by t; the map sprite and its marker are re-emitted |
 | 0x8007CC00 `DialogGlyphs` | the dialog box's glyphs, by the box | `AnchoredPackets`: the box's rect, each glyph packet's bucket and command words | the box's rect moves by t and every glyph with it |
@@ -93,6 +95,8 @@ Element namers (not producers; they name elements of the innermost open object):
 | 0x80113788 / 0x80113A54 | A0C | `UnlitModelEmitter` gt3 / gt4 (SOP's body) | not traced |
 | 0x801103F4 / 0x80110698 and the same body in A0B-A0F, A0H-A0J | A0A-A0J | `UnlitModelEmitter` gt3 / gt4 (`kFlagged`) | not traced |
 | 0x80124DB8 / 0x80125100 | A02 | `UnlitModelEmitter` gt3 / gt4 (`kA02`: the resident body, flagged depth from the SZ registers, a three-word U scroll) | drawer 0x8012555C via 0x8003F708 |
+| 0x8010F97C / 0x8010FD74 | A0A | `UnlitModelEmitter` gt3 / gt4 (`kA0a`: depth from the SZ registers, byte UV scroll on flag bits 4 and 8) | not traced |
+| 0x80114A5C / 0x80114E70 | A0F | `UnlitModelEmitter` gt3 / gt4 (`kA0f`: kA0a with the first matching scroll only, each with its own bucket) | not traced |
 | 0x80113AEC / 0x80113DE0 | A0E | `UnlitModelEmitter` gt3 / gt4 (`kA0eArena`: SOP's body plus the west-record hide by model x while 0x1F80009C is set) | arena walker 0x80114320 |
 | 0x8010BC40 / 0x8010BF28 (A0G), 0x8010B3DC / 0x8010B6C4 (A0I), 0x8010AF58 / 0x8010B240 (A0H), 0x8010A3AC / 0x8010A69C (A0J) | A0G-A0J | `UnlitModelEmitter` gt3 / gt4 (`kSopNear`, `kSopNearWide`, `kSopNearLifted`) | not traced |
 
@@ -107,8 +111,7 @@ Not yet producers, by census rank: SOP effect 0x8010BF54, A01 0x80132DC0
 and the GT3/GT4 emitter copies of the overlays not listed above
 whose bodies differ from the natives: A03 0x80110094/0x80110290, A04
 0x801175FC/0x801178A0 and 0x8013D0F8/0x8013D568, A05 0x8013484C/0x80134B74 and 0x8013AC90/0x8013AF0C, A07
-0x8012DBB4/0x8012DE60, A0A 0x8010F97C/0x8010FD74, A0D 0x80112DE4/0x801131B0,
-A0F 0x80114A5C/0x80114E70, A0G 0x8010C3A4/0x8010C664, A0K 0x80114F1C/0x8011562C and 0x801163E0/0x80116708
+0x8012DBB4/0x8012DE60, A0D 0x80112DE4/0x801131B0, A0G 0x8010C3A4/0x8010C664, A0K 0x80114F1C/0x8011562C and 0x801163E0/0x80116708
 (issue 0028).
 
 Each per-object drawer (A01 0x80132DC0, A05 0x801362CC, A06 0x8013D568, A08 0x8012A9DC) calls one GT3/GT4

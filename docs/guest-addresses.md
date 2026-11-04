@@ -61,7 +61,7 @@ calls it. A row whose handler is file-local names the file that declares the ove
 | 0x8003AD48 | LIVE | `beh_cube_text_spawn` | game/ai/beh_cube_text_spawn.cpp | 0x8003A790 0x8003A9A0 0x8003ABE4 0x8009A730 |  |
 | 0x8003B054 | LIVE | `QuadRtptSubmit::rotateQuadCorners` | game/render/quad_rtpt_submit.cpp |  |  |
 | 0x8003B054 | LIVE | `QuadRtptSubmit::registerOverrides` | game/render/quad_rtpt_submit.cpp |  | Wiring (frontier, 2026-07-08): both leaves are reached only via direct… |
-| 0x8003B320 | LIVE | `QuadRtptSubmit::submitQuad` | game/render/quad_rtpt_submit.cpp |  |  |
+| 0x8003B320 | LIVE | `QuadRtptSubmit::submit` | game/render/quad_rtpt_submit.cpp |  | Flat GT4 quad from a 40-byte template; state producer keyed by the drawer's walked object. |
 | 0x8003BB50 | LIVE | `Render::objListWalk1` | game/render/objlist_walk.cpp | 0x8002AE0C 0x8003C5F8 0x8003C788 0x80122974 |  |
 | 0x8003BB50 | LIVE | `ov_objListWalk1` | game/render/objlist_walk.cpp |  |  |
 | 0x8003BCF4 | LIVE | `Render::objListWalk2` | game/render/objlist_walk.cpp | 0x80123C14 0x801341E8 0x80136748 |  |
@@ -563,6 +563,8 @@ calls it. A row whose handler is file-local names the file that declares the ove
 | 0x8010E258 | LIVE | `ActorObjectContact::resolveHitOrProximity` | game/ai/actor_object_contact.cpp |  | ORACLE: overlay guest 0x8010E258 |
 | 0x8010E904 | LIVE | `ActorTomba::postFrameWaterCheck` | game/player/actor_tomba.cpp |  |  |
 | 0x8010EA80 | LIVE | `ActorBump::respondToContact` | game/ai/actor_bump.cpp |  | ORACLE: overlay guest 0x8010EA80 |
+| 0x8010F97C | LIVE | `UnlitModelEmitter::gt3` (A0A) | game/render/unlit_model_emitter.cpp |  | Depth from the SZ registers, byte UV scroll on flags 4/8 (kA0a). |
+| 0x8010FD74 | LIVE | `UnlitModelEmitter::gt4` (A0A) | game/render/unlit_model_emitter.cpp |  | Depth from the SZ registers, byte UV scroll on flags 4/8 (kA0a). |
 | 0x801103F4 | LIVE | `UnlitModelEmitter::gt3` (A0A) | game/render/unlit_model_emitter.cpp |  | Flagged unlit GT3 (kFlagged). |
 | 0x80110698 | LIVE | `UnlitModelEmitter::gt4` (A0A) | game/render/unlit_model_emitter.cpp |  | Flagged unlit GT4 (kFlagged). |
 | 0x80110CA4 | LIVE | `BackdropPlane::draw` (A0E) | game/render/backdrop_plane.cpp |  | Boss arena waterfall: 10x7 GT4 plane mirrored about y 0 and a 10-quad additive haze band, then FUN_801104D0. |
@@ -590,6 +592,9 @@ calls it. A row whose handler is file-local names the file that declares the ove
 | 0x801142EC | LIVE | `TileGridLayer::emitUnbiased` (A0A) | game/render/tile_grid_layer.cpp |  | Tile grid with no V bias; producer, object = map cell. |
 | 0x80114458 | LIVE | `UnlitModelEmitter::gt3` (A0E) | game/render/unlit_model_emitter.cpp |  | Flagged unlit GT3 (kFlagged). |
 | 0x801146FC | LIVE | `UnlitModelEmitter::gt4` (A0E) | game/render/unlit_model_emitter.cpp |  | Flagged unlit GT4 (kFlagged). |
+| 0x80114A5C | LIVE | `UnlitModelEmitter::gt3` (A0F) | game/render/unlit_model_emitter.cpp |  | kA0a's body, scroll on the first matching flag with its own bucket (kA0f). |
+| 0x80114E64 | LIVE | `ObjectDraws::hangingStrip` (A0A) | game/render/object_draw.cpp |  | Hanging chain strip: one 0x8003B320 part per segment. |
+| 0x80114E70 | LIVE | `UnlitModelEmitter::gt4` (A0F) | game/render/unlit_model_emitter.cpp |  | kA0a's body, scroll on the first matching flag with its own bucket (kA0f). |
 | 0x80114E74 | LIVE | `ActorTomba::type4GuardedCheck` | game/player/actor_tomba.cpp |  | type-4 guarded proximity. |
 | 0x8011534C | LIVE | `TileGridLayer::scrollStep` | game/render/tile_grid_layer.cpp |  |  |
 | 0x80115598 | LIVE | `TileGridLayer::emit` | game/render/tile_grid_layer.cpp | 0x80083DE0 |  |

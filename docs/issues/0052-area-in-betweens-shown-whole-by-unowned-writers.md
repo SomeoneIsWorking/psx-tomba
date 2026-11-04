@@ -2,7 +2,7 @@
 
 Features: F-FPS60.
 
-Status: open (2026-11-04). Owners: none yet; each writer below is guest code with no producer.
+Status: open (2026-11-04); area 10 fixed. Owners: `UnlitModelEmitter` (kA0a, kA0f), `QuadRtptSubmit`, `ObjectDraws::hangingStrip`.
 
 ## Reproduction
 `warp <area>/0` from free roam for each area, unpaced, `ires=0`, `fps60=1`, `PSXPORT_PRESENT_SINK=3840x2160`, debug
@@ -33,6 +33,16 @@ keyed packet), with the intervals each cost:
 0x8003B320 (MAIN, GT3 flat-textured) rewrites packets 0x8008007C keyed in areas 7, 10 and 15, so one owner there
 covers three areas. Areas 5 and 6 also log unowned writers (0x8013AC90/0x8013AF0C, 0x80136F28; 0x80141A94) yet
 compose most in-betweens, since those writers hold still on the dumped frames.
+
+## Area 10 fixed
+A0A's pair 0x8010F97C/0x8010FD74 is `UnlitModelEmitter` kA0a (depth from the SZ registers, a byte UV scroll per
+flag bit), A0F's 0x80114A5C/0x80114E70 kA0f, and 0x8003B320 a `QuadRtptSubmit` state producer keyed by the
+drawer's walked object. A0A's chain drawer 0x80114E64 calls 0x8003B320 once per segment, 35 times for its tallest
+strip, past `CallSiteObjects`' 15 calls a site, so it is an `ObjectDraw` whose calls are its parts.
+`warp 10/0` now shows 21 of 21 in-betweens at 0.41-0.54 (`scratch/tomba2e/r4/reduced/shares.txt`).
+
+Still whole: `warp 15/0` on 0x80112D10 (A0F, GP0 0x5E, 240 intervals) and 2 no-state intervals on 0x8003B320;
+`warp 7/0` on 0x801140A0 (0x65), 0x80117AB8 (0x2D) and 0x8012F938 (0x7C, over 0x8012CAA8's packets).
 
 ## Next
 Per area, decompile each writer and give it the producer its pattern takes (`docs/producers.md`): emitter copies

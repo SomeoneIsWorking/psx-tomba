@@ -199,11 +199,16 @@ void ModelPacket::biasBucket(std::int32_t bias) const {
   }
 }
 
-void ModelPacket::scrollU(std::uint32_t amount) const {
+void ModelPacket::scrollUv(std::uint32_t u, std::uint32_t v) const {
   for (int corner = 0; corner < mShape.cornerCount; ++corner) {
-    const std::uint32_t u = mPacket + kUv[static_cast<std::size_t>(corner)];
-    mMemory.mem_w8(u, static_cast<std::uint8_t>(mMemory.mem_r8(u) + amount));
+    const std::uint32_t uv = mPacket + kUv[static_cast<std::size_t>(corner)];
+    mMemory.mem_w8(uv, static_cast<std::uint8_t>(mMemory.mem_r8(uv) + u));
+    mMemory.mem_w8(uv + 1u, static_cast<std::uint8_t>(mMemory.mem_r8(uv + 1u) + v));
   }
+}
+
+void ModelPacket::setBucket(std::int32_t bucket) const {
+  mMemory.mem_w32(mStage.bucket, static_cast<std::uint32_t>(bucket));
 }
 
 void ModelPacket::clampNear(const NearClamp &clamp) const {

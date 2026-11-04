@@ -151,8 +151,10 @@ public:
   std::int32_t bucket() const;
   // The packet's last UV word(s): GT3 its u16 at record 0x22, GT4 both halves of record 0x10.
   void storeLastUv() const;
-  // Adds `amount` to every corner's U, wrapping in the byte.
-  void scrollU(std::uint32_t amount) const;
+  // Adds `u` to every corner's U and `v` to its V, each wrapping in its byte.
+  void scrollUv(std::uint32_t u, std::uint32_t v) const;
+  // Moves the record to OT bucket `bucket`.
+  void setBucket(std::int32_t bucket) const;
   // DPCS: the corner's colour toward the far colour by `intensity`, in place.
   struct ShadeArgs {
     int corner;

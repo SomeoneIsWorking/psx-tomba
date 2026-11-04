@@ -27,7 +27,8 @@ struct Part {
   std::span<const std::byte> state;
 };
 
-constexpr std::size_t kMostParts = 32;
+// A0A's hanging strip draws one part per segment, 35 for its tallest strip in area 10.
+constexpr std::size_t kMostParts = 64;
 
 class Parts {
 public:
@@ -63,6 +64,15 @@ private:
 
 // A08 FUN_80117628: one mesh at four quarter turns, again faded, then two packed meshes, for the node in a0.
 constexpr std::uint32_t kQuarterTurnMesh = 0x80117628u;
+
+// A0A's hanging strip: one world quad per segment, swaying with the node.
+constexpr std::uint32_t kHangingStrip = 0x80114E64u;
+
+void drawHangingStrip(Core *core) {
+  const ObjectDrawScope draw(*core, kHangingStrip, eng(core).graphicsBind.records.object(core->r[4]));
+  psx::cpu::callOriginalToReturn(
+      *core, kHangingStrip, psx::cpu::ExecutionBudget::currentTurn(*core), "ObjectDraws::hangingStrip");
+}
 
 void drawQuarterTurnMesh(Core *core) {
   const ObjectDrawScope draw(*core, kQuarterTurnMesh, eng(core).graphicsBind.records.object(core->r[4]));
@@ -148,10 +158,12 @@ namespace tomba::render {
 
 void ObjectDraws::registerOverrides(native::NativeOverrideCatalog &natives) {
   natives.declareOverlay("A08", kQuarterTurnMesh, "ObjectDraws::quarterTurnMesh", &drawQuarterTurnMesh);
+  natives.declareOverlay("A0A", kHangingStrip, "ObjectDraws::hangingStrip", &drawHangingStrip);
 }
 
 void ObjectDraws::registerStateRenders(psx::present::StateProducerTable &renders) {
   renders.install(kQuarterTurnMesh, std::make_unique<ObjectDrawRender>(renders));
+  renders.install(kHangingStrip, std::make_unique<ObjectDrawRender>(renders));
 }
 
 } // namespace tomba::render

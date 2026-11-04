@@ -62,13 +62,22 @@ public:
     NearClamp nearClamp;
     bool gt4DropsSorted; // GT4 skips its link once a farthest/nearest record is sorted
   };
-  // Flag bit `flag` adds the u16 at `word` >> 4 to every corner's U; the first set bit of the table wins.
+  // How a scroll word reads: its u16 >> 4, or its low byte.
+  enum class ScrollRead : std::uint8_t { HalfShift4, Byte };
+  // Flag bit `flag` adds word `u` to every corner's U and word `v` (0 for none) to its V, and moves the record to
+  // `bucket` (0 to keep its own).
   struct ScrollBit {
     std::uint32_t flag;
-    std::uint32_t word;
+    std::uint32_t u;
+    std::uint32_t v;
+    std::int32_t bucket;
   };
-  using UScroll = std::array<ScrollBit, 3>;
-  static constexpr UScroll kNoScroll{};
+  struct UvScroll {
+    ScrollRead read;
+    bool firstOnly; // only the first set bit of `bits` applies
+    std::array<ScrollBit, 3> bits;
+  };
+  static constexpr UvScroll kNoScroll{};
   struct Variant {
     ModelStage stage;
     std::uint32_t colourMask;
@@ -79,7 +88,7 @@ public:
     DepthRule depth;
     std::uint32_t hideFlag; // hides the record while 0x1F80009C is set; 0 for none
     bool cue;
-    UScroll uScroll;
+    UvScroll uvScroll;
     ModelXHide xHide;
   };
   static constexpr Variant kResident{kResidentStage,
@@ -184,7 +193,7 @@ public:
                                       {ModeCode::ZeroAverage, 3u, Staging::Unaveraged, kNoNearClamp, false},
                                       0u,
                                       false,
-                                      {{{8u, 0x8014A450u}}},
+                                      {ScrollRead::HalfShift4, true, {{{8u, 0x8014A450u, 0u, 0}}}},
                                       kNoXHide};
 
   // SOP's body hiding by model x while 0x1F80009C is set: A0E's boss arena, drawn by the walker 0x80114320.
@@ -210,8 +219,37 @@ public:
                                 {ModeCode::ZeroAverage, 3u, Staging::Registers, kNoNearClamp, false},
                                 0u,
                                 false,
-                                {{{0x10u, 0x8012C92Cu}, {8u, 0x8012C92Au}, {4u, 0x8012C928u}}},
+                                {ScrollRead::HalfShift4,
+                                 true,
+                                 {{{0x10u, 0x8012C92Cu, 0u, 0}, {8u, 0x8012C92Au, 0u, 0}, {4u, 0x8012C928u, 0u, 0}}}},
                                 kNoXHide};
+
+  // A0A's pair: SOP's projection, 1 farthest, 2 nearest from the SZ registers, two U/V byte scrolls that add up.
+  static constexpr Variant kA0a{
+      kOverlayStage,
+      kColourMask,
+      kColourCodeMask,
+      false,
+      0u,
+      0u,
+      {ModeCode::OneFarTwoNear, 3u, Staging::Registers, kNoNearClamp, false},
+      0u,
+      false,
+      {ScrollRead::Byte, false, {{{4u, 0x8011BF14u, 0x8011BF16u, 0}, {8u, 0x8011BF1Au, 0x8011BF16u, 0}}}},
+      kNoXHide};
+  // A0F's pair: A0A's body whose scrolls exclude each other and sort the scrolled record far back.
+  static constexpr Variant kA0f{
+      kOverlayStage,
+      kColourMask,
+      kColourCodeMask,
+      false,
+      0u,
+      0u,
+      {ModeCode::OneFarTwoNear, 3u, Staging::Registers, kNoNearClamp, false},
+      0u,
+      false,
+      {ScrollRead::Byte, true, {{{4u, 0x8012092Eu, 0x80120930u, 0x7FB}, {8u, 0x80120938u, 0x8012093Au, 0x7FD}}}},
+      kNoXHide};
 
   // The guest call: the registers in, the end of the list in v0, and the call saved under the open object.
   static void gt3(Core &core, const horizontal_cull::Visibility &visible, const Variant &variant);
