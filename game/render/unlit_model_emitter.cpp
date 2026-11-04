@@ -127,7 +127,7 @@ private:
 struct Copy {
   std::string_view image; // empty for the resident executable
   std::uint32_t gt3;
-  std::uint32_t gt4;
+  std::uint32_t gt4; // 0 when the copy has no GT4
   psx::cpu::NativeFunction gt3Body;
   psx::cpu::NativeFunction gt4Body;
   const UnlitModelEmitter::Variant *variant;
@@ -147,6 +147,7 @@ constexpr const auto &kA02 = UnlitModelEmitter::kA02;
 constexpr const auto &kA0a = UnlitModelEmitter::kA0a;
 constexpr const auto &kA0f = UnlitModelEmitter::kA0f;
 constexpr const auto &kA0d = UnlitModelEmitter::kA0d;
+constexpr const auto &kA03 = UnlitModelEmitter::kA03;
 
 constexpr Copy kCopies[] = {
     {{},
@@ -252,6 +253,7 @@ constexpr Copy kCopies[] = {
     {"A0A", 0x8010F97Cu, 0x8010FD74u, &emitAt<0x8010F97Cu, false, kA0a>, &emitAt<0x8010FD74u, true, kA0a>, &kA0a},
     {"A0F", 0x80114A5Cu, 0x80114E70u, &emitAt<0x80114A5Cu, false, kA0f>, &emitAt<0x80114E70u, true, kA0f>, &kA0f},
     {"A0D", 0x80112DE4u, 0x801131B0u, &emitAt<0x80112DE4u, false, kA0d>, &emitAt<0x801131B0u, true, kA0d>, &kA0d},
+    {"A03", 0x80110094u, 0u, &emitAt<0x80110094u, false, kA03>, nullptr, &kA03},
     {"A02", 0x80124DB8u, 0x80125100u, &emitAt<0x80124DB8u, false, kA02>, &emitAt<0x80125100u, true, kA02>, &kA02},
     {"A0J",
      0x8010A3ACu,
@@ -276,7 +278,8 @@ std::uint32_t UnlitModelEmitter::emit(const psx::present::EmitMemory &memory,
     }
     bool projected = false;
     if (!quad) {
-      projected = packet.projectGt3(variant.colourMask, visible);
+      projected = packet.projectGt3(
+          variant.colourMask, visible, variant.twoSidedFlag != 0u && (packet.flags() & variant.twoSidedFlag) != 0u);
     } else if (variant.gt4CornerThreeFirst) {
       projected = packet.projectGt4CornerThreeFirst(variant.colourMask, visible);
     } else {
@@ -334,7 +337,9 @@ void UnlitModelEmitter::gt4(Core &core, const Visibility &visible, const Variant
 void UnlitModelEmitter::registerStateRenders(psx::present::StateProducerTable &renders, Core &core) {
   for (const Copy &copy : kCopies) {
     renders.install(copy.gt3, std::make_unique<UnlitStateProducer>(core, *copy.variant, false));
-    renders.install(copy.gt4, std::make_unique<UnlitStateProducer>(core, *copy.variant, true));
+    if (copy.gt4 != 0u) {
+      renders.install(copy.gt4, std::make_unique<UnlitStateProducer>(core, *copy.variant, true));
+    }
   }
 }
 
@@ -345,7 +350,9 @@ void UnlitModelEmitter::registerOverrides(native::NativeOverrideCatalog &natives
       natives.declare(copy.gt4, "UnlitModelEmitter::gt4", copy.gt4Body);
     } else {
       natives.declareOverlay(copy.image, copy.gt3, "UnlitModelEmitter::gt3", copy.gt3Body);
-      natives.declareOverlay(copy.image, copy.gt4, "UnlitModelEmitter::gt4", copy.gt4Body);
+      if (copy.gt4 != 0u) {
+        natives.declareOverlay(copy.image, copy.gt4, "UnlitModelEmitter::gt4", copy.gt4Body);
+      }
     }
   }
 }

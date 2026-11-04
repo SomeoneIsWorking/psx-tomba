@@ -75,7 +75,9 @@ bool ModelPacket::onScreen(const horizontal_cull::Visibility &visible) const {
          visible.keepsY(ys.data(), mShape.cornerCount, Domain::Packed16);
 }
 
-bool ModelPacket::projectGt3(std::uint32_t colourMask, const horizontal_cull::Visibility &visible) const {
+bool ModelPacket::projectGt3(std::uint32_t colourMask,
+                             const horizontal_cull::Visibility &visible,
+                             bool twoSided) const {
   loadTriangle();
   mMemory.mem_w32(mPacket + 4u, mMemory.mem_r32(mRecord));
   mMemory.core().gte().execute(psx::gte::kRtpt);
@@ -85,10 +87,12 @@ bool ModelPacket::projectGt3(std::uint32_t colourMask, const horizontal_cull::Vi
   if (transformFailed()) {
     return false;
   }
-  mMemory.core().gte().execute(psx::gte::kNclip);
   mMemory.mem_w32(mPacket + 0x10u, colour & colourMask);
-  if (facesAway()) {
-    return false;
+  if (!twoSided) {
+    mMemory.core().gte().execute(psx::gte::kNclip);
+    if (facesAway()) {
+      return false;
+    }
   }
   storeTriangle();
   if (!onScreen(visible)) {

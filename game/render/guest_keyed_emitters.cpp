@@ -49,9 +49,13 @@ void GuestKeyedEmitters::registerOverrides(native::NativeOverrideCatalog &native
   natives.declareOverlay(
       "A0D", 0x80110C14u, "GuestKeyedEmitters::a0dRing", &drawForGuest<0x80110C14u, EmitterKey::Node>);
   natives.declareOverlay(
+      "A03", 0x801113B4u, "GuestKeyedEmitters::a03Ribbon", &drawForGuest<0x801113B4u, EmitterKey::Node>);
+  natives.declareOverlay(
       "A06", 0x80129AF8u, "GuestKeyedEmitters::a06Line", &drawForGuest<0x80129AF8u, EmitterKey::CallSite>);
   natives.declareOverlay(
       "DEMO", 0x80106690u, "GuestKeyedEmitters::demoEdgeSprites", &drawForGuest<0x80106690u, EmitterKey::Screen>);
+  natives.declareOverlay(
+      "A03", 0x80109EECu, "GuestKeyedEmitters::a03Hud", &drawForGuest<0x80109EECu, EmitterKey::Screen>);
   natives.declareOverlay(
       "A01", 0x801311FCu, "GuestKeyedEmitters::a01Effect", &drawForGuest<0x801311FCu, EmitterKey::Screen>);
 }

@@ -36,6 +36,7 @@
 #include "render/object_draw.h"
 #include "render/packed_mesh.h"
 #include "render/screen_fade.h"
+#include "render/subdivided_ground.h"
 #include "render/widescreen_margin_quad.h"
 #include "resident_natives.h"
 #include "sched/scheduler.h"
@@ -145,6 +146,7 @@ void Runtime::registerOverrides(Game &game) {
   TileGridLayer::registerStateRenders(renders, game.core);
   RainStreaks::registerStateRenders(renders);
   tomba::render::DustField::registerStateRenders(renders, game.core);
+  tomba::render::SubdividedGround::registerStateRenders(renders, game.core);
   tomba::render::FogModelEmitter::registerStateRenders(renders, game.core);
   Font::registerStateRenders(renders);
   ScreenFade::registerStateRenders(renders);

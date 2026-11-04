@@ -14,12 +14,15 @@
 //   A0F 0x80116ABC  leaf: the node's wire, two hanging sides and a foot, as 0x80112D10 shimmer lines.
 //   A0F 0x801143C4  leaf: the node's lens flare, three quads toward screen centre, and its 0x80027A4C sparkles.
 //   A0D 0x80110C14  leaf: the node's ring of 21 0x80027A4C stamps.
+//   A03 0x801113B4  leaf: the node's ribbon through 0x80110B00, ten segments of four G4 quads at bucket 4 between
+//                   the 11 screen points at +0x3C, unculled.
 // A leaf handed screen points is one object per call, by its call site and n-th call in the logic frame:
 //   A06 0x80129AF8  a semi-transparent three-point line from a1 through the midpoint to a0, colour a2, bucket a3,
 //                   drawn by the node handlers 0x80129C50 (twice) and 0x8012A564.
 // A body that takes no object draws one screen:
 //   DEMO 0x80106690  the front end's two edge sprites (x 0 and 0x100, clut 0x7FE8) into the pool.
 //   A01  0x801311FC  a per-frame effect: a texture-window packet and its GT4 particles.
+//   A03  0x80109EEC  the area's HUD, sprites at bucket 3, drawn by 0x8010B328 before the ground.
 #pragma once
 
 #include "state_producer.h"
@@ -58,9 +61,11 @@ public:
       {"A0F", 0x80116ABCu, EmitterKey::Node},
       {"A0F", 0x801143C4u, EmitterKey::Node},
       {"A0D", 0x80110C14u, EmitterKey::Node},
+      {"A03", 0x801113B4u, EmitterKey::Node},
       {"A06", 0x80129AF8u, EmitterKey::CallSite},
       {"DEMO", 0x80106690u, EmitterKey::Screen},
       {"A01", 0x801311FCu, EmitterKey::Screen},
+      {"A03", 0x80109EECu, EmitterKey::Screen},
   };
 
   static void registerOverrides(native::NativeOverrideCatalog &natives);

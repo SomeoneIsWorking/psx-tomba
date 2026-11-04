@@ -55,6 +55,7 @@
 #include "render/object_draw.h"
 #include "render/packed_mesh.h"
 #include "render/scaled_sprites.h"
+#include "render/subdivided_ground.h"
 #include "scene/scene_events.h" // class SceneEvents — scene-event ARM (FUN_80040B48 sole owner)
 #include "screen_fade.h"        // class ScreenFade — full-screen fade leaf (0x8007E9C8)
 #include "sop_ground.h"         // class SopGround — SOP intro ground blocks (0x80109FE0)
@@ -125,7 +126,8 @@ void register_engine_overrides(Game &game, native::NativeOverrideCatalog &native
   tomba::render::SwayModelEmitter::registerOverrides(natives);  // A01 sway, scroll and cue GT3/GT4 emitters
   SopGround::registerOverrides(natives);                        // SOP intro ground blocks (0x80109FE0)
   RainStreaks::registerOverrides(natives);                      // A08 rain streaks (0x80116904)
-  tomba::render::DustField::registerOverrides(natives);         // A0B dust field (0x801110BC)
+  tomba::render::DustField::registerOverrides(natives);         // A0B dust field (0x801110BC), A04 snow
+  tomba::render::SubdividedGround::registerOverrides(natives);  // A03 ground GT4 (0x80110290)
   tomba::render::FogModelEmitter::registerOverrides(natives);   // A04 fogged GT3/GT4 emitters
   tomba::render::LetterboxBars::registerOverrides(natives);     // cutscene letterbox bars (0x80026864)
   ScreenFade::registerOverrides(natives);                       // full-screen fade (0x8007E9C8)

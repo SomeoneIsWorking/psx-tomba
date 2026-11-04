@@ -19,6 +19,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <type_traits>
 
 namespace tomba::horizontal_cull {
 class Visibility;
@@ -125,8 +126,8 @@ public:
   // The record's second colour word's top byte: depth mode and per-emitter flags.
   std::uint32_t flags() const;
 
-  // GT3: RTPT, flag, back face, cull; the packet's colours (`colourMask`), UVs and SXYs.
-  bool projectGt3(std::uint32_t colourMask, const horizontal_cull::Visibility &visible) const;
+  // GT3: RTPT, flag, back face (none when `twoSided`), cull; the packet's colours (`colourMask`), UVs and SXYs.
+  bool projectGt3(std::uint32_t colourMask, const horizontal_cull::Visibility &visible, bool twoSided = false) const;
   struct ProjectGt4Args {
     std::uint32_t firstColourMask;
     std::uint32_t colourMask;
@@ -210,8 +211,9 @@ struct EmitterTrigCall {
 };
 std::int32_t emitterTrig(const psx::present::EmitMemory &memory, EmitterTrigCall call, std::int32_t angle);
 
-// Runs `emit(packet)` for each record of the list in `call`, each the element of its list and index; the pool
-// advances past each packet `emit` linked. Returns the address past the list.
+// Runs `emit(packet)` for each record of the list in `call`, each the element of its list and index. `emit` returns
+// whether it linked the packet, and the pool advances past it, or the next free packet address itself. Returns the
+// address past the list.
 template <typename Emit>
 std::uint32_t emitModelList(const psx::present::EmitMemory &memory,
                             const ListCall &call,
@@ -223,8 +225,13 @@ std::uint32_t emitModelList(const psx::present::EmitMemory &memory,
   std::uint32_t packet = pool.cursor();
   for (std::uint32_t index = 0; index != call.count; ++index, record += shape.recordBytes) {
     const psx::present::ElementScope element(memory, modelElement(shape.list, index));
-    if (emit(ModelPacket(memory, shape, {.record = record, .packet = packet}, stage))) {
-      packet += shape.packetBytes;
+    const ModelPacket model(memory, shape, {.record = record, .packet = packet}, stage);
+    if constexpr (std::is_same_v<std::invoke_result_t<Emit &, const ModelPacket &>, bool>) {
+      if (emit(model)) {
+        packet += shape.packetBytes;
+      }
+    } else {
+      packet = emit(model);
     }
   }
   pool.setCursor(packet);
