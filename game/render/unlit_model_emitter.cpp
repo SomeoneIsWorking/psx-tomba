@@ -57,6 +57,30 @@ void scrollUv(const psx::present::EmitMemory &memory,
   }
 }
 
+// The wave's phase repeats every rsin turn; only its low half reaches the sine.
+constexpr std::uint32_t kWavePeriod = 0x1000u;
+constexpr std::int32_t kWaveShift = 10;
+
+void wave(const psx::present::EmitMemory &memory,
+          const ModelPacket &packet,
+          const ModelShape &shape,
+          const UnlitModelEmitter::ScreenWave &rule) {
+  if (rule.flag == 0u || (packet.flags() & rule.flag) == 0u) {
+    return;
+  }
+  const std::int32_t phase = static_cast<std::int32_t>(memory.mem_r32(rule.phase));
+  for (int corner = 0; corner < shape.cornerCount; ++corner) {
+    const auto index = static_cast<std::size_t>(corner);
+    const std::int32_t x = memory.mem_r16s(packet.record() + shape.corners[index].x);
+    const std::uint32_t call = shape.cornerCount == 3 ? rule.gt3Calls[index] : rule.gt4Calls[index];
+    const std::int32_t offset =
+        emitterTrig(memory, {.cosine = false, .returnAddress = call}, phase + x * 4) >> kWaveShift;
+    const std::uint32_t sy = packet.packet() + ModelPacket::kScreen[index] + 2u;
+    memory.mem_w16(sy, static_cast<std::uint16_t>(memory.mem_r16(sy) + static_cast<std::uint32_t>(offset)));
+  }
+  packet.biasBucket(rule.bucketBias);
+}
+
 template <std::uint32_t Entry, bool Quad, const UnlitModelEmitter::Variant &Data> void emitAt(Core *core) {
   const ListCall call = ListCall::fromRegisters(*core);
   const EmitterObject object(*core, Entry, call.list);
@@ -75,6 +99,10 @@ template <std::uint32_t Entry, bool Quad, const UnlitModelEmitter::Variant &Data
     if (bit.v != 0u) {
       job.input(*core, bit.v, sizeof(std::uint16_t), InputBlend::Wrapped, period);
     }
+  }
+  if (Data.wave.flag != 0u) {
+    job.input(*core, Data.wave.phase, sizeof(std::uint16_t), InputBlend::Wrapped, kWavePeriod);
+    job.input(*core, Data.wave.phase + sizeof(std::uint16_t), sizeof(std::uint16_t));
   }
   core->r[2] = UnlitModelEmitter::emit(*core, call, visible, Data, Quad);
   job.save(*core);
@@ -118,6 +146,7 @@ constexpr const auto &kA0eArena = UnlitModelEmitter::kA0eArena;
 constexpr const auto &kA02 = UnlitModelEmitter::kA02;
 constexpr const auto &kA0a = UnlitModelEmitter::kA0a;
 constexpr const auto &kA0f = UnlitModelEmitter::kA0f;
+constexpr const auto &kA0d = UnlitModelEmitter::kA0d;
 
 constexpr Copy kCopies[] = {
     {{},
@@ -222,6 +251,7 @@ constexpr Copy kCopies[] = {
     {"A06", 0x8013BA44u, 0x8013BD40u, &emitAt<0x8013BA44u, false, kA06>, &emitAt<0x8013BD40u, true, kA06>, &kA06},
     {"A0A", 0x8010F97Cu, 0x8010FD74u, &emitAt<0x8010F97Cu, false, kA0a>, &emitAt<0x8010FD74u, true, kA0a>, &kA0a},
     {"A0F", 0x80114A5Cu, 0x80114E70u, &emitAt<0x80114A5Cu, false, kA0f>, &emitAt<0x80114E70u, true, kA0f>, &kA0f},
+    {"A0D", 0x80112DE4u, 0x801131B0u, &emitAt<0x80112DE4u, false, kA0d>, &emitAt<0x801131B0u, true, kA0d>, &kA0d},
     {"A02", 0x80124DB8u, 0x80125100u, &emitAt<0x80124DB8u, false, kA02>, &emitAt<0x80125100u, true, kA02>, &kA02},
     {"A0J",
      0x8010A3ACu,
@@ -287,6 +317,7 @@ std::uint32_t UnlitModelEmitter::emit(const psx::present::EmitMemory &memory,
     }
     packet.storeLastUv();
     scrollUv(memory, packet, variant.uvScroll);
+    wave(memory, packet, shape, variant.wave);
     packet.link(call.ot);
     return true;
   });

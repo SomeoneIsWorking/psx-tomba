@@ -198,6 +198,14 @@ private:
   ModelStage mStage;
 };
 
+// A guest rsin/rcos call from an emitter body: the guest leaf from its call site, or over host memory the same
+// table read natively.
+struct EmitterTrigCall {
+  bool cosine;
+  std::uint32_t returnAddress;
+};
+std::int32_t emitterTrig(const psx::present::EmitMemory &memory, EmitterTrigCall call, std::int32_t angle);
+
 // Runs `emit(packet)` for each record of the list in `call`, each the element of its list and index; the pool
 // advances past each packet `emit` linked. Returns the address past the list.
 template <typename Emit>

@@ -2,14 +2,12 @@
 #include "sway_model_emitter.h"
 
 #include "core.h"
-#include "core/overrides/guest_jal.h"
 #include "core/overrides/native_override_catalog.h"
 #include "gte_registers.h"
 #include "guest_abi.h"
 #include "horizontal_visibility_cull.h"
 #include "list_state_producer.h"
 #include "model_packet.h"
-#include "trig.h"
 
 #include <array>
 #include <memory>
@@ -64,8 +62,6 @@ constexpr std::uint32_t kScrollBytes = 3u;        // 0x801388EC..EE
 constexpr std::uint32_t kRandomSeed = 0x1F800080u;
 constexpr std::uint32_t kRandomMultiplier = 0x41C64E6Du;
 constexpr std::uint32_t kRandomIncrement = 0x3039u;
-constexpr std::uint32_t kRcos = 0x80083F50u;
-constexpr std::uint32_t kRsin = 0x80083E80u;
 
 constexpr std::uint32_t kCueRandomFlag = 4u;
 constexpr std::uint32_t kSwayFlag = 8u;
@@ -92,18 +88,7 @@ constexpr SwayCalls kCueGt3Calls{{0x8012FBDCu, 0x8012FC30u, 0x8012FC84u},
 
 std::int32_t
 swayOffset(const psx::present::EmitMemory &memory, bool cosine, std::uint32_t returnAddress, std::int32_t angle) {
-  Core &core = memory.core();
-  std::int32_t value = 0;
-  if (memory.hosted()) {
-    // The guest's trig frames are guest stack; the render reads the same table through the callee's own port.
-    Trig trig;
-    trig.core = &core;
-    value = cosine ? trig.rcos(angle) : trig.rsin(angle);
-  } else {
-    value = static_cast<std::int32_t>(tomba::guest::dispatchJalToReturn(
-        core, {.target = cosine ? kRcos : kRsin, .returnAddress = returnAddress}, static_cast<std::uint32_t>(angle)));
-  }
-  return value >> kSwayShift;
+  return emitterTrig(memory, {.cosine = cosine, .returnAddress = returnAddress}, angle) >> kSwayShift;
 }
 
 void sway(const psx::present::EmitMemory &memory, const ModelPacket &packet, const SwayCalls &calls) {

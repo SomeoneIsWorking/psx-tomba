@@ -1,7 +1,9 @@
 // game/render/model_packet.cpp — the shared model emitter steps. See model_packet.h.
 #include "model_packet.h"
 
+#include "core/overrides/guest_jal.h"
 #include "horizontal_visibility_cull.h"
+#include "trig.h"
 
 #include <array>
 #include <cstddef>
@@ -13,6 +15,8 @@ namespace {
 using horizontal_cull::Domain;
 
 constexpr std::int32_t kBucketCap = 0x800;
+constexpr std::uint32_t kRcos = 0x80083F50u;
+constexpr std::uint32_t kRsin = 0x80083E80u;
 
 } // namespace
 
@@ -306,6 +310,20 @@ bool ModelPacket::hiddenByX(const ModelXHide &rule) const {
 
 bool ModelPacket::hidden(const psx::present::EmitMemory &memory, std::uint32_t flags, std::uint32_t hideFlag) {
   return (flags & hideFlag) != 0u && memory.mem_r32(kHideWord) != 0u;
+}
+
+std::int32_t emitterTrig(const psx::present::EmitMemory &memory, EmitterTrigCall call, std::int32_t angle) {
+  Core &core = memory.core();
+  if (memory.hosted()) {
+    // The guest's trig frame is guest stack; the render reads the same table through the callee's own port.
+    Trig trig;
+    trig.core = &core;
+    return call.cosine ? trig.rcos(angle) : trig.rsin(angle);
+  }
+  return static_cast<std::int32_t>(
+      tomba::guest::dispatchJalToReturn(core,
+                                        {.target = call.cosine ? kRcos : kRsin, .returnAddress = call.returnAddress},
+                                        static_cast<std::uint32_t>(angle)));
 }
 
 } // namespace tomba::render
