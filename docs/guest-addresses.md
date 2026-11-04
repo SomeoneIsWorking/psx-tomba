@@ -566,8 +566,8 @@ calls it. A row whose handler is file-local names the file that declares the ove
 | 0x8010EA80 | LIVE | `ActorBump::respondToContact` | game/ai/actor_bump.cpp |  | ORACLE: overlay guest 0x8010EA80 |
 | 0x8010F97C | LIVE | `UnlitModelEmitter::gt3` (A0A) | game/render/unlit_model_emitter.cpp |  | Depth from the SZ registers, byte UV scroll on flags 4/8 (kA0a). |
 | 0x8010FD74 | LIVE | `UnlitModelEmitter::gt4` (A0A) | game/render/unlit_model_emitter.cpp |  | Depth from the SZ registers, byte UV scroll on flags 4/8 (kA0a). |
-| 0x80110094 | LIVE | `UnlitModelEmitter::gt3` (A03) | game/render/unlit_model_emitter.cpp |  | SOP body, always averaged, two-sided on flag bit 0 (kA03). |
-| 0x80110290 | LIVE | `SubdividedGround::draw` (A03) | game/render/subdivided_ground.cpp |  | Ground GT4 with 0x8010F968 (screen split) and 0x8010F1A0 (model split) folded in. |
+| 0x80110094 | LIVE | `UnlitModelEmitter::gt3` (A03) | game/render/unlit_model_emitter.cpp |  | SOP projection, always averaged, band from depth - 0xE9, two-sided on flag bit 0 (kA03). |
+| 0x80110290 | LIVE | `SubdividedGround::draw` (A03) | game/render/subdivided_ground.cpp |  | Ground GT4 with 0x8010F968 (screen split) and 0x8010F1A0 (model split) folded in; the two splits pick the band from depth - 0xE9, the averaged path from depth. |
 | 0x801103F4 | LIVE | `UnlitModelEmitter::gt3` (A0A) | game/render/unlit_model_emitter.cpp |  | Flagged unlit GT3 (kFlagged). |
 | 0x80110698 | LIVE | `UnlitModelEmitter::gt4` (A0A) | game/render/unlit_model_emitter.cpp |  | Flagged unlit GT4 (kFlagged). |
 | 0x80110C14 | LIVE | `GuestKeyedEmitters::a0dRing` (A0D) | game/render/guest_keyed_emitters.cpp | 0x80027A4C | The node's ring of 21 sprite stamps, keyed to the node. |

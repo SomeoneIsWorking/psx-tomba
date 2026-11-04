@@ -2,7 +2,8 @@
 
 Features: F-FPS60.
 
-Status: fixed (2026-11-04); every listed area owned. Owners: `UnlitModelEmitter` (kA0a, kA0f, kA0d, kA03),
+Status: open; every listed area owned and shown halfway unpaced, but no real-time walk from boot and no pacing
+judgement yet. Owners: `UnlitModelEmitter` (kA0a, kA0f, kA0d, kA03),
 `QuadRtptSubmit`, `ObjectDraws::hangingStrip`, `AreaMap`, `TileGridLayer`, `GuestKeyedEmitters`, `DustField`,
 `FogModelEmitter`, `SubdividedGround`.
 
@@ -82,16 +83,30 @@ overwriting writer; area 10 is 0.50-0.51, area 15 0.69-0.79 (the flag-8 veil lay
   (`PacketPool::hasRoom`).
 - `warp 3/0`: 0x80110290 is `SubdividedGround` with 0x8010F968 (fade and 2x2 split on screen) and 0x8010F1A0 (model
   quad split twice and projected again) folded in, since only it calls them; 0x80110094 is `UnlitModelEmitter` kA03
-  (two-sided on flag bit 0). 0x80110B00's only caller 0x801113B4 and the HUD 0x80109EEC are `GuestKeyedEmitters`; a
-  wrapped emitter has to be in `kEmitters` too, or its state has no render and every interval is held (`no-state`).
-  The guest links a far subdivided quad whose bucket is out of range one slot before the OT; the render skips that
-  link, which no OT walk reaches.
+  (two-sided on flag bit 0). 0x80110B00's only caller 0x801113B4 and the HUD 0x80109EEC are `GuestKeyedEmitters`,
+  whose overrides and renders both come from its one `kEmitters` table.
+  0x80110094 and the leaves of 0x8010F1A0 and 0x8010F968 pick the compression band from depth - 0xE9 (`addiu -0xE9`
+  at 0x801101F0, 0x8010F730, 0x8010FD48; `kA03BandBias`), the averaged paths of 0x80110290 from depth (0x801106F8,
+  0x80110834). A depth under 0xE9 there gets band -1 and no bucket, and depths in [k*0x400, k*0x400+0xE9) stay in
+  the band below.
+  The guest links a far subdivided quad whose bucket is out of range one slot before the OT; `ListStateProducer`
+  holds that word in its host OT, and no OT walk reaches it.
 
-Proof run `scratch/tomba2f/w11/reduced/` (`shares.txt`, `display60_a*.txt`, `a*_small.jpg`), unpaced, ires 0, fps60,
-3840x2160: areas 3, 4, 11 and 13 sit at 0.43-0.59, 0.49-0.51, 0.47-0.53 and 0.48-0.56 after the first sample, every
-present composed (64/64) on the simulated 60.00 Hz display, one repeat, no skip or backward step, and the journal
-names no unowned or overwriting writer. Area 3's cave walls, area 4's snow and scenery and area 11's dust reach both
-16:9 edges.
+Proof run `scratch/tomba2f/v3/reduced/` (`shares.txt`, `display60.txt`, `off_summary.txt`, `a04_snow_points.txt`,
+`owners.txt`, `a*_small.jpg`), unpaced, ires 0, fps60, 3840x2160, `warp 3/0` dumped 240 frames in (mid-ride, before
+the crash into "Failed..." that a 330-frame wait catches), the others 330: on the simulated 60.00 Hz display every
+present is composed (64/64), one repeat, no skip or backward step; the journal holds only the warp's own held
+intervals. Whole-frame shares after the first sample: area 3 0.45-0.58, 4 0.47-0.55, 11 0.47-0.54, 13 0.48-0.56 with
+one 0.21 (a creature spawning: no earlier state to blend from, `a13_3340_3342.png`). Per 24 px tile the off-halfway
+share of changed pixels is 7% (11), 14% (13) and 33% (3); a tile share is a pixel-difference measure, so textured
+walls moving a few texels sit anywhere in it. Area 3's tiles at 0 or 1 sit in the top corners of the margins, where
+near cave-wall pieces appear between two reals (`a03_top_1866_1867.png`), and at the bottom centre, where ties turn
+black at the SZ < 0x514 corner fade (`a03_near_ground_1769.png`). Area 4's snow points are too small and fast for
+tiles; matched point to point, in-between snow sits at a median 0.50 (quartiles 0.30-0.69) of the way from the
+earlier to the later real, against 1.00 for the later real itself. Area 3's cave walls, area 4's snow and scenery and
+area 11's dust reach both 16:9 edges.
 
 ## Next
-None for this issue; area 15's flag-8 veil layer is the integer-UV limit above.
+- Trace the area 3 margin wall pieces that appear between reals: the leaf of 0x8010F1A0 drops pieces whose farthest
+  depth is under 0xE9 (band -1), which in 4:3 the corner fade hides; check whether that is the margin drop.
+- One real-time walk from boot through areas 3, 4, 11 and 13 with pacing judged on a quiet host.

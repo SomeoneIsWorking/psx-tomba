@@ -51,7 +51,7 @@ public:
   static void emitClamped(Core *c);
 
   static void registerOverrides(native::NativeOverrideCatalog &natives);
-  // The grid as one object keyed by its node: its state render, at each of the six emitter entries.
+  // The grid as one object keyed by its node: its state render, at each of the eight emitter entries.
   static void registerStateRenders(psx::present::StateProducerTable &renders, Core &core);
 
   struct EmitGridArgs {
