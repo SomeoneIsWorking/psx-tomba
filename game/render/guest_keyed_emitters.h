@@ -28,6 +28,7 @@
 #include "state_producer.h"
 
 #include <cstdint>
+#include <string_view>
 
 class Core;
 
@@ -45,29 +46,33 @@ enum class EmitterKey : std::uint8_t {
 };
 
 struct GuestKeyedEmitter {
-  const char *overlay;
+  std::string_view image; // the overlay, or kResidentImage
   std::uint32_t emitter;
   EmitterKey key;
+  std::string_view name;
 };
+
+inline constexpr std::string_view kResidentImage = "MAIN";
 
 class GuestKeyedEmitters {
 public:
   static constexpr GuestKeyedEmitter kEmitters[] = {
-      {"MAIN", 0x800328BCu, EmitterKey::Node},
-      {"A01", 0x80129114u, EmitterKey::Node},
-      {"A01", 0x8012D9E8u, EmitterKey::Node},
-      {"A00", 0x8013E08Cu, EmitterKey::Node},
-      {"A07", 0x80117D4Cu, EmitterKey::Node},
-      {"A0F", 0x80116ABCu, EmitterKey::Node},
-      {"A0F", 0x801143C4u, EmitterKey::Node},
-      {"A0D", 0x80110C14u, EmitterKey::Node},
-      {"A03", 0x801113B4u, EmitterKey::Node},
-      {"A06", 0x80129AF8u, EmitterKey::CallSite},
-      {"DEMO", 0x80106690u, EmitterKey::Screen},
-      {"A01", 0x801311FCu, EmitterKey::Screen},
-      {"A03", 0x80109EECu, EmitterKey::Screen},
+      {"MAIN", 0x800328BCu, EmitterKey::Node, "GuestKeyedEmitters::nodeStamp"},
+      {"A01", 0x80129114u, EmitterKey::Node, "GuestKeyedEmitters::a01AngleLeaf"},
+      {"A01", 0x8012D9E8u, EmitterKey::Node, "GuestKeyedEmitters::a01RecordLeaf"},
+      {"A00", 0x8013E08Cu, EmitterKey::Node, "GuestKeyedEmitters::a00LineLeaf"},
+      {"A07", 0x80117D4Cu, EmitterKey::Node, "GuestKeyedEmitters::a07Rope"},
+      {"A0F", 0x80116ABCu, EmitterKey::Node, "GuestKeyedEmitters::a0fWire"},
+      {"A0F", 0x801143C4u, EmitterKey::Node, "GuestKeyedEmitters::lensFlare"},
+      {"A0D", 0x80110C14u, EmitterKey::Node, "GuestKeyedEmitters::a0dRing"},
+      {"A03", 0x801113B4u, EmitterKey::Node, "GuestKeyedEmitters::a03Ribbon"},
+      {"A06", 0x80129AF8u, EmitterKey::CallSite, "GuestKeyedEmitters::a06Line"},
+      {"DEMO", 0x80106690u, EmitterKey::Screen, "GuestKeyedEmitters::demoEdgeSprites"},
+      {"A01", 0x801311FCu, EmitterKey::Screen, "GuestKeyedEmitters::a01Effect"},
+      {"A03", 0x80109EECu, EmitterKey::Screen, "GuestKeyedEmitters::a03Hud"},
   };
 
+  // Overrides and renders both come from kEmitters.
   static void registerOverrides(native::NativeOverrideCatalog &natives);
   static void registerStateRenders(psx::present::StateProducerTable &renders);
 };

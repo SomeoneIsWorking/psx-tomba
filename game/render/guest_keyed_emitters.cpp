@@ -6,7 +6,9 @@
 #include "entry/session.h"
 #include "quad_state.h"
 
+#include <iterator>
 #include <memory>
+#include <utility>
 
 namespace tomba::render {
 namespace {
@@ -26,38 +28,28 @@ std::uint32_t objectOf(Core &core, EmitterKey key) {
   return kScreenObject;
 }
 
-template <std::uint32_t Emitter, EmitterKey Key> void drawForGuest(Core *core) {
-  runGuestEmitter(*core, Emitter, objectOf(*core, Key), "GuestKeyedEmitters");
+template <std::size_t Index> void drawForGuest(Core *core) {
+  constexpr GuestKeyedEmitter kLeaf = GuestKeyedEmitters::kEmitters[Index];
+  runGuestEmitter(*core, kLeaf.emitter, objectOf(*core, kLeaf.key), "GuestKeyedEmitters");
+}
+
+void declare(native::NativeOverrideCatalog &natives, const GuestKeyedEmitter &leaf, psx::cpu::NativeFunction draw) {
+  if (leaf.image == kResidentImage) {
+    natives.declare(leaf.emitter, leaf.name, draw);
+  } else {
+    natives.declareOverlay(leaf.image, leaf.emitter, leaf.name, draw);
+  }
+}
+
+template <std::size_t... Index>
+void declareAll(native::NativeOverrideCatalog &natives, std::index_sequence<Index...>) {
+  (declare(natives, GuestKeyedEmitters::kEmitters[Index], &drawForGuest<Index>), ...);
 }
 
 } // namespace
 
 void GuestKeyedEmitters::registerOverrides(native::NativeOverrideCatalog &natives) {
-  natives.declare(0x800328BCu, "GuestKeyedEmitters::nodeStamp", &drawForGuest<0x800328BCu, EmitterKey::Node>);
-  natives.declareOverlay(
-      "A01", 0x80129114u, "GuestKeyedEmitters::a01AngleLeaf", &drawForGuest<0x80129114u, EmitterKey::Node>);
-  natives.declareOverlay(
-      "A01", 0x8012D9E8u, "GuestKeyedEmitters::a01RecordLeaf", &drawForGuest<0x8012D9E8u, EmitterKey::Node>);
-  natives.declareOverlay(
-      "A00", 0x8013E08Cu, "GuestKeyedEmitters::a00LineLeaf", &drawForGuest<0x8013E08Cu, EmitterKey::Node>);
-  natives.declareOverlay(
-      "A07", 0x80117D4Cu, "GuestKeyedEmitters::a07Rope", &drawForGuest<0x80117D4Cu, EmitterKey::Node>);
-  natives.declareOverlay(
-      "A0F", 0x80116ABCu, "GuestKeyedEmitters::a0fWire", &drawForGuest<0x80116ABCu, EmitterKey::Node>);
-  natives.declareOverlay(
-      "A0F", 0x801143C4u, "GuestKeyedEmitters::lensFlare", &drawForGuest<0x801143C4u, EmitterKey::Node>);
-  natives.declareOverlay(
-      "A0D", 0x80110C14u, "GuestKeyedEmitters::a0dRing", &drawForGuest<0x80110C14u, EmitterKey::Node>);
-  natives.declareOverlay(
-      "A03", 0x801113B4u, "GuestKeyedEmitters::a03Ribbon", &drawForGuest<0x801113B4u, EmitterKey::Node>);
-  natives.declareOverlay(
-      "A06", 0x80129AF8u, "GuestKeyedEmitters::a06Line", &drawForGuest<0x80129AF8u, EmitterKey::CallSite>);
-  natives.declareOverlay(
-      "DEMO", 0x80106690u, "GuestKeyedEmitters::demoEdgeSprites", &drawForGuest<0x80106690u, EmitterKey::Screen>);
-  natives.declareOverlay(
-      "A03", 0x80109EECu, "GuestKeyedEmitters::a03Hud", &drawForGuest<0x80109EECu, EmitterKey::Screen>);
-  natives.declareOverlay(
-      "A01", 0x801311FCu, "GuestKeyedEmitters::a01Effect", &drawForGuest<0x801311FCu, EmitterKey::Screen>);
+  declareAll(natives, std::make_index_sequence<std::size(kEmitters)>{});
 }
 
 void GuestKeyedEmitters::registerStateRenders(psx::present::StateProducerTable &renders) {
