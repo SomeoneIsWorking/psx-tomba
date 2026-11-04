@@ -35,6 +35,11 @@ scrollAmount(const psx::present::EmitMemory &memory, UnlitModelEmitter::ScrollRe
   return read == UnlitModelEmitter::ScrollRead::Byte ? memory.mem_r8(word) : memory.mem_r16(word) >> 4;
 }
 
+// The scroll word's period: a byte read wraps at a byte, a shifted read at the whole half-word.
+std::uint32_t scrollPeriod(UnlitModelEmitter::ScrollRead read) {
+  return read == UnlitModelEmitter::ScrollRead::Byte ? 0x100u : 0x10000u;
+}
+
 void scrollUv(const psx::present::EmitMemory &memory,
               const ModelPacket &packet,
               const UnlitModelEmitter::UvScroll &scroll) {
@@ -63,11 +68,12 @@ template <std::uint32_t Entry, bool Quad, const UnlitModelEmitter::Variant &Data
     job.input(*core, kHideWord, sizeof(std::uint32_t));
   }
   for (const UnlitModelEmitter::ScrollBit &bit : Data.uvScroll.bits) {
+    const std::uint32_t period = scrollPeriod(Data.uvScroll.read);
     if (bit.flag != 0u) {
-      job.input(*core, bit.u, sizeof(std::uint16_t));
+      job.input(*core, bit.u, sizeof(std::uint16_t), InputBlend::Wrapped, period);
     }
     if (bit.v != 0u) {
-      job.input(*core, bit.v, sizeof(std::uint16_t));
+      job.input(*core, bit.v, sizeof(std::uint16_t), InputBlend::Wrapped, period);
     }
   }
   core->r[2] = UnlitModelEmitter::emit(*core, call, visible, Data, Quad);

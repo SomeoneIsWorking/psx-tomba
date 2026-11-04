@@ -53,6 +53,7 @@ calls it. A row whose handler is file-local names the file that declares the ove
 | 0x80031744 | LIVE | `ScriptInterp::refreshCachedTailLo` | game/scene/script_interp.cpp |  | ORACLE: guest 0x80031744 |
 | 0x80031780 | LIVE | `Collision::listScan` | game/player/collision.cpp | 0x80031780 | list-tail resolver / reset. Walks the 8-byte-stride linked list rooted… |
 | 0x800318A0 | LIVE | `ObjModelView::composeIntoGte` | game/render/obj_model_view.cpp |  | ORACLE: guest 0x800318A0 (tools/dynamic differential evidence equivale… |
+| 0x800328BC | LIVE | `GuestKeyedEmitters::nodeStamp` | game/render/guest_keyed_emitters.cpp | 0x80027A4C | The node's sprite stamp the area effect leaves call; keyed to the node. |
 | 0x80032A44 | LIVE | `Rng::inRange` | game/math/rng.cpp |  | scaled random. Disas 0x80032A44..0x80032A84 verbatim: `sra v0, 15` on … |
 | 0x80036DFC | LIVE | `SaveMenu::runHandler` | game/ui/save_menu.cpp |  |  |
 | 0x80036DFC | LIVE | `SaveMenu::dispatchBody` | game/ui/save_menu.cpp |  |  |
@@ -567,6 +568,7 @@ calls it. A row whose handler is file-local names the file that declares the ove
 | 0x8010FD74 | LIVE | `UnlitModelEmitter::gt4` (A0A) | game/render/unlit_model_emitter.cpp |  | Depth from the SZ registers, byte UV scroll on flags 4/8 (kA0a). |
 | 0x801103F4 | LIVE | `UnlitModelEmitter::gt3` (A0A) | game/render/unlit_model_emitter.cpp |  | Flagged unlit GT3 (kFlagged). |
 | 0x80110698 | LIVE | `UnlitModelEmitter::gt4` (A0A) | game/render/unlit_model_emitter.cpp |  | Flagged unlit GT4 (kFlagged). |
+| 0x80110C14 | LIVE | `GuestKeyedEmitters::a0dRing` (A0D) | game/render/guest_keyed_emitters.cpp | 0x80027A4C | The node's ring of 21 sprite stamps, keyed to the node. |
 | 0x80110CA4 | LIVE | `BackdropPlane::draw` (A0E) | game/render/backdrop_plane.cpp |  | Boss arena waterfall: 10x7 GT4 plane mirrored about y 0 and a 10-quad additive haze band, then FUN_801104D0. |
 | 0x80111E14 | LIVE | `BackdropSprites::draw` (A0E) | game/render/backdrop_sprites.cpp | 0x80027A4C | Boss arena background sprites: eight seeded anchors stamped by ScaledSprites at bucket 0x7FE; producer. |
 | 0x80112188 | LIVE | `ActorMeleeEngage::doIt` | game/ai/actor_melee_engage.cpp | 0x80022C78 0x80055844 0x80084080 |  |
@@ -579,6 +581,7 @@ calls it. A row whose handler is file-local names the file that declares the ove
 | 0x801130C4 | LIVE | `ActorTomba::postInteractWalk` | game/player/actor_tomba.cpp |  |  |
 | 0x80113150 | LIVE | `UnlitModelEmitter::gt3` (A0B) | game/render/unlit_model_emitter.cpp |  | Flagged unlit GT3 (kFlagged). |
 | 0x801133F4 | LIVE | `UnlitModelEmitter::gt4` (A0B) | game/render/unlit_model_emitter.cpp |  | Flagged unlit GT4 (kFlagged). |
+| 0x80113628 | LIVE | `AreaMap::emit` (A02) | game/render/area_map.cpp |  | The area's map and the player's blinking marker; producer, the player's position moves by t. |
 | 0x80113748 | LIVE | `UnlitModelEmitter::gt3` (A0D) | game/render/unlit_model_emitter.cpp |  | Flagged unlit GT3 (kFlagged). |
 | 0x80113788 | LIVE | `UnlitModelEmitter::gt3` (A0C) | game/render/unlit_model_emitter.cpp |  | SOP's GT3 body. |
 | 0x801139EC | LIVE | `UnlitModelEmitter::gt4` (A0D) | game/render/unlit_model_emitter.cpp |  | Flagged unlit GT4 (kFlagged). |
@@ -586,10 +589,12 @@ calls it. A row whose handler is file-local names the file that declares the ove
 | 0x80113AEC / 0x80113DE0 | LIVE | `UnlitModelEmitter` gt3 / gt4 (A0E, `kA0eArena`) | game/render/unlit_model_emitter.cpp |  | Boss arena geometry from walker 0x80114320; hides west records by model x while 0x1F80009C is set. |
 | 0x80113C5C | LIVE | `Behaviors::areaSeasidePerframe` | game/ai/area_seaside_perframe.cpp | 0x8002288C |  |
 | 0x80113EB4 | LIVE | `UnlitModelEmitter::gt3` (A0C) | game/render/unlit_model_emitter.cpp |  | Flagged unlit GT3 (kFlagged). |
+| 0x801140A0 | LIVE | `AreaMap::emit` (A07) | game/render/area_map.cpp |  | A02's map body turned a quarter (z across); producer, the player's position moves by t. |
 | 0x80114158 | LIVE | `UnlitModelEmitter::gt4` (A0C) | game/render/unlit_model_emitter.cpp |  | Flagged unlit GT4 (kFlagged). |
 | 0x80114178 | LIVE | `GradientBackdrop::emit` (A0E) | game/render/gradient_backdrop.cpp |  | Boss arena sky: four G4 bands across the draw window at bucket 0x7FF. |
 | 0x801141B0 | LIVE | `TileGridLayer::emitUnbiased` (A0B) | game/render/tile_grid_layer.cpp |  | Tile grid with no V bias; producer, object = map cell. |
 | 0x801142EC | LIVE | `TileGridLayer::emitUnbiased` (A0A) | game/render/tile_grid_layer.cpp |  | Tile grid with no V bias; producer, object = map cell. |
+| 0x801143C4 | LIVE | `GuestKeyedEmitters::lensFlare` (A0F) | game/render/guest_keyed_emitters.cpp |  | The node's lens flare and its 0x80027A4C sparkles, keyed to the node. |
 | 0x80114458 | LIVE | `UnlitModelEmitter::gt3` (A0E) | game/render/unlit_model_emitter.cpp |  | Flagged unlit GT3 (kFlagged). |
 | 0x801146FC | LIVE | `UnlitModelEmitter::gt4` (A0E) | game/render/unlit_model_emitter.cpp |  | Flagged unlit GT4 (kFlagged). |
 | 0x80114A5C | LIVE | `UnlitModelEmitter::gt3` (A0F) | game/render/unlit_model_emitter.cpp |  | kA0a's body, scroll on the first matching flag with its own bucket (kA0f). |
@@ -602,10 +607,13 @@ calls it. A row whose handler is file-local names the file that declares the ove
 | 0x80115A70 | LIVE | `UnlitModelEmitter::gt4` (A0F) | game/render/unlit_model_emitter.cpp |  | Flagged unlit GT4 (kFlagged). |
 | 0x80116778 | LIVE | `TileGridLayer::emitUnbiased` (A0F) | game/render/tile_grid_layer.cpp |  | Tile grid with no V bias; producer, object = map cell. |
 | 0x80116904 | LIVE | `RainStreaks::draw` | game/render/rain_streaks.cpp | 0x80083DE0 0x80084220 0x80084660 0x80084690 | A08 rain streaks; producer, element = drop |
+| 0x80116ABC | LIVE | `GuestKeyedEmitters::a0fWire` (A0F) | game/render/guest_keyed_emitters.cpp |  | The node's wire of 0x80112D10 shimmer lines, keyed to the node. |
 | 0x80116B9C | LIVE | `TileGridLayer::emitUnbiased` (A0D) | game/render/tile_grid_layer.cpp |  | Tile grid with no V bias; producer, object = map cell. |
+| 0x801175C0 | LIVE | `ObjectDraws::hangingStrip` (A0F) | game/render/object_draw.cpp |  | A0A's sway branch: one 0x8003B320 part per segment. |
 | 0x80117658 | LIVE | `beh_prng_velocity_machine` | game/ai/beh_prng_velocity_machine.cpp |  |  |
 | 0x801178A4 | LIVE | `whiteFlashPhaseRamp` | game/ai/beh_a06_multi_actor.cpp |  | the 5-phase white-flash phase ramp SM. See the file header for the pha… |
 | 0x80117AAC | LIVE | `whiteFadeHold` | game/ai/beh_a06_multi_actor.cpp |  | 3-state fade-hold-fade-back companion to whiteFlashPhaseRamp. |
+| 0x80117D4C | LIVE | `GuestKeyedEmitters::a07Rope` (A07) | game/render/guest_keyed_emitters.cpp |  | Sagging 16-point strip through 0x80117AB8, keyed to the node. |
 | 0x80118240 | LIVE | `beh_typed_init_exit_poker` | game/ai/beh_typed_init_exit_poker.cpp |  |  |
 | 0x80118690 | LIVE | `shared_8690` | game/ai/beh_typed_init_exit_poker.cpp |  | Shared block @0x80118690: FUN_80051D90(node[0x10], a1_buf, 0x1F8000C0)… |
 | 0x801189E8 | LIVE | `beh_a06_multi_actor` | game/ai/beh_a06_multi_actor.cpp |  | The guest body 0x801189E8 is ONE function that descends sp by 32 and s… |
@@ -663,6 +671,7 @@ calls it. A row whose handler is file-local names the file that declares the ove
 | 0x8012DA04 | LIVE | `beh_typed_anim_spawn` | game/ai/beh_typed_anim_spawn.cpp |  |  |
 | 0x8012EB54 | LIVE | `beh_substate_edge_orchestrator` | game/ai/beh_substate_edge_orchestrator.cpp | 0x8012E8A8 0x8012ED84 0x8012F494 0x8012F5B4 0x8012FD88 0x80130524 … |  |
 | 0x8012F8D8 | LIVE | `SwayModelEmitter::cueGt3` | game/render/sway_model_emitter.cpp | 0x80083E80 0x80083F50 | A01 depth-cue GT3; sways through rsin/rcos. |
+| 0x8012F938 | LIVE | `TileGridLayer::emitRowLead` (A07) | game/render/tile_grid_layer.cpp |  | Tile grid with no V bias whose walk starts one map row early; producer, object = map cell. |
 | 0x8013000C | LIVE | `SwayModelEmitter::cueGt4` | game/render/sway_model_emitter.cpp |  | A01 depth-cue GT4. |
 | 0x80130838 | LIVE | `SwayModelEmitter::swayGt3` | game/render/sway_model_emitter.cpp | 0x80083E80 0x80083F50 | A01 sway GT3. |
 | 0x80130D9C | LIVE | `SwayModelEmitter::scrollGt4` | game/render/sway_model_emitter.cpp |  | A01 UV-scroll GT4. |

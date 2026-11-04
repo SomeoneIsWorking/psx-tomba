@@ -1,5 +1,5 @@
-// game/render/area_map.h — A02 FUN_80113628, the area's map with the player's marker.
-// Area type 13's draw: a 64x64 map sprite and an 8x8 marker at the player (0x1F800160 x, 0x1F800164 z), into bucket 4.
+// game/render/area_map.h — the area's map with the player's marker: A02 FUN_80113628 and A07 FUN_801140A0.
+// One body: a 64x64 map sprite and an 8x8 marker at the player (0x1F800160 x, 0x1F800164 z), into bucket 4.
 #pragma once
 
 #include "emit_memory.h"
@@ -18,10 +18,9 @@ namespace tomba::render {
 
 class AreaMap {
 public:
-  static constexpr std::uint32_t kEmitter = 0x80113628u; // A02
-
-  // The body over `memory`; `call.ot` is the active OT and `call.sp` the caller's stack.
-  static void emit(const psx::present::EmitMemory &memory, const ListCall &call);
+  // The body of map `variant` (0 A02, 1 A07) over `memory`; `call.ot` is the active OT and `call.sp` the caller's
+  // stack.
+  static void emit(const psx::present::EmitMemory &memory, const ListCall &call, std::uint32_t variant);
 
   static void registerOverrides(native::NativeOverrideCatalog &natives);
   static void registerStateRenders(psx::present::StateProducerTable &renders, Core &core);

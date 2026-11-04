@@ -173,7 +173,7 @@ void register_engine_overrides(Game &game, native::NativeOverrideCatalog &native
   render::LineStrip::registerOverrides(natives);          // A08 node line strip (0x80117E84)
   render::AnchorQuads::registerOverrides(natives);        // A00 anchor quads (0x8013E9D8/0x80122974)
   render::GuestKeyedEmitters::registerOverrides(natives); // A01/A00/DEMO unported render bodies, keyed
-  render::AreaMap::registerOverrides(natives);            // A02 area map and player marker (0x80113628)
+  render::AreaMap::registerOverrides(natives);            // A02/A07 area map and player marker
   FxSpriteSwarm::registerOverrides(natives);              // per-particle sprite emitter (0x800281EC)
   FxSpriteAnchored::registerOverrides(natives);           // anchored sprite emitters (0x80027CB4 and its variants)
   RegisterBehActorTombaProximityCombatOverride(natives);  // enemy-vs-Tomba proximity-combat FSM (0x800527C8)

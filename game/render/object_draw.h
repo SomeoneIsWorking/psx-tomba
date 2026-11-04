@@ -84,6 +84,9 @@ public:
 
 private:
   const psx::present::StateProducers &producers_;
+  // Part offsets of the two states, kept so a render allocates only when a draw outgrows them.
+  mutable std::vector<std::size_t> laterParts_;
+  mutable std::vector<std::size_t> earlierParts_;
 };
 
 // The guest functions whose emitter calls are one object draw of the node in a0.

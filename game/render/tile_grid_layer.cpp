@@ -165,8 +165,24 @@ constexpr GuestFrameSpill kA00EmitSpills[] = {
     {31, 76}, {30, 72}, {23, 68}, {22, 64}, {21, 60}, {20, 56}, {19, 52}, {18, 48}, {17, 44}, {16, 40}};
 constexpr GuestFrameSpill kSopEmitSpills[] = {
     {31, 84}, {30, 80}, {23, 76}, {22, 72}, {21, 68}, {20, 64}, {19, 60}, {18, 56}, {17, 52}, {16, 48}};
-constexpr uint32_t kA00TileVBias = 8; // the field's tile atlas starts 8 rows down its page
-constexpr uint32_t kNoTileVBias = 0;
+// A07 FUN_8012F938 (72-byte frame) spills ra, s7..s0.
+constexpr GuestFrameSpill kA07EmitSpills[] = {
+    {31, 64}, {23, 60}, {22, 56}, {21, 52}, {20, 48}, {19, 44}, {18, 40}, {17, 36}, {16, 32}};
+
+// The emitters differ in the tile atlas's V bias (A00's starts 8 rows down its page) and in A07's walk starting
+// one map row early.
+struct GridVariant {
+  uint32_t tileVBias;
+  int rowLead;
+};
+constexpr GridVariant kGridVariants[] = {{8u, 0}, {0u, 0}, {0u, 1}};
+constexpr uint32_t kA00Grid = 0;
+constexpr uint32_t kUnbiasedGrid = 1;
+constexpr uint32_t kRowLeadGrid = 2;
+
+TileGridLayer::EmitGridArgs gridArgs(uint32_t node, uint32_t variant) {
+  return {.node = node, .tileVBias = kGridVariants[variant].tileVBias, .rowLead = kGridVariants[variant].rowLead};
+}
 
 constexpr uint32_t kSopPaletteCycles = 0x8010D2FCu; // 3 x {u8 *script, u32 image, u16 x, u16 y}
 constexpr uint32_t kSopPaletteCycleStride = 12u;
@@ -203,8 +219,8 @@ public:
 
 protected:
   void
-  emit(const psx::present::EmitMemory &memory, uint32_t tileVBias, const tomba::render::ListCall &call) const override {
-    TileGridLayer::emitGrid(memory, {.node = call.list, .tileVBias = tileVBias});
+  emit(const psx::present::EmitMemory &memory, uint32_t variant, const tomba::render::ListCall &call) const override {
+    TileGridLayer::emitGrid(memory, gridArgs(call.list, variant));
   }
 };
 } // namespace
@@ -282,28 +298,33 @@ void TileGridLayer::scrollStep(Core *c) {
 // FUN_80115598
 void TileGridLayer::emit(Core *c) {
   GuestFrame<80, 10> frame(c, kA00EmitSpills);
-  drawGrid(c, c->r[4], kA00TileVBias);
+  drawGrid(c, c->r[4], kA00Grid);
 }
 
 void TileGridLayer::emitUnbiased(Core *c) {
   GuestFrame<80, 10> frame(c, kA00EmitSpills);
-  drawGrid(c, c->r[4], kNoTileVBias);
+  drawGrid(c, c->r[4], kUnbiasedGrid);
+}
+
+void TileGridLayer::emitRowLead(Core *c) {
+  GuestFrame<72, 9> frame(c, kA07EmitSpills);
+  drawGrid(c, c->r[4], kRowLeadGrid);
 }
 
 // SOP FUN_8010C26C
 void TileGridLayer::emitSop(Core *c) {
   GuestFrame<88, 10> frame(c, kSopEmitSpills);
-  drawGrid(c, c->r[4], kNoTileVBias);
+  drawGrid(c, c->r[4], kUnbiasedGrid);
   cycleSopPalettes(c);
 }
 
-void TileGridLayer::drawGrid(Core *c, uint32_t node, uint32_t tileVBias) {
+void TileGridLayer::drawGrid(Core *c, uint32_t node, uint32_t variant) {
   const uint32_t pitchX = c->mem_r16(node + kNodePitchX);
   const uint32_t pitchY = c->mem_r16(node + kNodePitchY);
   if (pitchX != 0u && pitchY != 0u) {
     tomba::render::ListJobWriter job(
         *c,
-        tileVBias,
+        variant,
         tomba::render::ListCall{node, c->mem_r32(tomba::render::OrderingTable::kBasePointer), 0u, 0u, c->r[29]},
         gridArenaBytes(*c));
     job.input(*c, tomba::render::OrderingTable::kBasePointer, sizeof(uint32_t));
@@ -314,11 +335,11 @@ void TileGridLayer::drawGrid(Core *c, uint32_t node, uint32_t tileVBias) {
     job.save(*c);
   }
   c->mem_w32(c->r[29] + 16u, 0u); // SetDrawMode's fifth argument
-  emitGrid(psx::present::EmitMemory(*c), {.node = node, .tileVBias = tileVBias});
+  emitGrid(psx::present::EmitMemory(*c), gridArgs(node, variant));
 }
 
 void TileGridLayer::emitGrid(const psx::present::EmitMemory &memory, const EmitGridArgs &args) {
-  auto [node, tileVBias] = args;
+  auto [node, tileVBias, rowLead] = args;
   const int W = memory.mem_r8(node + 0x10u), H = memory.mem_r8(node + 0x11u);
   if (W == 0 || H == 0) {
     return;
@@ -334,7 +355,7 @@ void TileGridLayer::emitGrid(const psx::present::EmitMemory &memory, const EmitG
   const int cx = 160, cy = 120, slack = 32;
   const tomba::wide_window::Window window = tomba::wide_window::drawWindow(&memory.core());
   const int firstColumn = scrollX - cx + window.left;
-  int rowtile = ((scrollY - cy) >> 4) % H;
+  int rowtile = (((scrollY - cy) >> 4) - rowLead) % H;
   if (rowtile < 0) {
     rowtile += H;
   }
@@ -463,10 +484,16 @@ void TileGridLayer::registerOverrides(native::NativeOverrideCatalog &natives) {
                          "&TileGridLayer::emitSop",
                          &TileGridLayer::emitSop,
                          psx::present::Producer{psx::present::Arg::A0});
+  natives.declareOverlay("A07",
+                         0x8012F938u,
+                         "&TileGridLayer::emitRowLead",
+                         &TileGridLayer::emitRowLead,
+                         psx::present::Producer{psx::present::Arg::A0});
 }
 
 void TileGridLayer::registerStateRenders(psx::present::StateProducerTable &renders, Core &core) {
-  for (const uint32_t entry : {0x80115598u, 0x801142ECu, 0x801141B0u, 0x80116B9Cu, 0x80116778u, 0x8010C26Cu}) {
+  for (const uint32_t entry :
+       {0x80115598u, 0x801142ECu, 0x801141B0u, 0x80116B9Cu, 0x80116778u, 0x8010C26Cu, 0x8012F938u}) {
     renders.install(entry, std::make_unique<TileGridStateProducer>(core));
   }
 }

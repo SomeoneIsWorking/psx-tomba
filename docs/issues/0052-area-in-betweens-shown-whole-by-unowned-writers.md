@@ -2,7 +2,8 @@
 
 Features: F-FPS60.
 
-Status: open (2026-11-04); area 10 fixed. Owners: `UnlitModelEmitter` (kA0a, kA0f), `QuadRtptSubmit`, `ObjectDraws::hangingStrip`.
+Status: open (2026-11-04); areas 7, 10 and 15 owned. Owners: `UnlitModelEmitter` (kA0a, kA0f), `QuadRtptSubmit`,
+`ObjectDraws::hangingStrip`, `AreaMap`, `TileGridLayer`, `GuestKeyedEmitters`.
 
 ## Reproduction
 `warp <area>/0` from free roam for each area, unpaced, `ires=0`, `fps60=1`, `PSXPORT_PRESENT_SINK=3840x2160`, debug
@@ -41,8 +42,33 @@ drawer's walked object. A0A's chain drawer 0x80114E64 calls 0x8003B320 once per 
 strip, past `CallSiteObjects`' 15 calls a site, so it is an `ObjectDraw` whose calls are its parts.
 `warp 10/0` now shows 21 of 21 in-betweens at 0.41-0.54 (`scratch/tomba2e/r4/reduced/shares.txt`).
 
-Still whole: `warp 15/0` on 0x80112D10 (A0F, GP0 0x5E, 240 intervals) and 2 no-state intervals on 0x8003B320;
-`warp 7/0` on 0x801140A0 (0x65), 0x80117AB8 (0x2D) and 0x8012F938 (0x7C, over 0x8012CAA8's packets).
+## Areas 7 and 15 owned
+`warp 15/0` reached two states across runs. Its writers: A0F's own hanging strip 0x801175C0 (A0A's sway branch,
+up to 64+ segments, so `ObjectDraw` parts are no longer capped), the wire 0x80116ABC over 0x80112D10's shimmer
+lines and the lens flare 0x801143C4 over 0x80114288 and 0x80027A4C (both `GuestKeyedEmitters`). With them the
+journal is clean, but the in-betweens sat at 0.80-0.90: the purple backdrop's byte UV scroll was a Held input, so
+it stepped whole. The scroll words are now wrapped inputs (a byte or a half-word period), and area 15 sits at
+0.69-0.80 (`scratch/tomba2e/r7/reduced/`): geometry is halfway; the red left in `whole_small.jpg` is the backdrop
+layer whose scroll moves one texel a frame, which a byte UV cannot show at a half.
+
+`warp 7/0`: 0x801140A0 is A02's area-map body turned a quarter (`AreaMap` layout 1), 0x8012F938 is the tile grid
+with its walk one map row early (`TileGridLayer::emitRowLead`), and 0x80117AB8's caller 0x80117D4C is a
+`GuestKeyedEmitters` leaf (its other caller 0x80117FE0 was not reached and stays guest code). The journal is clean; Tomba idles there, so moving in-betweens are 0.46-0.64
+and the 1.00s are the map marker's blink, a 14x14 cell (`scratch/tomba2e/r8/reduced/`).
+
+`warp 10/0` in its second state held every in-between whole on 0x80027A4C stamps reached through MAIN 0x800328BC,
+the node stamp the area effect leaves call; it is now a `GuestKeyedEmitters` leaf and the area sits at 0.50.
+
+Proof run `scratch/tomba2e/r12/reduced/` (`shares.txt`, `owners.txt`): areas 2, 7, 10 and 15 log no unowned or
+overwriting writer; area 10 is 0.50-0.51, area 15 0.69-0.79 (the texel-step backdrop above), areas 2 and 7 move at
+0.40-0.65 with the 1.00s on the map marker's blink.
+
+Still unowned (`scratch/tomba2e/r9/reduced/shares.txt` and its journal; area 13 again in `scratch/tomba2e/r10`):
+- `warp 3/0`: 0x8010F1A0, 0x8010F968, 0x80110290, 0x80110094 (A03 emitter copies), 0x80109EEC (0x64), 0x80110B00 (0x3A).
+- `warp 4/0`: 0x8013F418/0x8013F6E4 (A04 lit pair conditioned on 0x1F800207 and 0x1F80009C), 0x8013AD90 (0x60).
+- `warp 11/0`: 0x8003C048 (MAIN 0x60 rect).
+- `warp 13/0`: 0x80112DE4/0x801131B0 (A0D pair; its bit-4 branch calls rsin). Its 0x80027A4C stamps are owned by
+  A0D 0x80110C14.
 
 ## Next
 Per area, decompile each writer and give it the producer its pattern takes (`docs/producers.md`): emitter copies

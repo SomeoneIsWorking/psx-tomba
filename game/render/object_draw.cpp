@@ -6,11 +6,12 @@
 #include "entry/session.h"
 #include "native_dispatch.h"
 
-#include <array>
 #include <cstdlib>
 #include <cstring>
 #include <lucent/log.h>
 #include <memory>
+#include <optional>
+#include <vector>
 
 namespace tomba::render {
 namespace {
@@ -27,57 +28,73 @@ struct Part {
   std::span<const std::byte> state;
 };
 
-// A0A's hanging strip draws one part per segment, 35 for its tallest strip in area 10.
-constexpr std::size_t kMostParts = 64;
+Part partAt(std::span<const std::byte> bytes, std::size_t offset) {
+  Part part;
+  std::memcpy(&part.header, bytes.data() + offset, sizeof(PartHeader));
+  part.state = bytes.subspan(offset + sizeof(PartHeader), part.header.size);
+  return part;
+}
 
-class Parts {
-public:
-  explicit Parts(std::span<const std::byte> bytes) {
-    while (!bytes.empty()) {
-      if (count_ == kMostParts || bytes.size() < sizeof(PartHeader)) {
-        lucent::error("object-draw", "object draw state of {} parts is malformed", count_);
-        std::abort();
-      }
-      Part &part = parts_[count_++];
-      std::memcpy(&part.header, bytes.data(), sizeof(PartHeader));
-      part.state = bytes.subspan(sizeof(PartHeader), part.header.size);
-      bytes = bytes.subspan(sizeof(PartHeader) + part.header.size);
+// Each part's offset in `bytes`; a strip draws one part per segment, so the count has no fixed bound.
+void readParts(std::span<const std::byte> bytes, std::vector<std::size_t> &offsets) {
+  offsets.clear();
+  std::size_t offset = 0;
+  while (offset < bytes.size()) {
+    PartHeader header;
+    if (bytes.size() - offset < sizeof(PartHeader)) {
+      lucent::error("object-draw", "object draw state of {} parts is malformed", offsets.size());
+      std::abort();
+    }
+    std::memcpy(&header, bytes.data() + offset, sizeof(PartHeader));
+    if (bytes.size() - offset - sizeof(PartHeader) < header.size) {
+      lucent::error("object-draw", "object draw state of {} parts is malformed", offsets.size());
+      std::abort();
+    }
+    offsets.push_back(offset);
+    offset += sizeof(PartHeader) + header.size;
+  }
+}
+
+// The part of the same call by the same producer; parts are numbered in call order, so its index is the guess.
+std::optional<Part>
+partner(std::span<const std::byte> bytes, std::span<const std::size_t> offsets, const PartHeader &of) {
+  const auto matches = [&](std::size_t offset) {
+    const Part part = partAt(bytes, offset);
+    return part.header.number == of.number && part.header.producer == of.producer;
+  };
+  if (of.number < offsets.size() && matches(offsets[of.number])) {
+    return partAt(bytes, offsets[of.number]);
+  }
+  for (const std::size_t offset : offsets) {
+    if (matches(offset)) {
+      return partAt(bytes, offset);
     }
   }
-  std::span<const Part> all() const {
-    return std::span<const Part>(parts_.data(), count_);
-  }
-  // The part of the same call by the same producer.
-  const Part *partner(const PartHeader &of) const {
-    for (const Part &part : all()) {
-      if (part.header.number == of.number && part.header.producer == of.producer) {
-        return &part;
-      }
-    }
-    return nullptr;
-  }
-
-private:
-  std::array<Part, kMostParts> parts_{};
-  std::size_t count_ = 0;
-};
+  return std::nullopt;
+}
 
 // A08 FUN_80117628: one mesh at four quarter turns, again faded, then two packed meshes, for the node in a0.
 constexpr std::uint32_t kQuarterTurnMesh = 0x80117628u;
 
-// A0A's hanging strip: one world quad per segment, swaying with the node.
-constexpr std::uint32_t kHangingStrip = 0x80114E64u;
+// The hanging strip: one world quad per segment, swaying with the node. A0F's body is A0A's sway branch.
+constexpr std::uint32_t kHangingStripA0a = 0x80114E64u;
+constexpr std::uint32_t kHangingStripA0f = 0x801175C0u;
 
-void drawHangingStrip(Core *core) {
-  const ObjectDrawScope draw(*core, kHangingStrip, eng(core).graphicsBind.records.object(core->r[4]));
-  psx::cpu::callOriginalToReturn(
-      *core, kHangingStrip, psx::cpu::ExecutionBudget::currentTurn(*core), "ObjectDraws::hangingStrip");
+void drawParts(Core &core, std::uint32_t drawer, const char *owner) {
+  const ObjectDrawScope draw(core, drawer, eng(&core).graphicsBind.records.object(core.r[4]));
+  psx::cpu::callOriginalToReturn(core, drawer, psx::cpu::ExecutionBudget::currentTurn(core), owner);
+}
+
+void drawHangingStripA0a(Core *core) {
+  drawParts(*core, kHangingStripA0a, "ObjectDraws::hangingStrip");
+}
+
+void drawHangingStripA0f(Core *core) {
+  drawParts(*core, kHangingStripA0f, "ObjectDraws::hangingStrip");
 }
 
 void drawQuarterTurnMesh(Core *core) {
-  const ObjectDrawScope draw(*core, kQuarterTurnMesh, eng(core).graphicsBind.records.object(core->r[4]));
-  psx::cpu::callOriginalToReturn(
-      *core, kQuarterTurnMesh, psx::cpu::ExecutionBudget::currentTurn(*core), "ObjectDraws::quarterTurnMesh");
+  drawParts(*core, kQuarterTurnMesh, "ObjectDraws::quarterTurnMesh");
 }
 
 } // namespace
@@ -137,18 +154,18 @@ void saveEmitterState(Core &core, std::span<const std::byte> state) {
 
 void ObjectDrawRender::render(const psx::present::StateInterval &states, psx::present::PrimitiveSink &sink) const {
   const auto [from, to, t] = states;
-  const Parts later(to);
-  const Parts earlier(from);
+  readParts(to, laterParts_);
+  readParts(from, earlierParts_);
   // A bucket walks its last-linked packet first, so the last call's primitives lead.
-  const std::span<const Part> parts = later.all();
-  for (auto part = parts.rbegin(); part != parts.rend(); ++part) {
-    const psx::present::StateProducer *producer = producers_.find(part->header.producer);
+  for (auto offset = laterParts_.rbegin(); offset != laterParts_.rend(); ++offset) {
+    const Part part = partAt(to, *offset);
+    const psx::present::StateProducer *producer = producers_.find(part.header.producer);
     if (producer == nullptr) {
-      lucent::error("object-draw", "object draw part of {:#010x} has no render", part->header.producer);
+      lucent::error("object-draw", "object draw part of {:#010x} has no render", part.header.producer);
       std::abort();
     }
-    const Part *partner = earlier.partner(part->header);
-    producer->render({.from = partner != nullptr ? partner->state : part->state, .to = part->state, .t = t}, sink);
+    const std::optional<Part> earlier = partner(from, earlierParts_, part.header);
+    producer->render({.from = earlier ? earlier->state : part.state, .to = part.state, .t = t}, sink);
   }
 }
 
@@ -158,12 +175,14 @@ namespace tomba::render {
 
 void ObjectDraws::registerOverrides(native::NativeOverrideCatalog &natives) {
   natives.declareOverlay("A08", kQuarterTurnMesh, "ObjectDraws::quarterTurnMesh", &drawQuarterTurnMesh);
-  natives.declareOverlay("A0A", kHangingStrip, "ObjectDraws::hangingStrip", &drawHangingStrip);
+  natives.declareOverlay("A0A", kHangingStripA0a, "ObjectDraws::hangingStrip", &drawHangingStripA0a);
+  natives.declareOverlay("A0F", kHangingStripA0f, "ObjectDraws::hangingStrip", &drawHangingStripA0f);
 }
 
 void ObjectDraws::registerStateRenders(psx::present::StateProducerTable &renders) {
   renders.install(kQuarterTurnMesh, std::make_unique<ObjectDrawRender>(renders));
-  renders.install(kHangingStrip, std::make_unique<ObjectDrawRender>(renders));
+  renders.install(kHangingStripA0a, std::make_unique<ObjectDrawRender>(renders));
+  renders.install(kHangingStripA0f, std::make_unique<ObjectDrawRender>(renders));
 }
 
 } // namespace tomba::render

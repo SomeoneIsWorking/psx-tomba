@@ -45,6 +45,8 @@ public:
                                    // the three CLUT-row palette cycles (cycleSopPalettes).
   // A0B 0x801141B0 and its A0A/A0D/A0F copies: A00's emitter with no V bias (A0B's starry backdrop).
   static void emitUnbiased(Core *c);
+  // A07 0x8012F938: no V bias, and its map rows start one row above the screen's top tile.
+  static void emitRowLead(Core *c);
 
   static void registerOverrides(native::NativeOverrideCatalog &natives);
   // The grid as one object keyed by its node: its state render, at each of the six emitter entries.
@@ -53,6 +55,7 @@ public:
   struct EmitGridArgs {
     uint32_t node;
     uint32_t tileVBias;
+    int rowLead; // map rows the walk starts above the screen's top tile
   };
   // The grid walk both emitters share, over the guest or a render's host memory: the sprites of every tile the
   // draw window shows, chained under a draw mode packet at the background bucket.
@@ -60,7 +63,8 @@ public:
 
 private:
   // Saves the grid's state, then draws it.
-  static void drawGrid(Core *c, std::uint32_t node, std::uint32_t tileVBias);
+  // `variant` indexes the emitters' bias and row lead.
+  static void drawGrid(Core *c, std::uint32_t node, std::uint32_t variant);
   // FUN_8010C26C's tail: three palette-cycle scripts, each loading one 16x1 CLUT row when its
   // countdown runs out. Uses the caller's frame for the RECT at sp+0x18.
   static void cycleSopPalettes(Core *c);
