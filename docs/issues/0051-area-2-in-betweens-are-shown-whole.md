@@ -45,3 +45,8 @@ where geometry moves, Tomba's idle steps through each in-between (`tomba_seq.png
 only a 14x14 HUD cell at (756, 487) in 960x540, which blinks. The owner journal's `IntervalHeld/no-state` rows for
 0x8003CDD8 (260 intervals before) are gone. The margins hold the room's walls at this camera before and after; no
 record here lay wholly outside the 4:3 window, so the widened cull is not separately visible.
+
+Display (`scratch/tomba2e/w3/reduced/display60.txt`, the 22-area walk, `warp 2/0` with the 60.00 Hz display
+simulated from `presentseq`): 54 presents over 54 vblanks, one repeat (the 59.826 Hz field drift), none skipped or
+backwards, composed 54/54; shown in-betweens sit at 0.34-0.58 and the whole ones change only the marker cell at
+(744, 480).

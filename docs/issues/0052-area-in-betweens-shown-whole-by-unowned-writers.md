@@ -48,8 +48,13 @@ up to 64+ segments, so `ObjectDraw` parts are no longer capped), the wire 0x8011
 lines and the lens flare 0x801143C4 over 0x80114288 and 0x80027A4C (both `GuestKeyedEmitters`). With them the
 journal is clean, but the in-betweens sat at 0.80-0.90: the purple backdrop's byte UV scroll was a Held input, so
 it stepped whole. The scroll words are now wrapped inputs (a byte or a half-word period), and area 15 sits at
-0.69-0.80 (`scratch/tomba2e/r7/reduced/`): geometry is halfway; the red left in `whole_small.jpg` is the backdrop
-layer whose scroll moves one texel a frame, which a byte UV cannot show at a half.
+0.69-0.83. Measured split (`scratch/tomba2e/w3/reduced/a15_hue_split.txt`, `d15/reduced/`): over 24x24 cells with no
+purple the in-betweens sit at 0.37-0.63; the purple veil sits at 0.74-0.83. The veil is two overlapping layers of the
+kA0f pair. Records with flag 4 scroll U by the byte 0x8012092E, 2 texels a logic frame in this run, and the in-between
+gets the exact middle (logged scroll at render: reals 18 then 16, the in-between 17). Records with flag 8 scroll by 0x80120938,
+1 texel a logic frame, and a byte UV has no half, so `ListStateProducer`'s wrapped blend rounds that layer to the later
+frame. One layer at 0.5 and one at 1.0 over the same pixels gives about 0.75, as measured; nothing else in the area is
+off halfway. The flag-8 layer is a limit of the packet's integer UV, not a missing producer.
 
 `warp 7/0`: 0x801140A0 is A02's area-map body turned a quarter (`AreaMap` layout 1), 0x8012F938 is the tile grid
 with its walk one map row early (`TileGridLayer::emitRowLead`), and 0x80117AB8's caller 0x80117D4C is a
@@ -60,7 +65,7 @@ and the 1.00s are the map marker's blink, a 14x14 cell (`scratch/tomba2e/r8/redu
 the node stamp the area effect leaves call; it is now a `GuestKeyedEmitters` leaf and the area sits at 0.50.
 
 Proof run `scratch/tomba2e/r12/reduced/` (`shares.txt`, `owners.txt`): areas 2, 7, 10 and 15 log no unowned or
-overwriting writer; area 10 is 0.50-0.51, area 15 0.69-0.79 (the texel-step backdrop above), areas 2 and 7 move at
+overwriting writer; area 10 is 0.50-0.51, area 15 0.69-0.79 (the flag-8 veil layer above), areas 2 and 7 move at
 0.40-0.65 with the 1.00s on the map marker's blink.
 
 Still unowned (`scratch/tomba2e/r9/reduced/shares.txt` and its journal; area 13 again in `scratch/tomba2e/r10`):
