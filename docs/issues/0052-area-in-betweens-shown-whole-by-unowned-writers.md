@@ -10,8 +10,9 @@ Status: open (2026-11-04). Owners: none yet; each writer below is guest code wit
 
 ## Observed vs expected
 Every in-between repeats the later real present (share 1.00) in areas 3, 4, 7, 10, 11, 13 and 15
-(`scratch/tomba2d/walk/reduced/shares.txt`). Areas 0, 6, 8, 12, 14 and 16-21 sit near halfway; area 1 is issue 0046;
-area 2 is issue 0051.
+(`scratch/tomba2d/walk/reduced/shares.txt`), and again over 32 in-betweens each in the second walk
+(`scratch/tomba2d/walk2/reduced/shares.txt`). Areas 5, 12 and 20 sit at halfway, and 16-19 on the 8 moving in-betweens each has (the rest are still); areas 0, 6, 8, 9, 14 and 21 are off
+halfway (issue 0054); area 1 is issue 0046; area 2 is issue 0051.
 
 ## Cause
 The composer keeps an interval whole when a moving primitive has no producer. The walk's owner journal

@@ -25,6 +25,10 @@ for a room entry; the hand table is deleted. The guest strings break lines with 
 
 ## Shown
 `warp ?` lists `0 The Starting Beach: Town of the Fishermen`, `8 Water Temple: Water Temple`,
-`12 Evil Pig Battle: Evil Ghost Pig`, and area 0 entry 7 as `Waterfall of the Heavens (room 2)`; every area from 0
-to 21 has a name (`scratch/tomba2d/walk/drive.log`). Areas 2 and 3 share `Large Mine Underground: Coal-Mining Town`,
-as the map screen does; routes stay `warp <area>/<entry>` by number.
+`12 Evil Pig Battle: Evil Ghost Pig`, and area 0 entry 7 as `Waterfall of the Heavens (room 2)`
+(`scratch/tomba2d/walk/drive.log`). Every area gets the guest's strings, but not every one is a name:
+- area 9 (`Large Mine Underground: ...???`) and area 1 entries 31-32 get the guest's own placeholder `...???`;
+- areas 0 and 21 share `The Starting Beach: Town of the Fishermen`, and areas 2 and 3
+  `Large Mine Underground: Coal-Mining Town`: the guest tables give them the same strings.
+
+Routes stay `warp <area>/<entry>` by number, so a shared or placeholder label never picks the wrong place.
