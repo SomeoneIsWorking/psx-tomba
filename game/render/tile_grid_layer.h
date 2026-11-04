@@ -47,6 +47,8 @@ public:
   static void emitUnbiased(Core *c);
   // A07 0x8012F938: no V bias, and its map rows start one row above the screen's top tile.
   static void emitRowLead(Core *c);
+  // A06 0x80141A94: A07's walk over a map whose rows clamp instead of wrapping, hidden while the area phase is 0x13.
+  static void emitClamped(Core *c);
 
   static void registerOverrides(native::NativeOverrideCatalog &natives);
   // The grid as one object keyed by its node: its state render, at each of the six emitter entries.
@@ -55,7 +57,8 @@ public:
   struct EmitGridArgs {
     uint32_t node;
     uint32_t tileVBias;
-    int rowLead; // map rows the walk starts above the screen's top tile
+    int rowLead;    // map rows the walk starts above the screen's top tile
+    bool clampRows; // rows past the map show its edge row instead of wrapping
   };
   // The grid walk both emitters share, over the guest or a render's host memory: the sprites of every tile the
   // draw window shows, chained under a draw mode packet at the background bucket.

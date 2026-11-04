@@ -14,6 +14,9 @@
 //   A0F 0x80116ABC  leaf: the node's wire, two hanging sides and a foot, as 0x80112D10 shimmer lines.
 //   A0F 0x801143C4  leaf: the node's lens flare, three quads toward screen centre, and its 0x80027A4C sparkles.
 //   A0D 0x80110C14  leaf: the node's ring of 21 0x80027A4C stamps.
+// A leaf handed screen points is one object per call, by its call site and n-th call in the logic frame:
+//   A06 0x80129AF8  a semi-transparent three-point line from a1 through the midpoint to a0, colour a2, bucket a3,
+//                   drawn by the node handlers 0x80129C50 (twice) and 0x8012A564.
 // A body that takes no object draws one screen:
 //   DEMO 0x80106690  the front end's two edge sprites (x 0 and 0x100, clut 0x7FE8) into the pool.
 //   A01  0x801311FC  a per-frame effect: a texture-window packet and its GT4 particles.
@@ -31,25 +34,33 @@ class NativeOverrideCatalog;
 
 namespace tomba::render {
 
+// What names the object a guest emitter's call draws.
+enum class EmitterKey : std::uint8_t {
+  Node,     // the node in a0
+  CallSite, // its call site and n-th call
+  Screen,   // one screen
+};
+
 struct GuestKeyedEmitter {
   const char *overlay;
   std::uint32_t emitter;
-  bool nodeOwned; // the node in a0 owns it; otherwise it draws one screen
+  EmitterKey key;
 };
 
 class GuestKeyedEmitters {
 public:
   static constexpr GuestKeyedEmitter kEmitters[] = {
-      {"MAIN", 0x800328BCu, true},
-      {"A01", 0x80129114u, true},
-      {"A01", 0x8012D9E8u, true},
-      {"A00", 0x8013E08Cu, true},
-      {"A07", 0x80117D4Cu, true},
-      {"A0F", 0x80116ABCu, true},
-      {"A0F", 0x801143C4u, true},
-      {"A0D", 0x80110C14u, true},
-      {"DEMO", 0x80106690u, false},
-      {"A01", 0x801311FCu, false},
+      {"MAIN", 0x800328BCu, EmitterKey::Node},
+      {"A01", 0x80129114u, EmitterKey::Node},
+      {"A01", 0x8012D9E8u, EmitterKey::Node},
+      {"A00", 0x8013E08Cu, EmitterKey::Node},
+      {"A07", 0x80117D4Cu, EmitterKey::Node},
+      {"A0F", 0x80116ABCu, EmitterKey::Node},
+      {"A0F", 0x801143C4u, EmitterKey::Node},
+      {"A0D", 0x80110C14u, EmitterKey::Node},
+      {"A06", 0x80129AF8u, EmitterKey::CallSite},
+      {"DEMO", 0x80106690u, EmitterKey::Screen},
+      {"A01", 0x801311FCu, EmitterKey::Screen},
   };
 
   static void registerOverrides(native::NativeOverrideCatalog &natives);
