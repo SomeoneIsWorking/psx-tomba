@@ -30,7 +30,8 @@ public:
     uint32_t object;
     uint32_t handler;
   };
-  // Runs the native behavior registered for the handler, else the guest handler, resumed across fields until it returns.
+  // Runs the native behavior registered for the handler, else the guest handler to its return inside this call:
+  // a handler past one field's cycle budget, or waiting on VSync, is continued at once in this host frame.
   void dispatchObj(const ObjectTick &tick);
 
   // dispatchNative(handler): table lookup + call. Returns true if the handler was owned natively

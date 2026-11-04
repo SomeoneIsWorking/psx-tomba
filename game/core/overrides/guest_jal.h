@@ -20,8 +20,8 @@ template <typename... Arguments> std::uint32_t dispatchJalToReturn(Core &core, G
   return psx::cpu::callGuestNowResult(core, "guest jal", jal.target, arguments...);
 }
 
-// A guest handler whose work can exceed one display field (the area handlers' first state clears the
-// object pools): it is resumed across host turns until it returns to the caller's $ra.
+// A guest handler whose work can exceed one field's cycle budget (the area handlers' first state clears the
+// object pools): its segments run back to back inside this call until it returns to the caller's $ra.
 inline std::uint32_t dispatchHandlerToReturnResuming(Core &core, std::uint32_t address, std::string_view owner) {
   return psx::cpu::callGuestToReturnResuming(core, owner, address, core.r[31]);
 }

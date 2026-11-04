@@ -189,7 +189,7 @@ void BehaviorDispatch::dispatchObj(const ObjectTick &tick) {
                   c->mem_r16(0x800E7E68u),
                   c->mem_r8(0x800E7E80u));
   }
-  // An area's init handler can outlast a field (A04's FUN_801169E8 re-tints 2464 CLUT rows).
+  // An area's init handler can outlast a field's cycle budget (A04's FUN_801169E8 re-tints 2464 CLUT rows).
   if (!dispatchNative(handler)) {
     tomba::guest::dispatchHandlerToReturnResuming(*c, handler, __func__);
   }

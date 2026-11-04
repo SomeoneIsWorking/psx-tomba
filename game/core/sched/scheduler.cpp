@@ -94,7 +94,7 @@ void Scheduler::yield(Core &core) {
   if (core.sideEffectJournal != nullptr) {
     lucent::error("sched",
                   "FATAL: yield at ra=0x{:08X} in a stage stanza would longjmp out of an open side-effect journal "
-                  "(an override differential or guest redraw path waits on a task)",
+                  "(an override differential's original waits on a task)",
                   core.r[31]);
     std::abort();
   }
