@@ -1,5 +1,6 @@
 // game/render/billboard_state.h — what one billboardEmit call drew, and its render.
 // FUN_8003C8F4 projects each particle's corners through GTE CR0-7 and links one textured quad per visible particle.
+// A render moves the corners by t and keeps the later packet words: a texture frame has no halfway.
 #pragma once
 
 #include "core.h"
