@@ -90,6 +90,14 @@ void Scheduler::yield(Core &core) {
     coro_[slot]->yield();
     return;
   }
+  // The longjmp skips every host frame since setjmp, so a journal scope it crosses would dangle.
+  if (core.sideEffectJournal != nullptr) {
+    lucent::error("sched",
+                  "FATAL: yield at ra=0x{:08X} in a stage stanza would longjmp out of an open side-effect journal "
+                  "(an override differential or guest redraw path waits on a task)",
+                  core.r[31]);
+    std::abort();
+  }
   std::longjmp(yieldJmp_, 1);
 }
 

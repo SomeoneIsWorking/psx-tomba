@@ -2,9 +2,9 @@
 
 Features: F-DEBUG.
 
-Status: partly fixed (2026-11-03): the refusal and entry 7's wait are fixed; entry 7's room picture is open. Owners: `game/world/area_entries.h`
+Status: fixed (2026-11-04): the refusal and entry 7's wait are fixed; entry 7's room picture is the guest's own (below). Owners: `game/world/area_entries.h`
 (`AreaEntries`), `game/core/debug/dev_warp.cpp` (`DevWarp::arm`), `game/core/sched/synchronous_task_wait.cpp`
-(`Scheduler::spawnAndWait`).
+(`Scheduler::spawnAndWait`), `game/core/sched/scheduler.cpp` (`Scheduler::yield`).
 
 ## Reproduction
 
@@ -63,10 +63,16 @@ Where it differs from the guest, by design (load removal): the guest waits one f
 (FUN_8007FD54, which blinks on bit 2 of that counter). The native pumps the task to its end inside the caller's
 field with its countdowns zeroed, so no field passes, the counter is not bumped and no card is drawn.
 
-Not differenced: `PSXPORT_OVERRIDE_DIFF=0x80044BD4` on `warp 0/7` runs the original live, which yields, and the
-product faults (signal 11) in psxport `SideEffectJournal::admitHostService` under `Engine::frameStartTick` about
-100 frames after the arrival (`scratch/tomba2c/evidence/0048_spawnandwait_diff_fault.txt`). An original that waits fields cannot be differenced
-against a native that waits none; the comparison is the disassembly of 0x80044BD4-0x80044CD0 against the body above.
+Not differenced: an original that waits fields cannot be differenced against a native that waits none; the
+comparison is the disassembly of 0x80044BD4-0x80044CD0 against the body above. Under
+`PSXPORT_OVERRIDE_DIFF=0x80044BD4` the original's wait yields inside `OverrideDifferential::shadow`, and
+`Scheduler::yield` (`game/core/sched/scheduler.cpp`) longjmps out of the GAME stanza past the open
+`SideEffectJournal::Scope`, leaving `Core::sideEffectJournal` pointing at a dead stack journal; the next host service
+dispatched through it faulted (signal 11 in `SideEffectJournal::admitHostService`,
+`scratch/tomba2c/evidence/0048_spawnandwait_diff_fault.txt`, `scratch/tomba2d/diff_before/run.log`). `yield` now
+aborts with `FATAL: yield ... would longjmp out of an open side-effect journal` before the jump
+(`scratch/tomba2d/diff/run.log`). The proper fix is stage stanzas on fibers, so a yield returns through every host
+frame; until then a differential of a waiting function stops at once and says why.
 
 Shown: `warp 0/7` from free roam lands Tomba inside the tower room, 0x1F80019C 00, 702 polygons; `warp 0/8` to
 `warp 0/11` requested after it in the same run all land
@@ -76,8 +82,14 @@ frames: twelve samples 40 frames apart over 480 frames after the arrival show bo
 `disp` on successive sampled frames 400 frames in alternates (0,0) and (0,256)
 (`scratch/tomba2c/evidence/0048_entry7_display_samples.txt`).
 
-Open: the room has no HUD and its left 40% is black at 16:9 and at 4:3 alike
-(`scratch/tomba2c/evidence/0048_entry7_after480_small.jpg`; `rect=0 env=0`, where the field entries 8-11 draw
-`rect=467 env=8` and the HUD ball). Entry 7 is the area's only room entry, so the field entries are not a reference
-for it. Whether the room entered through its door draws the HUD and keeps the camera off the void is not shown: the
-product has no route through that door without steering, so a complete room init is unproven.
+The room picture is the guest's own. The door route (A00's door object FUN_80073328 sets 0x800BF818 to 1; the room
+controller FUN_80026AD0 sets `sm[4c=3 4e=0]` and 818 to 2; `fieldRunX` state 0 runs area 0's enter hook FUN_8010CB60
+from the table at 0x800A4AF8) was run without steering by writing 817=2, 818=1 from free roam. It reaches the same
+room machine and the same picture as entry 7: `rect=0 env=0`, no HUD ball, black beyond the room model
+(`scratch/tomba2d/door/strip.jpg`). Machine 3's draw twin 0x8003FA44 has no call to 0x8003D0BC (overlay scenery) or
+0x8003DF04 (the tile-grid backdrop), so a room draws only its model and objects over black. The hook's other work is
+Tomba's placement: zone byte 0x800E7EAA (G+0x2A) = 0x26, 0x800E800E = 0, a half turn when 0x800BF8BC is -1, the yaw
+into 0x1F800210, then FUN_8010DA70, whose body equals entry 7's FUN_8010C740. With zone 0x26 Tomba stands on the
+tower floor (`scratch/tomba2d/poke/strip.jpg`); entry 7's record flags give zone 0x32, the window ledge. 0x1F800210
+turns Tomba only; the room camera is fixed (`scratch/tomba2d/yaw/grid.jpg`). The room is a cutaway that the guest
+draws over black at both aspects; no retail capture of this room is in the repo to compare its framing against.
