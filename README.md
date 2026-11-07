@@ -112,3 +112,5 @@ publishing it under `scratch/bin/<slug>/`; a title whose disc is absent gets no 
 
 Open defects live in [`docs/issues/`](docs/issues/). New analysis starts from the executable, the
 overlays, and independent runtime observation.
+
+Built with AI assistance (Claude and other LLMs).
