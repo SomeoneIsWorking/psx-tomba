@@ -7,11 +7,10 @@
 #include "fx_sprite_publish.h"
 #include "guest_abi.h"
 #include "guest_ordering_table.h"
-#include "list_state_producer.h"
+#include "list_job.h"
 #include "scaled_sprites.h"
 
 #include <algorithm>
-#include <memory>
 
 namespace tomba {
 
@@ -78,14 +77,6 @@ void emitPerParticle(Core *c) {
                               .a1 = 0};
   const render::EmitterObject object(
       *c, FxSpriteSwarm::kEmitter, render::OwnObject{eng(c).graphicsBind.records.object(node)});
-  const uint32_t particles = particleCount(*c, node);
-  const uint32_t arenaBytes =
-      records == 0 ? 0
-                   : particles * render::ScaledSprites::recordCount(*c, records) * render::ScaledSprites::kPacketBytes;
-  render::ListJobWriter job(*c, 0, call, arenaBytes);
-  keepSceneCamera(job, *c);
-  job.input(*c, node, kParticleArray);
-  job.input(*c, node + kParticleArray, particles * kParticleStride, render::InputBlend::Lanes16);
 
   if (!FxSpriteSwarm::begin(*c, call)) {
     return;
@@ -112,20 +103,7 @@ void emitPerParticle(Core *c) {
   screenXySlotReg = fxpublish::kScreenXY;
 
   FxSpriteSwarm::particles(*c, call);
-  job.save(*c);
 }
-
-class SwarmProducer final : public render::ListStateProducer {
-public:
-  using ListStateProducer::ListStateProducer;
-
-protected:
-  void emit(const psx::present::EmitMemory &memory, uint32_t, const render::ListCall &call) const override {
-    if (FxSpriteSwarm::begin(memory, call)) {
-      FxSpriteSwarm::particles(memory, call);
-    }
-  }
-};
 
 } // namespace
 
@@ -162,10 +140,6 @@ void FxSpriteSwarm::particles(const psx::present::EmitMemory &memory, const rend
 
 void FxSpriteSwarm::registerOverrides(native::NativeOverrideCatalog &natives) {
   natives.declare(kEmitter, "FxSpriteSwarm::emitPerParticle", &emitPerParticle);
-}
-
-void FxSpriteSwarm::registerStateRenders(psx::present::StateProducerTable &renders, Core &core) {
-  renders.install(kEmitter, std::make_unique<SwarmProducer>(core));
 }
 
 } // namespace tomba

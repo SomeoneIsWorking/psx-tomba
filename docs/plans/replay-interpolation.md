@@ -161,9 +161,9 @@ above lives there).
   shown as drawn and its replayed in-betweens are dropped. `DrawReplay::endFrame` forgets on the same flag, since
   S's sample may predate the change, so S→S+1 is held too (`NotReplayed`) and pairing starts again at S+1→S+2.
   A warp arrives through the game's own transition and is a scene change.
-- Not a replayable frame, `forget()`: pause (`0x1F800136 != 0`), a frame whose field frame did not draw (load, card
-  machine, SOP, DEMO, boot cards), a switch between `0x8003F9A8` and `0x8003FA44`, a savestate restore
-  (`TitleState::restored`).
+- Not a replayable frame, `forget()`: a frame whose field frame did not draw (`0x1F800136 >= 2` menu pages, load,
+  card machine, SOP, the title menu, boot cards), a switch between `0x8003F9A8` and `0x8003FA44` or between stages,
+  a savestate restore (`TitleState::restored`).
 
 ## Hazards
 
@@ -246,8 +246,10 @@ missing; `presentseq` advances 0.5 per simulated vblank; `replay:warn` 0; no `No
 Built: `game/core/frame/draw_section.*` (both variants, one `GuestRedraw::dispatch` of the orchestrator; the 2D
 writers' `CallSiteObjects` counts are put back after it), `draw_motion.*` and `draw_replay.*`, held by
 `tomba::Session::drawReplay` and returned by `tomba::Runtime::replayFrame`. `Render::frame`/`frameX` call
-`beforeDraw`; a paused draw (`0x1F800136 != 0`) is not replayed and composes from producers; a variant switch, a
-frame that did not draw, a declared cut and a savestate restore forget the earlier sample. Steps 0 and 1 resolved as: no refusal in any run (no device or
+`beforeDraw` and are the orchestrators' overrides, so every guest caller replays (GAME's submode frames, DEMO's
+attract frame 0x80106EBC). In GAME the section also runs the page step G:8010810C, which links the pause menu after
+the draw; a paused draw replays with its inputs held (issue 0055). A variant or stage switch, a frame that did not
+draw, a declared cut and a savestate restore forget the earlier sample. Steps 0 and 1 resolved as: no refusal in any run (no device or
 yield in the section, slots 1 and 2 linked nothing missing from the frames); hazard 1 is harmless for replayed
 intervals (their states are never composed) and the call-site counts are restored; hazard 2's depth comes with the
 captured word depths; hazard 3 is `ReplayFrame::replays`.
@@ -270,6 +272,6 @@ is held by the chain break before `cutBetween` is consulted; a cut with an unbro
 shown. No CLUT upload refusal was seen in A04 in 24 in-betweens (hazard 4 unproven either way); the HUD slide, tile-grid scroll, scenery UV scroll,
 sway phase and billboard particles are not tracked and step at 30 Hz; what the update block links before the
 section is captured at t = 1 (dialog text, fades, letterbox). In play no producer state render runs any more
-(census: `scratch/replay/census`, a boot, warp, walk and pause run counting renders per phase); the renders left run
-for boot, title, SOP and the pause screen. The gameplay producers are not dead: the pause screen composes from them, and
-removing them shows every paused in-between whole (issue 0055).
+(census: `scratch/pause-replay/c3`, boot unskipped through title, attract, warp, walk, pause, options and map);
+the state renders left serve SOP, the title menu, the pause menu's own pages and the map screen (`BillboardState`).
+The gameplay producers are deleted (issue 0055).

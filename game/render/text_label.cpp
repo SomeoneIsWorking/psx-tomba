@@ -27,9 +27,7 @@
 #include "guest_abi.h"
 #include "guest_ordering_table.h"
 #include "horizontal_visibility_cull.h"
-#include "quad_state.h"
 #include "render.h"
-#include <memory>
 #include <stdint.h>
 
 namespace tomba {
@@ -158,10 +156,7 @@ void ov_textLabelEmit(Core *c) {
   const std::uint32_t node = c->r[4];
   const std::uint32_t object = eng(c).graphicsBind.records.object(node);
   const psx::present::EmissionScope::Guard scope(c->emission, 0x80039F4Cu, object, 0);
-  const std::uint32_t before = render::PacketPool(*c).cursor();
   rend(c)->textLabelEmit();
-  render::saveQuads(
-      *c, {.emitter = 0x80039F4Cu, .object = object, .before = before, .after = render::PacketPool(*c).cursor()});
 }
 } // namespace
 
@@ -171,10 +166,6 @@ void Render::textLabelEmit() {
 
 void text_label_install(native::NativeOverrideCatalog &natives) {
   natives.declare(0x80039F4Cu, "ov_textLabelEmit", ov_textLabelEmit);
-}
-
-void text_label_register_state_renders(psx::present::StateProducerTable &renders) {
-  renders.install(0x80039F4Cu, std::make_unique<render::QuadStateRender>());
 }
 
 } // namespace tomba

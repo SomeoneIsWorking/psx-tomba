@@ -2,8 +2,8 @@
 
 Features: F-FPS60.
 
-Status: partial (2026-10-23) — every screen composes its in-betweens but four attract records, the boot
-cards (deliberately stepped) and one `AnchorQuads` object.
+Status: fixed (2026-11-10). Gameplay, pause and the attract demo are replayed (`docs/plans/replay-interpolation.md`,
+issue 0055); `AnchorQuads` is gone. The boot cards stay stepped by design.
 
 ## Observed
 Real-speed walk from boot, 8x on a 3840x2160 sink, fps60 (`scratch/judder-check/walk-b3`, load 1.6 to 1.0):

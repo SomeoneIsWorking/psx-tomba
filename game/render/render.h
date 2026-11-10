@@ -6,6 +6,10 @@
 #include <cstdint>
 class Core;
 
+namespace tomba::native {
+class NativeOverrideCatalog;
+} // namespace tomba::native
+
 namespace tomba {
 
 class Render {
@@ -18,6 +22,8 @@ public:
   // Per-frame render orchestrators: guest 0x8003F9A8 (field) and 0x8003FA44 (mid-transition).
   void frame();
   void frameX();
+  // Every guest call of either orchestrator reaches frame/frameX.
+  static void registerOverrides(native::NativeOverrideCatalog &natives);
 
   // FUN_8003F698's routing rule: the guest emitter a cmd with this `flag` reaches (0 for the generic emitter).
   uint32_t resolvePerModeEmitter(Core *c, uint32_t flag, uint32_t *caseLabelOut);

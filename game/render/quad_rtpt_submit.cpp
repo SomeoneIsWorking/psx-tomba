@@ -7,12 +7,11 @@
 #include "gte_registers.h"
 #include "guest_ordering_table.h"
 #include "horizontal_visibility_cull.h"
-#include "list_state_producer.h"
+#include "list_job.h"
 #include "object_draw.h"
 
 #include <array>
 #include <cstdint>
-#include <memory>
 
 namespace tomba {
 
@@ -81,7 +80,6 @@ using render::OrderingTable;
 
 constexpr std::uint32_t kTemplateWords = 10u;
 constexpr std::uint32_t kTemplateBytes = kTemplateWords * 4u;
-constexpr std::uint32_t kCornerBytes = 0x20u;
 // Template offsets of each corner's SXY.
 constexpr std::array<std::uint32_t, 4> kScreen{8u, 0x10u, 0x18u, 0x20u};
 // The 16-byte frame: the GTE flag, AVSZ4 and the bucket as it is worked.
@@ -105,23 +103,8 @@ void submitForGuest(Core *core) {
   const std::uint32_t drawn = core->emission.isOpen() ? core->emission.current().object : call.list;
   const render::EmitterObject object(
       *core, QuadRtptSubmit::kSubmit, render::OwnObject{sessionOf(core).callSites.object(core->r[31], drawn)});
-  render::ListJobWriter job(*core, 0, call, kTemplateBytes);
-  job.input(*core, call.list, kTemplateBytes);
-  job.input(*core, call.a1, kCornerBytes, render::InputBlend::Lanes16);
-  job.input(*core, OrderingTable::kBasePointer, sizeof(std::uint32_t));
   QuadRtptSubmit::submit(*core, call, horizontal_cull::forDrawWindow(core));
-  job.save(*core);
 }
-
-class SubmitProducer final : public render::ListStateProducer {
-public:
-  using ListStateProducer::ListStateProducer;
-
-protected:
-  void emit(const psx::present::EmitMemory &memory, std::uint32_t, const ListCall &call) const override {
-    QuadRtptSubmit::submit(memory, call, horizontal_cull::forDrawWindow(&core()));
-  }
-};
 
 } // namespace
 
@@ -200,10 +183,6 @@ void QuadRtptSubmit::submit(const psx::present::EmitMemory &memory,
 void QuadRtptSubmit::registerOverrides(native::NativeOverrideCatalog &natives) {
   natives.declare(0x8003B054u, "QuadRtptSubmit::rotateQuadCorners", &QuadRtptSubmit::rotateQuadCorners);
   natives.declare(kSubmit, "QuadRtptSubmit::submit", &submitForGuest);
-}
-
-void QuadRtptSubmit::registerStateRenders(psx::present::StateProducerTable &renders, Core &core) {
-  renders.install(kSubmit, std::make_unique<SubmitProducer>(core));
 }
 
 } // namespace tomba

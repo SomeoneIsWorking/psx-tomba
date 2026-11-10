@@ -38,7 +38,7 @@ class SwayModelEmitter {
 public:
   enum class Kind : std::uint8_t { SwayGt3, ScrollGt4, CueGt3, CueGt4 };
 
-  // The guest calls: the frame, the registers in, the end of the list in v0, the call saved under the open object.
+  // The guest calls: the frame, the registers in, the end of the list in v0.
   static void swayGt3(Core &core, const horizontal_cull::Visibility &visible);
   static void scrollGt4(Core &core, const horizontal_cull::Visibility &visible);
   static void cueGt3(Core &core, const horizontal_cull::Visibility &visible);
@@ -49,8 +49,6 @@ public:
                             const horizontal_cull::Visibility &visible,
                             Kind kind);
   static void registerOverrides(native::NativeOverrideCatalog &natives);
-  // The renders of the saved calls, at each of the four entries.
-  static void registerStateRenders(psx::present::StateProducerTable &renders, Core &core);
 };
 
 } // namespace tomba::render

@@ -7,12 +7,11 @@
 #include "fx_sprite_publish.h"
 #include "guest_abi.h"
 #include "guest_ordering_table.h"
-#include "list_state_producer.h"
+#include "list_job.h"
 #include "packed_mesh.h"
 #include "scaled_sprites.h"
 
 #include <iterator>
-#include <memory>
 
 namespace tomba {
 
@@ -35,7 +34,6 @@ constexpr uint32_t kScriptNext = 0x40;    // u32 0x800286CC next script byte, 0 
 constexpr uint32_t kTextureClut = 0x44;   // u32 the writer's a1: CLUT (lo16), texture page (hi16)
 constexpr uint32_t kScalePair = 0x48;     // s16 x and y scales of 0x8002801C
 constexpr uint32_t kFrameTable = 0x50;    // u32 0x800286CC frame lists
-constexpr uint32_t kNodeBytes = 0x54;
 
 constexpr uint32_t kHoldFrame = 0x80u;
 constexpr int32_t kScaleByteShift = 4;
@@ -49,15 +47,6 @@ constexpr GuestFrameSpill kSpills[2] = {
     {31 /*ra*/, 20},
 };
 constexpr GuestFrameSpill kQuadSpills[1] = {{31 /*ra*/, 16}};
-
-FxSpriteAnchored::Variant variantOf(uint32_t emitter) {
-  for (uint32_t index = 0; index < std::size(FxSpriteAnchored::kEmitters); index++) {
-    if (FxSpriteAnchored::kEmitters[index] == emitter) {
-      return static_cast<FxSpriteAnchored::Variant>(index);
-    }
-  }
-  return FxSpriteAnchored::Variant::Uniform;
-}
 
 uint32_t emitterOf(FxSpriteAnchored::Variant variant) {
   return FxSpriteAnchored::kEmitters[static_cast<uint32_t>(variant)];
@@ -96,40 +85,7 @@ struct AnchoredNode {
   }
 };
 
-// The most packet bytes the emitter writes this frame.
-uint32_t arenaBytes(const psx::present::EmitMemory &memory, FxSpriteAnchored::Variant variant, uint32_t node) {
-  const AnchoredNode view{memory, node};
-  if (variant == FxSpriteAnchored::Variant::AnimatedQuads) {
-    if (view.script() == 0) {
-      return 0;
-    }
-    return render::PackedRecord::count(memory, view.frameRecords(view.scriptStep().frame)) *
-           render::PackedMesh::kPacketBytes;
-  }
-  if (view.recordHead() == 0) {
-    return 0;
-  }
-  return render::ScaledSprites::recordCount(memory, view.recordHead()) * render::ScaledSprites::kPacketBytes;
-}
-
-// The node as a render reads it: its anchor, and the scales a variant takes from it, move between frames.
-void keepNode(render::ListJobWriter &job, Core &core, FxSpriteAnchored::Variant variant, uint32_t node) {
-  job.input(core, node, kWorldAnchorXY);
-  job.input(core, node + kWorldAnchorXY, 6, InputBlend::Lanes16);
-  job.input(core, node + kOtBias, 2);
-  if (variant == FxSpriteAnchored::Variant::AnimatedQuads) {
-    job.input(core, node + kRecordHead, 4, InputBlend::Lanes16);
-    job.input(core, node + kRecordTail, kNodeBytes - kRecordTail);
-  } else if (variant == FxSpriteAnchored::Variant::ScalePair) {
-    job.input(core, node + kRecordHead, kScalePair - kRecordHead);
-    job.input(core, node + kScalePair, 4, InputBlend::Lanes16);
-    job.input(core, node + kScalePair + 4, kNodeBytes - kScalePair - 4);
-  } else {
-    job.input(core, node + kRecordHead, kNodeBytes - kRecordHead);
-  }
-}
-
-// The emitter as the guest calls it, saving its call when it stamps and handing a culled node to `resolveReturn`.
+// The emitter as the guest calls it, handing a culled node to `resolveReturn`.
 void drawForGuest(Core *c, FxSpriteAnchored::Variant variant, uint32_t node, uint32_t resolveReturn) {
   const render::ListCall call{.list = node,
                               .ot = c->mem_r32(render::OrderingTable::kBasePointer),
@@ -141,13 +97,7 @@ void drawForGuest(Core *c, FxSpriteAnchored::Variant variant, uint32_t node, uin
   {
     const render::EmitterObject object(
         *c, emitterOf(variant), render::OwnObject{eng(c).graphicsBind.records.object(node)});
-    render::ListJobWriter job(*c, static_cast<uint32_t>(variant), call, arenaBytes(*c, variant, node));
-    keepSceneCamera(job, *c);
-    keepNode(job, *c, variant, node);
     drawn = FxSpriteAnchored::draw(*c, variant, call);
-    if (drawn == FxSpriteAnchored::Drawn::Stamped) {
-      job.save(*c);
-    }
   }
   if (drawn == FxSpriteAnchored::Drawn::Culled && resolveReturn != 0) {
     c->r[4] = node;
@@ -167,16 +117,6 @@ void animatedQuads(Core *c) {
   GuestFrame<24, 1> frame(c, kQuadSpills);
   drawForGuest(c, FxSpriteAnchored::Variant::AnimatedQuads, c->r[4], 0);
 }
-
-class AnchoredSpriteProducer final : public render::ListStateProducer {
-public:
-  using ListStateProducer::ListStateProducer;
-
-protected:
-  void emit(const psx::present::EmitMemory &memory, uint32_t variant, const render::ListCall &call) const override {
-    FxSpriteAnchored::draw(memory, static_cast<FxSpriteAnchored::Variant>(variant), call);
-  }
-};
 
 } // namespace
 
@@ -251,12 +191,6 @@ void FxSpriteAnchored::registerOverrides(native::NativeOverrideCatalog &natives)
   natives.declare(kEmitters[2], "FxSpriteAnchored::scalePair", &nodeInS0<Variant::ScalePair, 0x80028188u>);
   natives.declare(kEmitters[3], "FxSpriteAnchored::cued", &nodeInS0<Variant::Cued, 0u>);
   natives.declare(kEmitters[4], "FxSpriteAnchored::animatedQuads", &animatedQuads);
-}
-
-void FxSpriteAnchored::registerStateRenders(psx::present::StateProducerTable &renders, Core &core) {
-  for (const uint32_t emitter : kEmitters) {
-    renders.install(emitter, std::make_unique<AnchoredSpriteProducer>(core));
-  }
 }
 
 } // namespace tomba

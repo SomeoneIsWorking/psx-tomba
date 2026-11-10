@@ -12,6 +12,8 @@ namespace {
 
 constexpr std::uint32_t kFieldDraw = 0x8003F9A8u;
 constexpr std::uint32_t kRoomDraw = 0x8003FA44u;
+// G:8010810C, after either draw in GAME: page 1, the pause menu, links its dim and its items into the same OT.
+constexpr std::uint32_t kPageStep = 0x8010810Cu;
 
 } // namespace
 
@@ -19,7 +21,9 @@ std::optional<std::uint32_t> DrawSection::draw(Core &core, psx::present::GuestRe
   // The 2D writers count calls per logic frame; the real draw must count from where the replays began.
   Session &session = sessionOf(&core);
   const render::CallSiteObjects calls = session.callSites;
-  const bool returned = redraw.dispatch(variant_ == Variant::Field ? kFieldDraw : kRoomDraw, {});
+  // The orchestrators' overrides are Render::frame/frameX, which replay; the replay runs their guest bodies.
+  const bool returned = redraw.run(selection_.variant == Variant::Field ? kFieldDraw : kRoomDraw, {}) &&
+                        (!selection_.pageStep || redraw.dispatch(kPageStep, {}));
   session.callSites = calls;
   if (!returned) {
     return std::nullopt;

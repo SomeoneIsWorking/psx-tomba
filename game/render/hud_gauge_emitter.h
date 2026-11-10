@@ -7,7 +7,7 @@
 //
 #pragma once
 
-#include "state_producer.h"
+#include <cstdint>
 
 struct Core;
 class Game;
@@ -33,8 +33,6 @@ public:
   static void emitItem(Core *c);
 
   static void registerOverrides(native::NativeOverrideCatalog &natives);
-  // The frame's gauge is one object (one call per frame); its state is the packets it linked.
-  static void registerStateRenders(psx::present::StateProducerTable &renders);
 };
 
 } // namespace tomba

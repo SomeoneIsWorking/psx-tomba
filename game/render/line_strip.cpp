@@ -9,11 +9,10 @@
 #include "guest_abi.h"
 #include "guest_ordering_table.h"
 #include "libgpu_draw_mode.h"
-#include "list_state_producer.h"
+#include "object_draw.h"
 
 #include <cstdlib>
 #include <lucent/log.h>
-#include <memory>
 
 namespace tomba::render {
 namespace {
@@ -27,7 +26,6 @@ constexpr std::uint32_t kFadeSpan = 0x54u;   // s16 divisor of the fade
 constexpr std::uint32_t kStrip = 0x80148668u;
 constexpr std::uint32_t kWindows = 7;
 constexpr std::uint32_t kWindowStride = 0x10u;
-constexpr std::uint32_t kStripBytes = (kWindows - 1u) * kWindowStride + 0x18u;
 
 // The model-view compose area and the scene camera's translation.
 constexpr std::uint32_t kCompose = 0x1F800000u;
@@ -49,7 +47,6 @@ constexpr std::uint32_t kLineXy[3] = {8u, 0xCu, 0x10u};
 constexpr std::uint32_t kFirstTexturePage = 0x35u;
 constexpr std::uint32_t kSecondTexturePage = 0x55u;
 constexpr std::uint32_t kSecondLineStep = 0x00010002u; // (x + 2, y + 1)
-constexpr std::uint32_t kPacketBytes = 2u * (kLineBytes + kModeBytes);
 
 // The frame's locals: the GTE flag and the bucket.
 constexpr std::uint32_t kFrameBytes = 0x48u;
@@ -145,26 +142,8 @@ void emitForGuest(Core *core) {
       .list = node, .ot = core->mem_r32(OrderingTable::kBasePointer), .count = 0, .a3 = 0, .sp = core->r[29], .a1 = 0};
   ::GuestFrame<kFrameBytes, 10> frame(core, kSpills);
   const EmitterObject object(*core, LineStrip::kEmitter, OwnObject{eng(core).graphicsBind.records.object(node)});
-  ListJobWriter job(*core, 0, call, kWindows * kPacketBytes);
-  keepSceneCamera(job, *core);
-  job.input(*core, node + kWorldPoint, 6, InputBlend::Lanes16);
-  job.input(*core, node + kOtBias, 2);
-  job.input(*core, node + kScale, 2, InputBlend::Lanes16);
-  job.input(*core, node + kScale + 2u, kFadeSpan + 2u - kScale - 2u);
-  job.input(*core, kStrip, kStripBytes);
   LineStrip::emit(*core, call);
-  job.save(*core);
 }
-
-class LineStripProducer final : public ListStateProducer {
-public:
-  using ListStateProducer::ListStateProducer;
-
-protected:
-  void emit(const psx::present::EmitMemory &memory, std::uint32_t, const ListCall &call) const override {
-    LineStrip::emit(memory, call);
-  }
-};
 
 } // namespace
 
@@ -210,10 +189,6 @@ void LineStrip::emit(const psx::present::EmitMemory &memory, const ListCall &cal
 
 void LineStrip::registerOverrides(native::NativeOverrideCatalog &natives) {
   natives.declareOverlay("A08", kEmitter, "LineStrip::emit", &emitForGuest);
-}
-
-void LineStrip::registerStateRenders(psx::present::StateProducerTable &renders, Core &core) {
-  renders.install(kEmitter, std::make_unique<LineStripProducer>(core));
 }
 
 } // namespace tomba::render

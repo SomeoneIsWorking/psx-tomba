@@ -2,8 +2,6 @@
 // bucket, drawn after the sky bands.
 #pragma once
 
-#include "state_producer.h"
-
 struct Core;
 
 namespace tomba::native {
@@ -19,8 +17,6 @@ public:
   static void draw(Core *c);
 
   static void registerOverrides(native::NativeOverrideCatalog &natives);
-  // One call is one object; the render projects the anchors again under the camera between the two calls.
-  static void registerStateRenders(psx::present::StateProducerTable &renders, Core &core);
 };
 
 } // namespace tomba::render

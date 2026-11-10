@@ -9,7 +9,6 @@
 
 #include "emit_memory.h"
 #include "list_job.h"
-#include "state_producer.h"
 
 #include <cstdint>
 
@@ -42,7 +41,6 @@ public:
                      const horizontal_cull::Visibility &visible);
 
   static void registerOverrides(native::NativeOverrideCatalog &natives);
-  static void registerStateRenders(psx::present::StateProducerTable &renders, Core &core);
 };
 
 } // namespace tomba

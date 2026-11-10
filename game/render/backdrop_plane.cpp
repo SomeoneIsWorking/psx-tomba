@@ -9,14 +9,12 @@
 #include "guest_ordering_table.h"
 #include "horizontal_visibility_cull.h"
 #include "list_job.h"
-#include "list_state_producer.h"
 #include "object_draw.h"
 #include "wide_window.h"
 
 #include <algorithm>
 #include <array>
 #include <cstdint>
-#include <memory>
 
 namespace tomba::render {
 namespace {
@@ -46,10 +44,8 @@ constexpr std::int16_t kCellHeight = 2400;
 constexpr std::int16_t kLeftEdge = -6000;
 constexpr std::int16_t kTopRow = -7200;
 constexpr std::int16_t kBottomRow = 7200;
-constexpr std::uint32_t kColumns = 10u;
 constexpr std::uint32_t kQuadBytes = 0x34u;
 constexpr std::uint32_t kQuadWords = 12u;
-constexpr std::uint32_t kArenaBytes = (7u + 1u) * kColumns * kQuadBytes;
 // The guest keeps a corner at x <= 320 and y <= 240, one past the screen.
 constexpr int kKeptPastEdge = 1;
 constexpr int kKeptHeight = horizontal_cull::kGuestFrameHeight + kKeptPastEdge;
@@ -81,7 +77,8 @@ struct Quad {
 };
 
 std::uint32_t xy(const Corner &corner) {
-  return static_cast<std::uint16_t>(corner.x) | (static_cast<std::uint32_t>(static_cast<std::uint16_t>(corner.y)) << 16);
+  return static_cast<std::uint16_t>(corner.x) |
+         (static_cast<std::uint32_t>(static_cast<std::uint16_t>(corner.y)) << 16);
 }
 
 // GT4 word offsets of corner i's screen point, colour, and uv.
@@ -127,7 +124,8 @@ private:
     const auto top = static_cast<std::int16_t>(row - kCellHeight);
     const auto bottom = static_cast<std::int16_t>(row);
     const auto far = static_cast<std::uint8_t>(mV + kTileHeight);
-    Quad quad{{{{left, top, 0}, {right, top, 0}, {left, bottom, 0}, {right, bottom, 0}}}, {}, columnU(odd), {}, kPlaneCode};
+    Quad quad{
+        {{{left, top, 0}, {right, top, 0}, {left, bottom, 0}, {right, bottom, 0}}}, {}, columnU(odd), {}, kPlaneCode};
     if (row <= 0) {
       const std::uint32_t lower = row == 0 ? kSeam : kGrey;
       quad.colours = {kGrey, kGrey, lower, lower};
@@ -169,8 +167,8 @@ private:
     if (!project(quad)) {
       return;
     }
-    const std::int32_t bucket = OrderingTable::compressDepth(
-        static_cast<std::int32_t>(mMemory.core().gte().readData(psx::gte::kOtz)) + mBias);
+    const std::int32_t bucket =
+        OrderingTable::compressDepth(static_cast<std::int32_t>(mMemory.core().gte().readData(psx::gte::kOtz)) + mBias);
     if (!OrderingTable::inDepthRange(bucket)) {
       return;
     }
@@ -278,16 +276,6 @@ void loadView(Core *c, std::uint32_t node) {
   c->mem_w32(kDepthCue, 0u);
 }
 
-class BackdropPlaneRender final : public ListStateProducer {
-public:
-  using ListStateProducer::ListStateProducer;
-
-protected:
-  void emit(const psx::present::EmitMemory &memory, std::uint32_t, const ListCall &call) const override {
-    drawGrids(memory, call, core());
-  }
-};
-
 } // namespace
 
 void BackdropPlane::draw(Core *c) {
@@ -299,21 +287,13 @@ void BackdropPlane::draw(Core *c) {
     const std::uint32_t ot = OrderingTable::active(memory).base();
     const ListCall call{.list = node, .ot = ot, .count = 0, .a3 = 0, .sp = c->r[psx::cpu::kSp], .a1 = ot};
     const EmitterObject object(*c, kEntry, OwnObject{node});
-    ListJobWriter job(*c, 0u, call, kArenaBytes);
-    job.input(*c, kClock, sizeof(std::uint16_t));
-    job.input(*c, kArenaPhase, sizeof(std::uint32_t));
     drawGrids(memory, call, *c);
-    job.save(*c);
   }
   psx::cpu::callGuestNow(*c, __func__, kSpriteHalf, node);
 }
 
 void BackdropPlane::registerOverrides(native::NativeOverrideCatalog &natives) {
   natives.declareOverlay("A0E", kEntry, "&BackdropPlane::draw", &BackdropPlane::draw);
-}
-
-void BackdropPlane::registerStateRenders(psx::present::StateProducerTable &renders, Core &core) {
-  renders.install(kEntry, std::make_unique<BackdropPlaneRender>(core));
 }
 
 } // namespace tomba::render

@@ -169,10 +169,6 @@ void saveQuads(Core &core, const QuadRange &range) {
   savePackets(core, range.emitter, range.object, range.before, range.after);
 }
 
-void saveKeyedQuads(Core &core, std::uint32_t emitter, std::uint32_t object) {
-  savePackets(core, emitter, object, 0u, 0u);
-}
-
 std::uint32_t nodeObject(Core &core) {
   return eng(&core).graphicsBind.records.object(core.r[4]);
 }

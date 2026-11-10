@@ -1,29 +1,22 @@
 #include "frame/draw_replay.h"
 
 #include "core.h"
+#include "frame/frame_cut.h"
+#include "sched/task_slot_layout.h"
 
 namespace tomba {
-namespace {
-
-// 0 in play; 1 paused, the draw running over the lists it kept; 2 and up nothing is drawn.
-constexpr std::uint32_t kPauseByte = 0x1F800136u;
-
-} // namespace
 
 DrawReplay::DrawReplay(world::RenderRecordPool &records) : motion_(records), frame_(section_, motion_.tracks()) {}
 
 void DrawReplay::beforeDraw(Core &core, DrawSection::Variant variant) {
-  // The pause screen composes from its producers.
-  if (core.mem_r8(kPauseByte) != 0) {
-    forget();
-    return;
-  }
   drewThisFrame_ = true;
-  if (drawn_ != variant) {
+  const DrawSection::Selection selection{.variant = variant,
+                                         .pageStep = core.mem_r32(FrameCut::kStagePointer) == sched::kStageGameEntry};
+  if (drawn_ != selection) {
     frame_.forget();
   }
-  drawn_ = variant;
-  section_.select(variant);
+  drawn_ = selection;
+  section_.select(selection);
   frame_.beforeDraw(core);
 }
 

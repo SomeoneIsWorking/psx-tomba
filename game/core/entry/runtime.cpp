@@ -8,40 +8,21 @@
 #include "entry/main_handoff.h"
 #include "entry/session.h"
 #include "frame/frame_driver.h"
-#include "fx_sprite_anchored.h"
-#include "fx_sprite_swarm.h"
 #include "game.h"
 #include "guest_call.h"
-#include "hud_gauge_emitter.h"
-#include "lit_model_emitter.h"
-#include "overlay_ground_gt3gt4.h"
-#include "overlay_gt3gt4.h"
 #include "overrides/native_override_catalog.h"
 #include "overrides/register_overrides.h"
 #include "platform_hle.h"
-#include "quad_rtpt_submit.h"
-#include "rain_streaks.h"
-#include "render/anchor_quads.h"
-#include "render/area_map.h"
-#include "render/backdrop_plane.h"
-#include "render/backdrop_sprites.h"
 #include "render/billboard_state.h"
-#include "render/dust_field.h"
-#include "render/fog_model_emitter.h"
-#include "render/gradient_backdrop.h"
 #include "render/guest_keyed_emitters.h"
 #include "render/guest_ordering_table.h"
 #include "render/letterbox_bars.h"
-#include "render/line_strip.h"
-#include "render/object_draw.h"
 #include "render/packed_mesh.h"
 #include "render/screen_fade.h"
 #include "render/subdivided_ground.h"
-#include "render/widescreen_margin_quad.h"
 #include "resident_natives.h"
 #include "sched/scheduler.h"
 #include "sched/task_slot_layout.h"
-#include "sway_model_emitter.h"
 #include "tile_grid_layer.h"
 #include "ui/dialog_glyphs.h"
 #include "ui/font.h"
@@ -139,35 +120,15 @@ void Runtime::registerOverrides(Game &game) {
   bindLoadedResident(game.core);
   psx::present::StateProducerTable &renders = sessionOf(&game.core).stateProducers;
   tomba::render::UnlitModelEmitter::registerStateRenders(renders, game.core);
-  OverlayGt3Gt4::registerStateRenders(renders, game.core);
-  tomba::render::SwayModelEmitter::registerStateRenders(renders, game.core);
-  tomba::render::LitModelEmitter::registerStateRenders(renders, game.core);
-  OverlayGroundGt3Gt4::registerStateRenders(renders, game.core);
   TileGridLayer::registerStateRenders(renders, game.core);
-  RainStreaks::registerStateRenders(renders);
-  tomba::render::DustField::registerStateRenders(renders, game.core);
   tomba::render::SubdividedGround::registerStateRenders(renders, game.core);
-  tomba::render::FogModelEmitter::registerStateRenders(renders, game.core);
   Font::registerStateRenders(renders);
   ScreenFade::registerStateRenders(renders);
   tomba::render::LetterboxBars::registerStateRenders(renders);
-  tomba::render::BackdropPlane::registerStateRenders(renders, game.core);
-  tomba::render::GradientBackdrop::registerStateRenders(renders);
-  tomba::render::BackdropSprites::registerStateRenders(renders, game.core);
   UiSprite::registerStateRenders(renders);
   tomba::render::BillboardState::registerStateRenders(renders, game.core);
   tomba::render::PackedMesh::registerStateRenders(renders, game.core);
-  FxSpriteAnchored::registerStateRenders(renders, game.core);
-  FxSpriteSwarm::registerStateRenders(renders, game.core);
-  tomba::render::ObjectDraws::registerStateRenders(renders);
-  tomba::render::LineStrip::registerStateRenders(renders, game.core);
-  QuadRtptSubmit::registerStateRenders(renders, game.core);
-  tomba::render::AnchorQuads::registerStateRenders(renders, game.core);
   tomba::render::GuestKeyedEmitters::registerStateRenders(renders);
-  HudGaugeEmitter::registerStateRenders(renders);
-  WidescreenMarginQuad::registerStateRenders(renders);
-  tomba::text_label_register_state_renders(renders);
-  tomba::render::AreaMap::registerStateRenders(renders, game.core);
   Panel::registerStateRenders(renders, game.core);
   DialogGlyphs::registerStateRenders(renders);
 }

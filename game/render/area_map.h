@@ -4,7 +4,6 @@
 
 #include "emit_memory.h"
 #include "list_job.h"
-#include "state_producer.h"
 
 #include <cstdint>
 
@@ -23,7 +22,6 @@ public:
   static void emit(const psx::present::EmitMemory &memory, const ListCall &call, std::uint32_t variant);
 
   static void registerOverrides(native::NativeOverrideCatalog &natives);
-  static void registerStateRenders(psx::present::StateProducerTable &renders, Core &core);
 };
 
 } // namespace tomba::render

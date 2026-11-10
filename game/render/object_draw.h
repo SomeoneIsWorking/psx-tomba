@@ -1,5 +1,5 @@
 // game/render/object_draw.h — one object drawn by several emitter calls, saved as one state.
-// A08 FUN_80117628 writes one mesh at four turns, and a billboard composes four times a frame.
+// A billboard node's instances (FUN_8004CC88) are one draw whose billboard composes are its parts.
 #pragma once
 
 #include "emission_scope.h"
@@ -12,10 +12,6 @@
 #include <vector>
 
 class Core;
-
-namespace tomba::native {
-class NativeOverrideCatalog;
-} // namespace tomba::native
 
 namespace tomba::render {
 
@@ -87,13 +83,6 @@ private:
   // Part offsets of the two states, kept so a render allocates only when a draw outgrows them.
   mutable std::vector<std::size_t> laterParts_;
   mutable std::vector<std::size_t> earlierParts_;
-};
-
-// The guest functions whose emitter calls are one object draw of the node in a0.
-class ObjectDraws {
-public:
-  static void registerOverrides(native::NativeOverrideCatalog &natives);
-  static void registerStateRenders(psx::present::StateProducerTable &renders);
 };
 
 } // namespace tomba::render

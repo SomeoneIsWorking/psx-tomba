@@ -1,9 +1,8 @@
 // game/render/gradient_backdrop.cpp — A0E FUN_80114178. See gradient_backdrop.h.
 #include "gradient_backdrop.h"
-#include "blend.h"
 #include "core.h"
 #include "core/overrides/native_override_catalog.h"
-#include "gp0_primitive_decode.h"
+#include "emission_scope.h"
 #include "guest_abi.h"
 #include "guest_call.h"
 #include "guest_ordering_table.h"
@@ -11,9 +10,6 @@
 #include "wide_window.h"
 #include <array>
 #include <cstdint>
-#include <cstdlib>
-#include <lucent/log.h>
-#include <memory>
 
 namespace tomba::render {
 namespace {
@@ -51,48 +47,7 @@ std::array<Band, kBandCount> bandsAt(std::int32_t origin) {
   }};
 }
 
-std::uint32_t xy(std::int32_t x, std::int32_t y) {
-  return static_cast<std::uint16_t>(x) | (static_cast<std::uint32_t>(static_cast<std::uint16_t>(y)) << 16);
-}
-
-// What one call drew: the pitch row, the columns and the OT slot of bucket 0.
-struct Saved {
-  std::uint32_t table = 0;
-  std::uint32_t slot = 0;
-  std::int32_t origin = 0;
-  std::int32_t left = 0;
-  std::int32_t right = 0;
-};
-
-// The bands at t: the pitch row moves, the columns are the later frame's.
-class BackdropRender final : public psx::present::StateProducer {
-public:
-  void render(const psx::present::StateInterval &states, psx::present::PrimitiveSink &sink) const override {
-    const auto [from, to, t] = states;
-    const auto later = psx::present::stateAs<Saved>(to);
-    const auto earlier = from.data() == to.data() ? later : psx::present::stateAs<Saved>(from);
-    const psx::present::OtSlot at{static_cast<std::uint16_t>(later.table),
-                                  static_cast<std::uint16_t>(later.slot + kBackgroundBucket)};
-    for (const Band &band : bandsAt(psx::present::lerpInt(earlier.origin, later.origin, t))) {
-      const std::uint32_t command[8] = {band.topColour | (std::uint32_t{kPolyG4} << 24),
-                                        xy(later.left, band.top),
-                                        band.topColour,
-                                        xy(later.right, band.top),
-                                        band.bottomColour,
-                                        xy(later.left, band.bottom),
-                                        band.bottomColour,
-                                        xy(later.right, band.bottom)};
-      auto primitive = psx::gpu::decodePacketPrimitive({.words = command, .places = {}});
-      if (!primitive) {
-        lucent::error("gradient-backdrop", "band packet did not decode");
-        std::abort();
-      }
-      sink.emit(at, *primitive);
-    }
-  }
-};
-
-// The bands and their draw mode packet, under one object scope that saves the state they were drawn from.
+// The bands and their draw mode packet, under one object scope.
 void emitBands(Core *c, const OrderingTable &ot, const PacketPool &pool, const psx::present::EmitMemory &memory) {
   const psx::present::EmissionScope::Guard object(c->emission, kEntry, 0, 0);
   const std::int32_t origin = (-(c->mem_r16s(kCameraPitch) * kPitchToScreenY)) >> 12;
@@ -126,10 +81,6 @@ void emitBands(Core *c, const OrderingTable &ot, const PacketPool &pool, const p
   memory.mem_w32(mode, ot.head(kBackgroundBucket) | kDrawModeTag);
   ot.setHead(kBackgroundBucket, mode);
   pool.setCursor(mode + kDrawModeBytes);
-  const auto table = c->otTables.slotOf(ot.base());
-  if (table) {
-    c->frameStates.save(c->emission.current(), Saved{table->table, table->index, origin, window.left, window.right});
-  }
 }
 
 } // namespace
@@ -145,10 +96,6 @@ void GradientBackdrop::emit(Core *c) {
 
 void GradientBackdrop::registerOverrides(native::NativeOverrideCatalog &natives) {
   natives.declareOverlay("A0E", kEntry, "&GradientBackdrop::emit", &GradientBackdrop::emit);
-}
-
-void GradientBackdrop::registerStateRenders(psx::present::StateProducerTable &renders) {
-  renders.install(kEntry, std::make_unique<BackdropRender>());
 }
 
 } // namespace tomba::render

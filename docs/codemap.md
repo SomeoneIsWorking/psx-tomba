@@ -21,8 +21,8 @@ Frame loop: owned. `tomba::FrameDriver` runs one pass of `0x80050B08` (update `0
 | `BootCards` | `game/core/frame/boot_cards.h` | The SCEA card and LOGO movie before the first game frame, one step per `stepFrame` |
 | `decodeSceaSplash` | `game/core/frame/scea_splash.h`, `scea_asset.h` | The SCEA card's texture page and CLUT, decoded to the host picture `BootCards` shows |
 | `FrameCadence` | `game/core/frame/frame_cadence.h` | The frame-rate decision, published into the guest's quota byte |
-| `DrawReplay` | `game/core/frame/draw_replay.h` | Gameplay in-betweens: the field or room draw replayed with its moving inputs blended (`ReplayFrame`), entered from `Render::frame`/`frameX` |
-| `DrawSection` | `game/core/frame/draw_section.h` | M:8003F9A8 or M:8003FA44 as a replay section; `linked` names the OT chain of either display buffer |
+| `DrawReplay` | `game/core/frame/draw_replay.h` | Gameplay in-betweens, paused and attract frames included: the field or room draw replayed with its moving inputs blended (`ReplayFrame`), entered from `Render::frame`/`frameX` |
+| `DrawSection` | `game/core/frame/draw_section.h` | M:8003F9A8 or M:8003FA44, then in GAME the page step G:8010810C (the pause menu), as a replay section; `linked` names the OT chain of either display buffer |
 | `DrawMotion` | `game/core/frame/draw_motion.h` | The tracks: view MATRIX and angles, Tomba, the node pools, the render records' world MATRIX and part angles (live by `RenderRecordPool`'s free stack), the effect table |
 | `FrameCut` | `game/core/frame/frame_cut.h` | Whether a sealed record is a cut (stage, area, sub-scene, SOP shot, camera re-place) |
 | `FrameDiagnostics` | `game/core/frame/frame_diagnostics.h` | Per-frame title probes reported after the frame |
@@ -60,18 +60,18 @@ Frame loop: owned. `tomba::FrameDriver` runs one pass of `0x80050B08` (update `0
 | `Inventory`, `ItemGrant` | `game/items/` | Item collection and the give-and-flag the debug `items` command uses |
 | `Math`, `Mtx`, `Trig`, `Rng`, `Bit` | `game/math/` | The GTE transform cluster, libgte matrix and trig leaves, the LFSR, flag bits |
 | `Font`, `Panel`, `DialogGlyphs`, `UiSprite`, `OptionsPage`, `SaveMenu`, `DialogTextStream` | `game/ui/` | Guest-time UI ports: glyphs, panels (`panel_build.cpp` the 9-slice build, `panel_fill.cpp` its quads), dialog-box glyphs, 2D sprite writers, options, save menu, dialog stream |
-| `Render` | `game/render/render.h`, `game/render/render_frame.cpp` | The per-Core render umbrella and the guest render orchestrator |
+| `Render` | `game/render/render.h`, `game/render/render_frame.cpp` | The per-Core render umbrella and the guest render orchestrators, overridden so every guest caller (GAME's submode frames, DEMO's attract frame) reaches `Render::frame`/`frameX` |
 | `OrderingTable`, `PacketPool` | `game/render/guest_ordering_table.h` | The guest OT and packet pool: link, allocate, depth-to-bucket, `extremeDepth` |
 | `ModelPacket`, `UnlitModelEmitter`, `LitModelEmitter`, `SwayModelEmitter` | `game/render/*model*` | The GT3/GT4 model list emitters and their shared steps |
 | `OverlayGt3Gt4`, `OverlayGroundGt3Gt4` | `game/render/overlay_*gt3gt4.*` | The overlay scenery GT3/GT4 emitters |
 | `PackedMesh`, `DropShadow` | `game/render/packed_mesh.h`, `game/render/drop_shadow.h` | The packed-mesh writer FUN_80027768 and the drop shadow FUN_8002AB5C |
 | `ListJob`, `ListStateProducer` | `game/render/list_job.h`, `game/render/list_state_producer.h` | An emitter call saved as state and replayed over host memory between frames |
-| `ObjectEffect`, `ObjectDraw` | `game/render/object_effect.h`, `game/render/object_draw.h` | The dispatcher's per-object effect over an emitted packet span, saved with each emitter's state; a multi-call draw as one object with numbered parts |
+| `ObjectEffect`, `ObjectDraw` | `game/render/object_effect.h`, `game/render/object_draw.h` | The dispatcher's per-object effect over an emitted packet span, saved with each emitter's state; a billboard node's instances as one object with numbered parts |
 | `BackdropPlane` | `game/render/backdrop_plane.h` | A0E's boss arena waterfall plane FUN_80110CA4: its grid, reflection and haze band |
 | `BackdropSprites` | `game/render/backdrop_sprites.h` | A0E's boss arena background sprites FUN_80111E14: seeded anchors stamped as scaled sprites |
 | `GradientBackdrop` | `game/render/gradient_backdrop.h` | A0E's boss arena sky FUN_80114178: gouraud bands across the draw window |
 | `LineStrip`, `AreaMap`, `ScaledSprites` | `game/render/line_strip.h`, `game/render/area_map.h`, `game/render/scaled_sprites.h` | A08's node strip and A02/A07's map+marker; the scaled sprite-record writer the FX sprite emitters stamp through |
-| `AnchorQuads`, `GuestKeyedEmitters`, `QuadStateRender` | `game/render/anchor_quads.h`, `game/render/guest_keyed_emitters.h`, `game/render/quad_state.h` | The guest render fns keyed to their node (A00's anchor/chain quads, the A01/A00 unported leaves, the DEMO and A01 bodies that take no object) and the text-label glyph quads: state = the packets they linked, render moves the screen vertices |
+| `GuestKeyedEmitters`, `QuadStateRender` | `game/render/guest_keyed_emitters.h`, `game/render/quad_state.h` | The guest render fns keyed to their node (the A01/A00 unported leaves, the DEMO and A01 bodies that take no object): state = the packets they linked, render moves the screen vertices |
 | `AnchoredPackets`, `BillboardState`, `CallSiteObjects` | `game/render/anchored_packets.h`, `game/render/billboard_state.h`, `game/render/call_site_objects.h` | Saved state of anchored 2D writers and billboards; the call-site object key |
 | `ScreenFade`, `LetterboxBars`, `HudGaugeEmitter` | `game/render/screen_fade.h`, `game/render/letterbox_bars.h`, `game/render/hud_gauge_emitter.h` | The fade leaf FUN_8007E9C8, the cutscene letterbox FUN_80026864, the HUD gauge FUN_8004FD30 (keyed: its glyph rows draw through the still-guest FUN_8004EB94) |
 | `NodeXform`, `ObjModelView`, `QuadRtptSubmit`, `LibgpuDrawEnv` | `game/render/` | Node transforms, model-view setup, the shared quad submit, DRAWENV compile |

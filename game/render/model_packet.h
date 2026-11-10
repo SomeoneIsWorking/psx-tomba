@@ -238,11 +238,4 @@ std::uint32_t emitModelList(const psx::present::EmitMemory &memory,
   return record;
 }
 
-// The saved call of a model list emitter: its records and the packets it may write.
-inline ListJobWriter modelListJob(Core &core, std::uint32_t variant, const ListCall &call, const ModelShape &shape) {
-  ListJobWriter job(core, variant, call, call.count * shape.packetBytes);
-  job.input(core, call.list, call.count * shape.recordBytes);
-  return job;
-}
-
 } // namespace tomba::render

@@ -15,7 +15,7 @@ class DrawReplay {
 public:
   explicit DrawReplay(world::RenderRecordPool &records);
 
-  // `variant` is about to draw: paired with the last frame's draw when both drew it unpaused.
+  // `variant` is about to draw, paused or not: paired with the last frame's draw when both drew it in one stage.
   void beforeDraw(Core &core, DrawSection::Variant variant);
   // The logic frame ended; one that did not draw, or that FrameCut declared a cut, breaks the pairing.
   void endFrame(bool cut);
@@ -30,7 +30,7 @@ private:
   DrawSection section_;
   DrawMotion motion_;
   psx::present::ReplayFrame frame_;
-  std::optional<DrawSection::Variant> drawn_;
+  std::optional<DrawSection::Selection> drawn_;
   bool drewThisFrame_ = false;
 };
 

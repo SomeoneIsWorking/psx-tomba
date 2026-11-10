@@ -76,8 +76,6 @@ public:
   // dispatch, so wired via the overlay's own `A00 tomba::native::declareOverride` table (through the process-global
   // override registry's tomba::native::declareOverride, not a raw table poke).
   static void registerOverrides(native::NativeOverrideCatalog &natives);
-  // The renders of the leaves' saved calls, at every copy's entries.
-  static void registerStateRenders(psx::present::StateProducerTable &renders, Core &core);
 };
 
 } // namespace tomba

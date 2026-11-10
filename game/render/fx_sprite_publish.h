@@ -63,7 +63,4 @@ struct FxSpritePublish {
   psx::gte::ProjectedVertex scaledCorner(const ScaledOffset &offset) const;
 };
 
-// The scene camera an emitter loads, kept in its saved call so a render moves it as a transform.
-void keepSceneCamera(render::ListJobWriter &job, Core &core);
-
 } // namespace tomba

@@ -1,8 +1,6 @@
 // game/render/dust_field.h — white points of the camera lattice: A0B FUN_801110BC's dust, A04 FUN_8013AD90's snow.
 #pragma once
 
-#include "state_producer.h"
-
 struct Core;
 
 namespace tomba::native {
@@ -21,8 +19,6 @@ public:
   static void drawSnow(Core *c);
 
   static void registerOverrides(native::NativeOverrideCatalog &natives);
-  // One call is the node's object; the render moves the camera by t and projects the points again.
-  static void registerStateRenders(psx::present::StateProducerTable &renders, Core &core);
 };
 
 } // namespace tomba::render

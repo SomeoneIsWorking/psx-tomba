@@ -2,14 +2,11 @@
 #include "object_draw.h"
 
 #include "core.h"
-#include "core/overrides/native_override_catalog.h"
 #include "entry/session.h"
-#include "native_dispatch.h"
 
 #include <cstdlib>
 #include <cstring>
 #include <lucent/log.h>
-#include <memory>
 #include <optional>
 #include <vector>
 
@@ -71,30 +68,6 @@ partner(std::span<const std::byte> bytes, std::span<const std::size_t> offsets, 
     }
   }
   return std::nullopt;
-}
-
-// A08 FUN_80117628: one mesh at four quarter turns, again faded, then two packed meshes, for the node in a0.
-constexpr std::uint32_t kQuarterTurnMesh = 0x80117628u;
-
-// The hanging strip: one world quad per segment, swaying with the node. A0F's body is A0A's sway branch.
-constexpr std::uint32_t kHangingStripA0a = 0x80114E64u;
-constexpr std::uint32_t kHangingStripA0f = 0x801175C0u;
-
-void drawParts(Core &core, std::uint32_t drawer, const char *owner) {
-  const ObjectDrawScope draw(core, drawer, eng(&core).graphicsBind.records.object(core.r[4]));
-  psx::cpu::callOriginalToReturn(core, drawer, psx::cpu::ExecutionBudget::currentTurn(core), owner);
-}
-
-void drawHangingStripA0a(Core *core) {
-  drawParts(*core, kHangingStripA0a, "ObjectDraws::hangingStrip");
-}
-
-void drawHangingStripA0f(Core *core) {
-  drawParts(*core, kHangingStripA0f, "ObjectDraws::hangingStrip");
-}
-
-void drawQuarterTurnMesh(Core *core) {
-  drawParts(*core, kQuarterTurnMesh, "ObjectDraws::quarterTurnMesh");
 }
 
 } // namespace
@@ -167,22 +140,6 @@ void ObjectDrawRender::render(const psx::present::StateInterval &states, psx::pr
     const std::optional<Part> earlier = partner(from, earlierParts_, part.header);
     producer->render({.from = earlier ? earlier->state : part.state, .to = part.state, .t = t}, sink);
   }
-}
-
-} // namespace tomba::render
-
-namespace tomba::render {
-
-void ObjectDraws::registerOverrides(native::NativeOverrideCatalog &natives) {
-  natives.declareOverlay("A08", kQuarterTurnMesh, "ObjectDraws::quarterTurnMesh", &drawQuarterTurnMesh);
-  natives.declareOverlay("A0A", kHangingStripA0a, "ObjectDraws::hangingStrip", &drawHangingStripA0a);
-  natives.declareOverlay("A0F", kHangingStripA0f, "ObjectDraws::hangingStrip", &drawHangingStripA0f);
-}
-
-void ObjectDraws::registerStateRenders(psx::present::StateProducerTable &renders) {
-  renders.install(kQuarterTurnMesh, std::make_unique<ObjectDrawRender>(renders));
-  renders.install(kHangingStripA0a, std::make_unique<ObjectDrawRender>(renders));
-  renders.install(kHangingStripA0f, std::make_unique<ObjectDrawRender>(renders));
 }
 
 } // namespace tomba::render

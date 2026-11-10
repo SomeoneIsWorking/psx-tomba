@@ -6,12 +6,11 @@
 #include "gte_registers.h"
 #include "guest_abi.h"
 #include "horizontal_visibility_cull.h"
-#include "list_state_producer.h"
+#include "list_job.h"
 #include "model_packet.h"
 #include "trig.h"
 
 #include <array>
-#include <memory>
 #include <string_view>
 
 namespace tomba::render {
@@ -39,7 +38,6 @@ constexpr std::uint32_t kGt3Seed = 0x34808080u;
 constexpr std::uint32_t kGt4Seed = 0x3C808080u;
 
 constexpr std::uint32_t kLight = 0x1F800160u; // s16 x, y, z
-constexpr std::uint32_t kLightBytes = 6u;
 constexpr std::int32_t kMaxIntensity = 0x4000;
 constexpr std::uint32_t kDeepenFlag = 8u;
 constexpr std::int32_t kDeepenBias = 0x80;
@@ -96,14 +94,9 @@ bool finish(const psx::present::EmitMemory &memory,
   return true;
 }
 
-// The guest call inside its frame: the call and the words the body reads are saved, then the body runs.
+// The guest call inside its frame.
 void runGuest(Core &core, const Visibility &visible, LitModelEmitter::FlagBits bits, bool quad) {
-  const ListCall call = ListCall::fromRegisters(core);
-  ListJobWriter job = modelListJob(core, quad ? 1u : 0u, call, quad ? kModelGt4 : kModelGt3);
-  job.input(core, kLight, kLightBytes);
-  job.input(core, kHideWord, sizeof(std::uint32_t));
-  core.r[2] = LitModelEmitter::emit(core, call, visible, bits, quad);
-  job.save(core);
+  core.r[2] = LitModelEmitter::emit(core, ListCall::fromRegisters(core), visible, bits, quad);
 }
 
 template <std::uint32_t Entry, bool Quad, LitModelEmitter::FlagBits Bits> void emitAt(Core *core) {
@@ -116,28 +109,12 @@ template <std::uint32_t Entry, bool Quad, LitModelEmitter::FlagBits Bits> void e
   }
 }
 
-class LitStateProducer final : public ListStateProducer {
-public:
-  LitStateProducer(Core &core, LitModelEmitter::FlagBits bits, bool quad)
-      : ListStateProducer(core), mBits(bits), mQuad(quad) {}
-
-protected:
-  void emit(const psx::present::EmitMemory &memory, std::uint32_t, const ListCall &call) const override {
-    LitModelEmitter::emit(memory, call, horizontal_cull::forDrawWindow(&core()), mBits, mQuad);
-  }
-
-private:
-  LitModelEmitter::FlagBits mBits;
-  bool mQuad;
-};
-
 struct Copy {
   std::string_view image;
   std::uint32_t gt3;
   std::uint32_t gt4;
   psx::cpu::NativeFunction gt3Body;
   psx::cpu::NativeFunction gt4Body;
-  LitModelEmitter::FlagBits bits;
 };
 
 constexpr auto kRetail = LitModelEmitter::kRetailFlags;
@@ -145,26 +122,11 @@ constexpr auto kA01 = LitModelEmitter::kA01Flags;
 constexpr auto kA06 = LitModelEmitter::kA06Flags;
 
 constexpr Copy kCopies[] = {
-    {"A01", 0x801316A8u, 0x80131BB0u, &emitAt<0x801316A8u, false, kA01>, &emitAt<0x80131BB0u, true, kA01>, kA01},
-    {"A05",
-     0x8013544Cu,
-     0x8013590Cu,
-     &emitAt<0x8013544Cu, false, kRetail>,
-     &emitAt<0x8013590Cu, true, kRetail>,
-     kRetail},
-    {"A06", 0x8013C0D8u, 0x8013C5B4u, &emitAt<0x8013C0D8u, false, kA06>, &emitAt<0x8013C5B4u, true, kA06>, kA06},
-    {"A07",
-     0x8012CDF4u,
-     0x8012D2B4u,
-     &emitAt<0x8012CDF4u, false, kRetail>,
-     &emitAt<0x8012D2B4u, true, kRetail>,
-     kRetail},
-    {"A08",
-     0x80129BACu,
-     0x8012A06Cu,
-     &emitAt<0x80129BACu, false, kRetail>,
-     &emitAt<0x8012A06Cu, true, kRetail>,
-     kRetail},
+    {"A01", 0x801316A8u, 0x80131BB0u, &emitAt<0x801316A8u, false, kA01>, &emitAt<0x80131BB0u, true, kA01>},
+    {"A05", 0x8013544Cu, 0x8013590Cu, &emitAt<0x8013544Cu, false, kRetail>, &emitAt<0x8013590Cu, true, kRetail>},
+    {"A06", 0x8013C0D8u, 0x8013C5B4u, &emitAt<0x8013C0D8u, false, kA06>, &emitAt<0x8013C5B4u, true, kA06>},
+    {"A07", 0x8012CDF4u, 0x8012D2B4u, &emitAt<0x8012CDF4u, false, kRetail>, &emitAt<0x8012D2B4u, true, kRetail>},
+    {"A08", 0x80129BACu, 0x8012A06Cu, &emitAt<0x80129BACu, false, kRetail>, &emitAt<0x8012A06Cu, true, kRetail>},
 };
 
 } // namespace
@@ -202,13 +164,6 @@ void LitModelEmitter::registerOverrides(native::NativeOverrideCatalog &natives) 
   for (const Copy &copy : kCopies) {
     natives.declareOverlay(copy.image, copy.gt3, "LitModelEmitter::gt3", copy.gt3Body);
     natives.declareOverlay(copy.image, copy.gt4, "LitModelEmitter::gt4", copy.gt4Body);
-  }
-}
-
-void LitModelEmitter::registerStateRenders(psx::present::StateProducerTable &renders, Core &core) {
-  for (const Copy &copy : kCopies) {
-    renders.install(copy.gt3, std::make_unique<LitStateProducer>(core, copy.bits, false));
-    renders.install(copy.gt4, std::make_unique<LitStateProducer>(core, copy.bits, true));
   }
 }
 

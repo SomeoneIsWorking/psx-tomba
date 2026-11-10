@@ -1,4 +1,5 @@
-// draw_section.h — the field draw M:8003F9A8 or the room draw M:8003FA44 as a replay section.
+// draw_section.h — the field draw M:8003F9A8 or the room draw M:8003FA44, then in GAME the page step G:8010810C,
+// as a replay section.
 #pragma once
 
 #include "replay_frame.h"
@@ -15,9 +16,15 @@ public:
     Room,  // 0x8003FA44: no scenery walker or tile grid
   };
 
-  // The variant the frame is about to draw, replayed until the next.
-  void select(Variant variant) {
-    variant_ = variant;
+  // What the frame is about to draw, replayed until the next: GAME's frames follow the draw with the page step,
+  // the DEMO attract frame does not.
+  struct Selection {
+    Variant variant = Variant::Field;
+    bool pageStep = true;
+    bool operator==(const Selection &) const = default;
+  };
+  void select(Selection selection) {
+    selection_ = selection;
   }
 
   // No preamble: the env, its OT and the packet pool are already the frame's.
@@ -25,7 +32,7 @@ public:
   [[nodiscard]] bool linked(std::uint32_t head) const override;
 
 private:
-  Variant variant_ = Variant::Field;
+  Selection selection_;
 };
 
 } // namespace tomba

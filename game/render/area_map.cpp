@@ -6,9 +6,7 @@
 #include "guest_abi.h"
 #include "guest_ordering_table.h"
 #include "libgpu_draw_mode.h"
-#include "list_state_producer.h"
-
-#include <memory>
+#include "list_job.h"
 
 namespace tomba::render {
 namespace {
@@ -25,7 +23,6 @@ constexpr std::uint32_t kSpriteBytes = 0x14u;
 constexpr std::uint32_t kSpriteWords = 4u;
 constexpr std::uint32_t kModeBytes = 0xCu;
 constexpr std::uint32_t kModeWords = 2u;
-constexpr std::uint32_t kPacketBytes = 2u * kSpriteBytes + kModeBytes;
 
 struct Sprite {
   std::uint8_t code;
@@ -100,25 +97,10 @@ template <std::uint32_t Variant> void emitForGuest(Core *core) {
       .list = 0, .ot = core->mem_r32(OrderingTable::kBasePointer), .count = 0, .a3 = 0, .sp = core->r[29], .a1 = 0};
   ::GuestFrame<kFrameBytes, 5> frame(core, kSpills);
   const EmitterObject object(*core, layout.emitter, OwnObject{layout.emitter});
-  ListJobWriter job(*core, Variant, call, kPacketBytes);
-  job.input(*core, kPlayerX, 2, InputBlend::Lanes16);
-  job.input(*core, kPlayerZ, 2, InputBlend::Lanes16);
-  job.input(*core, kClock, 2);
   AreaMap::emit(*core, call, Variant);
   // The down axis's scaling is the body's last mult; it leaves hi/lo guest-visible.
   psx::cpu::multiply(core, core->mem_r16s(layout.down) - layout.downOrigin, static_cast<std::int32_t>(0xB40B40B5u));
-  job.save(*core);
 }
-
-class AreaMapProducer final : public ListStateProducer {
-public:
-  using ListStateProducer::ListStateProducer;
-
-protected:
-  void emit(const psx::present::EmitMemory &memory, std::uint32_t variant, const ListCall &call) const override {
-    AreaMap::emit(memory, call, variant);
-  }
-};
 
 } // namespace
 
@@ -151,12 +133,6 @@ void AreaMap::emit(const psx::present::EmitMemory &memory, const ListCall &call,
 void AreaMap::registerOverrides(native::NativeOverrideCatalog &natives) {
   natives.declareOverlay("A02", kLayouts[0].emitter, "AreaMap::emit", &emitForGuest<0>);
   natives.declareOverlay("A07", kLayouts[1].emitter, "AreaMap::emit", &emitForGuest<1>);
-}
-
-void AreaMap::registerStateRenders(psx::present::StateProducerTable &renders, Core &core) {
-  for (const Layout &layout : kLayouts) {
-    renders.install(layout.emitter, std::make_unique<AreaMapProducer>(core));
-  }
 }
 
 } // namespace tomba::render

@@ -53,8 +53,6 @@ public:
                             FlagBits flags,
                             bool quad);
   static void registerOverrides(native::NativeOverrideCatalog &natives);
-  // The renders of the saved calls, at every copy's entries.
-  static void registerStateRenders(psx::present::StateProducerTable &renders, Core &core);
 };
 
 } // namespace tomba::render

@@ -59,13 +59,12 @@
 #include "game.h"
 #include "guest_ordering_table.h"
 #include "horizontal_visibility_cull.h"
-#include "list_state_producer.h"
+#include "list_job.h"
 #include "model_element.h"
 #include "model_packet.h"
 #include <array>
 #include <cstdint>
 #include <lucent/log.h>
-#include <memory>
 #include <string_view>
 
 // -- the two fixed SCRATCHPAD words this leaf pair uses as spilled locals (0x1F800000/0x1F800004
@@ -465,10 +464,7 @@ void OverlayGroundGt3Gt4::entityLoop(Core *c) {
 void OverlayGroundGt3Gt4::leaf(Core *c, std::uint32_t entry, bool quad, const ListDepth &depth) {
   const tomba::render::ListCall call = tomba::render::ListCall::fromRegisters(*c);
   const tomba::render::EmitterObject object(*c, entry, call.list);
-  tomba::render::ListJobWriter job =
-      tomba::render::modelListJob(*c, quad ? 1u : 0u, call, quad ? tomba::render::kModelGt4 : tomba::render::kModelGt3);
   c->r[2] = quad ? emitGt4(*c, call, depth) : emitGt3(*c, call, depth);
-  job.save(*c);
 }
 
 namespace {
@@ -488,44 +484,14 @@ struct Copy {
   std::uint32_t gt4;
   psx::cpu::NativeFunction gt3Body;
   psx::cpu::NativeFunction gt4Body;
-  const OverlayGroundGt3Gt4::Variant *variant;
 };
 
 // The A00 pair; the scenery walkers A02 0x80124CB8, A07 0x8012DA14 and A0L 0x8010B0B8 call their copies.
 constexpr Copy kCopies[] = {
-    {"A00", 0x8013FB88u, 0x8013FE58u, &emitAt<0x8013FB88u, false, kA00>, &emitAt<0x8013FE58u, true, kA00>, &kA00},
-    {"A02",
-     0x801246A4u,
-     0x8012496Cu,
-     &emitAt<0x801246A4u, false, kFarthest>,
-     &emitAt<0x8012496Cu, true, kFarthest>,
-     &kFarthest},
-    {"A07",
-     0x8012C7E0u,
-     0x8012CAA8u,
-     &emitAt<0x8012C7E0u, false, kFarthest>,
-     &emitAt<0x8012CAA8u, true, kFarthest>,
-     &kFarthest},
-    {"A0L", 0x8010AA4Cu, 0x8010AD40u, &emitAt<0x8010AA4Cu, false, kA0L>, &emitAt<0x8010AD40u, true, kA0L>, &kA0L},
-};
-
-class GroundStateProducer final : public tomba::render::ListStateProducer {
-public:
-  GroundStateProducer(Core &core, const OverlayGroundGt3Gt4::ListDepth &depth, bool quad)
-      : ListStateProducer(core), mDepth(depth), mQuad(quad) {}
-
-protected:
-  void emit(const psx::present::EmitMemory &memory, std::uint32_t, const tomba::render::ListCall &call) const override {
-    if (mQuad) {
-      OverlayGroundGt3Gt4::emitGt4(memory, call, mDepth);
-    } else {
-      OverlayGroundGt3Gt4::emitGt3(memory, call, mDepth);
-    }
-  }
-
-private:
-  const OverlayGroundGt3Gt4::ListDepth &mDepth;
-  bool mQuad;
+    {"A00", 0x8013FB88u, 0x8013FE58u, &emitAt<0x8013FB88u, false, kA00>, &emitAt<0x8013FE58u, true, kA00>},
+    {"A02", 0x801246A4u, 0x8012496Cu, &emitAt<0x801246A4u, false, kFarthest>, &emitAt<0x8012496Cu, true, kFarthest>},
+    {"A07", 0x8012C7E0u, 0x8012CAA8u, &emitAt<0x8012C7E0u, false, kFarthest>, &emitAt<0x8012CAA8u, true, kFarthest>},
+    {"A0L", 0x8010AA4Cu, 0x8010AD40u, &emitAt<0x8010AA4Cu, false, kA0L>, &emitAt<0x8010AD40u, true, kA0L>},
 };
 
 } // namespace
@@ -541,13 +507,6 @@ void OverlayGroundGt3Gt4::registerOverrides(native::NativeOverrideCatalog &nativ
                          "&OverlayGroundGt3Gt4::entityLoop",
                          &OverlayGroundGt3Gt4::entityLoop,
                          psx::present::Producer{psx::present::Arg::A0});
-}
-
-void OverlayGroundGt3Gt4::registerStateRenders(psx::present::StateProducerTable &renders, Core &core) {
-  for (const Copy &copy : kCopies) {
-    renders.install(copy.gt3, std::make_unique<GroundStateProducer>(core, copy.variant->gt3, false));
-    renders.install(copy.gt4, std::make_unique<GroundStateProducer>(core, copy.variant->gt4, true));
-  }
 }
 
 } // namespace tomba

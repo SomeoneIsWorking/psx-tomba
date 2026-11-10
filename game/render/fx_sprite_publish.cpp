@@ -58,10 +58,6 @@ bool FxSpritePublish::projectAnchor(const ProjectAnchorArgs &args) const {
   return true;
 }
 
-void keepSceneCamera(render::ListJobWriter &job, Core &core) {
-  job.input(core, kSceneCamera, kSceneCameraWords * 4, render::InputBlend::Camera);
-}
-
 psx::gte::ProjectedVertex FxSpritePublish::scaledCorner(const ScaledOffset &offset) const {
   Core *core = &mMemory.core();
   const uint32_t anchor = offset.anchor.word();

@@ -8,20 +8,25 @@
 #include "guest_abi.h"
 #include "guest_ordering_table.h"
 #include "list_job.h"
-#include "list_state_producer.h"
 #include "object_draw.h"
 #include "scaled_sprites.h"
 
 #include <cstdint>
-#include <memory>
 
 namespace tomba::render {
 namespace {
 
 constexpr std::uint32_t kEntry = 0x80111E14u;
-constexpr GuestFrameSpill kSpills[] = {
-    {31, 0x34}, {30, 0x30}, {23, 0x2C}, {22, 0x28}, {21, 0x24}, {20, 0x20}, {19, 0x1C}, {18, 0x18}, {17, 0x14},
-    {16, 0x10}};
+constexpr GuestFrameSpill kSpills[] = {{31, 0x34},
+                                       {30, 0x30},
+                                       {23, 0x2C},
+                                       {22, 0x28},
+                                       {21, 0x24},
+                                       {20, 0x20},
+                                       {19, 0x1C},
+                                       {18, 0x18},
+                                       {17, 0x14},
+                                       {16, 0x10}};
 
 constexpr std::uint32_t kReseed = 0x8011CE60u;  // u32; non-zero seeds the anchors on the next call
 constexpr std::uint32_t kAnchors = 0x80126F4Cu; // 8 x {s16 x, y, z, w}
@@ -87,16 +92,6 @@ void stampAnchors(const psx::present::EmitMemory &memory, std::uint32_t ot) {
   }
 }
 
-class BackdropSpritesRender final : public ListStateProducer {
-public:
-  using ListStateProducer::ListStateProducer;
-
-protected:
-  void emit(const psx::present::EmitMemory &memory, std::uint32_t, const ListCall &call) const override {
-    stampAnchors(memory, call.ot);
-  }
-};
-
 } // namespace
 
 void BackdropSprites::draw(Core *c) {
@@ -107,23 +102,12 @@ void BackdropSprites::draw(Core *c) {
   const psx::present::EmitMemory memory(*c);
   FxSpritePublish{memory}.loadSceneCamera(kDqa);
   const std::uint32_t ot = OrderingTable::active(memory).base();
-  const ListCall call{.list = kAnchors, .ot = ot, .count = 0, .a3 = 0, .sp = c->r[psx::cpu::kSp], .a1 = 0};
   const EmitterObject object(*c, kEntry, OwnObject{kAnchors});
-  const std::uint32_t recordBytes = ScaledSprites::recordCount(memory, kRecords) * ScaledSprites::kRecordBytes;
-  ListJobWriter job(
-      *c, 0u, call, kAnchorCount * ScaledSprites::recordCount(memory, kRecords) * ScaledSprites::kPacketBytes);
-  job.input(*c, kAnchors, kAnchorCount * kAnchorBytes);
-  job.input(*c, kTextureClut, sizeof(std::uint32_t) + recordBytes);
   stampAnchors(memory, ot);
-  job.save(*c);
 }
 
 void BackdropSprites::registerOverrides(native::NativeOverrideCatalog &natives) {
   natives.declareOverlay("A0E", kEntry, "&BackdropSprites::draw", &BackdropSprites::draw);
-}
-
-void BackdropSprites::registerStateRenders(psx::present::StateProducerTable &renders, Core &core) {
-  renders.install(kEntry, std::make_unique<BackdropSpritesRender>(core));
 }
 
 } // namespace tomba::render

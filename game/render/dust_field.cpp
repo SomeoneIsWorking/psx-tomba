@@ -9,11 +9,9 @@
 #include "guest_ordering_table.h"
 #include "horizontal_visibility_cull.h"
 #include "list_job.h"
-#include "list_state_producer.h"
 #include "object_draw.h"
 
 #include <cstdint>
-#include <memory>
 
 namespace tomba::render {
 namespace {
@@ -56,7 +54,7 @@ constexpr std::int32_t kSnowNearZ = 0x2711;
 constexpr std::int32_t kSnowLowY = -0x2327;
 constexpr std::int32_t kSnowFarZ = 0x2CED;
 
-enum Variant : std::uint32_t { kDust = 0, kSnow = 1 };
+enum Variant : std::uint8_t { kDust = 0, kSnow = 1 };
 
 // The next lattice point from the seed, wrapped into the cube.
 class PointStream {
@@ -101,7 +99,7 @@ bool insideCaveMouth(CameraLattice::Point corner, CameraLattice::Point point) {
   return z < kSnowNearZ || (corner.y + point.y < kSnowLowY && z < kSnowFarZ);
 }
 
-void drawPoints(const psx::present::EmitMemory &memory, std::uint32_t variant, const ListCall &call) {
+void drawPoints(const psx::present::EmitMemory &memory, Variant variant, const ListCall &call) {
   const std::uint32_t node = call.list;
   const CameraLattice::Point corner = CameraLattice::corner(memory);
   memory.mem_w16(call.sp + kCornerLocal, static_cast<std::uint16_t>(corner.x));
@@ -151,27 +149,6 @@ void drawPoints(const psx::present::EmitMemory &memory, std::uint32_t variant, c
   pool.setCursor(packet);
 }
 
-class DustFieldRender final : public ListStateProducer {
-public:
-  using ListStateProducer::ListStateProducer;
-
-protected:
-  void emit(const psx::present::EmitMemory &memory, std::uint32_t variant, const ListCall &call) const override {
-    drawPoints(memory, variant, call);
-  }
-};
-
-// Saves the camera and node inputs every variant blends, then draws.
-ListJobWriter cameraJob(Core &core, std::uint32_t variant, const ListCall &call, std::uint32_t points) {
-  ListJobWriter job(core, variant, call, points * kRectBytes);
-  job.input(core, CameraLattice::kCameraMatrix, CameraLattice::kCameraBytes, InputBlend::Camera);
-  for (std::uint32_t axis = 0; axis < 3u; ++axis) {
-    job.input(core, CameraLattice::kCameraPosition + axis * 4u, sizeof(std::int16_t), InputBlend::Lanes16);
-  }
-  job.input(core, call.list + CameraLattice::kNodeOrigin, 3u * sizeof(std::int16_t), InputBlend::Lanes16);
-  return job;
-}
-
 ListCall callOf(Core &core) {
   const std::uint32_t ot = OrderingTable::active(psx::present::EmitMemory(core)).base();
   return {.list = core.r[4], .ot = ot, .count = 0, .a3 = 0, .sp = core.r[psx::cpu::kSp], .a1 = ot};
@@ -183,11 +160,7 @@ void DustField::draw(Core *c) {
   GuestFrame<0x40, 9> frame(c, kDustSpills);
   const ListCall call = callOf(*c);
   const EmitterObject object(*c, kDustEntry, OwnObject{call.list});
-  ListJobWriter job = cameraJob(*c, kDust, call, kDustCount);
-  job.input(*c, call.list + CameraLattice::kNodeSeed, sizeof(std::uint32_t));
-  job.input(*c, kDustMultiplier, sizeof(std::uint32_t));
   drawPoints(psx::present::EmitMemory(*c), kDust, call);
-  job.save(*c);
 }
 
 void DustField::drawSnow(Core *c) {
@@ -199,21 +172,12 @@ void DustField::drawSnow(Core *c) {
     return;
   }
   const EmitterObject object(*c, kSnowEntry, OwnObject{call.list});
-  const std::int32_t last = c->mem_r16s(call.list + kSnowCount);
-  ListJobWriter job = cameraJob(*c, kSnow, call, last < 0 ? 0u : static_cast<std::uint32_t>(last) + 1u);
-  job.input(*c, call.list + kSnowCount, sizeof(std::int16_t));
   drawPoints(memory, kSnow, call);
-  job.save(*c);
 }
 
 void DustField::registerOverrides(native::NativeOverrideCatalog &natives) {
   natives.declareOverlay("A0B", kDustEntry, "DustField::draw", &DustField::draw);
   natives.declareOverlay("A04", kSnowEntry, "DustField::drawSnow", &DustField::drawSnow);
-}
-
-void DustField::registerStateRenders(psx::present::StateProducerTable &renders, Core &core) {
-  renders.install(kDustEntry, std::make_unique<DustFieldRender>(core));
-  renders.install(kSnowEntry, std::make_unique<DustFieldRender>(core));
 }
 
 } // namespace tomba::render

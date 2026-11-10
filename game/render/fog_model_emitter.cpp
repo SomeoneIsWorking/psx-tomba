@@ -6,13 +6,12 @@
 #include "gte_registers.h"
 #include "guest_ordering_table.h"
 #include "horizontal_visibility_cull.h"
-#include "list_state_producer.h"
+#include "list_job.h"
 #include "model_packet.h"
 #include "object_draw.h"
 
 #include <algorithm>
 #include <array>
-#include <memory>
 
 namespace tomba::render {
 namespace {
@@ -47,7 +46,7 @@ bool hidden(const psx::present::EmitMemory &memory, std::uint32_t flags) {
   if ((flags & kOwnColours) != 0u) {
     return false;
   }
-  const std::int32_t phase = static_cast<std::int8_t>(memory.mem_r8(kPhase));
+  const std::int32_t phase = memory.mem_r8s(kPhase);
   const bool phaseHides = (flags & kPhaseHide) != 0u && phase >= kPhaseHideFirst && phase <= kPhaseHideLast;
   return phaseHides || ((flags & kHideFlag) != 0u && memory.mem_r8(kHideWord) != 0u);
 }
@@ -191,26 +190,8 @@ bool emitGt4(const psx::present::EmitMemory &memory,
 template <std::uint32_t Entry, bool Quad> void emitAt(Core *core) {
   const ListCall call = ListCall::fromRegisters(*core);
   const EmitterObject object(*core, Entry, call.list);
-  const ModelShape &shape = Quad ? kModelGt4 : kModelGt3;
-  ListJobWriter job = modelListJob(*core, Quad ? 1u : 0u, call, shape);
-  job.input(*core, kPhase, sizeof(std::uint8_t));
-  job.input(*core, kHideWord, sizeof(std::uint8_t));
   core->r[2] = FogModelEmitter::emit(*core, call, horizontal_cull::forDrawWindow(core), Quad);
-  job.save(*core);
 }
-
-class FogStateProducer final : public ListStateProducer {
-public:
-  FogStateProducer(Core &core, bool quad) : ListStateProducer(core), mQuad(quad) {}
-
-protected:
-  void emit(const psx::present::EmitMemory &memory, std::uint32_t, const ListCall &call) const override {
-    FogModelEmitter::emit(memory, call, horizontal_cull::forDrawWindow(&core()), mQuad);
-  }
-
-private:
-  bool mQuad;
-};
 
 } // namespace
 
@@ -227,11 +208,6 @@ std::uint32_t FogModelEmitter::emit(const psx::present::EmitMemory &memory,
 void FogModelEmitter::registerOverrides(native::NativeOverrideCatalog &natives) {
   natives.declareOverlay("A04", kGt3, "FogModelEmitter::gt3", &emitAt<kGt3, false>);
   natives.declareOverlay("A04", kGt4, "FogModelEmitter::gt4", &emitAt<kGt4, true>);
-}
-
-void FogModelEmitter::registerStateRenders(psx::present::StateProducerTable &renders, Core &core) {
-  renders.install(kGt3, std::make_unique<FogStateProducer>(core, false));
-  renders.install(kGt4, std::make_unique<FogStateProducer>(core, true));
 }
 
 } // namespace tomba::render

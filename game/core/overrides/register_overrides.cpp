@@ -45,14 +45,12 @@
 #include "overlay_gt3gt4.h"        // class OverlayGt3Gt4 — A00 and A08 model GT3/GT4 packet emitters
 #include "quad_rtpt_submit.h"      // class QuadRtptSubmit — 0x8003xxxx rope/flame quad rotate+RTPT submit
 #include "rain_streaks.h"          // class RainStreaks — A08 rain streaks (0x80116904)
-#include "render/anchor_quads.h"
 #include "render/area_map.h"
 #include "render/drop_shadow.h"
 #include "render/dust_field.h"
 #include "render/fog_model_emitter.h"
 #include "render/guest_keyed_emitters.h"
 #include "render/line_strip.h"
-#include "render/object_draw.h"
 #include "render/packed_mesh.h"
 #include "render/scaled_sprites.h"
 #include "render/subdivided_ground.h"
@@ -174,10 +172,9 @@ void register_engine_overrides(Game &game, native::NativeOverrideCatalog &native
   LibgpuDrawEnv::registerOverrides(
       natives); // libgpu SetDrawEnv (0x80081FB0): DRAWENV -> DR_ENV packet compiler, 2x/frame
   GteTransform3::registerOverrides(natives);              // GTE 3-vertex rotate+pack (0x80084250)
+  Render::registerOverrides(natives);                     // field and room draw orchestrators (0x8003F9A8/0x8003FA44)
   render::ScaledSprites::registerOverrides(natives);      // scaled sprite-record writer (0x80027A4C)
-  render::ObjectDraws::registerOverrides(natives);        // draws whose emitter calls are one object (A08 0x80117628)
   render::LineStrip::registerOverrides(natives);          // A08 node line strip (0x80117E84)
-  render::AnchorQuads::registerOverrides(natives);        // A00 anchor quads (0x8013E9D8/0x80122974)
   render::GuestKeyedEmitters::registerOverrides(natives); // A01/A00/DEMO unported render bodies, keyed
   render::AreaMap::registerOverrides(natives);            // A02/A07 area map and player marker
   FxSpriteSwarm::registerOverrides(natives);              // per-particle sprite emitter (0x800281EC)

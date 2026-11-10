@@ -4,7 +4,6 @@
 #include "core.h"
 #include "emit_memory.h"
 #include "list_job.h"
-#include "state_producer.h"
 #include <stdint.h>
 
 namespace tomba::native {
@@ -23,7 +22,6 @@ public:
   static void particles(const psx::present::EmitMemory &memory, const render::ListCall &call);
 
   static void registerOverrides(native::NativeOverrideCatalog &natives);
-  static void registerStateRenders(psx::present::StateProducerTable &renders, Core &core);
 };
 
 } // namespace tomba

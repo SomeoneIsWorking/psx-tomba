@@ -6,11 +6,10 @@
 #include "gte_registers.h"
 #include "guest_abi.h"
 #include "horizontal_visibility_cull.h"
-#include "list_state_producer.h"
+#include "list_job.h"
 #include "model_packet.h"
 
 #include <array>
-#include <memory>
 
 namespace tomba::render {
 namespace {
@@ -58,7 +57,6 @@ constexpr std::uint32_t kCueGt4Rgbc = 0x3C808080u;
 constexpr std::uint32_t kSwayPhase = 0x80139004u; // s16
 constexpr std::uint32_t kScrollU = 0x801388ECu;   // u8
 constexpr std::uint32_t kScrollV = 0x801388EEu;   // u8
-constexpr std::uint32_t kScrollBytes = 3u;        // 0x801388EC..EE
 constexpr std::uint32_t kRandomSeed = 0x1F800080u;
 constexpr std::uint32_t kRandomMultiplier = 0x41C64E6Du;
 constexpr std::uint32_t kRandomIncrement = 0x3039u;
@@ -266,32 +264,10 @@ std::uint32_t cueGt4Body(const psx::present::EmitMemory &memory, const ListCall 
   });
 }
 
-bool isQuad(SwayModelEmitter::Kind kind) {
-  return kind == SwayModelEmitter::Kind::ScrollGt4 || kind == SwayModelEmitter::Kind::CueGt4;
-}
-
-// The guest call inside its frame: the call and the words the body reads are saved, then the body runs.
+// The guest call inside its frame.
 void runGuest(Core &core, SwayModelEmitter::Kind kind, const Visibility &visible) {
-  const ListCall call = ListCall::fromRegisters(core);
-  ListJobWriter job = modelListJob(core, static_cast<std::uint32_t>(kind), call, isQuad(kind) ? kModelGt4 : kModelGt3);
-  job.input(core, kSwayPhase, sizeof(std::uint16_t), InputBlend::Wrapped, kAngleTurn);
-  job.input(core, kScrollU, kScrollBytes);
-  job.input(core, kHideWord, sizeof(std::uint32_t));
-  job.input(core, kRandomSeed, sizeof(std::uint32_t));
-  core.r[2] = SwayModelEmitter::emit(core, call, visible, kind);
-  job.save(core);
+  core.r[2] = SwayModelEmitter::emit(core, ListCall::fromRegisters(core), visible, kind);
 }
-
-class SwayStateProducer final : public ListStateProducer {
-public:
-  using ListStateProducer::ListStateProducer;
-
-protected:
-  void emit(const psx::present::EmitMemory &memory, std::uint32_t variant, const ListCall &call) const override {
-    SwayModelEmitter::emit(
-        memory, call, horizontal_cull::forDrawWindow(&core()), static_cast<SwayModelEmitter::Kind>(variant));
-  }
-};
 
 } // namespace
 
@@ -347,12 +323,6 @@ void SwayModelEmitter::registerOverrides(native::NativeOverrideCatalog &natives)
       "A01", kScrollGt4, "SwayModelEmitter::scrollGt4", &emitAt<kScrollGt4, &SwayModelEmitter::scrollGt4>);
   natives.declareOverlay("A01", kCueGt3, "SwayModelEmitter::cueGt3", &emitAt<kCueGt3, &SwayModelEmitter::cueGt3>);
   natives.declareOverlay("A01", kCueGt4, "SwayModelEmitter::cueGt4", &emitAt<kCueGt4, &SwayModelEmitter::cueGt4>);
-}
-
-void SwayModelEmitter::registerStateRenders(psx::present::StateProducerTable &renders, Core &core) {
-  for (const std::uint32_t entry : {kSwayGt3, kScrollGt4, kCueGt3, kCueGt4}) {
-    renders.install(entry, std::make_unique<SwayStateProducer>(core));
-  }
 }
 
 } // namespace tomba::render

@@ -5,18 +5,10 @@
 #include "core.h"
 #include "core/overrides/guest_jal.h"
 #include "core/overrides/native_override_catalog.h"
-#include "gp0_primitive_decode.h"
 #include "gte_registers.h"
 #include "guest_abi.h"
 #include "guest_ordering_table.h"
 #include "native_dispatch.h"
-#include "state_producer.h"
-
-#include <array>
-#include <cstdlib>
-#include <cstring>
-#include <lucent/log.h>
-#include <memory>
 
 namespace tomba {
 
@@ -59,44 +51,6 @@ constexpr std::uint32_t kDrawMode = 0x80083DE0u;
 
 using tomba::render::CameraLattice;
 using tomba::render::OrderingTable;
-
-// A drawn streak as the render needs it: where it links, and the screen points of its two ends.
-struct StreakState {
-  std::uint32_t table = 0;
-  std::uint32_t slot = 0; // OT slot of bucket 0
-  std::uint32_t bucket = 0;
-  std::int16_t x[2] = {};
-  std::int16_t y[2] = {};
-};
-
-// One streak end lerped between its two drawn ends: the word the guest would round it to, and where it lies.
-psx::gte::ProjectedVertex lerpEnd(const StreakState &earlier, const StreakState &later, std::size_t end, float t) {
-  return psx::gte::ProjectedVertex::nearest(
-      {earlier.x[end] + (later.x[end] - earlier.x[end]) * t, earlier.y[end] + (later.y[end] - earlier.y[end]) * t});
-}
-
-class StreakStateProducer final : public psx::present::StateProducer {
-public:
-  void render(const psx::present::StateInterval &states, psx::present::PrimitiveSink &sink) const override {
-    const auto [from, to, t] = states;
-    StreakState later;
-    StreakState earlier;
-    std::memcpy(&later, to.data(), sizeof(later));
-    std::memcpy(&earlier, from.data(), sizeof(earlier));
-    psx::gpu::PacketBuffer<kLineWords> words;
-    words.store(0, kLineColour0);
-    words.storeVertex(1, lerpEnd(earlier, later, 0, t));
-    words.store(2, kLineColour1);
-    words.storeVertex(3, lerpEnd(earlier, later, 1, t));
-    auto streak = psx::gpu::decodePacketPrimitive(words.view());
-    if (!streak) {
-      lucent::error("rain", "streak line packet did not decode");
-      std::abort();
-    }
-    psx::gpu::applyTexPageAttribute(streak->state, kTpageMode);
-    sink.emit(psx::present::OtSlot{static_cast<std::uint16_t>(later.table), later.slot + later.bucket}, *streak);
-  }
-};
 
 // FUN_80116904's OTZ: SZ3/4 compressed, kNoBucket outside [4, 0x800).
 std::int32_t orderingIndex(std::int32_t sz3) {
@@ -182,19 +136,7 @@ void RainStreaks::draw(Core *c) {
     const std::int32_t backY = (c->mem_r16s(trail + 2u) - static_cast<std::int16_t>(screenY)) * 2;
     c->mem_w16(pool + 16u, static_cast<std::uint16_t>(screenX + backX));
     c->mem_w16(pool + 18u, static_cast<std::uint16_t>(screenY + backY));
-    const OrderingTable ot = OrderingTable::active(*c);
-    ot.link({.packet = pool, .words = kLineWords, .bucket = static_cast<std::uint32_t>(otz)});
-    if (const auto slot = c->otTables.slotOf(ot.base())) {
-      StreakState streak;
-      streak.table = slot->table;
-      streak.slot = slot->index;
-      streak.bucket = static_cast<std::uint32_t>(otz);
-      streak.x[0] = static_cast<std::int16_t>(screenX);
-      streak.y[0] = static_cast<std::int16_t>(screenY);
-      streak.x[1] = static_cast<std::int16_t>(screenX + backX);
-      streak.y[1] = static_cast<std::int16_t>(screenY + backY);
-      c->frameStates.save(c->emission.current(), streak);
-    }
+    OrderingTable::active(*c).link({.packet = pool, .words = kLineWords, .bucket = static_cast<std::uint32_t>(otz)});
     c->mem_w16(trail + 0u, screenX);
     c->mem_w16(trail + 2u, screenY);
     pool += kLineBytes;
@@ -212,10 +154,6 @@ void RainStreaks::draw(Core *c) {
   c->mem_w16(node + kNodeLastOffset + 0u, static_cast<std::uint16_t>(offsetX));
   c->mem_w16(node + kNodeLastOffset + 2u, static_cast<std::uint16_t>(offsetY));
   c->mem_w16(node + kNodeLastOffset + 4u, static_cast<std::uint16_t>(offsetZ));
-}
-
-void RainStreaks::registerStateRenders(psx::present::StateProducerTable &renders) {
-  renders.install(kEntry, std::make_unique<StreakStateProducer>());
 }
 
 void RainStreaks::registerOverrides(native::NativeOverrideCatalog &natives) {

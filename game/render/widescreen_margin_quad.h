@@ -5,7 +5,7 @@
 // Writes the guest's own GTE, OT and packet-pool state; every write is part of the byte-exact state.
 #pragma once
 
-#include "state_producer.h"
+#include <cstdint>
 
 struct Core;
 class Game;
@@ -25,8 +25,6 @@ public:
   static void emit(Core *c);
 
   static void registerOverrides(native::NativeOverrideCatalog &natives);
-  // The node keys its own quads; the render moves their screen vertices by t.
-  static void registerStateRenders(psx::present::StateProducerTable &renders);
 };
 
 } // namespace tomba

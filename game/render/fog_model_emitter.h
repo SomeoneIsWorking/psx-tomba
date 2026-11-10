@@ -10,8 +10,6 @@
 // (horizontal_visibility_cull.h).
 #pragma once
 
-#include "state_producer.h"
-
 #include "emit_memory.h"
 #include "list_job.h"
 
@@ -35,7 +33,6 @@ public:
                             const horizontal_cull::Visibility &visible,
                             bool quad);
   static void registerOverrides(native::NativeOverrideCatalog &natives);
-  static void registerStateRenders(psx::present::StateProducerTable &renders, Core &core);
 };
 
 } // namespace tomba::render

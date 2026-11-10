@@ -55,8 +55,6 @@ public:
   // by direct call from this cluster's own dispatcher and from a tail-shared copy of the same call sequence
   // folded into FUN_80147FC4; A08's from the scenery walker FUN_8012A7CC.
   static void registerOverrides(native::NativeOverrideCatalog &natives);
-  // The renders of the leaves' saved calls.
-  static void registerStateRenders(psx::present::StateProducerTable &renders, Core &core);
 };
 
 } // namespace tomba

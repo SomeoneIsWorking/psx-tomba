@@ -26,12 +26,11 @@
 #include "guest_call.h"
 #include "guest_ordering_table.h"
 #include "horizontal_visibility_cull.h"
-#include "list_state_producer.h"
+#include "list_job.h"
 #include "model_element.h"
 #include "model_packet.h"
 #include <cstddef>
 #include <lucent/log.h>
-#include <memory>
 #include <stdio.h>
 #include <string_view>
 
@@ -393,25 +392,17 @@ constexpr uint32_t kA08Gt4 = 0x801411D8u;
 template <uint32_t Entry, bool Quad, uint32_t Scroll> void emitAt(Core *c) {
   const ListCall call = ListCall::fromRegisters(*c);
   const tomba::render::EmitterObject object(*c, Entry, call.list);
-  const tomba::render::ModelShape &shape = Quad ? tomba::render::kModelGt4 : tomba::render::kModelGt3;
-  tomba::render::ListJobWriter job(*c, Quad ? 1u : 0u, call, call.count * shape.packetBytes);
-  job.input(*c, call.list, call.count * shape.recordBytes);
-  if (Scroll != OverlayGt3Gt4::kNoScroll) {
-    job.input(*c, Scroll, sizeof(uint16_t));
-  }
   if constexpr (Quad) {
     c->r[2] = OverlayGt3Gt4::emitGt4(*c, call, Scroll);
   } else {
     c->r[2] = OverlayGt3Gt4::emitGt3(*c, call, Scroll, tomba::horizontal_cull::forDrawWindow(c));
   }
-  job.save(*c);
 }
 
 struct Leaf {
   std::string_view image;
   uint32_t entry;
   bool quad;
-  uint32_t scroll;
   psx::cpu::NativeFunction body;
 };
 
@@ -420,41 +411,17 @@ constexpr uint32_t kA08Scroll = OverlayGt3Gt4::kA08Scroll;
 
 // A00's leaves, copied unchanged into A07 and A0L; A08's pair adds the texture scroll.
 constexpr Leaf kLeaves[] = {
-    {"A00", 0x801465ECu, false, kNoScroll, &emitAt<0x801465ECu, false, kNoScroll>},
-    {"A00", 0x801467BCu, true, kNoScroll, &emitAt<0x801467BCu, true, kNoScroll>},
-    {"A07", 0x801311D0u, false, kNoScroll, &emitAt<0x801311D0u, false, kNoScroll>},
-    {"A07", 0x801313A0u, true, kNoScroll, &emitAt<0x801313A0u, true, kNoScroll>},
-    {"A0L", 0x80112DECu, false, kNoScroll, &emitAt<0x80112DECu, false, kNoScroll>},
-    {"A0L", 0x80112FBCu, true, kNoScroll, &emitAt<0x80112FBCu, true, kNoScroll>},
-    {"A08", kA08Gt3, false, kA08Scroll, &emitAt<kA08Gt3, false, kA08Scroll>},
-    {"A08", kA08Gt4, true, kA08Scroll, &emitAt<kA08Gt4, true, kA08Scroll>},
-};
-
-class LeafStateProducer final : public tomba::render::ListStateProducer {
-public:
-  LeafStateProducer(Core &core, bool quad, uint32_t scroll) : ListStateProducer(core), mQuad(quad), mScroll(scroll) {}
-
-protected:
-  void emit(const psx::present::EmitMemory &memory, uint32_t, const ListCall &call) const override {
-    if (mQuad) {
-      OverlayGt3Gt4::emitGt4(memory, call, mScroll);
-    } else {
-      OverlayGt3Gt4::emitGt3(memory, call, mScroll, tomba::horizontal_cull::forDrawWindow(&core()));
-    }
-  }
-
-private:
-  bool mQuad;
-  uint32_t mScroll;
+    {"A00", 0x801465ECu, false, &emitAt<0x801465ECu, false, kNoScroll>},
+    {"A00", 0x801467BCu, true, &emitAt<0x801467BCu, true, kNoScroll>},
+    {"A07", 0x801311D0u, false, &emitAt<0x801311D0u, false, kNoScroll>},
+    {"A07", 0x801313A0u, true, &emitAt<0x801313A0u, true, kNoScroll>},
+    {"A0L", 0x80112DECu, false, &emitAt<0x80112DECu, false, kNoScroll>},
+    {"A0L", 0x80112FBCu, true, &emitAt<0x80112FBCu, true, kNoScroll>},
+    {"A08", kA08Gt3, false, &emitAt<kA08Gt3, false, kA08Scroll>},
+    {"A08", kA08Gt4, true, &emitAt<kA08Gt4, true, kA08Scroll>},
 };
 
 } // namespace
-
-void OverlayGt3Gt4::registerStateRenders(psx::present::StateProducerTable &renders, Core &core) {
-  for (const Leaf &leaf : kLeaves) {
-    renders.install(leaf.entry, std::make_unique<LeafStateProducer>(core, leaf.quad, leaf.scroll));
-  }
-}
 
 void OverlayGt3Gt4::registerOverrides(native::NativeOverrideCatalog &natives) {
   natives.declareOverlay("A00", 0x80146478u, "&OverlayGt3Gt4::submitBlock", &OverlayGt3Gt4::submitBlock);

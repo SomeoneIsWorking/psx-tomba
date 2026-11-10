@@ -9,9 +9,7 @@
 #include "guest_abi.h"
 #include "guest_call.h"
 #include "guest_ordering_table.h"
-#include "quad_state.h"
 #include <cstdint>
-#include <memory>
 
 namespace tomba {
 
@@ -269,18 +267,12 @@ void emitFrameEntry(Core *c) {
   const std::uint32_t object = sessionOf(c).callSites.object(c->r[31], 0u);
   const psx::present::EmissionScope::Guard scope(c->emission, HudGaugeEmitter::kEmitter, object, 0);
   HudGaugeEmitter::emitFrame(c);
-  // The body puts the pool cursor back, so its packets are not between two cursors: the key names them.
-  tomba::render::saveKeyedQuads(*c, HudGaugeEmitter::kEmitter, object);
 }
 } // namespace
 
 void HudGaugeEmitter::registerOverrides(native::NativeOverrideCatalog &natives) {
   natives.declare(kEmitter, "&HudGaugeEmitter::emitFrame", &emitFrameEntry);
   natives.declare(0x8004FB4Cu, "&HudGaugeEmitter::emitItem", &HudGaugeEmitter::emitItem);
-}
-
-void HudGaugeEmitter::registerStateRenders(psx::present::StateProducerTable &renders) {
-  renders.install(kEmitter, std::make_unique<render::QuadStateRender>());
 }
 
 } // namespace tomba
