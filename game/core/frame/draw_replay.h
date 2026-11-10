@@ -1,5 +1,4 @@
-// draw_replay.h — Tomba! 2's gameplay in-betweens: the field or room draw replayed with its moving inputs blended
-// (psxport present/replay_frame.h). The draw orchestrators are its one entry; the frame driver ends each frame.
+// draw_replay.h — Tomba! 2's gameplay in-betweens: the field or room draw replayed with its moving inputs blended.
 #pragma once
 
 #include "frame/draw_motion.h"
@@ -18,8 +17,10 @@ public:
 
   // `variant` is about to draw: paired with the last frame's draw when both drew it unpaused.
   void beforeDraw(Core &core, DrawSection::Variant variant);
-  // The logic frame ended; one that did not draw breaks the pairing.
-  void endFrame();
+  // The logic frame ended; one that did not draw, or that FrameCut declared a cut, breaks the pairing.
+  void endFrame(bool cut);
+  // The next draw pairs with nothing (a savestate restore).
+  void forget();
 
   [[nodiscard]] psx::present::ReplayFrame &frame() {
     return frame_;
