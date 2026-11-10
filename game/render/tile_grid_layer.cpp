@@ -189,9 +189,10 @@ constexpr uint32_t kA00Grid = 0;
 constexpr uint32_t kUnbiasedGrid = 1;
 constexpr uint32_t kRowLeadGrid = 2;
 constexpr uint32_t kClampedGrid = 3;
+// SOP's grid is the only one drawn outside the replayed field draw.
+constexpr uint32_t kSopEntry = 0x8010C26Cu;
 
-TileGridLayer::EmitGridArgs gridArgs(uint32_t node, uint32_t variant) {
-  const GridVariant &grid = kGridVariants[variant];
+TileGridLayer::EmitGridArgs gridArgs(uint32_t node, const GridVariant &grid) {
   return {.node = node, .tileVBias = grid.tileVBias, .rowLead = grid.rowLead, .clampRows = grid.clampRows};
 }
 
@@ -240,7 +241,7 @@ public:
 protected:
   void
   emit(const psx::present::EmitMemory &memory, uint32_t variant, const tomba::render::ListCall &call) const override {
-    TileGridLayer::emitGrid(memory, gridArgs(call.list, variant));
+    TileGridLayer::emitGrid(memory, gridArgs(call.list, kGridVariants[variant]));
   }
 };
 } // namespace
@@ -342,33 +343,33 @@ void TileGridLayer::emitClamped(Core *c) {
 // SOP FUN_8010C26C
 void TileGridLayer::emitSop(Core *c) {
   GuestFrame<88, 10> frame(c, kSopEmitSpills);
+  saveSopGrid(c, c->r[4]);
   drawGrid(c, c->r[4], kUnbiasedGrid);
   cycleSopPalettes(c);
 }
 
-void TileGridLayer::drawGrid(Core *c, uint32_t node, uint32_t variant) {
+void TileGridLayer::saveSopGrid(Core *c, uint32_t node) {
   const uint32_t pitchX = c->mem_r16(node + kNodePitchX);
   const uint32_t pitchY = c->mem_r16(node + kNodePitchY);
-  if (pitchX != 0u && pitchY != 0u) {
-    tomba::render::ListJobWriter job(
-        *c,
-        variant,
-        tomba::render::ListCall{node, c->mem_r32(tomba::render::OrderingTable::kBasePointer), 0u, 0u, c->r[29]},
-        gridArenaBytes(*c));
-    job.input(*c, tomba::render::OrderingTable::kBasePointer, sizeof(uint32_t));
-    job.input(*c, node, kNodeScrollX);
-    job.input(*c, node + kNodeScrollX, sizeof(uint16_t), tomba::render::InputBlend::Wrapped, pitchX);
-    if (kGridVariants[variant].clampRows) {
-      job.input(*c, node + kNodeScrollY, sizeof(uint16_t), tomba::render::InputBlend::Lanes16);
-      job.input(*c, kCameraPitch, sizeof(uint16_t));
-    } else {
-      job.input(*c, node + kNodeScrollY, sizeof(uint16_t), tomba::render::InputBlend::Wrapped, pitchY);
-    }
-    job.input(*c, node + kNodeTrailing, kNodeEnd - kNodeTrailing);
-    job.save(*c);
+  if (pitchX == 0u || pitchY == 0u) {
+    return;
   }
+  tomba::render::ListJobWriter job(
+      *c,
+      kUnbiasedGrid,
+      tomba::render::ListCall{node, c->mem_r32(tomba::render::OrderingTable::kBasePointer), 0u, 0u, c->r[29]},
+      gridArenaBytes(*c));
+  job.input(*c, tomba::render::OrderingTable::kBasePointer, sizeof(uint32_t));
+  job.input(*c, node, kNodeScrollX);
+  job.input(*c, node + kNodeScrollX, sizeof(uint16_t), tomba::render::InputBlend::Wrapped, pitchX);
+  job.input(*c, node + kNodeScrollY, sizeof(uint16_t), tomba::render::InputBlend::Wrapped, pitchY);
+  job.input(*c, node + kNodeTrailing, kNodeEnd - kNodeTrailing);
+  job.save(*c);
+}
+
+void TileGridLayer::drawGrid(Core *c, uint32_t node, uint32_t variant) {
   c->mem_w32(c->r[29] + 16u, 0u); // SetDrawMode's fifth argument
-  emitGrid(psx::present::EmitMemory(*c), gridArgs(node, variant));
+  emitGrid(psx::present::EmitMemory(*c), gridArgs(node, kGridVariants[variant]));
 }
 
 void TileGridLayer::emitGrid(const psx::present::EmitMemory &memory, const EmitGridArgs &args) {
@@ -516,7 +517,7 @@ void TileGridLayer::registerOverrides(native::NativeOverrideCatalog &natives) {
                            psx::present::Producer{psx::present::Arg::A0});
   }
   natives.declareOverlay("SOP",
-                         0x8010C26Cu,
+                         kSopEntry,
                          "&TileGridLayer::emitSop",
                          &TileGridLayer::emitSop,
                          psx::present::Producer{psx::present::Arg::A0});
@@ -533,10 +534,7 @@ void TileGridLayer::registerOverrides(native::NativeOverrideCatalog &natives) {
 }
 
 void TileGridLayer::registerStateRenders(psx::present::StateProducerTable &renders, Core &core) {
-  for (const uint32_t entry :
-       {0x80115598u, 0x801142ECu, 0x801141B0u, 0x80116B9Cu, 0x80116778u, 0x8010C26Cu, 0x8012F938u, 0x80141A94u}) {
-    renders.install(entry, std::make_unique<TileGridStateProducer>(core));
-  }
+  renders.install(kSopEntry, std::make_unique<TileGridStateProducer>(core));
 }
 
 } // namespace tomba

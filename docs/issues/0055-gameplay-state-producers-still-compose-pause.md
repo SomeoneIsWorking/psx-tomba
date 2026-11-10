@@ -51,3 +51,52 @@ strips) and `AnchorQuads` whole (its override only keyed and saved). WidescreenM
 FogModelEmitter, BackdropPlane, QuadRtptSubmit and the model emitters keep their overrides: they own the
 draw-window culls that extend the picture into the widescreen margins. Kept: `BillboardState` (the map screen
 draws `0x8003C8F4` with the field draw off, census `c2`), and the boot, SOP, title and menu producers.
+
+## Follow-up (2026-11-11)
+
+**Page step, every caller by decompile.** A `jal` scan of every overlay and MAIN.EXE finds the draws' only
+direct callers in GAME and DEMO (none in MAIN, SOP, OPN, START or A00-A0L, and no data word holds either
+address); Ghidra C of each enclosing function (`external/psxport/tools/decomp_pipeline.py --image-name tomba2_game`
+/ `tomba2_demo`, bodies present, into `scratch/review-findings/decomp/{game,demo}/c/`):
+
+| caller (call site) | after `if (0x1F800136 < 2) draw();` |
+|---|---|
+| G:80107230 cases 1 and 5 (0x8010737C, 0x80107638), field draw | `FUN_8010810C(); 0x80077D8C(); 0x80075A80();` |
+| G:80107230 case 3 (0x801074D0), room draw | the same |
+| G:80107790 (0x801078CC), field draw | the same, then its submode exits |
+| G:80108B0C (0x80108BB4), field draw | the same |
+| G:80108BE4 (0x80108C7C), room draw | the same |
+| D:80106E28 (0x80106EBC), field draw | `0x80077D8C(); 0x80075A80();`, no page step |
+
+`0x80077D8C` (`Engine::postRenderTick`, the sfx/vibration queue) and `0x80075A80` (`AreaSlots::updateTail`) link
+nothing, so the page step is the last OT writer after the draw. The native mirrors `Engine::fieldFrame` and
+`fieldFrameX` follow `Render::frame`/`frameX` with `submitPage810c` the same way. G:80108CAC also runs the page step,
+after `0x8010B328` rather than either draw, so it never reaches `DrawReplay`. GAME and DEMO share the stage slot
+0x80106228 and DEMO ends at 0x80107723, so `DrawSection::pageStepResident` asks the image catalog whether GAME holds
+G:8010810C instead of reading the stage pointer: the address is dispatched only while its own image is loaded.
+
+**Census, corrected.** The `c3` census cited above never left the title: its `warp 0/0` was refused ("the warp
+places are not loaded yet"), so it showed nothing about pause, options or the map. Rerun on a build with the
+UnlitModelEmitter, TileGridLayer, PackedMesh and SubdividedGround state renders unregistered
+(`scratch/review-findings`, unpaced, player settings, `debug compose,presentseq`):
+
+- `cf`, boot unskipped to frame 3000 (boot cards, START, SOP intro, DEMO title): the SOP intro presents once per
+  frame (`fields=2/1`, no in-between); the title's 403 in-betweens compose with no refusal.
+- `cg2`, `cm`, `warp 0/0`, walk, pause, options, back, select: 2405 and 1633 in-betweens replayed, 0 refused.
+- `co`, boot unskipped, start a new game (the scripted opening, SOP in GAME, then OPN): 79 opening in-betweens
+  refused, `0x80027768` (`PackedMesh::write`, SOP 0x8010BF54) and `0x801099B4` (the SOP unlit GT3).
+
+So the scripted opening is what still composes from these producers. Kept: the resident (0x8007FDB0/0x8008007C,
+reached from SOP's `0x8003C048` walk) and SOP unlit copies, SOP's grid 0x8010C26C, `PackedMesh::write` and
+`emitScreen` (MAIN). Removed, state render and per-call save: every area-overlay unlit copy (A01-A0J), the area
+grids (A00, A06, A07, A0A, A0B, A0D, A0F) and A08's `PackedMesh::writeVOffset`. `co2`, the same opening run with
+only the kept renders: 83 opening in-betweens composed, 0 refused. The resident emitters still save on every
+gameplay call although only SOP frames compose them.
+
+**SubdividedGround (A03 0x80110290) still to do, by its owner.** It is drawn only by the A03 drawer 0x801109D4 in
+the replayed field draw, so it needs no state render. `game/render/subdivided_ground.cpp` carries another session's
+uncommitted rewrite, so this change was left out of it. Its owner deletes `SubdividedGround::registerStateRenders`
+(`subdivided_ground.h`, `subdivided_ground.cpp`) and its call in `tomba::Runtime::registerOverrides`
+(`game/core/entry/runtime.cpp`), `SubdividedGroundRender`, and the `ListJobWriter` the native builds and saves per
+call (its inputs: the records, `kSplitCount`, `kLeafCount`), keeping the `EmitterObject` scope that keys the
+packets; then removes the `SubdividedGround` row from `docs/producers.md`'s state producers.

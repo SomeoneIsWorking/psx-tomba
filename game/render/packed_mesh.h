@@ -29,8 +29,13 @@ struct PackedRecord {
     std::uint32_t clutRows;
   };
   static void uv(const psx::present::EmitMemory &memory, const Uv &uv);
+  // The record and the packet it becomes.
+  struct Quad {
+    std::uint32_t record;
+    std::uint32_t packet;
+  };
   // Corners 0..2 by DPCT and corner 3 by DPCS, all toward the far colour by the scratch IR0.
-  static void shade(const psx::present::EmitMemory &memory, std::uint32_t record, std::uint32_t packet);
+  static void shade(const psx::present::EmitMemory &memory, const Quad &quad);
   // The records of the list, through the first whose word 1 is not positive.
   static std::uint32_t count(const psx::present::EmitMemory &memory, std::uint32_t list);
 };
@@ -46,7 +51,7 @@ public:
   static constexpr std::uint32_t kVOffsetWriter = 0x8011731Cu; // A08
 
   // What the writer's a1 is.
-  enum class Variant : std::uint32_t {
+  enum class Variant : std::uint8_t {
     ClutRows, // FUN_80027768: CLUT rows added to corner 0's CLUT
     VOffset,  // A08 FUN_8011731C: added to every corner's V
   };

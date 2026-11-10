@@ -46,11 +46,7 @@ public:
         clutRows_(variant == PackedMesh::Variant::ClutRows ? call.a1 : 0u),
         vOffset_(variant == PackedMesh::Variant::VOffset ? call.a1 : 0u) {}
 
-  // The record and the packet it becomes.
-  struct Quad {
-    std::uint32_t record;
-    std::uint32_t packet;
-  };
+  using Quad = PackedRecord::Quad;
 
   // One record into its packet; false when the GTE overflows or the depth leaves the OT.
   bool write(const Quad &quad) const {
@@ -85,7 +81,7 @@ public:
       memory_.mem_w8(packet + uv, static_cast<std::uint8_t>(memory_.mem_r8(packet + uv) + call_.a3));
       memory_.mem_w8(packet + uv + 1u, static_cast<std::uint8_t>(memory_.mem_r8(packet + uv + 1u) + vOffset_));
     }
-    PackedRecord::shade(memory_, record, packet);
+    PackedRecord::shade(memory_, quad);
     memory_.mem_w8(packet + 7u, (texturePage & kSemiBit) != 0u ? kGouraudQuadSemi : kGouraudQuad);
     OrderingTable(memory_, call_.ot)
         .link({.packet = packet, .words = kPacketWords, .bucket = static_cast<std::uint32_t>(bucket)});
@@ -177,7 +173,8 @@ void PackedRecord::uv(const psx::present::EmitMemory &memory, const Uv &uv) {
   memory.mem_w32(packet + kPacketUv[corner], word);
 }
 
-void PackedRecord::shade(const psx::present::EmitMemory &memory, std::uint32_t record, std::uint32_t packet) {
+void PackedRecord::shade(const psx::present::EmitMemory &memory, const Quad &quad) {
+  const auto [record, packet] = quad;
   psx::cpu::Gte &gte = memory.core().gte();
   gte.writeData(psx::gte::kIr0, memory.mem_r32(PackedMesh::kDepthCue));
   gte.writeData(psx::gte::kRgb0, memory.mem_r32(record + 0xCu));
@@ -263,7 +260,7 @@ void PackedMesh::emitScreen(const psx::present::EmitMemory &memory, const Screen
     for (std::uint32_t corner = 0; corner < 4u; ++corner) {
       PackedRecord::uv(memory, {.record = record, .packet = packet, .corner = corner, .clutRows = call.clutRows});
     }
-    PackedRecord::shade(memory, record, packet);
+    PackedRecord::shade(memory, {.record = record, .packet = packet});
     memory.mem_w8(packet + 7u, kGouraudQuadSemi);
     OrderingTable(memory, call.ot).link({.packet = packet, .words = kPacketWords, .bucket = bucket});
     if (static_cast<std::int32_t>(memory.mem_r32(record + kLastWord)) <= 0) {
@@ -275,16 +272,17 @@ void PackedMesh::emitScreen(const psx::present::EmitMemory &memory, const Screen
 
 void PackedMesh::registerOverrides(native::NativeOverrideCatalog &natives) {
   natives.declare(kWriter, "PackedMesh::write", &PackedMesh::write);
+  // A08 draws it only in the replayed field draw, so it saves nothing.
   natives.declareOverlay("A08", kVOffsetWriter, "PackedMesh::writeVOffset", [](Core *core) {
     const EmitterObject object(*core, kWriter, core->r[4]);
-    writeSaving(*core,
-                Variant::VOffset,
-                {.list = core->r[4],
-                 .ot = core->mem_r32(OrderingTable::kBasePointer),
-                 .count = core->r[6],
-                 .a3 = core->r[7],
-                 .sp = core->r[29],
-                 .a1 = core->r[5]});
+    emit(*core,
+         Variant::VOffset,
+         {.list = core->r[4],
+          .ot = core->mem_r32(OrderingTable::kBasePointer),
+          .count = core->r[6],
+          .a3 = core->r[7],
+          .sp = core->r[29],
+          .a1 = core->r[5]});
   });
   natives.declare(kScreenWriter, "PackedMesh::writeScreen", [](Core *core) {
     const std::uint32_t object =

@@ -51,7 +51,8 @@ public:
   static void emitClamped(Core *c);
 
   static void registerOverrides(native::NativeOverrideCatalog &natives);
-  // The grid as one object keyed by its node: its state render, at each of the eight emitter entries.
+  // SOP's grid as one object keyed by its node: its state render. The area grids draw only in the replayed field
+  // draw and have none.
   static void registerStateRenders(psx::present::StateProducerTable &renders, Core &core);
 
   struct EmitGridArgs {
@@ -65,9 +66,10 @@ public:
   static void emitGrid(const psx::present::EmitMemory &memory, const EmitGridArgs &args);
 
 private:
-  // Saves the grid's state, then draws it.
   // `variant` indexes the emitters' bias and row lead.
   static void drawGrid(Core *c, std::uint32_t node, std::uint32_t variant);
+  // SOP's grid state: the node bytes with its two scroll words wrapped at the map's size.
+  static void saveSopGrid(Core *c, std::uint32_t node);
   // FUN_8010C26C's tail: three palette-cycle scripts, each loading one 16x1 CLUT row when its
   // countdown runs out. Uses the caller's frame for the RECT at sp+0x18.
   static void cycleSopPalettes(Core *c);

@@ -604,7 +604,6 @@ calls it. A row whose handler is file-local names the file that declares the ove
 | 0x80114458 | LIVE | `UnlitModelEmitter::gt3` (A0E) | game/render/unlit_model_emitter.cpp |  | Flagged unlit GT3 (kFlagged). |
 | 0x801146FC | LIVE | `UnlitModelEmitter::gt4` (A0E) | game/render/unlit_model_emitter.cpp |  | Flagged unlit GT4 (kFlagged). |
 | 0x80114A5C | LIVE | `UnlitModelEmitter::gt3` (A0F) | game/render/unlit_model_emitter.cpp |  | kA0a's body, scroll on the first matching flag with its own bucket (kA0f). |
-| 0x80114E64 | LIVE | `ObjectDraws::hangingStrip` (A0A) | game/render/object_draw.cpp |  | Hanging chain strip: one 0x8003B320 part per segment. |
 | 0x80114E70 | LIVE | `UnlitModelEmitter::gt4` (A0F) | game/render/unlit_model_emitter.cpp |  | kA0a's body, scroll on the first matching flag with its own bucket (kA0f). |
 | 0x80114E74 | LIVE | `ActorTomba::type4GuardedCheck` | game/player/actor_tomba.cpp |  | type-4 guarded proximity. |
 | 0x8011534C | LIVE | `TileGridLayer::scrollStep` | game/render/tile_grid_layer.cpp |  |  |
@@ -615,7 +614,6 @@ calls it. A row whose handler is file-local names the file that declares the ove
 | 0x80116904 | LIVE | `RainStreaks::draw` | game/render/rain_streaks.cpp | 0x80083DE0 0x80084220 0x80084660 0x80084690 | A08 rain streaks; producer, element = drop |
 | 0x80116ABC | LIVE | `GuestKeyedEmitters::a0fWire` (A0F) | game/render/guest_keyed_emitters.cpp |  | The node's wire of 0x80112D10 shimmer lines, keyed to the node. |
 | 0x80116B9C | LIVE | `TileGridLayer::emitUnbiased` (A0D) | game/render/tile_grid_layer.cpp |  | Tile grid with no V bias; producer, object = map cell. |
-| 0x801175C0 | LIVE | `ObjectDraws::hangingStrip` (A0F) | game/render/object_draw.cpp |  | A0A's sway branch: one 0x8003B320 part per segment. |
 | 0x80117658 | LIVE | `beh_prng_velocity_machine` | game/ai/beh_prng_velocity_machine.cpp |  |  |
 | 0x801178A4 | LIVE | `whiteFlashPhaseRamp` | game/ai/beh_a06_multi_actor.cpp |  | the 5-phase white-flash phase ramp SM. See the file header for the pha… |
 | 0x80117AAC | LIVE | `whiteFadeHold` | game/ai/beh_a06_multi_actor.cpp |  | 3-state fade-hold-fade-back companion to whiteFlashPhaseRamp. |
