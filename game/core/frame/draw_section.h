@@ -16,13 +16,15 @@ public:
     Room,  // 0x8003FA44: no scenery walker or tile grid
   };
 
-  // What the frame is about to draw, replayed until the next: GAME's frames follow the draw with the page step,
-  // the DEMO attract frame does not.
+  // What the frame is about to draw, replayed until the next: every GAME caller follows the draw with the page step,
+  // the DEMO attract frame does not (issue 0055).
   struct Selection {
     Variant variant = Variant::Field;
     bool pageStep = true;
     bool operator==(const Selection &) const = default;
   };
+  // GAME and DEMO share the stage slot, so GAME holding the page step means a GAME frame is drawing.
+  [[nodiscard]] static bool pageStepResident(const Core &core);
   void select(Selection selection) {
     selection_ = selection;
   }

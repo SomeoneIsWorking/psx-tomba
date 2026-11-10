@@ -18,9 +18,6 @@
 namespace tomba {
 namespace {
 
-constexpr std::uint32_t kFieldDraw = 0x8003f9a8u;
-constexpr std::uint32_t kRoomDraw = 0x8003fa44u;
-
 void ovFrame(Core *c) {
   rend(c)->frame();
 }

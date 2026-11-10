@@ -1,8 +1,6 @@
 #include "frame/draw_replay.h"
 
 #include "core.h"
-#include "frame/frame_cut.h"
-#include "sched/task_slot_layout.h"
 
 namespace tomba {
 
@@ -10,8 +8,7 @@ DrawReplay::DrawReplay(world::RenderRecordPool &records) : motion_(records), fra
 
 void DrawReplay::beforeDraw(Core &core, DrawSection::Variant variant) {
   drewThisFrame_ = true;
-  const DrawSection::Selection selection{.variant = variant,
-                                         .pageStep = core.mem_r32(FrameCut::kStagePointer) == sched::kStageGameEntry};
+  const DrawSection::Selection selection{.variant = variant, .pageStep = DrawSection::pageStepResident(core)};
   if (drawn_ != selection) {
     frame_.forget();
   }

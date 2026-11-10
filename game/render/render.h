@@ -19,7 +19,9 @@ public:
   NodeXform mNodeXform;              // scene-node world-transform builder (guest FUN_80051844)
   render::ObjectEffect objectEffect; // the dispatching node's effect leaf, applied to the packets now emitted
 
-  // Per-frame render orchestrators: guest 0x8003F9A8 (field) and 0x8003FA44 (mid-transition).
+  static constexpr std::uint32_t kFieldDraw = 0x8003F9A8u; // the field draw
+  static constexpr std::uint32_t kRoomDraw = 0x8003FA44u;  // the mid-transition twin
+  // Per-frame render orchestrators: kFieldDraw and kRoomDraw.
   void frame();
   void frameX();
   // Every guest call of either orchestrator reaches frame/frameX.
