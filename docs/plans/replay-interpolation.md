@@ -262,4 +262,5 @@ not forget (a restore is a sequence break the presenter holds); the HUD slide, t
 sway phase and billboard particles are not tracked and step at 30 Hz; what the update block links before the
 section is captured at t = 1 (dialog text, fades, letterbox). In play no producer state render runs any more
 (census: `scratch/replay/census`, a boot, warp, walk and pause run counting renders per phase); the renders left run
-for boot, title, SOP and the pause screen.
+for boot, title, SOP and the pause screen. The gameplay producers are not dead: the pause screen composes from them, and
+removing them shows every paused in-between whole (issue 0055).
