@@ -13,7 +13,7 @@ namespace tomba {
 
 class DrawReplay {
 public:
-  explicit DrawReplay(const world::RenderRecordPool &records);
+  explicit DrawReplay(world::RenderRecordPool &records);
 
   // `variant` is about to draw: paired with the last frame's draw when both drew it unpaused.
   void beforeDraw(Core &core, DrawSection::Variant variant);

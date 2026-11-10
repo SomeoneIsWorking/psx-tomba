@@ -260,10 +260,12 @@ Shown (scratch/replay, unpaced, player settings): village `warp 0/0` running rig
 its barrel halfway, the scene pans evenly), Area 1 cave `1/0` (Tomba pushing the fire block), A04 snow `4/0` and
 A08 temple `8/0`, every in-between replayed. Paced village: 698 of 702 vblanks advance 0.5.
 
-Open: the render-record run (`0x800F2740`, 520 of 0x44) has no live marker: `FUN_8007AAE8` and `FUN_8007ADDC`
-only move the free stack and leave the record's bytes, so every slot, free ones included, is sampled and written
-("520 of 520 paired"). Liveness is the free stack (`[0x800E7E74], count 0x800ED098`); `MotionSet` has no way to ask
-the title, so it needs a psxport hook. A warp's cut lands on a pass whose load breaks the record chain, so its arrival
+The render-record run (`0x800F2740`, 520 of 0x44) has no live marker: `FUN_8007AAE8` and `FUN_8007ADDC` only move
+the free stack and leave the record's bytes. `RenderRecordPool` is the run's `MotionLiveness`: each sample marks the
+records the free stack (`[0x800E7E74]`, count `0x800ED098`) names as free. Village `0/0` samples 441 live records,
+cave `1/0` 286, with 283 and 285 paired as records come and go.
+
+Open: a warp's cut lands on a pass whose load breaks the record chain, so its arrival
 is held by the chain break before `cutBetween` is consulted; a cut with an unbroken chain (camera re-place) is not yet
 shown. No CLUT upload refusal was seen in A04 in 24 in-betweens (hazard 4 unproven either way); the HUD slide, tile-grid scroll, scenery UV scroll,
 sway phase and billboard particles are not tracked and step at 30 Hz; what the update block links before the

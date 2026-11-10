@@ -7,6 +7,9 @@
 // producer keyed by the record never pairs the old object's last frame with the new object's first.
 #pragma once
 
+#include "motion_set.h"
+
+#include <bitset>
 #include <cstdint>
 #include <unordered_map>
 
@@ -22,10 +25,14 @@ constexpr std::uint32_t incarnationObject(std::uint32_t record, std::uint32_t ge
   return (generation << kRecordOffsetBits) | (record & kRecordOffsetMask);
 }
 
-class RenderRecordPool {
+class RenderRecordPool final : public psx::present::MotionLiveness {
 public:
+  static constexpr std::uint32_t kRecords = 0x800F2740u;
+  static constexpr std::uint32_t kRecordStride = 0x44u;
+  static constexpr std::uint32_t kRecordCount = 520u;
   static constexpr std::uint32_t kFreeCount = 0x800ED098u;  // s16
   static constexpr std::uint32_t kFreeCursor = 0x800E7E74u; // next free record pointer
+  static constexpr std::uint32_t kFreeStackEnd = 0x800ED8C0u;
   static constexpr std::uint32_t kAllocate = 0x8007AAE8u;
 
   // FUN_8007AAE8: the next free record, or 0 when the stack is empty.
@@ -35,8 +42,13 @@ public:
   // The producer object for the record's current incarnation.
   std::uint32_t object(std::uint32_t record) const;
 
+  // A record is live while no free-stack entry names it.
+  void sample(const Core &core) override;
+  [[nodiscard]] bool live(std::uint32_t record) const override;
+
 private:
   std::unordered_map<std::uint32_t, std::uint32_t> generations_; // main-RAM offset -> generation
+  std::bitset<kRecordCount> free_;
 };
 
 } // namespace tomba::world

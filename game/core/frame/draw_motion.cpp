@@ -46,10 +46,8 @@ constexpr std::array kNodePools{NodePool{0x800EF478u, 0xC4u, 0x3Au},
 constexpr std::array kNodeKeys{MotionKey{.offset = 0x08, .mask = 0xFF00FF00u}};
 constexpr RecordByte kNodeLive{.offset = 1, .low = 1, .high = 0xFF};
 
-// Render records (node +0xC0 + 4i, Pool::init): world MATRIX +0x18, part angles s16 +0x8, model +0x40.
-constexpr std::uint32_t kRecords = 0x800F2740u;
-// No byte marks a free record: FUN_8007AAE8 and FUN_8007ADDC only move the free stack.
-constexpr MotionRecords kRecordRun{.stride = 0x44u, .count = 520u};
+// Render records (node +0xC0 + 4i): world MATRIX +0x18, part angles s16 +0x8, model +0x40.
+using world::RenderRecordPool;
 constexpr auto kRecordTransform = psx::present::transformFields(0x18);
 constexpr std::array kRecordAngles{MotionField{.offset = 0x08, .motion = Motion::Angle12x2},
                                    MotionField{.offset = 0x0C, .motion = Motion::Angle12Low}};
@@ -73,7 +71,10 @@ constexpr std::array<const char *, kNodePools.size()> kNodePoolNames{
 
 } // namespace
 
-DrawMotion::DrawMotion(const world::RenderRecordPool &records) : lives_(records) {
+DrawMotion::DrawMotion(world::RenderRecordPool &records) {
+  // No byte marks a free record: FUN_8007AAE8 and FUN_8007ADDC only move the free stack.
+  const MotionRecords recordRun{
+      .stride = RenderRecordPool::kRecordStride, .count = RenderRecordPool::kRecordCount, .liveness = &records};
   std::size_t at = 0;
   tracks_[at++] = {.name = "view", .address = kView, .fields = kViewFields, .rule = &transform_};
   tracks_[at++] = {.name = "view angles", .address = kViewAngles, .fields = kViewAngleFields};
@@ -92,18 +93,16 @@ DrawMotion::DrawMotion(const world::RenderRecordPool &records) : lives_(records)
                      .records = {.stride = nodes.stride, .count = nodes.count, .live = kNodeLive}};
   }
   tracks_[at++] = {.name = "record transforms",
-                   .address = kRecords,
+                   .address = RenderRecordPool::kRecords,
                    .fields = kRecordTransform,
                    .rule = &transform_,
                    .keys = kRecordKeys,
-                   .records = kRecordRun,
-                   .identity = &lives_};
+                   .records = recordRun};
   tracks_[at++] = {.name = "record angles",
-                   .address = kRecords,
+                   .address = RenderRecordPool::kRecords,
                    .fields = kRecordAngles,
                    .keys = kRecordKeys,
-                   .records = kRecordRun,
-                   .identity = &lives_};
+                   .records = recordRun};
   tracks_[at++] = {
       .name = "effects", .address = kEffects, .fields = kEffectFields, .keys = kEffectKeys, .records = kEffectRun};
 }

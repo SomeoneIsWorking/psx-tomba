@@ -10,7 +10,7 @@ constexpr std::uint32_t kPauseByte = 0x1F800136u;
 
 } // namespace
 
-DrawReplay::DrawReplay(const world::RenderRecordPool &records) : motion_(records), frame_(section_, motion_.tracks()) {}
+DrawReplay::DrawReplay(world::RenderRecordPool &records) : motion_(records), frame_(section_, motion_.tracks()) {}
 
 void DrawReplay::beforeDraw(Core &core, DrawSection::Variant variant) {
   // The pause screen composes from its producers.
