@@ -275,3 +275,12 @@ section is captured at t = 1 (dialog text, fades, letterbox). In play no produce
 (census: `scratch/pause-replay/c3`, boot unskipped through title, attract, warp, walk, pause, options and map);
 the state renders left serve SOP, the title menu, the pause menu's own pages and the map screen (`BillboardState`).
 The gameplay producers are deleted (issue 0055).
+
+Nothing leaks: one pad replay (`scratch/pause-replay/rec2/session.pad`, boot into the village, walk, jump, turn,
+pause and unpause) run with fps60 off twice and on twice leaves main RAM and the scratchpad byte-identical at pad
+frames 1000 and 1500 (`scratch/pause-replay/leak_*`, `ramdiff.py`); the on run replayed 1582 in-betweens.
+
+Boot and title: the boot cards are stepped by design (`frame/boot_cards.cpp`). SOP draws through its own
+orchestrator (SOP 0x801093A8 and 0x801098FC call the section step 0x8003C048 directly, not 0x8003F9A8), and the title
+menu is DEMO 0x80106690/0x80106824, neither a field draw, so both still compose from their producers; replaying them
+needs a SOP section and a title section of their own.
