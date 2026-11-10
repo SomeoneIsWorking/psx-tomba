@@ -16,7 +16,6 @@ set(GAME_SRC
   game/cd/libcd_native.cpp
   game/cd/engine_cd_loader.cpp
   game/cd/engine_cd.cpp
-  game/cd/engine_cd_state.cpp
   game/core/assets/asset.cpp
   game/core/debug/auto_drive.cpp
   game/core/debug/dev_control.cpp
@@ -34,6 +33,7 @@ set(GAME_SRC
   game/core/frame/scea_splash.cpp
   game/core/hle/libapi_intr.cpp
   game/core/overrides/native_override_catalog.cpp
+  game/core/entry/title_state.cpp
   game/core/entry/session.cpp
   game/core/entry/settings.cpp
   game/core/sched/scheduler.cpp

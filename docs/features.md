@@ -97,7 +97,7 @@ T1 runs at 60 fps natively; it joins no F-FPS60 hop.
 | hop | title | joins | owner |
 |---|---|---|---|
 | 1 | T2 | psxport F-SAVE.1 | `game/core/entry/runtime.cpp:tomba::Runtime::hostIdentity` — user data under `tomba2` |
-| 2 | T2 | psxport F-SAVE.2 | `game/cd/engine_cd_state.cpp:tomba::EngineCdState` — deferred area music in the machine save state |
+| 2 | T2 | psxport F-SAVE.2 | `game/core/entry/title_state.cpp:tomba::TitleState` — deferred area music in the machine save state |
 | 3 | T2 | title | `game/scene/card_load_machine.cpp:stepCardLoadMachine` — the memory-card LOAD/SAVE pages |
 
 ## F-DEBUG

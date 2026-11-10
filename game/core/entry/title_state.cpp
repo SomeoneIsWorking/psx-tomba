@@ -1,11 +1,12 @@
-#include "cd/engine_cd_state.h"
+#include "core/entry/title_state.h"
 
-#include "cd/engine_cd.h"
 #include "blob_codec.h"
+#include "cd/engine_cd.h"
+#include "core/frame/draw_replay.h"
 
 namespace tomba {
 
-bool EngineCdState::save(psx::platform::BlobWriter &out, std::string &) const {
+bool TitleState::save(psx::platform::BlobWriter &out, std::string &) const {
   const EngineCd::DeferredMusic &music = cd_.deferredMusic();
   out.boolean(music.pending);
   out.u8(music.channel);
@@ -14,7 +15,7 @@ bool EngineCdState::save(psx::platform::BlobWriter &out, std::string &) const {
   return true;
 }
 
-bool EngineCdState::load(psx::platform::BlobReader &in, std::string &error) {
+bool TitleState::load(psx::platform::BlobReader &in, std::string &error) {
   EngineCd::DeferredMusic music;
   music.pending = in.boolean();
   music.channel = in.u8();
@@ -26,6 +27,10 @@ bool EngineCdState::load(psx::platform::BlobReader &in, std::string &error) {
   }
   cd_.deferredMusic() = music;
   return true;
+}
+
+void TitleState::restored(Core &) {
+  replay_.forget();
 }
 
 } // namespace tomba

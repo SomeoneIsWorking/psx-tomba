@@ -278,7 +278,7 @@ psx::game::TitleAudio *Runtime::audio(Core &core) const {
 }
 
 psx::state::NativeStatePort *Runtime::nativeState(Core &core) const {
-  return &sessionOf(&core).cdState;
+  return &sessionOf(&core).titleState;
 }
 
 const psx::game::HostIdentity *Runtime::hostIdentity() const {

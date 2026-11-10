@@ -56,7 +56,7 @@ Frame loop: owned. `tomba::FrameDriver` runs one pass of `0x80050B08` (update `0
 | `LibcdDirCache`, `LibcdNative` | `game/cd/libcd_dir_cache.h`, `game/cd/libcd_native.h` | libcd's guest directory cache from host ISO9660 sectors; the file-table build |
 | `EngineCdLoader` | `game/cd/engine_cd_loader.h` | The engine's disc loaders FUN_8008C1EC, FUN_8001DB8C, FUN_8001D940, FUN_8001DC40 |
 | `tomba::EngineCd` | `game/cd/engine_cd.h` | The CD chokepoint overrides: streaming CdControl FUN_8001CE90, voice play/stop, deferred area music, slot-2 voice clips, CdInit callbacks |
-| `tomba::EngineCdState` | `game/cd/engine_cd_state.h` | The `nativeState` port: deferred area music in the machine save state (section `tomba2.cd`) |
+| `tomba::TitleState` | `game/core/entry/title_state.h` | The `nativeState` port: deferred area music in the machine save state (section `tomba2.cd`); a restore forgets `DrawReplay`'s sample |
 | `Inventory`, `ItemGrant` | `game/items/` | Item collection and the give-and-flag the debug `items` command uses |
 | `Math`, `Mtx`, `Trig`, `Rng`, `Bit` | `game/math/` | The GTE transform cluster, libgte matrix and trig leaves, the LFSR, flag bits |
 | `Font`, `Panel`, `DialogGlyphs`, `UiSprite`, `OptionsPage`, `SaveMenu`, `DialogTextStream` | `game/ui/` | Guest-time UI ports: glyphs, panels (`panel_build.cpp` the 9-slice build, `panel_fill.cpp` its quads), dialog-box glyphs, 2D sprite writers, options, save menu, dialog stream |

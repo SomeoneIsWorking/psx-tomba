@@ -5,11 +5,11 @@
 #include "audio/music_list.h"
 #include "audio/native_music.h"
 #include "cd/engine_cd.h"
-#include "cd/engine_cd_state.h"
 #include "core.h"
 #include "core/debug/verification_counters.h"
 #include "core/engine/engine.h"
 #include "core/entry/settings.h"
+#include "core/entry/title_state.h"
 #include "core/frame/draw_replay.h"
 #include "core/overrides/native_override_catalog.h"
 #include "core/sched/scheduler.h"
@@ -54,7 +54,7 @@ public:
   render::CallSiteObjects callSites; // the objects of the 2D writers, counted per logic frame
   render::ObjectDraw objectDraw;     // the object draw open now, whose emitter calls are its parts
   EngineCd cd;
-  EngineCdState cdState{cd};
+  TitleState titleState{cd, drawReplay};
   sched::Scheduler scheduler; // after `cd`, which it holds slot 2 for
   Audio audio;
   psx::present::StateProducerTable stateProducers;
