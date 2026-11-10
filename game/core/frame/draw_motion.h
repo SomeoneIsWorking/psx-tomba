@@ -1,5 +1,4 @@
-// draw_motion.h — what the field draw reads that moves between logic frames: the view, Tomba, every object node,
-// every render record's world transform and part angles, and the effect table (docs/plans/replay-interpolation.md).
+// draw_motion.h — the guest words the field draw reads that move between logic frames.
 #pragma once
 
 #include "motion_set.h"
@@ -11,7 +10,7 @@
 
 namespace tomba {
 
-// A render record's life: despawn pushes it back on the free stack, so the next spawn is another object.
+// A render record's life: a freed record is reused by the next spawn.
 class RecordLives final : public psx::present::MotionIdentity {
 public:
   explicit RecordLives(const world::RenderRecordPool &pool) : pool_(pool) {}

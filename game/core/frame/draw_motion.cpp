@@ -10,15 +10,14 @@ using psx::present::MotionRecords;
 using psx::present::MotionTrack;
 using psx::present::RecordByte;
 
-// The view matrix every step loads into the GTE (built by CutsceneCamera::lookAt in the update), a PsyQ MATRIX
-// whose translation is 0x1F80010C..0x1F800114.
+// The view MATRIX every step loads into the GTE.
 constexpr std::uint32_t kView = 0x1F8000F8u;
 constexpr auto kViewFields = psx::present::transformFields(0);
-// Camera pitch and yaw, s16 each (A0E GradientBackdrop, A06 TileGridLayer::emitClamped).
+// Camera pitch and yaw, s16 each.
 constexpr std::uint32_t kViewAngles = 0x1F8000F0u;
 constexpr std::array kViewAngleFields{MotionField{.offset = 0, .motion = Motion::Angle12x2}};
 
-// A node: position s32 16.16 at +0x2C/+0x30/+0x34, angles s16 at +0x54/+0x56/+0x58, the billboard angle at +0x5A.
+// Node position s32 16.16 at +0x2C, angles s16 at +0x54.
 constexpr std::array kNodeFields{
     MotionField{.offset = 0x2C, .motion = Motion::Linear},
     MotionField{.offset = 0x30, .motion = Motion::Linear},
@@ -26,16 +25,14 @@ constexpr std::array kNodeFields{
     MotionField{.offset = 0x54, .motion = Motion::Angle12x2},
     MotionField{.offset = 0x58, .motion = Motion::Angle12x2},
 };
-// The effect nodes of the 0x88 pool (render/fx_sprite_anchored.cpp): world X|Y at +0x2C and Z|OT bias at +0x30 as
-// s16 halves; +0x34 on is a record list or a scale pair by emitter, and steps.
+// Effect node X|Y and Z|OT bias as s16 halves; +0x34 is a list or a scale pair by emitter and steps.
 constexpr std::array kEffectNodeFields{
     MotionField{.offset = 0x2C, .motion = Motion::Halves},
     MotionField{.offset = 0x30, .motion = Motion::Halves},
 };
-// Tomba's node: 0x800597AC rebuilds his records' transforms from it inside the draw.
+// 0x800597AC rebuilds Tomba's record transforms from his node inside the draw.
 constexpr std::uint32_t kTomba = 0x800E7E80u;
-// The five typed node pools of FUN_800798F8 (world/pool.cpp): live while +1 is set, the command count +9 and
-// draw type +0xB naming what the slot holds. The first holds the effect nodes, the others objects with records.
+// The typed node pools of FUN_800798F8, live while +1 is set.
 struct NodePool {
   std::uint32_t base = 0;
   std::uint32_t stride = 0;
@@ -49,17 +46,16 @@ constexpr std::array kNodePools{NodePool{0x800EF478u, 0xC4u, 0x3Au},
 constexpr std::array kNodeKeys{MotionKey{.offset = 0x08, .mask = 0xFF00FF00u}};
 constexpr RecordByte kNodeLive{.offset = 1, .low = 1, .high = 0xFF};
 
-// The render records (node +0xC0 + 4i): 520 slots of 0x44 bytes (Pool::init). The world transform the update
-// composes is a MATRIX at +0x18; the part angles 0x800597AC turns are s16 at +0x8/+0xA/+0xC; +0x40 is the model.
+// Render records (node +0xC0 + 4i, Pool::init): world MATRIX +0x18, part angles s16 +0x8, model +0x40.
 constexpr std::uint32_t kRecords = 0x800F2740u;
+// No byte marks a free record: FUN_8007AAE8 and FUN_8007ADDC only move the free stack.
 constexpr MotionRecords kRecordRun{.stride = 0x44u, .count = 520u};
 constexpr auto kRecordTransform = psx::present::transformFields(0x18);
 constexpr std::array kRecordAngles{MotionField{.offset = 0x08, .motion = Motion::Angle12x2},
                                    MotionField{.offset = 0x0C, .motion = Motion::Angle12Low}};
 constexpr std::array kRecordKeys{MotionKey{.offset = 0x40}};
 
-// The effect table M:8003F024 walks: 40 slots of 0x40, live while +0 is set, model byte +7; position s32 16.16 at
-// +0x1C/+0x20/+0x24 and angles s16 at +0x28/+0x2A/+0x2C (M:8003D23C).
+// The effect table M:8003F024 walks: live while +0 is set, model byte +7 (M:8003D23C).
 constexpr std::uint32_t kEffects = 0x800EC188u;
 constexpr MotionRecords kEffectRun{
     .stride = 0x40u, .count = 40u, .live = RecordByte{.offset = 0, .low = 1, .high = 0xFF}};

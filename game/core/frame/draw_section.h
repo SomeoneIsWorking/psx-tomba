@@ -1,5 +1,4 @@
-// draw_section.h — the field draw M:8003F9A8 or the room draw M:8003FA44 as a replay. Nothing is flipped first:
-// the env pointer, its OT and the packet pool are already the frame's when either runs.
+// draw_section.h — the field draw M:8003F9A8 or the room draw M:8003FA44 as a replay section.
 #pragma once
 
 #include "replay_frame.h"
@@ -21,6 +20,7 @@ public:
     variant_ = variant;
   }
 
+  // No preamble: the env, its OT and the packet pool are already the frame's.
   [[nodiscard]] std::optional<std::uint32_t> draw(Core &core, psx::present::GuestRedraw &redraw) const override;
   [[nodiscard]] bool linked(std::uint32_t head) const override;
 

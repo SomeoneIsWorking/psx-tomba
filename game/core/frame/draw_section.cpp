@@ -16,7 +16,7 @@ constexpr std::uint32_t kRoomDraw = 0x8003FA44u;
 } // namespace
 
 std::optional<std::uint32_t> DrawSection::draw(Core &core, psx::present::GuestRedraw &redraw) const {
-  // The 2D writers count their calls per logic frame; the real draw after the replays counts from where they began.
+  // The 2D writers count calls per logic frame; the real draw must count from where the replays began.
   Session &session = sessionOf(&core);
   const render::CallSiteObjects calls = session.callSites;
   const bool returned = redraw.dispatch(variant_ == Variant::Field ? kFieldDraw : kRoomDraw, {});
