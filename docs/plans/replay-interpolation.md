@@ -237,3 +237,29 @@ missing; `presentseq` advances 0.5 per simulated vblank; `replay:warn` 0; no `No
    view by up to 16 units a frame and should blend, but a re-place must not.
 6. The A03 (`0x80113050`) and A0C (`0x8011AD44`) closures name call targets with no body (`0x89B3FDE0`,
    `0x8CF3A880`); likely data decoded as `jal`, not checked.
+
+## State (2026-11-10)
+
+Built: `game/core/frame/draw_section.*` (both variants, one `GuestRedraw::dispatch` of the orchestrator; the 2D
+writers' `CallSiteObjects` counts are put back after it), `draw_motion.*` and `draw_replay.*`, held by
+`tomba::Session::drawReplay` and returned by `tomba::Runtime::replayFrame`. `Render::frame`/`frameX` call
+`beforeDraw`; a paused draw (`0x1F800136 != 0`) is not replayed and composes from producers; a variant switch or a
+frame that did not draw forgets the earlier sample. Steps 0 and 1 resolved as: no refusal in any run (no device or
+yield in the section, slots 1 and 2 linked nothing missing from the frames); hazard 1 is harmless for replayed
+intervals (their states are never composed) and the call-site counts are restored; hazard 2's depth comes with the
+captured word depths; hazard 3 is `ReplayFrame::replays`.
+
+Tracks found by the frames: the 0x88 node pool holds the effect nodes (`render/fx_sprite_anchored.cpp`), whose
++0x2C/+0x30 are s16 halves and +0x34 a list or scale pair, so that pool moves only its halves; blending it as an
+object node stretched its sprites across the screen.
+
+Shown (scratch/replay, unpaced, player settings): village `warp 0/0` running right (Tomba's limbs and the pig in
+its barrel halfway, the scene pans evenly), Area 1 cave `1/0` (Tomba pushing the fire block), A04 snow `4/0` and
+A08 temple `8/0`, every in-between replayed. Paced village: 698 of 702 vblanks advance 0.5.
+
+Open: no CLUT upload refusal was seen in A04 in 24 in-betweens (hazard 4 unproven either way); savestate restore does
+not forget (a restore is a sequence break the presenter holds); the HUD slide, tile-grid scroll, scenery UV scroll,
+sway phase and billboard particles are not tracked and step at 30 Hz; what the update block links before the
+section is captured at t = 1 (dialog text, fades, letterbox). In play no producer state render runs any more
+(census: `scratch/replay/census`, a boot, warp, walk and pause run counting renders per phase); the renders left run
+for boot, title, SOP and the pause screen.

@@ -4,6 +4,10 @@ Which guest draw functions key their packets for 60 fps interpolation, what each
 how the composer renders it between two frames. The mechanism is psxport `presentation.md`
 (Interpolation, Frame model); the owners are in `docs/codemap.md`.
 
+Gameplay in-betweens are no longer composed from these: the field draw is replayed (`DrawReplay`,
+`docs/plans/replay-interpolation.md`). A producer's state render runs only for a frame whose draw did not run the
+section: boot, title, SOP, menus and the pause screen. The keys stay; they name the packets' objects for the depth test.
+
 ## Keyed producers
 
 A producer is a native override whose packet stores carry the key `(producer, object, element, part)`

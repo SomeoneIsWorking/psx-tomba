@@ -38,6 +38,7 @@ public:
   bool interpolates() const override;
   const psx::present::StateProducer *stateProducer(Core &core, std::uint32_t producer) const override;
   bool sealedFrameIsCut(Core &core) const override;
+  psx::present::ReplayFrame *replayFrame(Core &core) override;
   int displayHeight() const override;
   const psx::present::GuestWidescreenProjection *guestWidescreenProjection() const override;
   const psx::game::TitleDebugMenu &debugMenu() const override {

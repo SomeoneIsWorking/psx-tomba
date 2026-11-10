@@ -210,6 +210,10 @@ bool Runtime::sealedFrameIsCut(Core &core) const {
   return eng(&core).frameCut().isCut();
 }
 
+psx::present::ReplayFrame *Runtime::replayFrame(Core &core) {
+  return &sessionOf(&core).drawReplay.frame();
+}
+
 int Runtime::displayHeight() const {
   return kDisplayLines;
 }

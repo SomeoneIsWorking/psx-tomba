@@ -21,6 +21,9 @@ Frame loop: owned. `tomba::FrameDriver` runs one pass of `0x80050B08` (update `0
 | `BootCards` | `game/core/frame/boot_cards.h` | The SCEA card and LOGO movie before the first game frame, one step per `stepFrame` |
 | `decodeSceaSplash` | `game/core/frame/scea_splash.h`, `scea_asset.h` | The SCEA card's texture page and CLUT, decoded to the host picture `BootCards` shows |
 | `FrameCadence` | `game/core/frame/frame_cadence.h` | The frame-rate decision, published into the guest's quota byte |
+| `DrawReplay` | `game/core/frame/draw_replay.h` | Gameplay in-betweens: the field or room draw replayed with its moving inputs blended (`ReplayFrame`), entered from `Render::frame`/`frameX` |
+| `DrawSection` | `game/core/frame/draw_section.h` | M:8003F9A8 or M:8003FA44 as a replay section; `linked` names the OT chain of either display buffer |
+| `DrawMotion` | `game/core/frame/draw_motion.h` | The tracks: view MATRIX and angles, Tomba, the node pools, the render records' world MATRIX and part angles (by `RecordLives`), the effect table |
 | `FrameCut` | `game/core/frame/frame_cut.h` | Whether a sealed record is a cut (stage, area, sub-scene, SOP shot, camera re-place) |
 | `FrameDiagnostics` | `game/core/frame/frame_diagnostics.h` | Per-frame title probes reported after the frame |
 | `tomba::sched::Scheduler` | `game/core/sched/` | The guest task machine FUN_80051E60: three-slot table, yield/spawn/close, stage stanzas, synchronous task wait |

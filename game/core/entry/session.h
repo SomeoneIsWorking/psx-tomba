@@ -10,6 +10,7 @@
 #include "core/debug/verification_counters.h"
 #include "core/engine/engine.h"
 #include "core/entry/settings.h"
+#include "core/frame/draw_replay.h"
 #include "core/overrides/native_override_catalog.h"
 #include "core/sched/scheduler.h"
 #include "emit_memory.h"
@@ -38,6 +39,7 @@ public:
 
   const Settings settings = Settings::fromCVars();
   Engine engine;
+  DrawReplay drawReplay{engine.graphicsBind.records}; // gameplay in-betweens, the field draw replayed
   VerificationCounters verification;
   ScreenFade screenFade;
   Rng rng;
