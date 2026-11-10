@@ -59,6 +59,7 @@ constexpr MotionRecords kEffectRun{
     .stride = 0x40u, .count = 40u, .live = RecordByte{.offset = 0, .low = 1, .high = 0xFF}};
 constexpr std::array kEffectKeys{MotionKey{.offset = 0x04, .mask = 0xFF000000u}};
 constexpr std::array kEffectFields{
+    MotionField{.offset = 0x0C, .motion = Motion::Low16}, // scale; +0xE is the code byte
     MotionField{.offset = 0x1C, .motion = Motion::Linear},
     MotionField{.offset = 0x20, .motion = Motion::Linear},
     MotionField{.offset = 0x24, .motion = Motion::Linear},

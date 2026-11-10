@@ -268,9 +268,15 @@ records the free stack (`[0x800E7E74]`, count `0x800ED098`) names as free. Villa
 cave `1/0` 286, with 283 and 285 paired as records come and go.
 
 Open: a warp's cut lands on a pass whose load breaks the record chain, so its arrival
-is held by the chain break before `cutBetween` is consulted; a cut with an unbroken chain (camera re-place) is not yet
-shown. No CLUT upload refusal was seen in A04 in 24 in-betweens (hazard 4 unproven either way); the HUD slide, tile-grid scroll, scenery UV scroll,
-sway phase and billboard particles are not tracked and step at 30 Hz; what the update block links before the
+is held by the chain break before `cutBetween` is consulted; a cut with an unbroken chain (camera re-place
+M:8006EA00) is not yet shown: its callers are all in area overlays (A00 0x80128ECC in the scripted state machine
+FUN_80128D04, A06 0x8011B440/0x80126568/0x8012CF68/0x8013201C, A0A 0x8010B794, A0B 0x8010C218, A0C 0x80116C34,
+A0D 0x8010B040, A0E 0x8010BA04, A0F 0x8010BF48) and no warp reaches one at arrival. No CLUT upload refusal was seen in A04 in 24 in-betweens (hazard 4 unproven either way); the effect table's
+scale (+0xC, `Motion::Low16`) is tracked but no scaling effect has been shown halfway yet. Not tracked, stepping at
+30 Hz: the HUD slide (0x800BF87E/F, writer not found), the tile-grid scroll (node 0x800ED018 +0x28/+0x2A wrapped by
+the pitch +0x30/+0x32, `TileGridLayer`), A01's sway phase (0x80139004, `+= 0x20 + (rand >> 12)` in the draw walker
+A01 FUN_80132358, a 12-bit angle) and billboard particles (node +0x38). A01's UV scroll (0x801388EC/0x801388EE) steps
+0x40 texels every third frame inside that walker by design and is not blended; what the update block links before the
 section is captured at t = 1 (dialog text, fades, letterbox). In play no producer state render runs any more
 (census: `scratch/pause-replay/c3`, boot unskipped through title, attract, warp, walk, pause, options and map);
 the state renders left serve SOP, the title menu, the pause menu's own pages and the map screen (`BillboardState`).
