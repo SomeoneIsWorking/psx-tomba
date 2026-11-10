@@ -260,7 +260,7 @@ object node stretched its sprites across the screen.
 
 Shown (scratch/replay, unpaced, player settings): village `warp 0/0` running right (Tomba's limbs and the pig in
 its barrel halfway, the scene pans evenly), Area 1 cave `1/0` (Tomba pushing the fire block), A04 snow `4/0` and
-A08 temple `8/0`, every in-between replayed. Paced village: 698 of 702 vblanks advance 0.5.
+A08 temple `8/0`, every in-between replayed. Paced village: 698 of 702 vblanks advance 0.5, the other 3 repeat (again on 2026-11-11, host 90% idle, `scratch/review-findings/h_paced`).
 
 The render-record run (`0x800F2740`, 520 of 0x44) has no live marker: `FUN_8007AAE8` and `FUN_8007ADDC` only move
 the free stack and leave the record's bytes. `RenderRecordPool` is the run's `MotionLiveness`: each sample marks the
@@ -272,19 +272,25 @@ is held by the chain break before `cutBetween` is consulted; a cut with an unbro
 M:8006EA00) is not yet shown: its callers are all in area overlays (A00 0x80128ECC in the scripted state machine
 FUN_80128D04, A06 0x8011B440/0x80126568/0x8012CF68/0x8013201C, A0A 0x8010B794, A0B 0x8010C218, A0C 0x80116C34,
 A0D 0x8010B040, A0E 0x8010BA04, A0F 0x8010BF48) and no warp reaches one at arrival. No CLUT upload refusal was seen in A04 in 24 in-betweens (hazard 4 unproven either way); the effect table's
-scale (+0xC, `Motion::Low16`) is tracked but no scaling effect has been shown halfway yet. Not tracked, stepping at
+scale (+0xC, `Motion::Low16`) is tracked but not yet shown halfway: its only writer is the leaf-particle handler
+M:80027254 (`life - (life >> 7)` a frame) on slots M:8007B26C allocates for the debris spawner M:80027144, whose callers
+are impact sites in MAIN and the area overlays; no table slot was live in the village pad replay, in `warp` 0/0, 1/0,
+4/0, 5/0 or 8/0 walks, or under repeated attack and jump taps (`[motion] run-end: effects: 0 of 0`). Not tracked, stepping at
 30 Hz: the HUD slide (0x800BF87E/F, writer not found), the tile-grid scroll (node 0x800ED018 +0x28/+0x2A wrapped by
 the pitch +0x30/+0x32, `TileGridLayer`), A01's sway phase (0x80139004, `+= 0x20 + (rand >> 12)` in the draw walker
 A01 FUN_80132358, a 12-bit angle) and billboard particles (node +0x38). A01's UV scroll (0x801388EC/0x801388EE) steps
 0x40 texels every third frame inside that walker by design and is not blended; what the update block links before the
 section is captured at t = 1 (dialog text, fades, letterbox). In play no producer state render runs any more
-(census: `scratch/pause-replay/c3`, boot unskipped through title, attract, warp, walk, pause, options and map);
-the state renders left serve SOP, the title menu, the pause menu's own pages and the map screen (`BillboardState`).
-The gameplay producers are deleted (issue 0055).
+(census, issue 0055: `scratch/review-findings/cg2` and `cm`, `warp 0/0`, walk, pause, options, select, every
+in-between replayed; the earlier `c3` census never warped). The state renders left serve the title menu and the new
+game's scripted opening (SOP in GAME, then OPN; `co2`); the SOP intro at boot presents once per frame. The gameplay
+producers are deleted, and the area emitters save nothing (issue 0055).
 
 Nothing leaks: one pad replay (`scratch/pause-replay/rec2/session.pad`, boot into the village, walk, jump, turn,
-pause and unpause) run with fps60 off twice and on twice leaves main RAM and the scratchpad byte-identical at pad
-frames 1000 and 1500 (`scratch/pause-replay/leak_*`, `ramdiff.py`); the on run replayed 1582 in-betweens.
+pause and unpause) run with fps60 off and on, after psxport 53125a32 stopped replays with fps60 off (the off run
+replays 0 intervals, the on run 1438), leaves main RAM and the scratchpad byte-identical at every pad frame it
+reached, 1 to 1638 (`scratch/review-findings/leak_fps{0,1}`, `leakcmp.py`). The earlier proof at two pad frames
+compared two runs that both replayed.
 
 Boot and title: the boot cards are stepped by design (`frame/boot_cards.cpp`). SOP draws through its own
 orchestrator (SOP 0x801093A8 and 0x801098FC call the section step 0x8003C048 directly, not 0x8003F9A8), and the title

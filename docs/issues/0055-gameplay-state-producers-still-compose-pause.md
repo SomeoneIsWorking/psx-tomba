@@ -100,3 +100,7 @@ uncommitted rewrite, so this change was left out of it. Its owner deletes `Subdi
 (`game/core/entry/runtime.cpp`), `SubdividedGroundRender`, and the `ListJobWriter` the native builds and saves per
 call (its inputs: the records, `kSplitCount`, `kLeafCount`), keeping the `EmitterObject` scope that keys the
 packets; then removes the `SubdividedGround` row from `docs/producers.md`'s state producers.
+
+Shown on the committed tree (HEAD built without the uncommitted `subdivided_ground.cpp`, `scratch/headcheck`):
+village `warp 0/0` running right, each in-between halfway between its neighbours (`h_village/halfway.png`);
+paused village, 8 presents identical, the menu whole, its in-betweens replayed (`h_pause`).
