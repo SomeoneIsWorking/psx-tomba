@@ -7,7 +7,6 @@
 #include <lucent/log.h>
 
 #include <cstdlib>
-#include <cstring>
 
 namespace tomba::world {
 namespace {
@@ -15,12 +14,6 @@ namespace {
 // The halves the guest body builds the stack addresses from, left in a0 and a2.
 constexpr std::uint32_t kCursorPage = 0x800E0000u;
 constexpr std::uint32_t kCountPage = 0x800F0000u;
-
-template <typename Word> Word ramWord(const Core &core, std::uint32_t address) {
-  Word word = 0;
-  std::memcpy(&word, core.ram + psx::gpu::mainRamOffsetOf(address), sizeof(word));
-  return word;
-}
 
 } // namespace
 
@@ -53,10 +46,10 @@ std::uint32_t RenderRecordPool::object(std::uint32_t record) const {
   return incarnationObject(record, found == generations_.end() ? 0u : found->second);
 }
 
-void RenderRecordPool::sample(const Core &core) {
+void RenderRecordPool::sample(Core &core) {
   free_.reset();
-  const auto count = ramWord<std::int16_t>(core, kFreeCount);
-  const auto cursor = ramWord<std::uint32_t>(core, kFreeCursor);
+  const auto count = static_cast<std::int16_t>(core.mem_r16(kFreeCount));
+  const auto cursor = core.mem_r32(kFreeCursor);
   if (count <= 0) {
     return;
   }
@@ -66,11 +59,9 @@ void RenderRecordPool::sample(const Core &core) {
     std::abort();
   }
   for (std::uint32_t entry = cursor; entry < kFreeStackEnd; entry += 4u) {
-    const std::uint32_t offset =
-        psx::gpu::mainRamOffsetOf(ramWord<std::uint32_t>(core, entry)) - psx::gpu::mainRamOffsetOf(kRecords);
+    const std::uint32_t offset = psx::gpu::mainRamOffsetOf(core.mem_r32(entry)) - psx::gpu::mainRamOffsetOf(kRecords);
     if (offset % kRecordStride != 0 || offset / kRecordStride >= kRecordCount) {
-      lucent::error(
-          "records", "free stack entry {:08X} names {:08X}, not a record", entry, ramWord<std::uint32_t>(core, entry));
+      lucent::error("records", "free stack entry {:08X} names {:08X}, not a record", entry, core.mem_r32(entry));
       std::abort();
     }
     free_.set(offset / kRecordStride);

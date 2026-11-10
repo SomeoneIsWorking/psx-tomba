@@ -13,6 +13,7 @@
 #include "mtx.h"       // class Mtx — libgte helpers (identity)
 #include "placement.h" // Placement::spawnWithParent (FUN_80072DDC)
 #include "world/area_entries.h"
+#include "world/render_record_pool.h"
 #include <stdint.h>
 
 // 0x800796DC — zero the 104-byte control block at 0x800BF808, seed two bytes, clear ~30 scratchpad
@@ -139,22 +140,23 @@ void Pool::init() {
   clearBf548Region(); // native FUN_8004FB20
   initTypedPools();   // native FUN_800798F8
 
-  for (int i = 0; i < 520; i++) {
-    c->r[4] = 0x800F2740u + (uint32_t)i * 68u;
+  using Records = world::RenderRecordPool;
+  for (std::uint32_t i = 0; i < Records::kRecordCount; i++) {
+    c->r[4] = Records::kRecords + i * Records::kRecordStride;
     c->r[5] = 0;
-    c->r[6] = 68;
+    c->r[6] = Records::kRecordStride;
     psx::cpu::callGuestNowResult(*c, "pool", 0x8009A420u); // memset(slot, 0, 68)
   }
 
-  c->mem_w32(0x800E7E74u, 0x800ED8C0u); // free-list head
-  uint32_t payload = 0x800FB11Cu;       // last slot
-  for (int i = 0; i < 520; i++) {
-    uint32_t head = c->mem_r32(0x800E7E74u);
-    c->mem_w32(0x800E7E74u, head - 4);
+  c->mem_w32(Records::kFreeCursor, Records::kFreeStackEnd);
+  std::uint32_t payload = Records::kRecords + (Records::kRecordCount - 1) * Records::kRecordStride;
+  for (std::uint32_t i = 0; i < Records::kRecordCount; i++) {
+    const std::uint32_t head = c->mem_r32(Records::kFreeCursor);
+    c->mem_w32(Records::kFreeCursor, head - 4);
     c->mem_w32(head - 4, payload);
-    payload -= 68u;
+    payload -= Records::kRecordStride;
   }
-  c->mem_w16(0x800ED098u, 520); // free count
+  c->mem_w16(Records::kFreeCount, Records::kRecordCount);
 
   psx::cpu::callGuestNowResult(*c, "pool", 0x8007ACC4u);
   psx::cpu::callGuestNowResult(*c, "pool", 0x8007A810u);

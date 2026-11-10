@@ -43,7 +43,7 @@ public:
   std::uint32_t object(std::uint32_t record) const;
 
   // A record is live while no free-stack entry names it.
-  void sample(const Core &core) override;
+  void sample(Core &core) override;
   [[nodiscard]] bool live(std::uint32_t record) const override;
 
 private:
