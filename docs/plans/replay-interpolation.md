@@ -323,7 +323,9 @@ Nothing leaks: one pad replay (`scratch/pause-replay/rec2/session.pad`, boot int
 pause and unpause) run with fps60 off and on, after psxport 53125a32 stopped replays with fps60 off (the off run
 replays 0 intervals, the on run 1438), leaves main RAM and the scratchpad byte-identical at every pad frame it
 reached, 1 to 1638 (`scratch/review-findings/leak_fps{0,1}`, `leakcmp.py`). The earlier proof at two pad frames
-compared two runs that both replayed.
+compared two runs that both replayed. Repeated on the committed tree after the tile-grid, sway, wave and scroll
+tracks, camplace and the SOP and title sections (`scratch/replay-gaps/leak{0,1}`, built from `git archive` in
+`scratch/headcheck`): the on run replays 1552 intervals, and all 1638 pad frames reached match byte for byte.
 
 Boot and title: the boot cards are stepped by design (`frame/boot_cards.cpp`). SOP and the title menu replay
 through `DrawSection`'s `Sop` and `Title` variants. SOP's draw tail (FUN_801092B4 = `Sop::fieldUpdate`; FUN_801098E8
