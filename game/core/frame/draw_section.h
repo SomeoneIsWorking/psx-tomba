@@ -1,5 +1,5 @@
-// draw_section.h — the field draw M:8003F9A8 or the room draw M:8003FA44, then in GAME the page step G:8010810C,
-// as a replay section.
+// draw_section.h — the draw a frame replays: the field or room draw and GAME's page step, a menu page, A03's ride,
+// SOP, its narration or the DEMO title, as a replay section.
 #pragma once
 
 #include "replay_frame.h"
@@ -12,11 +12,13 @@ namespace tomba {
 class DrawSection final : public psx::present::ReplaySection {
 public:
   enum class Variant : std::uint8_t {
-    Field, // 0x8003F9A8
-    Room,  // 0x8003FA44: no scenery walker or tile grid
-    Sop,   // Sop::fieldUpdate's draw tail (Sop::kSceneryDraw, kListDraw, kGridDraw)
-    Title, // the title sub-machines' Demo::kTitleEdges and kTitleItems
-    Page,  // GAME's page step G:8010810C alone, when 0x1F800136 >= 2 holds the field draw off (a menu page)
+    Field,     // 0x8003F9A8
+    Room,      // 0x8003FA44: no scenery walker or tile grid
+    Sop,       // Sop::fieldUpdate's draw tail (Sop::kSceneryDraw, kListDraw, kGridDraw)
+    Title,     // the title sub-machines' Demo::kTitleEdges and kTitleItems
+    Page,      // GAME's page step G:8010810C alone, when 0x1F800136 >= 2 holds the field draw off (a menu page)
+    Ride,      // A03's draw 0x8010B328, which G:80108CAC (the cart ride) runs in place of the field draw
+    Narration, // SOP's narration crawl alone, while Sop::fieldUpdate's startup delay holds its draw tail off
   };
 
   // What the frame is about to draw, replayed until the next: every GAME caller follows the field or room draw with
@@ -35,6 +37,8 @@ public:
   [[nodiscard]] static bool pageStepResident(const Core &core);
   // G:8010810C, after either draw in GAME, or alone on a menu page.
   static constexpr std::uint32_t kPageStep = 0x8010810Cu;
+  // A03:8010B328, the cart ride's draw: HUD, A03's HUD and Tomba, list C, the ground walker, list D.
+  static constexpr std::uint32_t kRideDraw = 0x8010B328u;
   void select(Selection selection) {
     selection_ = selection;
   }

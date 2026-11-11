@@ -50,6 +50,10 @@ bool DrawSection::drawSteps(Core &core, psx::present::GuestRedraw &redraw) const
   }
   case Variant::Page:
     return redraw.run(kPageStep, {});
+  case Variant::Narration:
+    return redraw.dispatch(NarrationScroller::kEntry, {});
+  case Variant::Ride:
+    return redraw.run(kRideDraw, {}) && redraw.dispatch(kPageStep, {});
   case Variant::Title: {
     const std::array edges{0u};
     const std::array items{selection_.menu, selection_.item};

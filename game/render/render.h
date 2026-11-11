@@ -26,6 +26,8 @@ public:
   void frameX();
   // GAME's page step G:8010810C; on a menu page, with the field draw held off, it is the frame's whole draw.
   void pageStep();
+  // A03's draw 0x8010B328, the cart ride's frame (G:80108CAC), followed there by the page step.
+  void ride();
   // Every guest call of either orchestrator reaches frame/frameX.
   static void registerOverrides(native::NativeOverrideCatalog &natives);
 

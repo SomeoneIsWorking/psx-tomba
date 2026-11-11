@@ -537,6 +537,9 @@ void Sop::fieldUpdate() {
   sm = c->mem_r32(TASK_SM_PTR);
   uint16_t s52 = c->mem_r16(sm + kScrollerPhase);
   if (s52 == 1) {
+    if (delay != 0) {
+      sessionOf(c).drawReplay.beforeDraw(*c, {.variant = DrawSection::Variant::Narration});
+    }
     psx::cpu::callGuestNow(*c, __func__, NarrationScroller::kEntry); // links its lines into the same OT
     if (c->r[2] == 0) {
       return; // still running -> stay
