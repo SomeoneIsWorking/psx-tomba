@@ -2,7 +2,7 @@
 
 Features: F-FPS60.
 
-Status: fixed (2026-11-11) for replayed in-betweens; a composed in-between (menus, pause) keeps the newer entries.
+Status: fixed (2026-11-11).
 
 ## Reproduction
 `warp 13/0` from a paused boot stepped to 1050, step 1800 (the boss intro with the view still), unpaced, `ires=0`,
@@ -37,3 +37,10 @@ Run `h3` (fix, fps60 on) and `h4` (fps60 off), same plan. Water box mean change 
 tiles equal the newer real (before: 216); its mean distance from the midpoint of its neighbours is 1.5 against 5.7
 and 6.3 from each (the wave's motion is the rest). `h3_water_7_8_9.png`: the middle crop is the cross-fade. The real
 presents of `h3` are byte-identical to `h4`'s, and guest RAM at the two marks is identical with fps60 on and off.
+
+## Producer-built in-betweens
+A composed in-between (a screen whose draw ran no replay section) keeps the newer entries. No Tomba producer screen
+checked cycles a palette: on the pause menu over A0D (`tap start` at 2850 after `warp 13/0`), raw VRAM is unchanged
+across 12 consecutive frames, the water cycle included (`scratch/wave0058/menu`, `menu_pause.png`). The title screen
+cycles ten CLUTs (x 800/816 rows 190/205, x 1008 rows 210..255) every tick, but its in-betweens are replayed and blend
+through the same path (`debug clut` logs them, run `title`). The save, load and map screens were not checked.
