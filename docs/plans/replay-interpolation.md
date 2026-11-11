@@ -174,6 +174,10 @@ above lives there).
 - A door's fade frames: `FieldTransition::main` (G:80107AFC, sm[0x4c] 1..4) draws only 0x8003FA1C (Tomba's draw
   M:8003B588 and list C, M:8003C048), no page step. `Render::frameLists`, its override, selects
   `DrawSection::Variant::Lists`; reached by the debug verb `door <area> <entry>`.
+- `Render::billboardEmit` (M:8003C8F4) is reached only through the composers M:8003C2D4/C464/C5F8/C788, called by the
+  list draws M:8003BB50, BCF4, BF00, C048, EEC0 and 8004CC88. Those run inside a section: the field and room draws,
+  0x8003FA1C (`Lists`), A03's ride draw (its M:8003C048 call at 0x8010B364 is inside 0x8010B328) and SOP's draw tail
+  (`Sop::kListDraw`; SOP's other copy of that tail, FUN_801098E8, has no code or data reference).
 - SOP's narration crawl while `Sop::fieldUpdate`'s startup delay (sm+0x60) holds the draw tail off: the crawl alone,
   `DrawSection::Variant::Narration`.
 - Not a replayable frame, `forget()`: a frame whose field frame did not draw (load, the title menu, boot cards), a switch between `0x8003F9A8` and `0x8003FA44` or between stages,
