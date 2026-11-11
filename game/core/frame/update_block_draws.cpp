@@ -20,8 +20,7 @@ void UpdateBlockDraws::open() {
   open_ = true;
 }
 
-void UpdateBlockDraws::sample(Core &core) {
-  core_ = &core;
+void UpdateBlockDraws::sample(Core & /*core*/) {
   earlier_.swap(later_);
   later_.swap(noting_);
   noting_.clear();
@@ -36,7 +35,7 @@ void UpdateBlockDraws::sample(Core &core) {
   open_ = false;
 }
 
-psx::present::MotionCount UpdateBlockDraws::write(psx::present::GuestRedraw & /*redraw*/, float t) const {
+psx::present::MotionCount UpdateBlockDraws::write(psx::present::GuestRedraw &redraw, float t) const {
   psx::present::MotionCount count{.drawn = later_.size()};
   for (const Draw &later : later_) {
     const auto earlier = std::ranges::find_if(earlier_, [&later](const Draw &draw) {
@@ -46,7 +45,7 @@ psx::present::MotionCount UpdateBlockDraws::write(psx::present::GuestRedraw & /*
       ++count.unpaired;
       continue;
     }
-    later.rebuild(*core_, *earlier, later, t);
+    later.rebuild(redraw, *earlier, later, t);
   }
   return count;
 }

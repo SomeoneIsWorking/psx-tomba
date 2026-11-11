@@ -2,7 +2,8 @@
 
 Features: F-FPS60.
 
-Status: partly fixed (2026-11-11): letterbox bars and fade fills rebuilt at t; dialog glyphs and `UiSprite` open.
+Status: partly fixed (2026-11-11): letterbox bars rebuilt at t; fade fills step on real presents by design (below); dialog
+glyphs and `UiSprite` open.
 
 ## Reproduction
 Any gameplay screen with a dialog box, a fade, letterbox bars or a UI sprite in motion, dumped unpaced with player
@@ -21,25 +22,30 @@ packets and cannot rebuild them at t without running those writers a second time
 Split each writer's state machine into an update step and a draw the section calls, then track the state the draw
 reads (fade level, bar height, glyph reveal, sprite place).
 
-## Fix (letterbox, fade)
+## Fix (letterbox)
 `game/core/frame/update_block_draws.cpp:UpdateBlockDraws` is a motion source. A writer in the update block notes the
 packets it linked with the values it built them from, keyed by its entry and its slot or call-site object; the
 section's sample keeps them, and each replay rewrites the later tick's packets from the paired values blended, in
-place, so the OT the replay starts from holds them at t. Unpaired draws are drawn as they are and reported at run end.
+place through its `GuestRedraw` (`writeVertex`, `writeHalf`), so the OT the replay starts from holds them at t.
+Unpaired draws are drawn as they are and reported at run end. A note exists only for a writer that ran this tick, and
+pairs only while the replay's samples pair (`DrawReplay::endFrame` forgets on a frame with no draw or a cut).
 
 - `LetterboxBars::tick` notes both bars with their height; the replay places them at the unrounded blended edge
   (`lerpExact`), bar height rounded up. Shown halfway on the opening letterbox (`scratch/narration/b3`): bar edge
   12, 16, 20 ... 96 sink px on consecutive presents, in-betweens on the half.
-- `ScreenFade::drawEntry` notes its fill with its colour and blend mode; the replay writes `lerpColor` of the two
-  fill words when the blend matches. Every Tomba fade steps one 5-bit unit (8) a tick, and the framebuffer is
-  15-bit, so the halfway colour truncates to the later tick's and a fade's in-between cannot differ in the picture.
+- The letterbox draws only with the effect slots armed (`0x1F80019A == 2`), in gameplay frames the section replays,
+  so its state producer (`BarsRender`) was composed only at t = 1, where it equals the guest packets; it is deleted
+  and `rebuildBars` is the letterbox's one blend.
+- `ScreenFade` is not rebuilt. Every Tomba fade steps one 5-bit unit (8) a tick and the framebuffer is 15-bit, so a
+  halfway fill colour truncates to one of the two ticks' and an in-between cannot show a level between them; the
+  rebuild that wrote it was deleted. `FadeRender` stays for presents whose draw ran no section (menus, loads), the
+  case a replay cannot run.
 
 ## Remaining
 - The dialog box: the machine `0x8007D594` steps its open (state 0x5A eases y +0x56 toward +0x82, 0x5B grows the
   width +0x58 and recentres x +0x54) and then draws the glyphs (`0x8007CC00`) and the panel (`Panel::drawPanel`,
   `0x8005019C`) from node +0x54 in the same call. Not started.
 - `UiSprite` (`0x8007E1B8`/`0x8007E6DC`): 17 call sites, not started.
-- The state producers these writers register (`FadeRender`, the letterbox's, `Panel`'s list job, `DialogGlyphs`,
-  `UiSprite`'s) are not composed into a replayed interval (`FramePresenter`: a replaying title brings whole
-  in-betweens), so they blend nothing while Tomba replays; whether any present still composes them decides
-  whether they are dead code.
+- The state producers `Panel`'s list job, `DialogGlyphs` and `UiSprite` register are not composed into a replayed
+  interval (`FramePresenter`: a replaying title brings whole in-betweens); they serve presents whose draw ran no
+  section, and the dialog box and sprites still need their replay owner above.

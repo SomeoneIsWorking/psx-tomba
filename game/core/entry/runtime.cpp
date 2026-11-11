@@ -122,7 +122,6 @@ void Runtime::registerOverrides(Game &game) {
   tomba::render::SubdividedGround::registerStateRenders(renders, game.core);
   Font::registerStateRenders(renders);
   ScreenFade::registerStateRenders(renders);
-  tomba::render::LetterboxBars::registerStateRenders(renders);
   UiSprite::registerStateRenders(renders);
   tomba::render::BillboardState::registerStateRenders(renders, game.core);
   tomba::render::GuestKeyedEmitters::registerStateRenders(renders);

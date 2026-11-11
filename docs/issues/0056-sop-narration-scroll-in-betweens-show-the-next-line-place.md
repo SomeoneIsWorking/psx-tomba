@@ -38,4 +38,5 @@ guest's strlen is a nested override the journal pairs by position, so the native
 
 Shown (`scratch/narration/n7`, boot unskipped into SOP, unpaced, player settings): the narration's top glyph row at
 196, 192, 188, 184, 180, 176, 172, 168 sink pixels over consecutive presents, in-betweens (t = 0.5) and real presents
-alternating, so each in-between sits halfway between its neighbours (`ny.py`, `narration_halfway.png`).
+alternating, so each in-between sits halfway between its neighbours (`scratch/narration/ny.py`,
+`scratch/narration/n7/narration_halfway.png`).

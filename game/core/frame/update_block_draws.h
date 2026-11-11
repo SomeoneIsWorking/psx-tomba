@@ -1,5 +1,5 @@
-// update_block_draws.h — 2D packets the update block links before the draw section (the fade, the letterbox), rebuilt
-// in each replay from the values they were built from, blended.
+// update_block_draws.h — 2D packets the update block links before the draw section (the letterbox), rebuilt in each
+// replay from the values they were built from, blended.
 #pragma once
 
 #include "motion_set.h"
@@ -20,7 +20,7 @@ public:
     std::array<std::uint32_t, 2> packets{};
     std::array<std::uint32_t, 2> values{};
     // Rewrites `later`'s packets `t` of the way from `earlier`'s values.
-    void (*rebuild)(Core &core, const Draw &earlier, const Draw &later, float t) = nullptr;
+    void (*rebuild)(psx::present::GuestRedraw &redraw, const Draw &earlier, const Draw &later, float t) = nullptr;
   };
 
   // A writer linked `draw` into the frame's OT; kept only between the frame's start and the section's sample.
@@ -39,7 +39,6 @@ private:
   std::vector<Draw> earlier_;
   std::vector<Draw> later_;
   bool open_ = false;
-  Core *core_ = nullptr;
 };
 
 } // namespace tomba
