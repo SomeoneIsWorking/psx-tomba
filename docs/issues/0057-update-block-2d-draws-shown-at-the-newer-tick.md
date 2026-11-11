@@ -31,8 +31,9 @@ Unpaired draws are drawn as they are and reported at run end. A note exists only
 pairs only while the replay's samples pair (`DrawReplay::endFrame` forgets on a frame with no draw or a cut).
 
 - `LetterboxBars::tick` notes both bars with their height; the replay places them at the unrounded blended edge
-  (`lerpExact`), bar height rounded up. Shown halfway on the opening letterbox (`scratch/narration/b3`): bar edge
-  12, 16, 20 ... 96 sink px on consecutive presents, in-betweens on the half.
+  (`lerpExact`), bar height rounded up. Shown halfway on the opening letterbox (`scratch/narration/b3`, again after
+  the rebuild moved onto `GuestRedraw` in `scratch/review-tomba/bars`): bar edge 12, 16, 20 ... 96 sink px on
+  consecutive presents, in-betweens on the half.
 - The letterbox draws only with the effect slots armed (`0x1F80019A == 2`), in gameplay frames the section replays,
   so its state producer (`BarsRender`) was composed only at t = 1, where it equals the guest packets; it is deleted
   and `rebuildBars` is the letterbox's one blend.

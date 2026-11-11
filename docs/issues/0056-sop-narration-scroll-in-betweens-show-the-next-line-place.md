@@ -32,9 +32,14 @@ is the one the last tick drew and the one it reaches is the one this tick draws;
 `Font::PlacedGlyphs` has `glyphEmit` place each glyph `lerpExact(drawn, stepped, t) - stepped` lines below its word.
 At t = 1 the packets are the real frame's.
 
-Differential (`PSXPORT_OVERRIDE_DIFF=0x8010C79C`, `scratch/narration/n6`): 20 of 20 sampled calls match the guest
-body byte for byte, 0 incomparable. An earlier version that called `Str::length` directly mismatched every call: the
-guest's strlen is a nested override the journal pairs by position, so the native calls it through its jal too.
+Differential over the whole crawl (`PSXPORT_OVERRIDE_DIFF=0x8010C79C`, `PSXPORT_OVERRIDE_DIFF_EVERY=1`,
+`scratch/review-tomba/crawl4`, boot unskipped into SOP until the section leaves the scroller): 2006 of 2006 calls,
+real and replayed, match the guest body byte for byte, 0 incomparable. That covers the start, every line advance (one
+each 0x1E steps), the end branch at scroll below -0x31B and the phase-2 calls after it; the caller advances its scene
+step when phase 2 returns 1, so phase above 2 is not reached. The run over the end found the native leaving v1 stale
+(`scratch/review-tomba/crawl2`, call 2003): the guest leaves the phase, the task pointer or the first line index + 1
+there, and `step` now does the same. An earlier version that called `Str::length` directly mismatched every call:
+the guest's strlen is a nested override the journal pairs by position, so the native calls it through its jal too.
 
 Shown (`scratch/narration/n7`, boot unskipped into SOP, unpaced, player settings): the narration's top glyph row at
 196, 192, 188, 184, 180, 176, 172, 168 sink pixels over consecutive presents, in-betweens (t = 0.5) and real presents

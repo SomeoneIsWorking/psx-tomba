@@ -353,7 +353,8 @@ compared two runs that both replayed. Repeated on the committed tree after the t
 tracks, camplace and the SOP and title sections, and again after the tile-grid placement, the SOP update flag and the
 re-place count (`scratch/review-fix/leak{0,1}`, HEAD built from `git archive` without the uncommitted
 `subdivided_ground.cpp`): the on run replays 1552 intervals, 0 refused, and all 1638 pad frames reached match byte for
-byte. Paced on the same build (`scratch/replay-gaps/paced`, `warp 0/0`
+byte. Repeated after the letterbox rebuild moved onto `GuestRedraw` and the narration scroller's v1
+(`scratch/review-tomba/leak{0,1}`): 1552 replayed, 0 refused, 1638 of 1638 identical. Paced on the same build (`scratch/replay-gaps/paced`, `warp 0/0`
 running right, 1-minute load 2.4): 698 of 701 simulated 60.00 Hz vblanks advance half a tick, 3 repeat; 1747
 intervals replayed, 0 refused, 0 held; the run-end unpaired counts are the node pools' and record lists' births
 and deaths (98 of 15312 effect nodes, 376 of 763641 record transforms), every other track 0.

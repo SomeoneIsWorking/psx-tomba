@@ -40,6 +40,8 @@ std::int32_t readS32(Core &core, std::uint32_t address) {
 NarrationScroller::Step NarrationScroller::step(Core &core) {
   const std::uint32_t sm = core.mem_r32(kTaskSm);
   const std::uint16_t phase = core.mem_r16(sm + kPhase);
+  // The guest leaves v1 as it last set it on each path: the phase, the task, or the line index past the first line.
+  core.r[3] = phase;
   if (phase == 2u) {
     return {.result = 1u};
   }
@@ -58,9 +60,11 @@ NarrationScroller::Step NarrationScroller::step(Core &core) {
   if (from < kEndScroll + kOffTop) {
     const std::uint32_t task = core.mem_r32(kTaskSm);
     core.mem_w16(task + kPhase, static_cast<std::uint16_t>(core.mem_r16(task + kPhase) + 1u));
+    core.r[3] = task;
     return {};
   }
   std::int32_t line = readS32(core, kFirstLine);
+  core.r[3] = static_cast<std::uint32_t>(line + 1);
   if (scroll + line * kLineStep < kOffTop) {
     ++line;
     core.mem_w32(kFirstLine, static_cast<std::uint32_t>(line));
