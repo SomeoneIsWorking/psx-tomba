@@ -26,11 +26,13 @@ void UpdateBlockDraws::sample(Core & /*core*/) {
   noting_.clear();
   for (const Draw &draw : later_) {
     lucent::debug("update-draws",
-                  "writer 0x{:08X} object 0x{:X} values 0x{:X} 0x{:X}",
+                  "writer 0x{:08X} object 0x{:X} values 0x{:X} 0x{:X} 0x{:X} 0x{:X}",
                   draw.writer,
                   draw.object,
                   draw.values[0],
-                  draw.values[1]);
+                  draw.values[1],
+                  draw.values[2],
+                  draw.values[3]);
   }
   open_ = false;
 }

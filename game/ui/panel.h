@@ -2,6 +2,7 @@
 // FUN_8005019C build, FUN_8004FFB4 fillQuad, FUN_8007FCC8 pushDialogBackdrop.
 #pragma once
 #include "emit_memory.h"
+#include "frame/update_block_draws.h"
 #include "state_producer.h"
 
 #include <cstdint>
@@ -51,6 +52,11 @@ public:
   // FUN_8005019C's body: `call.list` the rect, `a1` the style, `count` the shadow flag, `a3` the bucket.
   static void build(const psx::present::EmitMemory &memory, const render::ListCall &call);
   static void drawPanel(Core *c);
+  // A replay's rewrite of a panel the update block built: every piece placed from the rect blended `t` of the way.
+  static void rebuild(psx::present::GuestRedraw &redraw,
+                      const UpdateBlockDraws::Draw &earlier,
+                      const UpdateBlockDraws::Draw &later,
+                      float t);
 };
 
 } // namespace tomba

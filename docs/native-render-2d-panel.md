@@ -26,6 +26,9 @@ Emits (all tpage 0x5F → tp_x=960,tp_y=256,mode=0; clut per decode; opaque unle
 2. DR_MODE tpage 0x5F (owned leaf — no packet natively).
 3. 5× panelFill(rect', uvIndex, attr, bucket): 0 top(x,y-8,w,8) · 1 bottom(x,y+h,w,8) · 2 left(x-8,y,8,h) · 3 right(x+w,y,8,h) · 4 center(x,y,w,h).
 
+A call in the update block (the dialog box) is noted to `UpdateBlockDraws` with its rect; each replay places the
+corner and fill vertices from the blended rect (`Panel::rebuild`, one `layoutOf` with the build; issue 0057).
+
 ## Spec 2 — FUN_8004FFB4 `panelFill(short* rect r4, int uvIndex r5, u16 attr r6, int otBucket r7)`
 One POLY_FT4 over rect, sampling a fixed patch. LEAF, frame 0 (no mirror). code 0x2C `|0x02`(semi) `|0x01`(raw if !attr&0x20 else RGB 0x40).
 tpage 0x5F. Verts = rect corners v0(x,y) v1(x+w,y) v2(x,y+h) v3(x+w,y+h). UV by uvIndex (v0=uL,vT / v1=uR,vT / v2=uL,vB / v3=uR,vB):

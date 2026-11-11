@@ -72,7 +72,7 @@ DRAWENV packet sits at env + 0x2014 and is named out by that test.
 
 The capture includes every packet linked into this frame's OT before the section ran (the update block's
 writers, below): they are in the OT the replay starts from, so they come back at their real (t = 1) place, except
-those a writer notes to `UpdateBlockDraws` (the letterbox), which each replay rewrites in place through its
+those a writer notes to `UpdateBlockDraws` (the letterbox, the dialog box panel), which each replay rewrites in place through its
 `GuestRedraw` from the two ticks' values blended (issue 0057). It pairs only while the replay's samples pair:
 `DrawReplay::endFrame` forgets on a frame with no draw or a cut, so a pair never spans a gap.
 
@@ -348,7 +348,8 @@ What steps at 30 Hz, by RE (`scratch/replay-gaps/{main,a01,a02,a06,a0a,a0d,a0f}`
 - **2D draws linked in the update block** (dialog glyphs `0x8007CC00`, `ScreenFade` `0x8007E9C8`, `LetterboxBars`
   `0x80026864`, `UiSprite`): their packets are built and linked before the section from state the update steps in the
   same call, so the replay starts from an OT that already holds S's packets and cannot rebuild them at t without
-  running those writers twice. They are captured at t = 1 (issue 0057).
+  running those writers twice. The letterbox and the dialog box panel are noted to `UpdateBlockDraws` and rebuilt
+  at t; the rest are captured at t = 1 (issue 0057).
 
 Nothing leaks: one pad replay (`scratch/pause-replay/rec2/session.pad`, boot into the village, walk, jump, turn,
 pause and unpause) run with fps60 off and on, after psxport 53125a32 stopped replays with fps60 off (the off run

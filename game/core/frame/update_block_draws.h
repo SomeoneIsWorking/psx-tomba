@@ -1,5 +1,5 @@
-// update_block_draws.h — 2D packets the update block links before the draw section (the letterbox), rebuilt in each
-// replay from the values they were built from, blended.
+// update_block_draws.h — 2D packets the update block links before the draw section (the letterbox, panels), rebuilt in
+// each replay from the values they were built from, blended.
 #pragma once
 
 #include "motion_set.h"
@@ -18,7 +18,7 @@ public:
     std::uint32_t writer = 0; // guest entry
     std::uint32_t object = 0; // the writer's key: its slot or its call-site object
     std::array<std::uint32_t, 2> packets{};
-    std::array<std::uint32_t, 2> values{};
+    std::array<std::uint32_t, 4> values{};
     // Rewrites `later`'s packets `t` of the way from `earlier`'s values.
     void (*rebuild)(psx::present::GuestRedraw &redraw, const Draw &earlier, const Draw &later, float t) = nullptr;
   };

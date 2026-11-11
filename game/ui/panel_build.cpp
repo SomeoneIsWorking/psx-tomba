@@ -1,15 +1,19 @@
 // game/ui/panel_build.cpp — Panel::build, guest FUN_8005019C, the 9-slice panel.
 // Four 8x8 corner sprites, a DR_MODE for texture page 0x5F, then five fills; each call is its own object.
+#include "blend.h"
 #include "core.h"
 #include "core/overrides/native_override_catalog.h"
 #include "entry/session.h"
 #include "guest_abi.h"
+#include "guest_redraw.h"
+#include "projected_vertex.h"
 #include "render/guest_ordering_table.h"
 #include "render/libgpu_draw_mode.h"
 #include "render/list_job.h"
 #include "render/list_state_producer.h"
 #include "ui/panel.h"
 
+#include <array>
 #include <memory>
 
 namespace tomba {
@@ -52,6 +56,29 @@ struct Rect {
   std::int16_t w;
   std::int16_t h;
 };
+
+// Where the 9-slice puts its pieces for a rect: the corner sprites' places and the five fills' x, y, w, h.
+template <class T> struct Layout {
+  std::array<std::array<T, 2>, 4> corners;
+  std::array<std::array<T, 4>, kFills> fills;
+};
+template <class T> Layout<T> layoutOf(T x, T y, T w, T h) {
+  const T border = kBorder;
+  const T left = x - border;
+  const T top = y - border;
+  const T right = x + w;
+  const T bottom = y + h;
+  return {
+      .corners = {{{left, top}, {right, top}, {left, bottom}, {right, bottom}}},
+      .fills = {
+          {{x, top, w, border}, {x, bottom, w, border}, {left, y, border, h}, {right, y, border, h}, {x, y, w, h}}}};
+}
+
+// The packet run from the pool cursor: four corners, the mode, five fills.
+constexpr std::uint32_t kModeAt = 4u * kCornerBytes;
+constexpr std::uint32_t kFillsAt = kModeAt + kModeBytes;
+constexpr std::uint32_t kVertex = 8u;
+constexpr std::array<std::uint32_t, 4> kFillVertices{8u, 16u, 24u, 32u};
 
 Rect readRect(const psx::present::EmitMemory &memory, std::uint32_t at) {
   return {static_cast<std::int16_t>(memory.mem_r16s(at)),
@@ -124,14 +151,17 @@ void Panel::build(const psx::present::EmitMemory &memory, const render::ListCall
   const std::uint16_t attr = attribute(call.a1, call.count);
   const std::uint32_t bucket = call.a3;
   const Rect rect = readRect(memory, call.list);
-  const auto right = static_cast<std::int16_t>(rect.x + rect.w);
-  const auto bottom = static_cast<std::int16_t>(rect.y + rect.h);
-  const auto left = static_cast<std::int16_t>(rect.x - kBorder);
-  const auto top = static_cast<std::int16_t>(rect.y - kBorder);
-  drawCorner(memory, ot, attr, bucket, {.x = left, .y = top, .u = 0xB8});
-  drawCorner(memory, ot, attr, bucket, {.x = right, .y = top, .u = 0xC8});
-  drawCorner(memory, ot, attr, bucket, {.x = left, .y = bottom, .u = 0xE8});
-  drawCorner(memory, ot, attr, bucket, {.x = right, .y = bottom, .u = 0xF8});
+  const Layout<int> layout = layoutOf<int>(rect.x, rect.y, rect.w, rect.h);
+  constexpr std::array<std::uint8_t, 4> kCornerU{0xB8, 0xC8, 0xE8, 0xF8};
+  for (std::size_t corner = 0; corner < kCornerU.size(); ++corner) {
+    drawCorner(memory,
+               ot,
+               attr,
+               bucket,
+               {.x = static_cast<std::int16_t>(layout.corners[corner][0]),
+                .y = static_cast<std::int16_t>(layout.corners[corner][1]),
+                .u = kCornerU[corner]});
+  }
 
   const std::uint32_t mode = render::PacketPool(memory).allocate(kModeBytes);
   render::setDrawMode(memory,
@@ -143,14 +173,16 @@ void Panel::build(const psx::present::EmitMemory &memory, const render::ListCall
   const auto fillEdge = [&](std::uint32_t rectAt, Edge uv) {
     fill(memory, ot, {.rect = rectAt, .uvIndex = uv, .attr = fillAttr, .bucket = bucket});
   };
-  writeRect(memory, edge, {.x = rect.x, .y = top, .w = rect.w, .h = kBorder});
-  fillEdge(edge, Top);
-  writeRect(memory, edge, {.x = rect.x, .y = bottom, .w = rect.w, .h = kBorder});
-  fillEdge(edge, Bottom);
-  writeRect(memory, edge, {.x = left, .y = rect.y, .w = kBorder, .h = rect.h});
-  fillEdge(edge, Left);
-  writeRect(memory, edge, {.x = right, .y = rect.y, .w = kBorder, .h = rect.h});
-  fillEdge(edge, Right);
+  for (const Edge uv : {Top, Bottom, Left, Right}) {
+    const std::array<int, 4> &piece = layout.fills[uv];
+    writeRect(memory,
+              edge,
+              {.x = static_cast<std::int16_t>(piece[0]),
+               .y = static_cast<std::int16_t>(piece[1]),
+               .w = static_cast<std::int16_t>(piece[2]),
+               .h = static_cast<std::int16_t>(piece[3])});
+    fillEdge(edge, uv);
+  }
   fillEdge(call.list, Centre);
 }
 
@@ -167,8 +199,47 @@ void Panel::drawPanel(Core *core) {
       *core, Panel::kBuild, render::OwnObject{sessionOf(core).callSites.object(core->r[31], call.list)});
   render::ListJobWriter job(*core, 0, call, kPacketBytes);
   job.input(*core, call.list, sizeof(Rect), render::InputBlend::Lanes16);
+  const std::uint32_t packets = render::PacketPool(*core).cursor();
   Panel::build(*core, call);
   job.save(*core);
+  const Rect rect = readRect(*core, call.list);
+  sessionOf(core).drawReplay.updateDraws().note(*core,
+                                                {.writer = Panel::kBuild,
+                                                 .object = sessionOf(core).callSites.object(core->r[31], call.list),
+                                                 .packets = {packets, 0u},
+                                                 .values = {static_cast<std::uint32_t>(rect.x),
+                                                            static_cast<std::uint32_t>(rect.y),
+                                                            static_cast<std::uint32_t>(rect.w),
+                                                            static_cast<std::uint32_t>(rect.h)},
+                                                 .rebuild = &Panel::rebuild});
+}
+
+void Panel::rebuild(psx::present::GuestRedraw &redraw,
+                    const UpdateBlockDraws::Draw &earlier,
+                    const UpdateBlockDraws::Draw &later,
+                    float t) {
+  std::array<double, 4> rect{};
+  for (std::size_t lane = 0; lane < rect.size(); ++lane) {
+    rect[lane] = psx::present::lerpExact(
+        static_cast<std::int32_t>(earlier.values[lane]), static_cast<std::int32_t>(later.values[lane]), t);
+  }
+  const Layout<double> layout = layoutOf(rect[0], rect[1], rect[2], rect[3]);
+  const std::uint32_t packets = later.packets[0];
+  const auto place = [&redraw](std::uint32_t at, double x, double y) {
+    redraw.writeVertex(at,
+                       psx::gte::ProjectedVertex::nearest({static_cast<float>(x), static_cast<float>(y), 0.0f, 0.0f}));
+  };
+  for (std::size_t corner = 0; corner < layout.corners.size(); ++corner) {
+    place(packets + corner * kCornerBytes + kVertex, layout.corners[corner][0], layout.corners[corner][1]);
+  }
+  for (std::size_t piece = 0; piece < layout.fills.size(); ++piece) {
+    const auto [x, y, w, h] = layout.fills[piece];
+    const std::uint32_t fill = packets + kFillsAt + piece * kFillBytes;
+    place(fill + kFillVertices[0], x, y);
+    place(fill + kFillVertices[1], x + w, y);
+    place(fill + kFillVertices[2], x, y + h);
+    place(fill + kFillVertices[3], x + w, y + h);
+  }
 }
 
 void Panel::registerStateRenders(psx::present::StateProducerTable &renders, Core &core) {

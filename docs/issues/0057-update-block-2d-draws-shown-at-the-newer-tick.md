@@ -2,8 +2,8 @@
 
 Features: F-FPS60.
 
-Status: partly fixed (2026-11-11): letterbox bars rebuilt at t; fade fills step on real presents by design (below); dialog
-glyphs and `UiSprite` open.
+Status: partly fixed (2026-11-11): letterbox bars rebuilt at t; dialog box panel rebuilt at t; fade fills step on real presents
+by design (below); `UiSprite` open.
 
 ## Reproduction
 Any gameplay screen with a dialog box, a fade, letterbox bars or a UI sprite in motion, dumped unpaced with player
@@ -41,11 +41,18 @@ pairs only while the replay's samples pair (`DrawReplay::endFrame` forgets on a 
   halfway fill colour truncates to one of the two ticks' and an in-between cannot show a level between them; the
   rebuild that wrote it was deleted. `FadeRender` stays for presents whose draw ran no section (menus, loads), the
   case a replay cannot run.
+- The dialog box: the machine `0x8007D594` steps its open (state 0x5A eases y +0x56 toward +0x82, 0x5B grows the
+  width +0x58 by an accelerating step and recentres x +0x54 on 0xA0) and then draws the glyphs (`0x8007CC00`) and the
+  panel (`Panel::drawPanel`, `0x8005019C`) from node +0x54 in the same call. Glyphs are not drawn while it opens
+  (0x5A..0x5C clear the count `0x1F80017E`) and reveal whole glyphs a tick, so only the panel moves. `Panel::drawPanel`
+  notes the packet run with the rect, keyed by its call-site object; `Panel::rebuild` places the four corner sprites
+  and five fills from the rect blended (`lerpExact`), sharing `layoutOf` with `Panel::build`. Shown at `warp 13/0`
+  +1035 (`scratch/rr0057/a1`, `panel_rise.png`, `panel_grow.png`): the top edge on consecutive presents is 1672, 1620,
+  1568, 1528, 1488 ... 1248, 1240 sink px and the left edge 1608, 1576, 1536, 1496 ... 1160, each in-between on the
+  half of its neighbours, corners joined; guest RAM and scratchpad at frame 2405, after the open,
+  identical with fps60 off (`scratch/rr0057/o1`).
 
 ## Remaining
-- The dialog box: the machine `0x8007D594` steps its open (state 0x5A eases y +0x56 toward +0x82, 0x5B grows the
-  width +0x58 and recentres x +0x54) and then draws the glyphs (`0x8007CC00`) and the panel (`Panel::drawPanel`,
-  `0x8005019C`) from node +0x54 in the same call. Not started.
 - `UiSprite` (`0x8007E1B8`/`0x8007E6DC`): 17 call sites, not started.
 - The state producers `Panel`'s list job, `DialogGlyphs` and `UiSprite` register are not composed into a replayed
   interval (`FramePresenter`: a replaying title brings whole in-betweens); they serve presents whose draw ran no
