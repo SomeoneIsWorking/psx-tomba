@@ -37,7 +37,10 @@ At 4:3 nothing takes these paths and the output is the guest's.
 
 The reproduction above. `scratch/m0059/cmp_f200.png`: HEAD above, black right margin below the wall and black bottom-left; the
 fix below, tunnel wall and floor to both edges. `seams2_f200.png`: no seam at either 4:3 edge. `cmp_f280_f360.png`:
-frames 1330 and 1410, HEAD left and fix right, show no black margin or seam in the fix. 4:3 runs `fix43` and `head43` are byte-identical at all three shots.
+frames 1330 and 1410, HEAD left and fix right, show no black margin or seam in the fix. 4:3 runs `fix43` and `head43` are byte-identical at all three shots. At 4:3 (`aspect=0`) no widened path runs: run `clip0` with
+`debug groundclip` (one line per clipped record, `Quad::linkClipped`, the one entry of every widened path) logs 0
+lines over the run, against 221490 at 16:9 (`clip1`) and 221612 at 21:9 (`clip2`); `clip0_all.png` shows the three
+4:3 shots as the guest draws them.
 
 The crack at guest (315, 196) between a re-clipped record (0x801BDC40, 0x801BC0F4, 0x801BDB10) and an exact
 neighbour came from the clip placing shared corners at their exact projection while the neighbour's split put them on

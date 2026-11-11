@@ -313,6 +313,7 @@ std::optional<std::uint32_t> Quad::linkClipped(std::uint32_t packet,
                                                std::int32_t bucket,
                                                Tint tint,
                                                Edges edges) const {
+  lucent::debug("groundclip", "record {:#010x} clipped to columns [{}, {})", record, columns.left, columns.right);
   psx::cpu::Gte &gte = memory.core().gte();
   const std::array<ModelPoint, 4> around{corners[0], corners[1], corners[3], corners[2]};
   const std::vector<ClipPoint> placed = ViewClip::place(gte, around);
