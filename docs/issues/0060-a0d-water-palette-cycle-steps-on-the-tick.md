@@ -1,0 +1,30 @@
+# 0060 — A0D's water colour cycle steps on the tick at 60 fps
+
+Features: F-FPS60.
+
+Status: open (2026-11-11). Traced; not fixed.
+
+## Reproduction
+`warp 13/0` from a paused boot stepped to 1050, step 1800 (the boss intro with the view still), unpaced, `ires=0`,
+`fps60=1`, sink 3840x2160 (`scratch/wave0058/wave_plan.py`, run `h1`). The water left of the bridge
+(sink x 0..480, y 1100..1700).
+
+## Observed
+The water's mean change between consecutive presents is 3.9, 1.2, 1.1, 8.4, 2.3, 0, 0, 8.1, 0, 2.5, 2.4: the small
+halfway steps are the screen wave (fixed in 6c11339), and every other tick a large change lands whole on one
+present; on in-between 8 every one of the 216 moving 32 px tiles equals the following real (`whole.py`,
+`greens.py`, `h1_whole.png`).
+
+## Cause
+A palette cycle, not geometry: VRAM row y 250, x 816..821 (the water's CLUT entries 4..9) rotates one entry every
+other tick (`scratch/wave0058/v1`, raw VRAM per frame with fps60 off), uploaded in the update from a doubled colour
+table in A0D near `0x80117580` (the writer is not found statically). An in-between is spliced onto the newer record
+and `psxport runtime/psx/present/record_cluts.cpp:RecordCluts::resolve` gives its primitives that record's CLUT
+entries, so the rotation shows on the in-between before the tick it belongs to.
+
+## Proper fix
+Blend the CLUT entries of an in-between: `RecordCluts` resolves each key to the entries `t` of the way between the
+earlier record's pool and the newer one's, 15-bit channel by channel, so a rotation cross-fades. That is a framework
+change for every replaying title (any CLUT swap, a hit flash included, would cross-fade for one present), and a
+cycle that steps every other tick still changes on one present in four unless the title also spreads it over its
+period. Not started: it is a presentation choice to confirm before building.

@@ -322,7 +322,8 @@ What steps at 30 Hz, by RE (`scratch/replay-gaps/{main,a01,a02,a06,a0a,a0d,a0f}`
   `scratch/rr0058/wd`). Real draws keep the projected vertex's place under the row step (`steppedTo`). Shown at
   `warp 13/0` after 1800 frames with the view still (`scratch/rr0058/wb` before, `wa` after,
   `wave_halfway.png`, `patchdy.py`): moving water patches move 0.00 of the way on the in-between before and 0.50
-  after where only the wave moves; another step of the water, untraced, still lands whole on the real present. fps60 on and off leave main RAM and the scratchpad identical 20 and 320 frames after the wait (`wa`,
+  after where only the wave moves. The water's other step is its palette cycle, CLUT row (816..821, 250) rotated
+  every other tick, which an in-between takes from the newer record (issue 0060). fps60 on and off leave main RAM and the scratchpad identical 20 and 320 frames after the wait (`wa`,
   `wo`).
 - **UV scrolls**, all read as `u16 >> 4` or a byte: A02 `0x8012C928` (`+= speed >> 8 & 0xFF`, A02:801255A4 from the
   object A02:80118B50) and `0x8012C92A` (`+0xC` or `+0x20` mod 0x180, A02:801255C0 from A02:80118354, 801199EC) and
