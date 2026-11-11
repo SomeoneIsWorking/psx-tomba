@@ -12,7 +12,7 @@ class Core;
 
 namespace tomba::render {
 
-// The scripted cycle routine each overlay carries (A00 FUN_80115B88, A0D FUN_8010B288, SOP's grid draw tail): per
+// The scripted cycle routine the overlays carry (A00 FUN_80115B88, A0D FUN_8010B288, SOP FUN_8010C6A0, ...): per
 // descriptor a countdown runs out, the script's {frame, ticks} pair uploads `image + frame * 32` to (x, y) with
 // LoadImage, and {0xFF, n} rewinds the script n bytes.
 struct ScriptedPaletteCycles {
