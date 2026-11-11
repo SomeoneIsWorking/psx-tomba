@@ -42,7 +42,6 @@ struct ListJobHeader {
 // How an input between two calls of one list moves with t.
 enum class InputBlend : std::uint8_t {
   Held,    // the later call's bytes
-  Wrapped, // an s16 position that repeats every `modulus`, moved the short way round
   Lanes16, // s16 coordinates or sizes, each moved by t
   Camera,  // GTE CR0-7 words, rotation then translation, moved as a transform
 };
@@ -53,7 +52,6 @@ inline constexpr std::uint32_t kAngleTurn = 0x1000u;
 struct ListJobInput {
   std::uint32_t address = 0;
   InputBlend blend = InputBlend::Held;
-  std::uint32_t modulus = 0;
   std::vector<std::byte> bytes;
 };
 
@@ -63,18 +61,14 @@ public:
   ListJobWriter(Core &core, std::uint32_t variant, const ListCall &call, std::uint32_t arenaBytes);
 
   // Keeps `size` bytes of guest memory at `address`.
-  void input(Core &core,
-             std::uint32_t address,
-             std::uint32_t size,
-             InputBlend blend = InputBlend::Held,
-             std::uint32_t modulus = 0);
+  void input(Core &core, std::uint32_t address, std::uint32_t size, InputBlend blend = InputBlend::Held);
   // Saves the call under the innermost open object. Nothing is saved when the OT is not a named table.
   void save(Core &core) const;
 
 private:
   ListJobHeader header_;
   bool named_ = false;
-  std::vector<std::uint32_t> ranges_; // address, size, blend, modulus per input
+  std::vector<std::uint32_t> ranges_; // address, size, blend per input
   std::vector<std::byte> bytes_;
 };
 

@@ -25,6 +25,7 @@
 //   0x80070F00  = sound-command play (used by FUN_8013AFD8)
 //   0x800708B4  = sound-command mode (used by FUN_8013AFD8)
 
+#include "camera/camera_state.h"
 #include "core.h"
 #include "core/engine/engine.h"
 #include "entry/session.h"
@@ -38,17 +39,17 @@ namespace tomba {
 namespace {
 
 // External guest globals these fns touch.
-constexpr uint32_t G_BFA22 = 0x800BFA22u;        // set to 0x2B in FUN_80139728 state 4
-constexpr uint32_t G_BE0E4 = 0x800BE0E4u;        // gate byte (bit 7) in FUN_8013B29C
-constexpr uint32_t G_BF8D5 = 0x800BF8D5u;        // gate byte for FUN_8013AEF0
-constexpr uint32_t G_E806C = 0x800E806Cu;        // set to 7 in state 5, to 2 in FUN_8013B074
-constexpr uint32_t G_E8076 = 0x800E8076u;        // zeroed in FUN_8013B074
-constexpr uint32_t G_E8078 = 0x800E8078u;        // set to 0x800 in FUN_8013B074
-constexpr uint32_t G_E8074 = 0x800E8074u;        // computed in FUN_8013B074
-constexpr uint32_t G_1003F8 = 0x801003F8u;       // read as u32 in FUN_8013B074 (multiplied by 7)
-constexpr uint32_t DAT_8014994C = 0x8014994Cu;   // arg to FUN_8006cbd0 (geomblk / cmd list)
-constexpr uint32_t OBJ_A_800E8008 = 0x800E8008u; // fixed obj arg to FUN_8006cbd0
-constexpr uint32_t SPAD_1F800214 = 0x1F800214u;  // scratchpad ptr slot read by FUN_8013AFD8
+constexpr uint32_t G_BFA22 = 0x800BFA22u;                // set to 0x2B in FUN_80139728 state 4
+constexpr uint32_t G_BE0E4 = 0x800BE0E4u;                // gate byte (bit 7) in FUN_8013B29C
+constexpr uint32_t G_BF8D5 = 0x800BF8D5u;                // gate byte for FUN_8013AEF0
+constexpr uint32_t G_E806C = tomba::camera::kCameraMode; // set to 7 in state 5, to 2 in FUN_8013B074
+constexpr uint32_t G_E8076 = 0x800E8076u;                // zeroed in FUN_8013B074
+constexpr uint32_t G_E8078 = 0x800E8078u;                // set to 0x800 in FUN_8013B074
+constexpr uint32_t G_E8074 = 0x800E8074u;                // computed in FUN_8013B074
+constexpr uint32_t G_1003F8 = 0x801003F8u;               // read as u32 in FUN_8013B074 (multiplied by 7)
+constexpr uint32_t DAT_8014994C = 0x8014994Cu;           // arg to FUN_8006cbd0 (geomblk / cmd list)
+constexpr uint32_t OBJ_A_800E8008 = 0x800E8008u;         // fixed obj arg to FUN_8006cbd0
+constexpr uint32_t SPAD_1F800214 = 0x1F800214u;          // scratchpad ptr slot read by FUN_8013AFD8
 
 // Object field offsets used by these fns.
 constexpr uint32_t O_LEVEL_40 = 0x40u; // fade level (u16)

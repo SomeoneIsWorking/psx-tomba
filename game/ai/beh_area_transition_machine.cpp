@@ -62,7 +62,8 @@ constexpr uint32_t G_eae = 0x800E7EAEu, G_eb2 = 0x800E7EB2u, G_eb6 = 0x800E7EB6u
 constexpr uint32_t G_ea9 = 0x800E7EA9u, G_eaa = 0x800E7EAAu, G_ed6 = 0x800E7ED6u;
 constexpr uint32_t G_e84 = 0x800E7E84u, G_e85 = 0x800E7E85u, G_e86 = 0x800E7E86u, G_fc7 = 0x800E7FC7u;
 constexpr uint32_t G_f5c = 0x800E7F5Cu;
-constexpr uint32_t G_806c = 0x800E806Cu, G_8074 = 0x800E8074u, G_8076 = 0x800E8076u, G_8078 = 0x800E8078u;
+constexpr uint32_t G_806c = tomba::camera::kCameraMode, G_8074 = 0x800E8074u, G_8076 = 0x800E8076u,
+                   G_8078 = 0x800E8078u;
 
 static inline int16_t s16(Core *c, uint32_t a) {
   return (int16_t)c->mem_r16(a);
@@ -101,9 +102,9 @@ static void node6_phase(Core *c, uint32_t nd) {
     c->r[4] = 1;
     c->r[5] = 1;
     psx::cpu::callGuestNow(*c, __func__, 0x80042354u); // FUN_80042354(1,1)
-    c->mem_w8(0x800BF9B5u, 3);    // (v0=3 from the call's delay-slot store)
-    c->r[31] = 0x801279D8u;       // ra mirror: gen jal-site (armBody spills ra)
-    eng(c).sceneEvents.arm(0x42); // area-transition event; FUN_80040B48 (native)
+    c->mem_w8(0x800BF9B5u, 3);                         // (v0=3 from the call's delay-slot store)
+    c->r[31] = 0x801279D8u;                            // ra mirror: gen jal-site (armBody spills ra)
+    eng(c).sceneEvents.arm(0x42);                      // area-transition event; FUN_80040B48 (native)
     c->mem_w8(nd + 6, (uint8_t)(c->mem_r8(nd + 6) + 1));
     break;
   case 1: // @0x801279e4 — wait for DAT_800e7ea9

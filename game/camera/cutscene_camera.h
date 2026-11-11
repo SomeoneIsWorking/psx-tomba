@@ -40,6 +40,8 @@ public:
   // Installs the camera's RE-ahead leaves (resetFollowAccum/pushMode/restoreMode/
   // snapToMasterOffsetY200/orbitTick) in the shared override registry. See cutscene_camera.cpp.
   static void registerOverrides(native::NativeOverrideCatalog &natives);
+  // FUN_8006EA00, the re-place onto Tomba (snapToMasterOffsetY200).
+  inline static constexpr uint32_t kSnapToMaster = 0x8006EA00u;
 
   CutsceneCamera(Core *core, uint32_t cameraObject) : CameraState(*core, cameraObject), look_(*this) {}
 

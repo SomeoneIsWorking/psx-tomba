@@ -12,7 +12,7 @@
 namespace tomba::render {
 namespace {
 
-constexpr std::uint32_t kRangeWords = 4; // address, size, blend, modulus
+constexpr std::uint32_t kRangeWords = 3; // address, size, blend
 
 } // namespace
 
@@ -35,12 +35,10 @@ ListJobWriter::ListJobWriter(Core &core, std::uint32_t variant, const ListCall &
   header_.effect = rend(&core)->objectEffect;
 }
 
-void ListJobWriter::input(
-    Core &core, std::uint32_t address, std::uint32_t size, InputBlend blend, std::uint32_t modulus) {
+void ListJobWriter::input(Core &core, std::uint32_t address, std::uint32_t size, InputBlend blend) {
   ranges_.push_back(address);
   ranges_.push_back(size);
   ranges_.push_back(static_cast<std::uint32_t>(blend));
-  ranges_.push_back(modulus);
   const std::size_t at = bytes_.size();
   bytes_.resize(at + size);
   for (std::uint32_t offset = 0; offset < size; ++offset) {
@@ -67,8 +65,7 @@ ListJob::ListJob(std::span<const std::byte> state) {
   const std::vector<std::uint32_t> ranges = reader.getAll<std::uint32_t>(std::size_t{header_.inputs} * kRangeWords);
   for (std::uint32_t input = 0; input < header_.inputs; ++input) {
     const std::uint32_t *range = ranges.data() + std::size_t{input} * kRangeWords;
-    inputs_.push_back(
-        ListJobInput{range[0], static_cast<InputBlend>(range[2]), range[3], reader.getAll<std::byte>(range[1])});
+    inputs_.push_back(ListJobInput{range[0], static_cast<InputBlend>(range[2]), reader.getAll<std::byte>(range[1])});
   }
 }
 

@@ -27,6 +27,8 @@ inline constexpr uint32_t kMasterZ = kCamGlobal + 0x34; // 0x800E7EB4
 // The camera object the resident per-frame driver (0x8006EC44) hardcodes. Other callers pass their
 // own base; the object layout is identical, only the driver hardcodes this one.
 inline constexpr uint32_t kCameraObject = 0x800E8008u;
+// The driver's camera mode byte, cam[0x64]: 0 follows Tomba after a re-place.
+inline constexpr uint32_t kCameraMode = kCameraObject + 0x64u; // 0x800E806C
 
 class CameraState {
 public:

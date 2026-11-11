@@ -37,27 +37,11 @@ bool samePart(const ListJob &a, const ListJob &b) {
   }
   for (std::size_t input = 0; input < a.inputs().size(); ++input) {
     if (a.inputs()[input].address != b.inputs()[input].address ||
-        a.inputs()[input].bytes.size() != b.inputs()[input].bytes.size() ||
-        a.inputs()[input].modulus != b.inputs()[input].modulus) {
+        a.inputs()[input].bytes.size() != b.inputs()[input].bytes.size()) {
       return false;
     }
   }
   return true;
-}
-
-// Two s16 positions on a circle that repeats every `modulus`.
-struct WrappedSpan {
-  std::uint16_t from;
-  std::uint16_t to;
-  std::uint32_t modulus;
-};
-// The position `t` of the way from `from` to `to`, the short way round.
-std::uint16_t lerpWrapped(const WrappedSpan &span, float t) {
-  const auto [from, to, modulus] = span;
-  const std::int32_t step =
-      psx::present::ringStep(static_cast<std::int16_t>(from), static_cast<std::int16_t>(to), modulus);
-  const std::int32_t start = static_cast<std::int16_t>(from);
-  return static_cast<std::uint16_t>(psx::present::lerpInt(start, start + step, t));
 }
 
 template <class Word> Word wordAt(std::span<const std::byte> bytes, std::size_t index) {
@@ -97,14 +81,6 @@ std::vector<std::byte> blendedInput(std::size_t index, const ListJob &from, cons
   }
   switch (input.blend) {
   case InputBlend::Held:
-    break;
-  case InputBlend::Wrapped:
-    if (bytes.size() == sizeof(std::uint16_t)) {
-      const std::uint16_t moved = lerpWrapped(
-          {.from = wordAt<std::uint16_t>(before, 0), .to = wordAt<std::uint16_t>(bytes, 0), .modulus = input.modulus},
-          t);
-      putWord(bytes, 0, moved);
-    }
     break;
   case InputBlend::Lanes16:
     for (std::size_t lane = 0; lane < bytes.size() / sizeof(std::int16_t); ++lane) {

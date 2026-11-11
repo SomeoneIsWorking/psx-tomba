@@ -1015,7 +1015,7 @@ void CutsceneCamera::registerOverrides(native::NativeOverrideCatalog &natives) {
   natives.declare(0x8006E1C0u, "CutsceneCamera::pushMode", eov_pushMode);
   natives.declare(0x8006E8F8u, "CutsceneCamera::resetFollowAccum", eov_resetFollowAccum);
   natives.declare(0x8006E1E4u, "CutsceneCamera::restoreMode", eov_restoreMode);
-  natives.declare(0x8006EA00u, "CutsceneCamera::snapToMasterOffsetY200", eov_snapToMasterOffsetY200);
+  natives.declare(kSnapToMaster, "CutsceneCamera::snapToMasterOffsetY200", eov_snapToMasterOffsetY200);
   natives.declare(0x8006EF38u, "CutsceneCamera::orbitTick", eov_orbitTick);
 }
 
