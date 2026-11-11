@@ -2,6 +2,7 @@
 // each replay from the values they were built from, blended.
 #pragma once
 
+#include "emit_memory.h"
 #include "motion_set.h"
 
 #include <array>
@@ -15,12 +16,16 @@ namespace tomba {
 class UpdateBlockDraws final : public psx::present::MotionSource {
 public:
   struct Draw {
-    std::uint32_t writer = 0; // guest entry
-    std::uint32_t object = 0; // the writer's key: its slot or its call-site object
-    std::array<std::uint32_t, 2> packets{};
+    std::uint32_t writer = 0;               // guest entry
+    std::uint32_t object = 0;               // the writer's key: its slot or its call-site object
+    std::array<std::uint32_t, 2> packets{}; // two packets, or a run's first and its end, as its rebuild reads them
     std::array<std::uint32_t, 4> values{};
-    // Rewrites `later`'s packets `t` of the way from `earlier`'s values.
-    void (*rebuild)(psx::present::GuestRedraw &redraw, const Draw &earlier, const Draw &later, float t) = nullptr;
+    // Rewrites `later`'s packets, read from `memory`, `t` of the way from `earlier`'s values.
+    void (*rebuild)(const psx::present::EmitMemory &memory,
+                    psx::present::GuestRedraw &redraw,
+                    const Draw &earlier,
+                    const Draw &later,
+                    float t) = nullptr;
   };
 
   // A writer linked `draw` into the frame's OT; kept only between the frame's start and the section's sample.
@@ -39,6 +44,7 @@ private:
   std::vector<Draw> earlier_;
   std::vector<Draw> later_;
   bool open_ = false;
+  Core *core_ = nullptr; // the sampled frame's, which the rebuilds read
 };
 
 } // namespace tomba

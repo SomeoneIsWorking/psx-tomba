@@ -43,7 +43,6 @@ constexpr uint8_t RAW_TEXTURE_BIT = 1;   // set when no flat shade is applied
 
 constexpr uint32_t SPRITE_TAG_WORDS = 4u;
 constexpr uint32_t MODE_TAG_WORDS = 2u;
-constexpr uint32_t SPRITE_PACKET_BYTES = 20u;
 constexpr uint32_t MODE_PACKET_BYTES = 12u;
 
 } // namespace
@@ -116,7 +115,7 @@ void UiSprite::compose(Core *c) {
     for (uint32_t word = 0; word < SPRITE_TAG_WORDS; ++word) {
       c->mem_w32(packet + 4 + word * 4, command[word]);
     }
-    packets.setCursor(packet + SPRITE_PACKET_BYTES);
+    packets.setCursor(packet + UiSprite::kSpriteBytes);
     drawn.add(c->mem_r8(attrs + 1), command);
   } while (count != 0);
 

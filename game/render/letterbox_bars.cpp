@@ -74,7 +74,8 @@ void placeBar(psx::present::GuestRedraw &redraw, const BarPlace &bar) {
 
 // The bars' edges at the height t of the way; the bars are as tall as the higher height, so each reaches its
 // screen edge, and at t = 1 they are the later frame's.
-void rebuildBars(psx::present::GuestRedraw &redraw,
+void rebuildBars(const psx::present::EmitMemory & /*memory*/,
+                 psx::present::GuestRedraw &redraw,
                  const UpdateBlockDraws::Draw &earlier,
                  const UpdateBlockDraws::Draw &later,
                  float t) {

@@ -53,7 +53,8 @@ public:
   static void build(const psx::present::EmitMemory &memory, const render::ListCall &call);
   static void drawPanel(Core *c);
   // A replay's rewrite of a panel the update block built: every piece placed from the rect blended `t` of the way.
-  static void rebuild(psx::present::GuestRedraw &redraw,
+  static void rebuild(const psx::present::EmitMemory &memory,
+                      psx::present::GuestRedraw &redraw,
                       const UpdateBlockDraws::Draw &earlier,
                       const UpdateBlockDraws::Draw &later,
                       float t);

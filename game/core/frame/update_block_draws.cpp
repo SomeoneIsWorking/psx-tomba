@@ -20,7 +20,8 @@ void UpdateBlockDraws::open() {
   open_ = true;
 }
 
-void UpdateBlockDraws::sample(Core & /*core*/) {
+void UpdateBlockDraws::sample(Core &core) {
+  core_ = &core;
   earlier_.swap(later_);
   later_.swap(noting_);
   noting_.clear();
@@ -47,7 +48,7 @@ psx::present::MotionCount UpdateBlockDraws::write(psx::present::GuestRedraw &red
       ++count.unpaired;
       continue;
     }
-    later.rebuild(redraw, *earlier, later, t);
+    later.rebuild(*core_, redraw, *earlier, later, t);
   }
   return count;
 }

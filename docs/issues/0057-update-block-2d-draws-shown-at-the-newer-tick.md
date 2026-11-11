@@ -2,8 +2,8 @@
 
 Features: F-FPS60.
 
-Status: partly fixed (2026-11-11): letterbox bars rebuilt at t; dialog box panel rebuilt at t; fade fills step on real presents
-by design (below); `UiSprite` open.
+Status: fixed (2026-11-11): letterbox bars, the dialog box panel and `UiSprite` calls rebuilt at t; fade fills step on
+real presents by design and glyphs reveal whole (below).
 
 ## Reproduction
 Any gameplay screen with a dialog box, a fade, letterbox bars or a UI sprite in motion, dumped unpaced with player
@@ -52,8 +52,24 @@ pairs only while the replay's samples pair (`DrawReplay::endFrame` forgets on a 
   half of its neighbours, corners joined; guest RAM and scratchpad at frame 2405, after the open,
   identical with fps60 off (`scratch/rr0057/o1`).
 
+- `UiSprite` (`0x8007E1B8`/`0x8007E6DC`). Which calls run in the update block, by noting every call there and
+  logging the notes (`debug update-draws`) at entry 0 of all 22 areas (`scratch/ui0057/scan1`): only the area label
+  node `0x800727D4` -> `0x80072898` (a centred row at y 100 that does not move). The HUD's life and fruit sprites
+  (`0x80025744`) are inside the section and replay; the pause menu (`0x800346BC`, `0x8007EAE4`) draws in the page
+  step, replayed after the section (0055). The calls that move are the popups whose node behaviour is `0x80072520`
+  (spawned by `0x80071B44`, the AP score, and `0x80072114`, a one- or two-sprite popup drawn by `0x80072308`): each tick `0x80071DFC`/`0x80072308`
+  projects Tomba's place (or the source node's) through the view and draws the digits there, each bouncing on its own
+  phase, through `UiSprite::quads`. `producerEntry` notes each call with its anchor, definition index and table,
+  keyed by its call-site object; the rebuild moves every piece's vertices by the anchor's blended offset, and a call
+  whose definition changed is drawn as it is. Reached with the debug `ap <amount>` (`DevApPopup`, spawns
+  `0x80071B44(Tomba, amount, 0)` at a frame boundary). Shown at `warp 0/0` +420, `ap 500`, frame-exact
+  (`scratch/ui0057/a1`, `b1` with the note disabled, `popup_rise.png` top a1, bottom b1; `digits.py`): the third
+  digit's top edge on consecutive presents is 684, 696, 704, 712, 720, 728, 732, 736 sink px, each in-between on the
+  half of its neighbours, where b1 shows 696, 696, 712, 712, 728, 728 (the in-between equal to the newer real).
+  Holding right (`r1`, `popup_walk.png`) the digits stay over Tomba's head. Guest RAM and scratchpad at 200 frames
+  after the popup identical with fps60 off (`r0`).
+
 ## Remaining
-- `UiSprite` (`0x8007E1B8`/`0x8007E6DC`): 17 call sites, not started.
 - The state producers `Panel`'s list job, `DialogGlyphs` and `UiSprite` register are not composed into a replayed
   interval (`FramePresenter`: a replaying title brings whole in-betweens); they serve presents whose draw ran no
   section, and the dialog box and sprites still need their replay owner above.

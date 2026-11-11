@@ -110,7 +110,7 @@ node function pointers, so "outside" here means "has a caller outside", not "onl
 | `0x8007CC00`/`0x8007CDD4` `DialogGlyphs`, `0x8005019C` `Panel::build` | `0x8007D594`, `0x8007DC38`, `0x8007DDE0` (dialog stream), `0x800737F8`, `0x800738B0` | update (inferred: the dialog stream is an object behaviour) |
 | `0x80078CA8` `Font::glyphEmit` | `0x80079324`, `0x80079374` | update or menus |
 | `0x80026864` `LetterboxBars` | none static: a node function pointer or the update | inferred update |
-| `0x8007E1B8`/`0x8007E6DC` `UiSprite` | 17 sites (`0x800262D8`, `0x800336DC`, ... `0x8007EAE4`) | update and menus |
+| `0x8007E1B8`/`0x8007E6DC` `UiSprite` | 17 sites (`0x800262D8`, `0x800336DC`, ... `0x8007EAE4`) | in play the HUD (`0x80025744`, in the section), the score popups and the area label (node behaviours `0x80072520`, `0x800727D4`, update), the pause menu (`0x800346BC`, page step) |
 | `0x80027768` `PackedMesh::write`, `0x80027A4C` `ScaledSprites`, FX sprites `0x80027CB4`/`0x80027E5C`/`0x800286CC` | the `0x80028xxx..0x80030xxx` effect leaves, `0x80033080`, `0x800328BC`, A01 `0x8012EC08`/`0x8012ED88`/`0x8012E5F8`/`0x8012E974` | node render fns (inside, via +0x18) or update |
 
 What runs before the section is captured stepped (it moves at 30 Hz until it has a track or moves into the
@@ -348,8 +348,8 @@ What steps at 30 Hz, by RE (`scratch/replay-gaps/{main,a01,a02,a06,a0a,a0d,a0f}`
 - **2D draws linked in the update block** (dialog glyphs `0x8007CC00`, `ScreenFade` `0x8007E9C8`, `LetterboxBars`
   `0x80026864`, `UiSprite`): their packets are built and linked before the section from state the update steps in the
   same call, so the replay starts from an OT that already holds S's packets and cannot rebuild them at t without
-  running those writers twice. The letterbox and the dialog box panel are noted to `UpdateBlockDraws` and rebuilt
-  at t; the rest are captured at t = 1 (issue 0057).
+  running those writers twice. The letterbox, the dialog box panel and every `UiSprite` call are noted to
+  `UpdateBlockDraws` and rebuilt at t; glyphs and fades are captured at t = 1 (issue 0057).
 
 Nothing leaks: one pad replay (`scratch/pause-replay/rec2/session.pad`, boot into the village, walk, jump, turn,
 pause and unpause) run with fps60 off and on, after psxport 53125a32 stopped replays with fps60 off (the off run

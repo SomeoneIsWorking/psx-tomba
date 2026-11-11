@@ -28,6 +28,13 @@
 #include "entry/session.h"
 #include "guest_call.h"
 #include "render/anchored_packets.h"
+#include "render/guest_ordering_table.h"
+
+#include "blend.h"
+#include "guest_redraw.h"
+#include "projected_vertex.h"
+
+#include <array>
 
 namespace tomba {
 
@@ -92,10 +99,69 @@ void UiSprite::drawFixedDef152(Core *c) {
 
 namespace {
 
-// Each call is an object of its own: what one call site draws, n-th in its frame.
+// Each emitter's packet run: one packet per piece, its vertex words.
+struct PacketShape {
+  std::uint32_t bytes;
+  std::array<std::uint32_t, 4> vertices;
+  std::uint32_t corners;
+};
+constexpr PacketShape kQuadShape{.bytes = UiSprite::kQuadBytes, .vertices = UiSprite::kQuadVertices, .corners = 4u};
+constexpr PacketShape kSpriteShape{
+    .bytes = UiSprite::kSpriteBytes, .vertices = {UiSprite::kSpriteVertex, 0u, 0u, 0u}, .corners = 1u};
+
+template <std::uint32_t Entry> constexpr PacketShape kShape = Entry == UiSprite::kQuads ? kQuadShape : kSpriteShape;
+
+// A replay's rewrite of a sprite the update block drew: every piece moved by the anchor's blended offset.
+template <std::uint32_t Entry>
+void rebuild(const psx::present::EmitMemory &memory,
+             psx::present::GuestRedraw &redraw,
+             const UpdateBlockDraws::Draw &earlier,
+             const UpdateBlockDraws::Draw &later,
+             float t) {
+  if (earlier.values[2] != later.values[2] || earlier.values[3] != later.values[3]) {
+    return;
+  }
+  constexpr PacketShape shape = kShape<Entry>;
+  std::array<double, 2> offset{};
+  for (std::size_t axis = 0; axis < offset.size(); ++axis) {
+    const auto to = static_cast<std::int32_t>(later.values[axis]);
+    offset[axis] = psx::present::lerpExact(static_cast<std::int32_t>(earlier.values[axis]), to, t) - to;
+  }
+  for (std::uint32_t packet = later.packets[0]; packet < later.packets[1]; packet += shape.bytes) {
+    for (std::uint32_t corner = 0; corner < shape.corners; ++corner) {
+      const std::uint32_t at = packet + shape.vertices[corner];
+      redraw.writeVertex(at,
+                         psx::gte::ProjectedVertex::nearest({static_cast<float>(memory.mem_r16s(at) + offset[0]),
+                                                             static_cast<float>(memory.mem_r16s(at + 2u) + offset[1]),
+                                                             0.0f,
+                                                             0.0f}));
+    }
+  }
+}
+
+// Each call is an object of its own: what one call site draws, n-th in its frame. A call in the update block is
+// noted with its anchor and definition, so a replay places its pieces at t.
 template <std::uint32_t Entry, void (*Body)(Core *)> void producerEntry(Core *c) {
-  const psx::present::EmissionScope::Guard object(c->emission, Entry, sessionOf(c).callSites.object(c->r[31]), 0);
-  Body(c);
+  const std::uint32_t object = sessionOf(c).callSites.object(c->r[31]);
+  const std::uint32_t placement = c->r[4];
+  const auto definition = static_cast<std::uint32_t>(c->mem_r16s(c->r[5]));
+  const std::uint32_t defBase = c->r[6];
+  const std::uint32_t first = render::PacketPool(*c).cursor();
+  {
+    const psx::present::EmissionScope::Guard scope(c->emission, Entry, object, 0);
+    Body(c);
+  }
+  const std::uint32_t pieces =
+      first + (static_cast<std::uint32_t>(c->mem_r16s(defBase + (definition * 4u))) * kShape<Entry>.bytes);
+  sessionOf(c).drawReplay.updateDraws().note(*c,
+                                             {.writer = Entry,
+                                              .object = object,
+                                              .packets = {first, pieces},
+                                              .values = {static_cast<std::uint32_t>(c->mem_r16s(placement)),
+                                                         static_cast<std::uint32_t>(c->mem_r16s(placement + 2u)),
+                                                         definition,
+                                                         defBase},
+                                              .rebuild = &rebuild<Entry>});
 }
 
 } // namespace

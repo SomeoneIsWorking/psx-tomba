@@ -214,7 +214,8 @@ void Panel::drawPanel(Core *core) {
                                                  .rebuild = &Panel::rebuild});
 }
 
-void Panel::rebuild(psx::present::GuestRedraw &redraw,
+void Panel::rebuild(const psx::present::EmitMemory & /*memory*/,
+                    psx::present::GuestRedraw &redraw,
                     const UpdateBlockDraws::Draw &earlier,
                     const UpdateBlockDraws::Draw &later,
                     float t) {

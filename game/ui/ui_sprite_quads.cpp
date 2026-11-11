@@ -17,17 +17,18 @@ constexpr std::uint32_t kStage = 0x1F800000u;
 // The staged POLY_FT4, by byte offset from kStage.
 constexpr std::uint32_t kColor = 0x04u;
 constexpr std::uint32_t kCode = 0x07u;
-constexpr std::uint32_t kXy0 = 0x08u;
+constexpr std::uint32_t kXy0 = UiSprite::kQuadVertices[0];
 constexpr std::uint32_t kUv0 = 0x0Cu;
 constexpr std::uint32_t kClut = 0x0Eu;
-constexpr std::uint32_t kXy1 = 0x10u;
+constexpr std::uint32_t kXy1 = UiSprite::kQuadVertices[1];
 constexpr std::uint32_t kUv1 = 0x14u;
-constexpr std::uint32_t kXy2 = 0x18u;
+constexpr std::uint32_t kXy2 = UiSprite::kQuadVertices[2];
 constexpr std::uint32_t kUv2 = 0x1Cu;
-constexpr std::uint32_t kXy3 = 0x20u;
+constexpr std::uint32_t kXy3 = UiSprite::kQuadVertices[3];
 constexpr std::uint32_t kUv3 = 0x24u;
 constexpr std::uint32_t kPacketWords = 9u;
-constexpr std::uint32_t kPacketBytes = 4u + kPacketWords * 4u;
+constexpr std::uint32_t kPacketBytes = UiSprite::kQuadBytes;
+static_assert(kPacketBytes == 4u + kPacketWords * 4u);
 
 constexpr std::uint8_t kQuad = 0x2C;     // POLY_FT4
 constexpr std::uint8_t kQuadSemi = 0x2E; // semi-transparent

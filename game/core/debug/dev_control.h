@@ -1,5 +1,6 @@
 #pragma once
 
+#include "debug/dev_ap_popup.h"
 #include "debug/dev_camera_place.h"
 #include "debug/dev_debris.h"
 #include "debug/dev_flags.h"
@@ -12,8 +13,8 @@ class Core;
 
 namespace tomba {
 
-// The debug menu's warp, item, flag, camera re-place and debris requests: armed between frames and written by the frame
-// driver at its next frame boundary.
+// The debug menu's warp, item, flag, camera re-place, debris and AP popup requests: armed between frames and written by
+// the frame driver at its next frame boundary.
 class DevControl {
 public:
   DevWarp &warp() {
@@ -31,6 +32,9 @@ public:
   DevDebris &debris() {
     return debris_;
   }
+  DevApPopup &apPopup() {
+    return apPopup_;
+  }
   void applyArmed(Core &core, uint32_t frame);
 
 private:
@@ -41,6 +45,7 @@ private:
   DevFlags flags_;
   DevCameraPlace cameraPlace_;
   DevDebris debris_;
+  DevApPopup apPopup_;
 };
 
 } // namespace tomba

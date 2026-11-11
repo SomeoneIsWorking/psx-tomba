@@ -195,6 +195,17 @@ DebugMenu::DebugMenu() {
       .refusal = fieldRefusal,
       .inMenu = false,
   });
+  verb({
+      .name = "ap",
+      .summary = "Raise an AP count over Tomba next frame (the score popup)",
+      .params = {DebugParam::integer("amount", 1, DevApPopup::kMaxAmount)},
+      .run =
+          [](const DebugCall &call) {
+            call.reply = devControl(call.core).apPopup().arm(call.values.u32(0));
+          },
+      .refusal = fieldRefusal,
+      .inMenu = false,
+  });
 
   section("Diagnostics");
   const auto logged = [](void (*action)(Core &), std::string_view name) {
