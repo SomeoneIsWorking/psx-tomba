@@ -108,10 +108,17 @@ public:
   void setCursor(std::uint32_t address) const;
   // Bumps the cursor past `bytes` and returns the packet it pointed at.
   std::uint32_t allocate(std::uint32_t bytes) const;
-  // True while the cursor sits more than `reserve` bytes before the current pass's pool end.
-  bool hasRoom(std::uint32_t reserve) const;
+  // The room A04's snow FUN_8013AD90 leaves before the pool end for the draws after it.
+  static constexpr std::uint32_t kReserve = 0x8000u;
+  // True while the cursor sits more than kReserve bytes before the current pass's pool end.
+  bool hasRoom() const;
+  // True while `bytes` written from `packet` end kReserve bytes or more before the current pass's pool end.
+  bool fits(std::uint32_t packet, std::uint32_t bytes) const;
 
 private:
+  // One past the current pass's pool (0x800D3E68 or 0x800E7E68 by 0x1F800135), as a 24-bit address.
+  [[nodiscard]] std::uint32_t end() const;
+
   psx::present::EmitMemory mMemory;
 };
 

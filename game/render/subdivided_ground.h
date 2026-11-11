@@ -26,7 +26,7 @@ class Visibility;
 
 namespace tomba::render {
 
-// The records drawn as the guest drew them because their call's clipped-packet budget was spent, over the run.
+// The records drawn as the guest drew them because their clipped packets would not fit the packet pool, over the run.
 class GroundClipTally {
 public:
   void add(std::uint32_t records) {

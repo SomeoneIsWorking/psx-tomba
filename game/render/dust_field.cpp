@@ -48,7 +48,6 @@ constexpr std::uint32_t kSnowSeedLocal = 0x18u; // node + 0x50
 constexpr std::uint32_t kSnowSeed = 0x0012D687u;
 constexpr std::uint32_t kSnowMultiplier = 0x7D2B89DDu;
 constexpr std::uint32_t kSnowCount = 0x52u; // s16 at node: last point index
-constexpr std::uint32_t kSnowPoolReserve = 0x8000u;
 // A snow point is kept only inside the cave mouth: near in z, or low and not far.
 constexpr std::int32_t kSnowNearZ = 0x2711;
 constexpr std::int32_t kSnowLowY = -0x2327;
@@ -59,8 +58,13 @@ enum Variant : std::uint8_t { kDust = 0, kSnow = 1 };
 // The next lattice point from the seed, wrapped into the cube.
 class PointStream {
 public:
-  PointStream(std::uint32_t seed, std::uint32_t multiplier, CameraLattice::Offset offset)
-      : mSeed(seed), mMultiplier(multiplier), mOffset(offset) {}
+  struct Generator {
+    std::uint32_t seed;
+    std::uint32_t multiplier;
+  };
+
+  PointStream(Generator generator, CameraLattice::Offset offset)
+      : mSeed(generator.seed), mMultiplier(generator.multiplier), mOffset(offset) {}
 
   // Draws x, y and z, stepping between them; `lead` steps once before the first.
   CameraLattice::Point next(bool lead) {
@@ -109,9 +113,10 @@ void drawPoints(const psx::present::EmitMemory &memory, Variant variant, const L
   CameraLattice::loadView(memory, corner);
 
   const bool snow = variant == kSnow;
-  PointStream points =
-      snow ? PointStream(kSnowSeed, kSnowMultiplier, offset)
-           : PointStream(memory.mem_r32(node + CameraLattice::kNodeSeed), memory.mem_r32(kDustMultiplier), offset);
+  PointStream points = snow ? PointStream({.seed = kSnowSeed, .multiplier = kSnowMultiplier}, offset)
+                            : PointStream({.seed = memory.mem_r32(node + CameraLattice::kNodeSeed),
+                                           .multiplier = memory.mem_r32(kDustMultiplier)},
+                                          offset);
   storePoint(memory, points.next(false));
   points.advance();
   const std::int32_t count = snow ? memory.mem_r16s(node + kSnowCount) + 1 : static_cast<std::int32_t>(kDustCount);
@@ -168,7 +173,7 @@ void DustField::drawSnow(Core *c) {
   const ListCall call = callOf(*c);
   c->mem_w32(call.sp + kSnowSeedLocal, call.list + CameraLattice::kNodeSeed);
   const psx::present::EmitMemory memory(*c);
-  if (!PacketPool(memory).hasRoom(kSnowPoolReserve)) {
+  if (!PacketPool(memory).hasRoom()) {
     return;
   }
   const EmitterObject object(*c, kSnowEntry, OwnObject{call.list});

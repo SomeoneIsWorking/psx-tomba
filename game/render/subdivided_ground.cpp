@@ -108,14 +108,11 @@ enum class Edges : std::uint8_t {
   Split,  // on its word, an edge between two such corners bent at the halfway word (0x8010F968's split)
 };
 
-// Packets one call may add for records it draws from their clipped polygons.
-constexpr std::uint32_t kClippedPackets = 256u;
 // Each fan triangle of a clipped polygon is halved once in model space, so its texture bends with the view.
 constexpr std::uint32_t kPiecesPerTriangle = 4u;
 
-// What a call may still add from clipped polygons, and the records it could not.
+// The records a call drew as the guest did because their clipped polygon's packets would not fit the pool.
 struct ClipBudget {
-  std::uint32_t packets = kClippedPackets;
   std::uint32_t refused = 0;
 };
 
@@ -143,7 +140,7 @@ struct Quad {
   }
 
   // `corners`' part in `columns`, projected exactly and linked at `bucket` as triangles from `packet`; nullopt,
-  // with nothing written, when the call's budget cannot hold it.
+  // with nothing written, when the packet pool cannot hold them.
   std::optional<std::uint32_t> linkClipped(std::uint32_t packet,
                                            const std::array<ModelPoint, 4> &corners,
                                            ViewClip::Columns columns,
@@ -151,7 +148,7 @@ struct Quad {
                                            Tint tint,
                                            Edges edges) const;
   // A projection with a GTE error put in place: the record drawn from its clipped polygon across the picture, or
-  // the guest's packet when the budget is spent.
+  // the guest's packet when the pool cannot hold it.
   std::optional<std::uint32_t> linkErrored(std::uint32_t packet, std::int32_t bucket, Tint tint, Edges edges) const;
   // What the guest skips or culls for a GTE error, in the margins only: inside its 320 columns it drew nothing.
   std::uint32_t linkMargins(std::uint32_t packet,
@@ -329,11 +326,10 @@ std::optional<std::uint32_t> Quad::linkClipped(std::uint32_t packet,
     return packet;
   }
   const auto pieces = static_cast<std::uint32_t>(polygon.size() - 2u) * kPiecesPerTriangle;
-  if (pieces > budget.packets) {
+  if (!PacketPool(memory).fits(packet, pieces * kModelGt4.packetBytes)) {
     ++budget.refused;
     return std::nullopt;
   }
-  budget.packets -= pieces;
   // A polygon point the clip kept from a corner takes that corner's guest vertex.
   std::vector<std::optional<psx::gte::ProjectedVertex>> guest(polygon.size());
   for (std::size_t i = 0; i < polygon.size(); ++i) {
@@ -633,11 +629,10 @@ SubdividedGround::emit(const psx::present::EmitMemory &memory, const ListCall &c
 
 void GroundClipTally::report() const {
   lucent::info("ground",
-               "run-end: {} A03 ground record(s) in {} call(s) drawn as the guest drew them, the {}-packet clip "
-               "budget spent",
+               "run-end: {} A03 ground record(s) in {} call(s) drawn as the guest drew them, their clipped packets "
+               "past the packet pool's room",
                records_,
-               calls_,
-               kClippedPackets);
+               calls_);
 }
 
 void SubdividedGround::draw(Core *c) {

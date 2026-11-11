@@ -51,10 +51,17 @@ std::uint32_t PacketPool::allocate(std::uint32_t bytes) const {
   return packet;
 }
 
-bool PacketPool::hasRoom(std::uint32_t reserve) const {
+std::uint32_t PacketPool::end() const {
   const std::uint32_t parity = mMemory.mem_r8(kBufferParityAddress) != 0u ? 1u : 0u;
-  const std::uint32_t end = (kBase + (parity + 1u) * kStride) & 0xFFFFFFu;
-  return cursor() < end - reserve;
+  return (kBase + (parity + 1u) * kStride) & 0xFFFFFFu;
+}
+
+bool PacketPool::hasRoom() const {
+  return (cursor() & 0xFFFFFFu) < end() - kReserve;
+}
+
+bool PacketPool::fits(std::uint32_t packet, std::uint32_t bytes) const {
+  return (packet & 0xFFFFFFu) + bytes <= end() - kReserve;
 }
 
 } // namespace tomba::render
