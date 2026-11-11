@@ -325,7 +325,10 @@ replays 0 intervals, the on run 1438), leaves main RAM and the scratchpad byte-i
 reached, 1 to 1638 (`scratch/review-findings/leak_fps{0,1}`, `leakcmp.py`). The earlier proof at two pad frames
 compared two runs that both replayed. Repeated on the committed tree after the tile-grid, sway, wave and scroll
 tracks, camplace and the SOP and title sections (`scratch/replay-gaps/leak{0,1}`, built from `git archive` in
-`scratch/headcheck`): the on run replays 1552 intervals, and all 1638 pad frames reached match byte for byte.
+`scratch/headcheck`): the on run replays 1552 intervals, and all 1638 pad frames reached match byte for byte. Paced on the same build (`scratch/replay-gaps/paced`, `warp 0/0`
+running right, 1-minute load 2.4): 698 of 701 simulated 60.00 Hz vblanks advance half a tick, 3 repeat; 1747
+intervals replayed, 0 refused, 0 held; the run-end unpaired counts are the node pools' and record lists' births
+and deaths (98 of 15312 effect nodes, 376 of 763641 record transforms), every other track 0.
 
 Boot and title: the boot cards are stepped by design (`frame/boot_cards.cpp`). SOP and the title menu replay
 through `DrawSection`'s `Sop` and `Title` variants. SOP's draw tail (FUN_801092B4 = `Sop::fieldUpdate`; FUN_801098E8
