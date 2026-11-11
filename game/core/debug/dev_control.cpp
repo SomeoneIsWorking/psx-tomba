@@ -14,6 +14,7 @@ void DevControl::applyArmed(Core &core, uint32_t frame) {
   items_.applyArmed(core, &DevControl::giveAndFlag, frame);
   flags_.applyArmed(core, frame);
   cameraPlace_.applyArmed(core, frame);
+  debris_.applyArmed(core, frame);
 }
 
 } // namespace tomba

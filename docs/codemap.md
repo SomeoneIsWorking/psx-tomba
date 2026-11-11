@@ -33,7 +33,7 @@ Frame loop: owned. `tomba::FrameDriver` runs one pass of `0x80050B08` (update `0
 | `installResidentNatives`, `Engine::frameUpdate`, `Engine::drawOTag` | `game/resident_natives.h` | Natives outside any subsystem's registration; the per-VBlank update and the OT draw |
 | guest structure types | `game/engine_types.h` | Native mirrors of the engine's in-RAM structures |
 | `tomba::DebugMenu` | `game/core/debug/debug_menu.h` | The title debug menu (psxport `TitleDebugMenu`): the warp catalogue (area, entry; sourced area names, room entries marked) and position readout, items, event flags, sound test, `tp`, and the diagnostics verbs |
-| `DevControl`, `DevWarp`, `DevItems`, `DevFlags`, `DevCameraPlace`, `DevGate` | `game/core/debug/dev_*` | `warp`, `items`, `flag`, `camplace` (an area event's camera re-place, a declared cut) requests: armed by the debug menu, applied by the frame driver at a frame boundary |
+| `DevControl`, `DevWarp`, `DevItems`, `DevFlags`, `DevCameraPlace`, `DevDebris`, `DevGate` | `game/core/debug/dev_*` | `warp`, `items`, `flag`, `camplace` (an area event's camera re-place, a declared cut), `debris` (the spawner M:80027144 thrown from Tomba) requests: armed by the debug menu, applied by the frame driver at a frame boundary |
 | `tomba::diagnostics` | `game/core/debug/diagnostics.h` | Diagnostic verbs' bodies: `ents`, `node`, `geomblk`, `stage`, `seq`, `bgm`, `invtest`, ... |
 | `AutoDrive` | `game/core/debug/auto_drive.h` | `PSXPORT_AUTO_SKIP`: the front end driven into GAME free-roam at frame boundaries |
 | `VerificationCounters` | `game/core/debug/verification_counters.h` | Title verification tallies on the diagnostics channel |

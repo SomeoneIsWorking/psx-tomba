@@ -19,6 +19,7 @@ set(GAME_SRC
   game/core/assets/asset.cpp
   game/core/debug/auto_drive.cpp
   game/core/debug/dev_camera_place.cpp
+  game/core/debug/dev_debris.cpp
   game/core/debug/dev_control.cpp
   game/core/debug/dev_flags.cpp
   game/core/debug/dev_items.cpp

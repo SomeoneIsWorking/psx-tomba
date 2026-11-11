@@ -289,10 +289,14 @@ Hazard 4: the GPU DMA queue's native `ov_gpuDmaQueueEnqueue` (`render/wide_re_gp
 bit from host code, which a discarded run served 0 for ever, so a replay reaching an upload hung. psxport's journal
 now stops a discarded run at a device access from host code and the interval is refused (`replay:warn` names the
 address); no CLUT upload refusal was seen in A04 in 24 in-betweens. The effect table's
-scale (+0xC, `Motion::Low16`) is tracked but not yet shown halfway: its only writer is the leaf-particle handler
-M:80027254 (`life - (life >> 7)` a frame) on slots M:8007B26C allocates for the debris spawner M:80027144, whose callers
-are impact sites in MAIN and the area overlays; no table slot was live in the village pad replay, in `warp` 0/0, 1/0,
-4/0, 5/0 or 8/0 walks, or under repeated attack and jump taps (`[motion] run-end: effects: 0 of 0`).
+scale (+0xC, `Motion::Low16`): its only writer is the leaf-particle handler M:80027254 (`life - (life >> 7)` a frame) on
+slots M:8007B26C allocates for the debris spawner M:80027144 (a0 model, a1 place buffer with s16 x/y/z at +2/+6/+0xA,
+a2 scale, a3 piece count | type << 4), whose callers are impact sites in MAIN and the area overlays; no walk or pad
+replay reached one. The debug command `debris` (`game/core/debug/dev_debris.cpp`) calls the spawner at a frame
+boundary with Tomba's place and model, 8 pieces of type 1. In `warp` 0/0 (`scratch/debris/d2`) slot 0's +0xC goes
+0x7C3, 0x796, 0x76A, 0x740 ... a tick and the shards' mean row falls 869, 869, 866, 862, 856, 853, 842, 831, 822, 811,
+800, 792, 783, 777, 774, 771 sink px on 16 consecutive presents, no present repeating its neighbour
+(`scratch/debris/debris_halfway.png`); `effects: 8 of 160` unpaired, the burst's first sample.
 
 What steps at 30 Hz, by RE (`scratch/replay-gaps/{main,a01,a02,a06,a0a,a0d,a0f}`, bodies present):
 

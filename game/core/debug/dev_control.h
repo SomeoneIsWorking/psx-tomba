@@ -1,6 +1,7 @@
 #pragma once
 
 #include "debug/dev_camera_place.h"
+#include "debug/dev_debris.h"
 #include "debug/dev_flags.h"
 #include "debug/dev_items.h"
 #include "debug/dev_warp.h"
@@ -11,8 +12,8 @@ class Core;
 
 namespace tomba {
 
-// The debug menu's warp, item, flag and camera re-place requests: armed between frames and written by the frame driver
-// at its next frame boundary.
+// The debug menu's warp, item, flag, camera re-place and debris requests: armed between frames and written by the frame
+// driver at its next frame boundary.
 class DevControl {
 public:
   DevWarp &warp() {
@@ -27,6 +28,9 @@ public:
   DevCameraPlace &cameraPlace() {
     return cameraPlace_;
   }
+  DevDebris &debris() {
+    return debris_;
+  }
   void applyArmed(Core &core, uint32_t frame);
 
 private:
@@ -36,6 +40,7 @@ private:
   DevItems items_;
   DevFlags flags_;
   DevCameraPlace cameraPlace_;
+  DevDebris debris_;
 };
 
 } // namespace tomba

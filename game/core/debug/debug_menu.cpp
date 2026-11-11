@@ -185,6 +185,16 @@ DebugMenu::DebugMenu() {
       .refusal = fieldRefusal,
       .inMenu = false,
   });
+  verb({
+      .name = "debris",
+      .summary = "Throw a pickup's debris burst from Tomba next frame (effect-table slots that shrink)",
+      .run =
+          [](const DebugCall &call) {
+            call.reply = devControl(call.core).debris().arm();
+          },
+      .refusal = fieldRefusal,
+      .inMenu = false,
+  });
 
   section("Diagnostics");
   const auto logged = [](void (*action)(Core &), std::string_view name) {
