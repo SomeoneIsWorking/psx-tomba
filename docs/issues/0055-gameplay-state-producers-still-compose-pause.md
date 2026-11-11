@@ -104,3 +104,9 @@ packets; then removes the `SubdividedGround` row from `docs/producers.md`'s stat
 Shown on the committed tree (HEAD built without the uncommitted `subdivided_ground.cpp`, `scratch/headcheck`):
 village `warp 0/0` running right, each in-between halfway between its neighbours (`h_village/halfway.png`);
 paused village, 8 presents identical, the menu whole, its in-betweens replayed (`h_pause`).
+
+**SOP and title replayed.** `DrawSection` gained `Sop` and `Title` variants (plan, Boot and title), so the opening and
+title in-betweens replay instead of composing. The SOP grid's state render and per-call save are deleted
+(`TileGridLayer`); boot unskipped through title, attract, menu and new-game SOP (`scratch/replay-gaps/op7`): 1922
+intervals replayed, 0 refused, 0 held. Still to delete: the resident and SOP `UnlitModelEmitter` renders and saves,
+`PackedMesh::write`/`emitScreen` and `::demoEdgeSprites`, once a census shows nothing outside a section composes them.

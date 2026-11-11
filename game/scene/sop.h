@@ -19,6 +19,20 @@ namespace tomba {
 
 class Sop {
 public:
+  // fieldUpdate's draw tail (FUN_801098E8 has the same body): the scenery walker, the record list and, outside beat 5,
+  // the parallax grid.
+  struct DrawStep {
+    std::uint32_t entry;
+    std::uint32_t a0;
+  };
+  inline static constexpr DrawStep kSceneryDraw{0x80109FE0u, 0x800F2418u};
+  inline static constexpr DrawStep kListDraw{0x8003C048u, 0u};
+  inline static constexpr DrawStep kGridDraw{0x8010C26Cu, 0x800ED018u};
+  // FUN_8010C79C, the text scroller fieldUpdate runs after the draw while sm[0x52] is 1: it steps the scroll and links
+  // its lines into the same OT.
+  inline static constexpr std::uint32_t kTextScroller = 0x8010C79Cu;
+  inline static constexpr std::uint32_t kScrollerPhase = 0x52u; // sm offset, u16
+
   Core *core = nullptr;
 
   // Live-spine entry points.

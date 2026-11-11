@@ -22,7 +22,7 @@ Frame loop: owned. `tomba::FrameDriver` runs one pass of `0x80050B08` (update `0
 | `decodeSceaSplash` | `game/core/frame/scea_splash.h`, `scea_asset.h` | The SCEA card's texture page and CLUT, decoded to the host picture `BootCards` shows |
 | `FrameCadence` | `game/core/frame/frame_cadence.h` | The frame-rate decision, published into the guest's quota byte |
 | `DrawReplay` | `game/core/frame/draw_replay.h` | Gameplay in-betweens, paused and attract frames included: the field or room draw replayed with its moving inputs blended (`ReplayFrame`), entered from `Render::frame`/`frameX` |
-| `DrawSection` | `game/core/frame/draw_section.h` | M:8003F9A8 or M:8003FA44, then in GAME the page step G:8010810C (the pause menu), as a replay section; `linked` names the OT chain of either display buffer |
+| `DrawSection` | `game/core/frame/draw_section.h` | M:8003F9A8 or M:8003FA44, then in GAME the page step G:8010810C (the pause menu); or SOP's draw tail (`Sop::kSceneryDraw`, `kListDraw`, `kGridDraw`, the text scroller); or the DEMO title (`Demo::kTitleEdges`, `kTitleItems`), as a replay section; `linked` names the OT chain of either display buffer |
 | `DrawMotion` | `game/core/frame/draw_motion.h` | The tracks: view MATRIX and angles, Tomba, the node pools, the render records' world MATRIX and part angles (live by `RenderRecordPool`'s free stack), the effect table, the tile-grid scroll, the area overlays' sway, wave and UV scroll words |
 | `ResidentImage`, `imageHolds` | `game/core/frame/image_residency.h` | Whether a named image (GAME, an area overlay) holds an address; a track's liveness while its overlay is resident |
 | `FrameCut` | `game/core/frame/frame_cut.h` | Whether a sealed record is a cut (stage, area, sub-scene, SOP shot, camera re-place) |

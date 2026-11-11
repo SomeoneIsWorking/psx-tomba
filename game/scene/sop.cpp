@@ -67,7 +67,6 @@ constexpr uint32_t BG_LAYER_STATE = 0x800e8008u;  // u8:  state byte for the BG 
 constexpr uint32_t BG_LAYER_SUB = 0x800e806cu;    // u8:  running sub-state (0=snap-follow, 1=reset-to-0)
 constexpr uint32_t BG_LAYER_TARGET = 0x800e8040u; // struct: CutsceneCamera snap-follow target
 
-constexpr uint32_t PARALLAX_BG_SM = 0x800ed018u;
 } // namespace SopAddr
 
 // Owned synchronous area-DATA load (replaces the body of LAB_80109164
@@ -524,19 +523,22 @@ void Sop::fieldUpdate() {
       // Engine.
       eng(c).parallaxBg.step();
     }
-    psx::cpu::callGuestNow(*c, __func__, 0x80109FE0u, 0x800F2418u);
-    psx::cpu::callGuestNow(*c, __func__, 0x8003C048u);
+    const bool scroller = c->mem_r16(c->mem_r32(TASK_SM_PTR) + kScrollerPhase) == 1u;
+    sessionOf(c).drawReplay.beforeDraw(*c,
+                                       {.variant = DrawSection::Variant::Sop, .grid = bgVisible, .scroller = scroller});
+    psx::cpu::callGuestNow(*c, __func__, kSceneryDraw.entry, kSceneryDraw.a0);
+    psx::cpu::callGuestNow(*c, __func__, kListDraw.entry);
     if (bgVisible) {
-      psx::cpu::callGuestNow(*c, __func__, 0x8010c26cu, PARALLAX_BG_SM);
+      psx::cpu::callGuestNow(*c, __func__, kGridDraw.entry, kGridDraw.a0);
     }
     c->mem_w8(IN_FIELD_UPDATE, 0);
   }
   // tail — sm[0x52]: 0 = intro zone setup, 1 = end-of-area text scroller, 2+ =
   // done
   sm = c->mem_r32(TASK_SM_PTR);
-  uint16_t s52 = c->mem_r16(sm + 0x52);
+  uint16_t s52 = c->mem_r16(sm + kScrollerPhase);
   if (s52 == 1) {
-    psx::cpu::callGuestNow(*c, __func__, 0x8010c79cu); // end-of-area scroller
+    psx::cpu::callGuestNow(*c, __func__, kTextScroller);
     if (c->r[2] == 0) {
       return; // still running -> stay
     }

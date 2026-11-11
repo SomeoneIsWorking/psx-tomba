@@ -181,12 +181,14 @@ uint32_t Demo::s3SubMachine() {
   }
 
   if (proceed) {
+    const std::uint32_t item = (c->mem_r8(sm + 0x68) != 2) ? 1u : 0u;
+    sessionOf(c).drawReplay.beforeDraw(*c, {.variant = DrawSection::Variant::Title, .menu = 1u, .item = item});
     c->r[4] = 0;
-    psx::cpu::callGuestNow(*c, __func__, 0x80106690u); // still substrate
+    psx::cpu::callGuestNow(*c, __func__, kTitleEdges);
     c->r[4] = 1;
-    c->r[5] = (c->mem_r8(sm + 0x68) != 2) ? 1u : 0u;
+    c->r[5] = item;
     c->r[17] = 0x1F800000u;
-    psx::cpu::callGuestNow(*c, __func__, 0x80106824u); // still substrate
+    psx::cpu::callGuestNow(*c, __func__, kTitleItems);
 
     sm = c->mem_r32(SM_PTR); // reload (matches the guest instruction path's re-read)
     int16_t timer = (int16_t)c->mem_r16(sm + 0x5a);
@@ -256,14 +258,16 @@ uint32_t Demo::s2SubMachine() {
   }
 
   if (proceed) {
+    const std::uint32_t item = (c->mem_r8(sm + 0x68) != 0) ? 1u : 0u;
+    sessionOf(c).drawReplay.beforeDraw(*c, {.variant = DrawSection::Variant::Title, .menu = 0u, .item = item});
     c->r[4] = 0;
     c->r[31] = 0x801069B8u;
-    psx::cpu::callGuestNow(*c, __func__, 0x80106690u); // logos
+    psx::cpu::callGuestNow(*c, __func__, kTitleEdges);
     c->r[4] = 0;
-    c->r[5] = (c->mem_r8(sm + 0x68) != 0) ? 1u : 0u;
+    c->r[5] = item;
     c->r[16] = 0x1F800000u;
     c->r[31] = 0x801069E8u;
-    psx::cpu::callGuestNow(*c, __func__, 0x80106824u); // items+cursor
+    psx::cpu::callGuestNow(*c, __func__, kTitleItems);
 
     sm = c->mem_r32(SM_PTR); // reload (matches guest instruction path re-read)
     int16_t timer = (int16_t)c->mem_r16(sm + 0x5a);

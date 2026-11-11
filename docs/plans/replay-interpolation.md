@@ -325,7 +325,15 @@ replays 0 intervals, the on run 1438), leaves main RAM and the scratchpad byte-i
 reached, 1 to 1638 (`scratch/review-findings/leak_fps{0,1}`, `leakcmp.py`). The earlier proof at two pad frames
 compared two runs that both replayed.
 
-Boot and title: the boot cards are stepped by design (`frame/boot_cards.cpp`). SOP draws through its own
-orchestrator (SOP 0x801093A8 and 0x801098FC call the section step 0x8003C048 directly, not 0x8003F9A8), and the title
-menu is DEMO 0x80106690/0x80106824, neither a field draw, so both still compose from their producers; replaying them
-needs a SOP section and a title section of their own.
+Boot and title: the boot cards are stepped by design (`frame/boot_cards.cpp`). SOP and the title menu replay
+through `DrawSection`'s `Sop` and `Title` variants. SOP's draw tail (FUN_801092B4 = `Sop::fieldUpdate`; FUN_801098E8
+has the same body and no caller) is the scenery walker 0x80109FE0(0x800F2418), the list step 0x8003C048 and, outside
+beat 5 (0x800BF9B4), the parallax grid 0x8010C26C(0x800ED018); while sm[0x52] is 1 the text scroller FUN_8010C79C
+follows and links the narration lines into the same OT, so the section runs it too (without it the narration showed
+only on real presents). The grid step replays through `TileGridLayer::drawSop`, the grid walk without the CLUT
+palette cycles: those are LoadImage uploads (0x80081218), which hang a replay. The title is DEMO FUN_80106690 (the
+two edge sprites) and FUN_80106824(menu, item), selected by `Demo::s2SubMachine` (menu 0, item sm+0x68 != 0) and
+`s3SubMachine` (menu 1, item sm+0x68 != 2). Boot unskipped through the title, attract, menu and new-game SOP
+(`scratch/replay-gaps/op7`): 1922 intervals replayed, 0 refused, 0 held; the narration is on every present. Open: the
+scroller steps its scroll inside the replay, so while the narration scrolls an in-between shows the next tick's line
+position instead of halfway; the scroll word needs a track that the scroller's own step lands on.

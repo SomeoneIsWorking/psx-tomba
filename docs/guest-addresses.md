@@ -560,7 +560,7 @@ calls it. A row whose handler is file-local names the file that declares the ove
 | 0x8010BDE4 | LIVE | `UnlitModelEmitter::gt4` (A0I) | game/render/unlit_model_emitter.cpp |  | Flagged unlit GT4 (kFlagged). |
 | 0x8010BEAC | LIVE | `beh_orbit_spark_effect` | game/ai/sop_intro_events.cpp |  |  |
 | 0x8010BF28 | LIVE | `UnlitModelEmitter::gt4` (A0G) | game/render/unlit_model_emitter.cpp |  | SOP GT4 with a near clamp (kSopNear). |
-| 0x8010C26C | LIVE | `TileGridLayer::emitSop` | game/render/tile_grid_layer.cpp | 0x80083DE0 0x80081218 | SOP tile grid + CLUT palette cycles; producer, object = map cell |
+| 0x8010C26C | LIVE | `TileGridLayer::emitSop` | game/render/tile_grid_layer.cpp | 0x80083DE0 0x80081218 | SOP tile grid + CLUT palette cycles; object = map cell; `drawSop` is its replay step without the cycles |
 | 0x8010E258 | LIVE | `ActorObjectContact::resolveHitOrProximity` | game/ai/actor_object_contact.cpp |  | ORACLE: overlay guest 0x8010E258 |
 | 0x8010E904 | LIVE | `ActorTomba::postFrameWaterCheck` | game/player/actor_tomba.cpp |  |  |
 | 0x8010EA80 | LIVE | `ActorBump::respondToContact` | game/ai/actor_bump.cpp |  | ORACLE: overlay guest 0x8010EA80 |

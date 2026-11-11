@@ -16,8 +16,10 @@ class DrawReplay {
 public:
   explicit DrawReplay(world::RenderRecordPool &records);
 
-  // `variant` is about to draw, paused or not: paired with the last frame's draw when both drew it in one stage.
+  // The field or room draw is about to run, paused or not; in GAME the page step follows it.
   void beforeDraw(Core &core, DrawSection::Variant variant);
+  // `selection` is about to draw: paired with the last frame's draw when both drew the same selection.
+  void beforeDraw(Core &core, DrawSection::Selection selection);
   // The logic frame ended; one that did not draw, or whose cut may postdate its sample, breaks the pairing.
   void endFrame(const FrameCut &cut);
   // The next draw pairs with nothing (a savestate restore).

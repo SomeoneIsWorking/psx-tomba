@@ -120,7 +120,6 @@ void Runtime::registerOverrides(Game &game) {
   bindLoadedResident(game.core);
   psx::present::StateProducerTable &renders = sessionOf(&game.core).stateProducers;
   tomba::render::UnlitModelEmitter::registerStateRenders(renders, game.core);
-  TileGridLayer::registerStateRenders(renders, game.core);
   tomba::render::SubdividedGround::registerStateRenders(renders, game.core);
   Font::registerStateRenders(renders);
   ScreenFade::registerStateRenders(renders);

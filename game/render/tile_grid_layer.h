@@ -50,10 +50,10 @@ public:
   // A06 0x80141A94: A07's walk over a map whose rows clamp instead of wrapping, hidden while the area phase is 0x13.
   static void emitClamped(Core *c);
 
+  // SOP's grid without the palette cycles: a replay's step, rastered onto the VRAM S's own draw uploaded.
+  static void drawSop(Core &core, std::uint32_t node);
+
   static void registerOverrides(native::NativeOverrideCatalog &natives);
-  // SOP's grid as one object keyed by its node: its state render. The area grids draw only in the replayed field
-  // draw and have none.
-  static void registerStateRenders(psx::present::StateProducerTable &renders, Core &core);
 
   struct EmitGridArgs {
     uint32_t node;
@@ -68,8 +68,6 @@ public:
 private:
   // `variant` indexes the emitters' bias and row lead.
   static void drawGrid(Core *c, std::uint32_t node, std::uint32_t variant);
-  // SOP's grid state: the node bytes with its two scroll words wrapped at the map's size.
-  static void saveSopGrid(Core *c, std::uint32_t node);
   // FUN_8010C26C's tail: three palette-cycle scripts, each loading one 16x1 CLUT row when its
   // countdown runs out. Uses the caller's frame for the RECT at sp+0x18.
   static void cycleSopPalettes(Core *c);

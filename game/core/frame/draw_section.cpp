@@ -8,7 +8,11 @@
 #include "ordering_table.h"
 #include "render/guest_ordering_table.h"
 #include "render/render.h"
+#include "render/tile_grid_layer.h"
+#include "scene/demo.h"
+#include "scene/sop.h"
 
+#include <array>
 #include <string_view>
 
 namespace tomba {
@@ -24,13 +28,37 @@ bool DrawSection::pageStepResident(const Core &core) {
   return imageHolds(core, kPageStep, kPageStepImage);
 }
 
+bool DrawSection::drawSteps(Core &core, psx::present::GuestRedraw &redraw) const {
+  switch (selection_.variant) {
+  case Variant::Field:
+  case Variant::Room:
+    // The orchestrators' overrides are Render::frame/frameX, which replay; the replay runs their guest bodies.
+    return redraw.run(selection_.variant == Variant::Field ? Render::kFieldDraw : Render::kRoomDraw, {}) &&
+           (!selection_.pageStep || redraw.dispatch(kPageStep, {}));
+  case Variant::Sop: {
+    const std::array scenery{Sop::kSceneryDraw.a0};
+    if (!redraw.dispatch(Sop::kSceneryDraw.entry, scenery) || !redraw.dispatch(Sop::kListDraw.entry, {})) {
+      return false;
+    }
+    if (selection_.grid) {
+      TileGridLayer::drawSop(core, Sop::kGridDraw.a0);
+    }
+    return !selection_.scroller || redraw.dispatch(Sop::kTextScroller, {});
+  }
+  case Variant::Title: {
+    const std::array edges{0u};
+    const std::array items{selection_.menu, selection_.item};
+    return redraw.dispatch(Demo::kTitleEdges, edges) && redraw.dispatch(Demo::kTitleItems, items);
+  }
+  }
+  return false;
+}
+
 std::optional<std::uint32_t> DrawSection::draw(Core &core, psx::present::GuestRedraw &redraw) const {
   // The 2D writers count calls per logic frame; the real draw must count from where the replays began.
   Session &session = sessionOf(&core);
   const render::CallSiteObjects calls = session.callSites;
-  // The orchestrators' overrides are Render::frame/frameX, which replay; the replay runs their guest bodies.
-  const bool returned = redraw.run(selection_.variant == Variant::Field ? Render::kFieldDraw : Render::kRoomDraw, {}) &&
-                        (!selection_.pageStep || redraw.dispatch(kPageStep, {}));
+  const bool returned = drawSteps(core, redraw);
   session.callSites = calls;
   if (!returned) {
     return std::nullopt;

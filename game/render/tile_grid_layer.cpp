@@ -147,11 +147,9 @@
 #include "guest_ordering_table.h"
 #include "libgpu_draw_mode.h"
 #include "list_job.h"
-#include "list_state_producer.h"
 #include "render.h"
 #include "wide_window.h"
 #include <cstdint>
-#include <memory>
 #include <string_view>
 #include <utility>
 
@@ -189,7 +187,6 @@ constexpr uint32_t kA00Grid = 0;
 constexpr uint32_t kUnbiasedGrid = 1;
 constexpr uint32_t kRowLeadGrid = 2;
 constexpr uint32_t kClampedGrid = 3;
-// SOP's grid is the only one drawn outside the replayed field draw.
 constexpr uint32_t kSopEntry = 0x8010C26Cu;
 
 TileGridLayer::EmitGridArgs gridArgs(uint32_t node, const GridVariant &grid) {
@@ -214,36 +211,8 @@ constexpr uint32_t kClutRowBytes = 32u;       // 16 colours
 constexpr uint32_t kLoadImage = 0x80081218u;
 constexpr uint32_t kLoadImageReturn = 0x8010C624u;
 
-constexpr uint32_t kNodeScrollX = 0x28u;
-constexpr uint32_t kNodeScrollY = 0x2Au;
-constexpr uint32_t kNodeTrailing = 0x2Cu; // from the wrap constants to the node's end
-constexpr uint32_t kNodeEnd = 0x3Cu;
-constexpr uint32_t kNodePitchX = 0x30u;
-constexpr uint32_t kNodePitchY = 0x32u;
-constexpr uint32_t kTileBytes = 16u;
-constexpr uint32_t kTileRows = 16u;
 constexpr uint32_t kHeaderBytes = 12u;
-constexpr uint32_t kSlackColumns = 2u; // the scroll between two frames shifts the walk by up to a tile
-constexpr uint32_t kScrollSlack = 32u;
 
-// The most packet bytes a grid walk writes: its tiles and the draw mode packet.
-uint32_t gridArenaBytes(Core &core) {
-  const tomba::wide_window::Window window = tomba::wide_window::drawWindow(&core);
-  const uint32_t columns =
-      (static_cast<uint32_t>(window.right - window.left) + kScrollSlack) / kTileBytes + kSlackColumns;
-  return (kTileRows + kSlackColumns) * columns * kTileBytes + kHeaderBytes;
-}
-
-class TileGridStateProducer final : public tomba::render::ListStateProducer {
-public:
-  using ListStateProducer::ListStateProducer;
-
-protected:
-  void
-  emit(const psx::present::EmitMemory &memory, uint32_t variant, const tomba::render::ListCall &call) const override {
-    TileGridLayer::emitGrid(memory, gridArgs(call.list, kGridVariants[variant]));
-  }
-};
 } // namespace
 
 // FUN_8011534C
@@ -343,28 +312,13 @@ void TileGridLayer::emitClamped(Core *c) {
 // SOP FUN_8010C26C
 void TileGridLayer::emitSop(Core *c) {
   GuestFrame<88, 10> frame(c, kSopEmitSpills);
-  saveSopGrid(c, c->r[4]);
   drawGrid(c, c->r[4], kUnbiasedGrid);
   cycleSopPalettes(c);
 }
 
-void TileGridLayer::saveSopGrid(Core *c, uint32_t node) {
-  const uint32_t pitchX = c->mem_r16(node + kNodePitchX);
-  const uint32_t pitchY = c->mem_r16(node + kNodePitchY);
-  if (pitchX == 0u || pitchY == 0u) {
-    return;
-  }
-  tomba::render::ListJobWriter job(
-      *c,
-      kUnbiasedGrid,
-      tomba::render::ListCall{node, c->mem_r32(tomba::render::OrderingTable::kBasePointer), 0u, 0u, c->r[29]},
-      gridArenaBytes(*c));
-  job.input(*c, tomba::render::OrderingTable::kBasePointer, sizeof(uint32_t));
-  job.input(*c, node, kNodeScrollX);
-  job.input(*c, node + kNodeScrollX, sizeof(uint16_t), tomba::render::InputBlend::Wrapped, pitchX);
-  job.input(*c, node + kNodeScrollY, sizeof(uint16_t), tomba::render::InputBlend::Wrapped, pitchY);
-  job.input(*c, node + kNodeTrailing, kNodeEnd - kNodeTrailing);
-  job.save(*c);
+void TileGridLayer::drawSop(Core &core, std::uint32_t node) {
+  GuestFrame<88, 10> frame(&core, kSopEmitSpills);
+  drawGrid(&core, node, kUnbiasedGrid);
 }
 
 void TileGridLayer::drawGrid(Core *c, uint32_t node, uint32_t variant) {
@@ -531,10 +485,6 @@ void TileGridLayer::registerOverrides(native::NativeOverrideCatalog &natives) {
                          "&TileGridLayer::emitRowLead",
                          &TileGridLayer::emitRowLead,
                          psx::present::Producer{psx::present::Arg::A0});
-}
-
-void TileGridLayer::registerStateRenders(psx::present::StateProducerTable &renders, Core &core) {
-  renders.install(kSopEntry, std::make_unique<TileGridStateProducer>(core));
 }
 
 } // namespace tomba

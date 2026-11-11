@@ -15,6 +15,10 @@ namespace tomba {
 
 class Demo {
 public:
+  // The title's draws, both sub-machines: the two edge sprites, then the menu items and cursor (a0 menu, a1 item).
+  inline static constexpr std::uint32_t kTitleEdges = 0x80106690u;
+  inline static constexpr std::uint32_t kTitleItems = 0x80106824u;
+
   Core *core = nullptr;
 
   // Wire s3SubMachine (0x80106AC4) into the override registry
