@@ -19,6 +19,7 @@ public:
     Page,      // GAME's page step G:8010810C alone, when 0x1F800136 >= 2 holds the field draw off (a menu page)
     Ride,      // A03's draw 0x8010B328, which G:80108CAC (the cart ride) runs in place of the field draw
     Narration, // SOP's narration crawl alone, while Sop::fieldUpdate's startup delay holds its draw tail off
+    Lists,     // 0x8003FA1C: Tomba and list C, FieldTransition::main's fade frames
   };
 
   // What the frame is about to draw, replayed until the next: every GAME caller follows the field or room draw with

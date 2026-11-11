@@ -21,14 +21,16 @@ public:
 
   static constexpr std::uint32_t kFieldDraw = 0x8003F9A8u; // the field draw
   static constexpr std::uint32_t kRoomDraw = 0x8003FA44u;  // the mid-transition twin
-  // Per-frame render orchestrators: kFieldDraw and kRoomDraw.
+  static constexpr std::uint32_t kListsDraw = 0x8003FA1Cu; // Tomba and list C: the door transition's fade frames
+  // Per-frame render orchestrators: kFieldDraw, kRoomDraw and kListsDraw.
   void frame();
   void frameX();
+  void frameLists();
   // GAME's page step G:8010810C; on a menu page, with the field draw held off, it is the frame's whole draw.
   void pageStep();
   // A03's draw 0x8010B328, the cart ride's frame (G:80108CAC), followed there by the page step.
   void ride();
-  // Every guest call of either orchestrator reaches frame/frameX.
+  // Every guest call of an orchestrator reaches frame/frameX/frameLists.
   static void registerOverrides(native::NativeOverrideCatalog &natives);
 
   // FUN_8003F698's routing rule: the guest emitter a cmd with this `flag` reaches (0 for the generic emitter).

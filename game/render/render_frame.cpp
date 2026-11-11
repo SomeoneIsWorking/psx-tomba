@@ -5,6 +5,8 @@
 //     0x8003bb50, 0x8003bcf4, 0x8003d0bc(a0=0x800f2418), 0x8003f024, 0x8003df04, 0x8003c048.
 //   0x8003fa44 (transition twin): jal 0x8004fd30, 0x80025d98, 0x8003bf00, 0x8003eec0, 0x8003b588,
 //     0x8003bb50, 0x8003bcf4, 0x8003c048, 0x8003f024.
+//   0x8003fa1c: jal 0x8003b588 (Tomba), 0x8003c048 (list C); its one caller GAME 0x80107AFC
+//     (FieldTransition::main) runs it on the fade-out, wait and fade-in frames.
 // Guest callers besides Engine::fieldFrame/fieldFrameX: GAME 0x8010737C, 0x80107638, 0x801078CC, 0x801074D0
 // (the guest submode frames) and DEMO 0x80106EBC (the attract demo's frame).
 
@@ -24,6 +26,10 @@ void ovFrame(Core *c) {
 
 void ovFrameX(Core *c) {
   rend(c)->frameX();
+}
+
+void ovFrameLists(Core *c) {
+  rend(c)->frameLists();
 }
 
 void ovPageStep(Core *c) {
@@ -55,6 +61,13 @@ void Render::frameX() {
   psx::cpu::callOriginalToReturn(*c, kRoomDraw, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
 }
 
+void Render::frameLists() {
+  Core *c = mCore;
+  // FieldTransition::main follows it with no page step.
+  sessionOf(c).drawReplay.beforeDraw(*c, {.variant = DrawSection::Variant::Lists});
+  psx::cpu::callOriginalToReturn(*c, kListsDraw, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+}
+
 void Render::pageStep() {
   Core *c = mCore;
   DrawReplay &replay = sessionOf(c).drawReplay;
@@ -77,6 +90,7 @@ void Render::ride() {
 void Render::registerOverrides(native::NativeOverrideCatalog &natives) {
   natives.declare(kFieldDraw, "Render::frame", ovFrame);
   natives.declare(kRoomDraw, "Render::frameX", ovFrameX);
+  natives.declare(kListsDraw, "Render::frameLists", ovFrameLists);
   natives.declareOverlay("GAME", DrawSection::kPageStep, "Render::pageStep", ovPageStep);
   natives.declareOverlay("A03", DrawSection::kRideDraw, "Render::ride", ovRide);
 }

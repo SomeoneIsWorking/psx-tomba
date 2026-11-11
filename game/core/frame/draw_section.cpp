@@ -48,6 +48,8 @@ bool DrawSection::drawSteps(Core &core, psx::present::GuestRedraw &redraw) const
     redraw.writeByte(Sop::kInFieldUpdate, 0u);
     return redraw.dispatch(NarrationScroller::kEntry, {});
   }
+  case Variant::Lists:
+    return redraw.run(Render::kListsDraw, {});
   case Variant::Page:
     return redraw.run(kPageStep, {});
   case Variant::Narration:

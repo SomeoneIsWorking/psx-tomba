@@ -69,7 +69,7 @@ std::vector<psx::game::WarpPlace> warpAreas(Core &core) {
                       : name,
           .arrive =
               [area, entry](Core &target) {
-                return devControl(target).warp().arm(target, area, entry);
+                return devControl(target).warp().arm(target, {.area = area, .entry = entry});
               },
       });
     }
@@ -101,6 +101,17 @@ DebugMenu::DebugMenu() {
   warp({
       .levels = {"area", "entry"},
       .places = &warpAreas,
+      .refusal = fieldRefusal,
+  });
+  verb({
+      .name = "door",
+      .summary = "Warp through the door transition's fade-out and fade-in",
+      .params = {DebugParam::integer("area", 0, AreaEntries::kAreaCount - 1), DebugParam::integer("entry", 0, 0xFF)},
+      .run =
+          [](const DebugCall &call) {
+            call.reply = devControl(call.core).warp().armThroughFade(
+                call.core, {.area = call.values.u32(0), .entry = call.values.u32(1)});
+          },
       .refusal = fieldRefusal,
   });
   section("Player");

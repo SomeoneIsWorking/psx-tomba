@@ -37,14 +37,22 @@ public:
 
   static Phase phase(Core &core);
 
+  struct Destination {
+    uint32_t area = 0;
+    uint32_t entry = 0;
+  };
+
   // Arms the request; the returned text answers the client. The debug menu checked the area and the phase; an entry
   // past the area's records (`AreaEntries::count`) is refused.
-  std::string arm(Core &core, uint32_t area, uint32_t entry);
+  std::string arm(Core &core, Destination destination);
+  // As arm, through FieldTransition::main's fade-out and fade-in (transition type 1), the way a door leaves.
+  std::string armThroughFade(Core &core, Destination destination);
   // Writes the armed request at a frame boundary.
   void applyArmed(Core &core, uint32_t frame);
 
 private:
   bool armed_ = false;
+  bool fade_ = false;
   uint32_t area_ = 0;
   uint32_t entry_ = 0;
 };

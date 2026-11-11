@@ -48,7 +48,9 @@ DevWarp::Phase DevWarp::phase(Core &core) {
   return Phase::Unavailable;
 }
 
-std::string DevWarp::arm(Core &core, uint32_t area, uint32_t entry) {
+std::string DevWarp::arm(Core &core, Destination destination) {
+  const uint32_t area = destination.area;
+  const uint32_t entry = destination.entry;
   const uint32_t entries = AreaEntries::count(core, area);
   if (entries == 0u) {
     return lucent::format("refused: area {} has no entries", area);
@@ -59,7 +61,14 @@ std::string DevWarp::arm(Core &core, uint32_t area, uint32_t entry) {
   area_ = area;
   entry_ = entry;
   armed_ = true;
+  fade_ = false;
   return lucent::format("ok: warp armed for area {} entry {}", area_, entry_);
+}
+
+std::string DevWarp::armThroughFade(Core &core, Destination destination) {
+  std::string reply = arm(core, destination);
+  fade_ = armed_;
+  return reply;
 }
 
 void DevWarp::applyArmed(Core &core, uint32_t frame) {
@@ -79,6 +88,9 @@ void DevWarp::applyArmed(Core &core, uint32_t frame) {
     sm.setSubMode(kFieldSubMode);
     sm.setStage4c(kFieldRunMachine);
     sm.setS4e(kAreaChange);
+  }
+  if (fade_) {
+    core.mem_w8(kTransitionType, kFullTransition);
   }
   core.mem_w16(kDestination, static_cast<uint16_t>((area_ << 8) | entry_));
   const bool exitCode = TaskSm(&core).stage4c() >= kExitCodeMachine;
