@@ -12,6 +12,10 @@ frames 1250, 1330, 1410 (`scratch/a03margin/plan2.py`). Frame 1250 (the cart sta
 the tunnel wall to the bottom is black (`scratch/a03margin/marg_f0r.png`, left panel). Frame 1330 shows a smaller
 black strip at the right margin's inner edge.
 
+The plan's `step` from a paused boot stalls near frame 500, and another agent nudged these runs by hand, so the
+shots' frame numbers are not certain and the HEAD and stash shots may not be the same frame. Each defect is real in
+its own build's shot; rerun with a plan that steps to a frame the debug server reaches before comparing pixels.
+
 ## Cause
 
 `game/render/subdivided_ground.cpp:emitRecord` (0x80110290) links each GT4 the guest projected. A record with a
