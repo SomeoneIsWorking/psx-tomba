@@ -49,8 +49,8 @@ FxSpriteSwarm, QuadRtptSubmit, HudGaugeEmitter, WidescreenMarginQuad, text_label
 SwayModelEmitter, OverlayGt3Gt4, OverlayGroundGt3Gt4, `ObjectDraws` (A08 quarter-turn mesh, A0A/A0F hanging
 strips) and `AnchorQuads` whole (its override only keyed and saved). WidescreenMarginQuad, DustField,
 FogModelEmitter, BackdropPlane, QuadRtptSubmit and the model emitters keep their overrides: they own the
-draw-window culls that extend the picture into the widescreen margins. Kept: `BillboardState` (the map screen
-draws `0x8003C8F4` with the field draw off, census `c2`), and the boot, SOP, title and menu producers.
+draw-window culls that extend the picture into the widescreen margins. Kept: `BillboardState` (census `c2` drew `0x8003C8F4`
+with the field draw off; see the map note below: that was the new-game opening, not a map), and the boot, SOP, title and menu producers.
 
 ## Follow-up (2026-11-11)
 
@@ -178,3 +178,12 @@ which no track blended, so his turn stepped at the logic rate; the node pools' +
 from 6-15 px (8x) above the midpoint (`h2`) to within 1.2 px (`h3`, `h3/ride_halfway.png`); the far track's bias
 from -1.95 to +0.58 px; ride RAM and scratchpad identical with in-betweens on and off (`dg2`, `dg3`); village walk
 in-betweens within 1.4 px of halfway (`v1/village_halfway.png`).
+
+**No map screen draws billboards (2026-11-11).** `0x8003C8F4` has four callers, the composers `0x8003C2D4`,
+`0x8003C464`, `0x8003C5F8` and `0x8003C788` (`decomp_pipeline.py --callers`, MAIN.EXE), all reached through the
+per-object render dispatch. The `c2` census that kept `BillboardState` for "the map screen" never reached a map:
+its warp was refused, its taps started a new game, and every `0x8003C8F4` composed there (records 4018-4116,
+19:50:51.877-52.541) falls in GAME `sm[48=2 4e=1 50=2]`, frames 4422-5414: the scripted opening, which `Variant::Sop`
+now replays. The new-game census on the deletion build (`e2o`) composes nothing and no owner journal of the five
+census runs holds a `0x8003C8F4` row (`scratch/a03cart/e2*/owners`). The pause menu (`G:801084F8`) opens pages 3-5
+only; the item page's tabs are Items, Event, Status and Help. The map screen itself is not located.
