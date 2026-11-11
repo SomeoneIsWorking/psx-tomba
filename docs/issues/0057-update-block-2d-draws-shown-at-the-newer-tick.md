@@ -37,10 +37,13 @@ pairs only while the replay's samples pair (`DrawReplay::endFrame` forgets on a 
 - The letterbox draws only with the effect slots armed (`0x1F80019A == 2`), in gameplay frames the section replays,
   so its state producer (`BarsRender`) was composed only at t = 1, where it equals the guest packets; it is deleted
   and `rebuildBars` is the letterbox's one blend.
-- `ScreenFade` is not rebuilt. Every Tomba fade steps one 5-bit unit (8) a tick and the framebuffer is 15-bit, so a
-  halfway fill colour truncates to one of the two ticks' and an in-between cannot show a level between them; the
-  rebuild that wrote it was deleted. `FadeRender` stays for presents whose draw ran no section (menus, loads), the
-  case a replay cannot run.
+- `ScreenFade` is not rebuilt. Every Tomba fade steps one 5-bit unit (8) a tick, and the record raster is 15-bit at
+  every ires: psxport `runtime/psx/render/record_rasterizer.cpp` draws into `kVramFormat` (R8G8, one 1555 pixel per
+  texel), and `runtime/psx/shaders_gpu/record.frag:pack` takes the command's 8-bit colour `>> 3` before `blend` mixes
+  5-bit channels. A halfway fill colour therefore lands on one of the two ticks' levels. Shown on the door fade
+  (`door 13 0`, `scratch/map/g5`): the rebuild wrote `0x62F4F4F4` between F8 and F0, and the in-between was
+  pixel-identical to the later tick on 3047 of 3528 lit pixels, every lit value on the 5-bit ladder (24, 33, 41,
+  49). The rebuild was deleted. An in-between level needs a raster target with more than 5 bits per channel.
 - The dialog box: the machine `0x8007D594` steps its open (state 0x5A eases y +0x56 toward +0x82, 0x5B grows the
   width +0x58 by an accelerating step and recentres x +0x54 on 0xA0) and then draws the glyphs (`0x8007CC00`) and the
   panel (`Panel::drawPanel`, `0x8005019C`) from node +0x54 in the same call. Glyphs are not drawn while it opens
