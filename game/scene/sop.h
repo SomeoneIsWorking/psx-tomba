@@ -12,6 +12,8 @@
 // Owns the SOP overlay's FIELD-MODE state machine (guest FUN_80109450) and the per-frame FIELD
 // update body (guest FUN_801092B4). Implementations + full doc-comments live in sop.cpp.
 #pragma once
+#include "render/tile_grid_layer.h"
+
 #include <cstdint>
 class Core;
 
@@ -27,11 +29,13 @@ public:
   };
   inline static constexpr DrawStep kSceneryDraw{0x80109FE0u, 0x800F2418u};
   inline static constexpr DrawStep kListDraw{0x8003C048u, 0u};
-  inline static constexpr DrawStep kGridDraw{0x8010C26Cu, 0x800ED018u};
+  inline static constexpr DrawStep kGridDraw{0x8010C26Cu, TileGridLayer::kNode};
   // FUN_8010C79C, the text scroller fieldUpdate runs after the draw while sm[0x52] is 1: it steps the scroll and links
   // its lines into the same OT.
   inline static constexpr std::uint32_t kTextScroller = 0x8010C79Cu;
   inline static constexpr std::uint32_t kScrollerPhase = 0x52u; // sm offset, u16
+  // u8: 1 while fieldUpdate's body runs, cleared before the scroller.
+  inline static constexpr std::uint32_t kInFieldUpdate = 0x1F800234u;
 
   Core *core = nullptr;
 

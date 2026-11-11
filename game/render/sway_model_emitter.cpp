@@ -54,9 +54,8 @@ constexpr std::uint32_t kCueGt3OtArgument = 0x44u;
 constexpr std::uint32_t kCueGt3MultiplierLocal = 0x10u;
 constexpr std::uint32_t kCueGt4Rgbc = 0x3C808080u;
 
-constexpr std::uint32_t kSwayPhase = 0x80139004u; // s16
-constexpr std::uint32_t kScrollU = 0x801388ECu;   // u8
-constexpr std::uint32_t kScrollV = 0x801388EEu;   // u8
+constexpr std::uint32_t kScrollU = 0x801388ECu; // u8
+constexpr std::uint32_t kScrollV = 0x801388EEu; // u8
 constexpr std::uint32_t kRandomSeed = 0x1F800080u;
 constexpr std::uint32_t kRandomMultiplier = 0x41C64E6Du;
 constexpr std::uint32_t kRandomIncrement = 0x3039u;
@@ -94,7 +93,7 @@ void sway(const psx::present::EmitMemory &memory, const ModelPacket &packet, con
   for (int corner = 0; corner < 3; ++corner) {
     const ModelCorner &model = kModelGt3.corners[corner];
     const bool odd = (memory.mem_r16(record + model.z) & 1u) != 0u;
-    const std::int32_t angle = memory.mem_r16s(kSwayPhase) + memory.mem_r16s(record + model.x);
+    const std::int32_t angle = memory.mem_r16s(SwayModelEmitter::kSwayPhase) + memory.mem_r16s(record + model.x);
     const std::int32_t offset =
         swayOffset(memory, true, odd ? calls.cosineOdd[corner] : calls.cosineEven[corner], angle);
     const std::uint32_t sx = packet.packet() + ModelPacket::kScreen[corner];
@@ -103,7 +102,7 @@ void sway(const psx::present::EmitMemory &memory, const ModelPacket &packet, con
   }
   for (int corner = 0; corner < 3; ++corner) {
     const ModelCorner &model = kModelGt3.corners[corner];
-    const std::int32_t angle = memory.mem_r16s(kSwayPhase) + memory.mem_r16s(record + model.z);
+    const std::int32_t angle = memory.mem_r16s(SwayModelEmitter::kSwayPhase) + memory.mem_r16s(record + model.z);
     const std::int32_t offset = swayOffset(memory, false, calls.sine[corner], angle);
     const std::uint32_t sy = packet.packet() + ModelPacket::kScreen[corner] + 2u;
     memory.mem_w16(sy, static_cast<std::uint16_t>(memory.mem_r16(sy) + static_cast<std::uint32_t>(offset)));

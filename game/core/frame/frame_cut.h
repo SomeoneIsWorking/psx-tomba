@@ -23,11 +23,15 @@ public:
 
   // FUN_8006EA00 ran during the pass being built.
   void noteCameraPlaced() {
-    cameraPlaced_ = true;
+    ++placements_;
   }
-  // Whether FUN_8006EA00 has run so far in the pass being built.
-  [[nodiscard]] bool cameraPlacing() const {
-    return cameraPlaced_;
+  // How many times FUN_8006EA00 has run so far in the pass being built.
+  [[nodiscard]] std::uint32_t cameraPlacements() const {
+    return placements_;
+  }
+  // How many times it ran in the most recently ended pass.
+  [[nodiscard]] std::uint32_t endedPassPlacements() const {
+    return endedPlacements_;
   }
   // The pass that built the next record has ended.
   void notePassEnded(Core &core);
@@ -50,7 +54,8 @@ private:
   };
 
   std::optional<SceneIdentity> previous_;
-  bool cameraPlaced_ = false;
+  std::uint32_t placements_ = 0;
+  std::uint32_t endedPlacements_ = 0;
   bool cut_ = true;
   bool sceneChanged_ = true;
 };

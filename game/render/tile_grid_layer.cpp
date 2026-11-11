@@ -141,6 +141,7 @@
 #include "tile_grid_layer.h"
 #include "core.h"
 #include "core/overrides/native_override_catalog.h"
+#include "entry/session.h"
 #include "game.h"
 #include "guest_abi.h"
 #include "guest_call.h"
@@ -148,7 +149,9 @@
 #include "libgpu_draw_mode.h"
 #include "list_job.h"
 #include "render.h"
+#include "scene/sop.h"
 #include "wide_window.h"
+#include <array>
 #include <cstdint>
 #include <string_view>
 #include <utility>
@@ -187,10 +190,14 @@ constexpr uint32_t kA00Grid = 0;
 constexpr uint32_t kUnbiasedGrid = 1;
 constexpr uint32_t kRowLeadGrid = 2;
 constexpr uint32_t kClampedGrid = 3;
-constexpr uint32_t kSopEntry = 0x8010C26Cu;
 
-TileGridLayer::EmitGridArgs gridArgs(uint32_t node, const GridVariant &grid) {
-  return {.node = node, .tileVBias = grid.tileVBias, .rowLead = grid.rowLead, .clampRows = grid.clampRows};
+TileGridLayer::EmitGridArgs gridArgs(uint32_t node, const GridVariant &grid, std::array<float, 2> scrollPast) {
+  return {.node = node,
+          .tileVBias = grid.tileVBias,
+          .rowLead = grid.rowLead,
+          .clampRows = grid.clampRows,
+          .scrollPastX = scrollPast[0],
+          .scrollPastY = scrollPast[1]};
 }
 
 // A clamped map's row at byte offset `row`: past the last row it shows the last, above the first it shows the first
@@ -311,23 +318,31 @@ void TileGridLayer::emitClamped(Core *c) {
 
 // SOP FUN_8010C26C
 void TileGridLayer::emitSop(Core *c) {
-  GuestFrame<88, 10> frame(c, kSopEmitSpills);
-  drawGrid(c, c->r[4], kUnbiasedGrid);
-  cycleSopPalettes(c);
+  runSop(*c, c->r[4], SopTail::PaletteCycles);
 }
 
 void TileGridLayer::drawSop(Core &core, std::uint32_t node) {
-  GuestFrame<88, 10> frame(&core, kSopEmitSpills);
+  runSop(core, node, SopTail::None);
+}
+
+void TileGridLayer::runSop(Core &core, std::uint32_t node, SopTail tail) {
+  const GuestFrame<88, 10> frame(&core, kSopEmitSpills);
   drawGrid(&core, node, kUnbiasedGrid);
+  if (tail == SopTail::PaletteCycles) {
+    cycleSopPalettes(&core);
+  }
 }
 
 void TileGridLayer::drawGrid(Core *c, uint32_t node, uint32_t variant) {
   c->mem_w32(c->r[29] + 16u, 0u); // SetDrawMode's fifth argument
-  emitGrid(psx::present::EmitMemory(*c), gridArgs(node, kGridVariants[variant]));
+  const std::array<float, 2> scrollPast =
+      node == kNode ? sessionOf(c).drawReplay.gridScrollPast().value_or(std::array{0.0f, 0.0f})
+                    : std::array{0.0f, 0.0f};
+  emitGrid(psx::present::EmitMemory(*c), gridArgs(node, kGridVariants[variant], scrollPast));
 }
 
 void TileGridLayer::emitGrid(const psx::present::EmitMemory &memory, const EmitGridArgs &args) {
-  auto [node, tileVBias, rowLead, clampRows] = args;
+  const auto [node, tileVBias, rowLead, clampRows, scrollPastX, scrollPastY] = args;
   const int W = memory.mem_r8(node + 0x10u), H = memory.mem_r8(node + 0x11u);
   if (W == 0 || H == 0) {
     return;
@@ -386,7 +401,12 @@ void TileGridLayer::emitGrid(const psx::present::EmitMemory &memory, const EmitG
       memory.mem_w32(thisAddr + 4u, 0x7D808080u);
       memory.mem_w8(thisAddr + 7u, 0x7Cu);
       memory.mem_w8(thisAddr + 3u, 3u);
-      memory.mem_w32(thisAddr + 8u, (uint32_t)(uint16_t)X | ((uint32_t)(uint16_t)Y << 16));
+      const uint32_t position = (uint32_t)(uint16_t)X | ((uint32_t)(uint16_t)Y << 16);
+      if (scrollPastX != 0.0f || scrollPastY != 0.0f) {
+        memory.storeVertex(thisAddr + 8u, {position, {(float)X - scrollPastX, (float)Y - scrollPastY, 0.0f, 0.0f}});
+      } else {
+        memory.mem_w32(thisAddr + 8u, position);
+      }
       memory.mem_w16(thisAddr + 12u, (uint16_t)((u & 0xFF) | ((v & 0xFF) << 8)));
       memory.mem_w16(thisAddr + 14u, (uint16_t)(clutBase + ((tile & 0xF00u) >> 2)));
       pool += 16u;
@@ -471,7 +491,7 @@ void TileGridLayer::registerOverrides(native::NativeOverrideCatalog &natives) {
                            psx::present::Producer{psx::present::Arg::A0});
   }
   natives.declareOverlay("SOP",
-                         kSopEntry,
+                         Sop::kGridDraw.entry,
                          "&TileGridLayer::emitSop",
                          &TileGridLayer::emitSop,
                          psx::present::Producer{psx::present::Arg::A0});

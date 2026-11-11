@@ -37,6 +37,8 @@ namespace tomba::render {
 class SwayModelEmitter {
 public:
   enum class Kind : std::uint8_t { SwayGt3, ScrollGt4, CueGt3, CueGt4 };
+  // s16, A01's sway angle, stepped by its scenery walker before these read it.
+  static constexpr std::uint32_t kSwayPhase = 0x80139004u;
 
   // The guest calls: the frame, the registers in, the end of the list in v0.
   static void swayGt3(Core &core, const horizontal_cull::Visibility &visible);

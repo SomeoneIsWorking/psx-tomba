@@ -15,7 +15,7 @@ void DrawReplay::beforeDraw(Core &core, DrawSection::Variant variant) {
 
 void DrawReplay::beforeDraw(Core &core, DrawSection::Selection selection) {
   drewThisFrame_ = true;
-  placedBeforeSample_ = eng(&core).frameCut().cameraPlacing();
+  placementsAtSample_ = eng(&core).frameCut().cameraPlacements();
   if (drawn_ != selection) {
     lucent::debug("draw-section",
                   "variant {} page step {} grid {} scroller {} menu {} item {}",
@@ -34,12 +34,17 @@ void DrawReplay::beforeDraw(Core &core, DrawSection::Selection selection) {
 
 void DrawReplay::endFrame(const FrameCut &cut) {
   // A camera re-placed before the draw sampled is already in that sample; a scene change may not be.
-  const bool staleSample = cut.sceneChanged() || (cut.isCut() && !placedBeforeSample_);
+  const bool staleSample = cut.sceneChanged() || cut.endedPassPlacements() > placementsAtSample_;
   if (!drewThisFrame_ || staleSample) {
     forget();
   }
   drewThisFrame_ = false;
-  placedBeforeSample_ = false;
+  placementsAtSample_ = 0;
+}
+
+std::optional<std::array<float, 2>> DrawReplay::gridScrollPast() const {
+  const std::optional<float> t = frame_.replaying();
+  return t ? motion_.gridScrollPast(frame_.motion(), *t) : std::nullopt;
 }
 
 void DrawReplay::forget() {

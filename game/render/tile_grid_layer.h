@@ -1,21 +1,6 @@
-// game/render/tile_grid_layer.h — PC-native (dual-emit) body for the field's scrolling 16x16
-// tile-grid background: the scroll-wrap helper FUN_8011534C and the op-0x7C sprite-packet emitter
-// FUN_80115598 (A00 overlay, guest node @ 0x800ED018). See tile_grid_layer.cpp for the full RE +
-// entry-point-resolution trace (docs/native-render-2d-tilegrid.md).
-//
-// NOT the same call chain as the RE doc originally guessed: docs/native-render-2d-tilegrid.md's
-// "Function boundaries" section names 0x80115364 (Render::overlayTypeDispatch case 0x8003D1C4) as
-// the dispatch entry. That address is NOT a real function entry (see .cpp "entry resolution") and
-// that call path is dead for the field. The REAL, live callers are:
-//   - Engine::areaModeDispatch(Faithful) (game/core/engine.cpp, mode idx 0) -> typed runtime address dispatch(c,
-//     0x8011534Cu) with a0=0x800ED018 — per-frame STEP (scroll wrap).
-//   - the still-unowned FUN_8003DF04 state dispatcher -> typed runtime address dispatch(c, 0x80115598u) with
-//     a0=0x800ED018 for render-state 0 — per-frame EMIT.
-// This class owns those TWO leaf bodies directly (wired via tomba::native::declareOverride, the SAME
-// mechanism OverlayGroundGt3Gt4 uses for its A00-local leaves — neither is reached via typed runtime address dispatch
-// from a literal MAIN jal, both are reached through per-node function-pointer / table dispatch that
-// resolves to these two addresses at runtime).
-//
+// tile_grid_layer.h — the field's scrolling 16x16 tile-grid backdrop (kNode): A00's scroll step
+// FUN_8011534C and the area emitters of its sprite packets (A00 FUN_80115598 and its per-area variants, SOP
+// FUN_8010C26C). The .cpp holds the RE.
 #pragma once
 
 #include "emit_memory.h"
@@ -43,15 +28,16 @@ public:
                                    // already-RE'd guest 0x80083DE0.
   static void emitSop(Core *c);    // SOP FUN_8010C26C(node=a0): the same grid with no V bias, then
                                    // the three CLUT-row palette cycles (cycleSopPalettes).
+  // SOP's routine without its palette-cycle tail, whose LoadImage uploads would refuse the replay running it.
+  static void drawSop(Core &core, std::uint32_t node);
+  // The grid node every emitter draws and the scroll step writes.
+  inline static constexpr std::uint32_t kNode = 0x800ED018u;
   // A0B 0x801141B0 and its A0A/A0D/A0F copies: A00's emitter with no V bias (A0B's starry backdrop).
   static void emitUnbiased(Core *c);
   // A07 0x8012F938: no V bias, and its map rows start one row above the screen's top tile.
   static void emitRowLead(Core *c);
   // A06 0x80141A94: A07's walk over a map whose rows clamp instead of wrapping, hidden while the area phase is 0x13.
   static void emitClamped(Core *c);
-
-  // SOP's grid without the palette cycles: a replay's step, rastered onto the VRAM S's own draw uploaded.
-  static void drawSop(Core &core, std::uint32_t node);
 
   static void registerOverrides(native::NativeOverrideCatalog &natives);
 
@@ -60,6 +46,9 @@ public:
     uint32_t tileVBias;
     int rowLead;    // map rows the walk starts above the screen's top tile
     bool clampRows; // rows past the map show its edge row instead of wrapping
+    // How far past the scroll words the grid is scrolled (an in-between's), in pixels.
+    float scrollPastX = 0.0f;
+    float scrollPastY = 0.0f;
   };
   // The grid walk both emitters share, over the guest or a render's host memory: the sprites of every tile the
   // draw window shows, chained under a draw mode packet at the background bucket.
@@ -68,6 +57,9 @@ public:
 private:
   // `variant` indexes the emitters' bias and row lead.
   static void drawGrid(Core *c, std::uint32_t node, std::uint32_t variant);
+  enum class SopTail : std::uint8_t { PaletteCycles, None };
+  // FUN_8010C26C in its 88-byte frame: the grid, then `tail`.
+  static void runSop(Core &core, std::uint32_t node, SopTail tail);
   // FUN_8010C26C's tail: three palette-cycle scripts, each loading one 16x1 CLUT row when its
   // countdown runs out. Uses the caller's frame for the RECT at sp+0x18.
   static void cycleSopPalettes(Core *c);

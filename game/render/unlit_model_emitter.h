@@ -91,6 +91,13 @@ public:
     std::array<std::uint32_t, 4> gt4Calls;
   };
   static constexpr ScreenWave kNoWave{};
+  // The moving words the area variants read: UV scrolls the area objects step and A0D's wave phase.
+  static constexpr std::uint32_t kA06ScrollU = 0x8014A450u;
+  static constexpr std::uint32_t kA02ScrollU = 0x8012C928u;
+  static constexpr std::uint32_t kA02ScrollV = 0x8012C92Au;
+  static constexpr std::uint32_t kA02Band = 0x8012C92Cu;
+  static constexpr std::uint32_t kA0fScrollU = 0x8012092Eu;
+  static constexpr std::uint32_t kA0dWavePhase = 0x8011CC68u;
   struct Variant {
     ModelStage stage;
     std::uint32_t colourMask;
@@ -224,7 +231,7 @@ public:
                                       {ModeCode::ZeroAverage, 3u, Staging::Unaveraged, kNoNearClamp, false, 0},
                                       0u,
                                       false,
-                                      {ScrollRead::HalfShift4, true, {{{8u, 0x8014A450u, 0u, 0}}}},
+                                      {ScrollRead::HalfShift4, true, {{{8u, kA06ScrollU, 0u, 0}}}},
                                       kNoXHide,
                                       kNoWave,
                                       0u};
@@ -245,21 +252,20 @@ public:
                                      0u};
 
   // A02's pair: the resident projection, 0 average, 1 farthest, 2 and 3 nearest, three scroll words.
-  static constexpr Variant kA02{kResidentStage,
-                                kColourCodeMask,
-                                kColourCodeMask,
-                                true,
-                                0u,
-                                0u,
-                                {ModeCode::ZeroAverage, 3u, Staging::Registers, kNoNearClamp, false, 0},
-                                0u,
-                                false,
-                                {ScrollRead::HalfShift4,
-                                 true,
-                                 {{{0x10u, 0x8012C92Cu, 0u, 0}, {8u, 0x8012C92Au, 0u, 0}, {4u, 0x8012C928u, 0u, 0}}}},
-                                kNoXHide,
-                                kNoWave,
-                                0u};
+  static constexpr Variant kA02{
+      kResidentStage,
+      kColourCodeMask,
+      kColourCodeMask,
+      true,
+      0u,
+      0u,
+      {ModeCode::ZeroAverage, 3u, Staging::Registers, kNoNearClamp, false, 0},
+      0u,
+      false,
+      {ScrollRead::HalfShift4, true, {{{0x10u, kA02Band, 0u, 0}, {8u, kA02ScrollV, 0u, 0}, {4u, kA02ScrollU, 0u, 0}}}},
+      kNoXHide,
+      kNoWave,
+      0u};
 
   // A0A's pair: SOP's projection, 1 farthest, 2 nearest from the SZ registers, two U/V byte scrolls that add up.
   static constexpr Variant kA0a{
@@ -287,7 +293,7 @@ public:
       {ModeCode::OneFarTwoNear, 3u, Staging::Registers, kNoNearClamp, false, 0},
       0u,
       false,
-      {ScrollRead::Byte, true, {{{4u, 0x8012092Eu, 0x80120930u, 0x7FB}, {8u, 0x80120938u, 0x8012093Au, 0x7FD}}}},
+      {ScrollRead::Byte, true, {{{4u, kA0fScrollU, 0x80120930u, 0x7FB}, {8u, 0x80120938u, 0x8012093Au, 0x7FD}}}},
       kNoXHide,
       kNoWave,
       0u};
@@ -305,7 +311,7 @@ public:
                                 kNoScroll,
                                 kNoXHide,
                                 {4u,
-                                 0x8011CC68u,
+                                 kA0dWavePhase,
                                  0x80,
                                  {0x801130C0u, 0x801130E4u, 0x80113108u},
                                  {0x80113514u, 0x80113538u, 0x8011355Cu, 0x80113580u}},

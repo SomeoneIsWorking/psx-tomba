@@ -48,12 +48,10 @@
 // file-local — these are SOP-specific handles, not engine-wide primitives.
 namespace SopAddr {
 // -- scratchpad (SPAD) --
-constexpr uint32_t TASK_SM_PTR = 0x1f800138u;     // u32: ptr to the SOP task's state-machine struct (the `sm`
-                                                  // base — sm[0x50]=field-mode, sm[0x52]=intro/end-scroller
-                                                  // phase, sm[0x60]=startup delay, ...)
-constexpr uint32_t IN_FIELD_UPDATE = 0x1f800234u; // u8:  gate — 1 while Sop::fieldUpdate's per-frame body runs,
-                                                  // 0 outside (read by leaves that behave differently
-                                                  // mid-update)
+constexpr uint32_t TASK_SM_PTR = 0x1f800138u; // u32: ptr to the SOP task's state-machine struct (the `sm`
+                                              // base — sm[0x50]=field-mode, sm[0x52]=intro/end-scroller
+                                              // phase, sm[0x60]=startup delay, ...)
+constexpr uint32_t IN_FIELD_UPDATE = tomba::Sop::kInFieldUpdate;
 
 // -- SOP scene state (main RAM) --
 constexpr uint32_t SCENE_ENT_TABLE = 0x800f2418u; // 0x800F2418: SCENE_STATE / entity table (count byte @+6, grid
@@ -63,9 +61,9 @@ constexpr uint32_t SCENE_BEAT = 0x800bf9b4u;      // u8:  SOP intro-cutscene "be
                                                   // draw the field/BG normally.
 
 // -- BG layer sub-state machine (main RAM) --
-constexpr uint32_t BG_LAYER_STATE = 0x800e8008u;  // u8:  state byte for the BG layer SM (0=init → 1=running)
-constexpr uint32_t BG_LAYER_SUB = 0x800e806cu;    // u8:  running sub-state (0=snap-follow, 1=reset-to-0)
-constexpr uint32_t BG_LAYER_TARGET = 0x800e8040u; // struct: CutsceneCamera snap-follow target
+constexpr uint32_t BG_LAYER_STATE = 0x800e8008u; // u8:  state byte for the BG layer SM (0=init → 1=running)
+constexpr uint32_t BG_LAYER_SUB = tomba::camera::kCameraMode; // u8: 0 snap-follows, 1 resets to 0
+constexpr uint32_t BG_LAYER_TARGET = 0x800e8040u;             // struct: CutsceneCamera snap-follow target
 
 } // namespace SopAddr
 

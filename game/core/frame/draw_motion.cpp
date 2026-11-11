@@ -1,5 +1,11 @@
 #include "frame/draw_motion.h"
 
+#include "render/sway_model_emitter.h"
+#include "render/tile_grid_layer.h"
+#include "render/unlit_model_emitter.h"
+
+#include <cmath>
+
 namespace tomba {
 namespace {
 
@@ -69,21 +75,22 @@ constexpr std::array kEffectFields{
 
 // The tile grid 0x800ED018 (TileGridLayer): the update's 0x8011534C wraps scroll X|Y at +0x28 into pitch X|Y at
 // +0x30 from the view angles; live in state 1.
-constexpr std::uint32_t kTileGrid = 0x800ED018u;
+constexpr std::uint32_t kTileGrid = TileGridLayer::kNode;
 constexpr std::array kTileGridFields{MotionField{.offset = 0x28}, MotionField{.offset = 0x30}};
 constexpr RecordByte kTileGridLive{.offset = 0, .low = 1, .high = 1};
 // A01's sway phase, a 12-bit angle the walker A01:80132358 steps before its leaves read it.
-constexpr std::uint32_t kA01Sway = 0x80139004u;
+constexpr std::uint32_t kA01Sway = render::SwayModelEmitter::kSwayPhase;
 // A0D's screen wave phase, an rsin angle the walker A0D:80113628 steps after drawing.
-constexpr std::uint32_t kA0dWave = 0x8011CC68u;
+constexpr std::uint32_t kA0dWave = render::UnlitModelEmitter::kA0dWavePhase;
 constexpr std::array kAngleLow{MotionField{.offset = 0, .motion = Motion::Angle12Low}};
-// UV scrolls the area objects step in the update, read as u16 >> 4: A02 0x8012C928 (& 0xFF) | 0x8012C92A (mod
-// 0x180), 0x8012C92C (+0x100 mod 0x800); A06 0x8014A450 (& 0xFF).
-constexpr std::uint32_t kA02Scroll = 0x8012C928u;
-constexpr std::uint32_t kA02Band = 0x8012C92Cu;
-constexpr std::uint32_t kA06Scroll = 0x8014A450u;
-// A0F's U scroll 0x8012092E, -2 & 0x3F a draw, after the walker A0F:80115364 drew with it; read as a byte.
-constexpr std::uint32_t kA0fScroll = 0x8012092Cu;
+// UV scrolls the area objects step in the update, read as u16 >> 4: A02's U (& 0xFF) | V (mod 0x180) and band
+// (+0x100 mod 0x800); A06's U (& 0xFF).
+constexpr std::uint32_t kA02Scroll = render::UnlitModelEmitter::kA02ScrollU;
+static_assert(render::UnlitModelEmitter::kA02ScrollV == kA02Scroll + 2u);
+constexpr std::uint32_t kA02Band = render::UnlitModelEmitter::kA02Band;
+constexpr std::uint32_t kA06Scroll = render::UnlitModelEmitter::kA06ScrollU;
+// A0F's U scroll, -2 & 0x3F a draw, after the walker A0F:80115364 drew with it; read as a byte, the word's high half.
+constexpr std::uint32_t kA0fScroll = render::UnlitModelEmitter::kA0fScrollU - 2u;
 constexpr std::array kWord{MotionField{.offset = 0}};
 
 constexpr std::array<const char *, kNodePools.size()> kNodePoolNames{
@@ -125,6 +132,7 @@ DrawMotion::DrawMotion(world::RenderRecordPool &records) {
                    .records = recordRun};
   tracks_[at++] = {
       .name = "effects", .address = kEffects, .fields = kEffectFields, .keys = kEffectKeys, .records = kEffectRun};
+  tileGrid_ = &tracks_[at];
   tracks_[at++] = {.name = "tile grid",
                    .address = kTileGrid,
                    .fields = kTileGridFields,
@@ -149,6 +157,21 @@ DrawMotion::DrawMotion(world::RenderRecordPool &records) {
                    .fields = kWord,
                    .rule = &a0fScroll_,
                    .records = {.liveness = &a0f_}};
+}
+
+std::optional<std::array<float, 2>> DrawMotion::gridScrollPast(const psx::present::MotionSet &motion, float t) const {
+  const std::optional<psx::present::MotionRule::Samples> samples = motion.pairedRecord(*tileGrid_, kTileGrid);
+  if (!samples) {
+    return std::nullopt;
+  }
+  std::array<float, 2> past{};
+  for (std::size_t axis = 0; axis < past.size(); ++axis) {
+    const auto half = axis == 0 ? psx::present::Halfword::Low : psx::present::Halfword::High;
+    if (const std::optional<double> exact = gridScroll_.exactHalf(*samples, 0, half, t)) {
+      past[axis] = static_cast<float>(*exact - std::nearbyint(*exact));
+    }
+  }
+  return past;
 }
 
 } // namespace tomba

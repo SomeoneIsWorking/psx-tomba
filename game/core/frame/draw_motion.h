@@ -7,6 +7,7 @@
 
 #include <array>
 #include <cstdint>
+#include <optional>
 #include <span>
 
 namespace tomba {
@@ -22,6 +23,9 @@ public:
   [[nodiscard]] std::span<const psx::present::MotionTrack> tracks() const {
     return tracks_;
   }
+  // How far past its scroll words the replay at `t` scrolls the tile grid, X and Y, while the grid pairs.
+  [[nodiscard]] std::optional<std::array<float, 2>> gridScrollPast(const psx::present::MotionSet &motion,
+                                                                   float t) const;
 
 private:
   static constexpr std::size_t kTracks = 18;
@@ -39,6 +43,7 @@ private:
   ResidentImage a0d_{"A0D", 0x80113628u};
   ResidentImage a0f_{"A0F", 0x80115364u};
   std::array<psx::present::MotionTrack, kTracks> tracks_;
+  const psx::present::MotionTrack *tileGrid_ = nullptr;
 };
 
 } // namespace tomba

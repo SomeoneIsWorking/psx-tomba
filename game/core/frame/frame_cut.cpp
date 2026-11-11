@@ -15,18 +15,19 @@ void FrameCut::notePassEnded(Core &core) {
   };
   const bool sceneChanged = !previous_.has_value() || *previous_ != current;
   sceneChanged_ = sceneChanged;
-  cut_ = sceneChanged || cameraPlaced_;
+  cut_ = sceneChanged || placements_ != 0;
   lucent::debug("cut",
                 "cut={} scene={} camera={} stage={:08X} area={} sub={} shot={}",
                 cut_,
                 sceneChanged,
-                cameraPlaced_,
+                placements_,
                 current.stage,
                 current.area,
                 current.subScene,
                 current.introShot);
   previous_ = current;
-  cameraPlaced_ = false;
+  endedPlacements_ = placements_;
+  placements_ = 0;
 }
 
 } // namespace tomba

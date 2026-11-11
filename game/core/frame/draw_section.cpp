@@ -43,7 +43,11 @@ bool DrawSection::drawSteps(Core &core, psx::present::GuestRedraw &redraw) const
     if (selection_.grid) {
       TileGridLayer::drawSop(core, Sop::kGridDraw.a0);
     }
-    return !selection_.scroller || redraw.dispatch(Sop::kTextScroller, {});
+    if (!selection_.scroller) {
+      return true;
+    }
+    redraw.writeByte(Sop::kInFieldUpdate, 0u);
+    return redraw.dispatch(Sop::kTextScroller, {});
   }
   case Variant::Title: {
     const std::array edges{0u};

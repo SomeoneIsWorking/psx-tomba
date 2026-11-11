@@ -6,6 +6,8 @@
 #include "frame/frame_cut.h"
 #include "replay_frame.h"
 
+#include <array>
+#include <cstdint>
 #include <optional>
 
 class Core;
@@ -28,6 +30,8 @@ public:
   [[nodiscard]] psx::present::ReplayFrame &frame() {
     return frame_;
   }
+  // While a replay runs: how far past its scroll words it scrolls the tile grid, X and Y.
+  [[nodiscard]] std::optional<std::array<float, 2>> gridScrollPast() const;
 
 private:
   DrawSection section_;
@@ -35,7 +39,7 @@ private:
   psx::present::ReplayFrame frame_;
   std::optional<DrawSection::Selection> drawn_;
   bool drewThisFrame_ = false;
-  bool placedBeforeSample_ = false;
+  std::uint32_t placementsAtSample_ = 0; // FrameCut::cameraPlacements when the draw sampled
 };
 
 } // namespace tomba
