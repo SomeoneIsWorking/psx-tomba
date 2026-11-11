@@ -6,6 +6,7 @@
 #include "core/overrides/native_override_catalog.h"
 #include "entry/session.h"
 #include "horizontal_visibility_cull.h"
+#include "object_draw.h"
 #include "projected_vertex.h"
 
 #include <algorithm>

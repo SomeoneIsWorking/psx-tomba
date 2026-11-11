@@ -227,7 +227,6 @@ set(GAME_SRC
   game/render/quad_rtpt_submit.cpp
   game/render/model_packet.cpp
   game/render/list_job.cpp
-  game/render/list_state_producer.cpp
   game/render/lit_model_emitter.cpp
   game/render/unlit_model_emitter.cpp
   game/render/wave_phases.cpp

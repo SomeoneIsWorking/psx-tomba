@@ -2,7 +2,6 @@
 // See ui_sprite.cpp for the RE, the stack-frame requirement, and why def 152 is named for what it
 // does rather than what it means.
 #pragma once
-#include "state_producer.h"
 
 #include <array>
 #include <cstdint>
@@ -38,7 +37,6 @@ public:
   // Each call of either emitter is an object (its call site, n-th in the frame) saved as its anchor and
   // packets; the render moves the anchor. A call in the update block is also noted to UpdateBlockDraws, which
   // moves its pieces by the anchor blended in each replay.
-  static void registerStateRenders(psx::present::StateProducerTable &renders);
 };
 
 } // namespace tomba

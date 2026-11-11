@@ -29,6 +29,7 @@
 #include "list_job.h"
 #include "model_element.h"
 #include "model_packet.h"
+#include "object_draw.h"
 #include <cstddef>
 #include <lucent/log.h>
 #include <stdio.h>

@@ -62,6 +62,7 @@
 #include "list_job.h"
 #include "model_element.h"
 #include "model_packet.h"
+#include "object_draw.h"
 #include <array>
 #include <cstdint>
 #include <lucent/log.h>

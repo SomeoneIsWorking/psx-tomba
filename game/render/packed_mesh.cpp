@@ -8,6 +8,7 @@
 #include "gte_registers.h"
 #include "guest_ordering_table.h"
 #include "model_element.h"
+#include "object_draw.h"
 #include "ordering_table.h"
 
 namespace tomba::render {

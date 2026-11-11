@@ -21,7 +21,6 @@
 //                   drawn by the node handlers 0x80129C50 (twice) and 0x8012A564.
 // A body that takes no object draws one screen:
 //   A01  0x801311FC  a per-frame effect: a texture-window packet and its GT4 particles.
-//   A03  0x80109EEC  the area's HUD, sprites at bucket 3, drawn by 0x8010B328 before the ground.
 #pragma once
 
 #include "state_producer.h"
@@ -67,7 +66,6 @@ public:
       {"A03", 0x801113B4u, EmitterKey::Node, "GuestKeyedEmitters::a03Ribbon"},
       {"A06", 0x80129AF8u, EmitterKey::CallSite, "GuestKeyedEmitters::a06Line"},
       {"A01", 0x801311FCu, EmitterKey::Screen, "GuestKeyedEmitters::a01Effect"},
-      {"A03", 0x80109EECu, EmitterKey::Screen, "GuestKeyedEmitters::a03Hud"},
   };
 
   // Overrides and renders both come from kEmitters.

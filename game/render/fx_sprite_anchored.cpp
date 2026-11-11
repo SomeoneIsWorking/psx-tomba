@@ -8,6 +8,7 @@
 #include "guest_abi.h"
 #include "guest_ordering_table.h"
 #include "list_job.h"
+#include "object_draw.h"
 #include "packed_mesh.h"
 #include "scaled_sprites.h"
 
@@ -16,8 +17,6 @@
 namespace tomba {
 
 namespace {
-
-using render::InputBlend;
 
 constexpr uint32_t kDqaBase = 6; // MAC0 = n * DQA, so this is the base sprite size
 

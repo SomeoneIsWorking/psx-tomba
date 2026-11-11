@@ -7,6 +7,7 @@
 #include "guest_ordering_table.h"
 #include "libgpu_draw_mode.h"
 #include "list_job.h"
+#include "object_draw.h"
 
 namespace tomba::render {
 namespace {

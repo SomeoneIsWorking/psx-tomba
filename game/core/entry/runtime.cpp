@@ -25,9 +25,6 @@
 #include "sched/task_slot_layout.h"
 #include "tile_grid_layer.h"
 #include "ui/dialog_glyphs.h"
-#include "ui/font.h"
-#include "ui/panel.h"
-#include "ui/ui_sprite.h"
 #include "unlit_model_emitter.h"
 
 #include <array>
@@ -119,13 +116,9 @@ void Runtime::registerOverrides(Game &game) {
   natives.declare(kSpawnAndWait, "Scheduler::spawnAndWait", spawnAndWait);
   bindLoadedResident(game.core);
   psx::present::StateProducerTable &renders = sessionOf(&game.core).stateProducers;
-  tomba::render::SubdividedGround::registerStateRenders(renders, game.core);
-  Font::registerStateRenders(renders);
   ScreenFade::registerStateRenders(renders);
-  UiSprite::registerStateRenders(renders);
   tomba::render::BillboardState::registerStateRenders(renders, game.core);
   tomba::render::GuestKeyedEmitters::registerStateRenders(renders);
-  Panel::registerStateRenders(renders, game.core);
   DialogGlyphs::registerStateRenders(renders);
 }
 

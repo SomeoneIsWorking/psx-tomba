@@ -4,12 +4,11 @@ Which guest draw functions key their packets for 60 fps interpolation, what each
 how the composer renders it between two frames. The mechanism is psxport `presentation.md`
 (Interpolation, Frame model); the owners are in `docs/codemap.md`.
 
-Gameplay in-betweens are not composed from these: every call of the field or room draw is replayed (`DrawReplay`,
-`docs/plans/replay-interpolation.md`), paused frames and the DEMO attract demo included. A producer's state render runs
-only for a frame whose draw did not run the section: the title menu and the new game's scripted opening (SOP in GAME,
-then OPN). The SOP intro at boot presents once per frame and composes nothing. A producer drawn only in gameplay
-(every area overlay's) has no state render and saves nothing (issue 0055). The keys stay; they name the packets'
-objects for the depth test.
+In-betweens are not composed from these: every draw is replayed (`DrawReplay`, `docs/plans/replay-interpolation.md`):
+the field and room draws, paused frames, menu pages, A03's cart ride, the DEMO title and attract demo, SOP and its
+narration. A state render runs only for an interval the replay does not cover, and no screen checked has one (issue
+0055). Font, UiSprite, Panel and SubdividedGround have no state render and save nothing; the keys stay, they name the
+packets' objects for the depth test.
 
 ## Keyed producers
 
@@ -44,15 +43,11 @@ Tomba's frame cuts stay `tomba::FrameCut`.
 
 | Producer | Object | Saved state | Render |
 |---|---|---|---|
-| 0x80110290 `SubdividedGround` (A03; gameplay only, its removal is pending with its owner, issue 0055) | the emitter call | a `ListJob`: the records and the two split counters 0x8011C0E0/E4 | the body over host memory, both subdivisions included, cut at the draw window |
-| 0x80078CA8 `Font::glyphEmit` | one glyph, by character address | `AnchoredPackets` (`render/anchored_packets.h`): the OT slot, the anchor, each packet's bucket and command words | the anchor moves by t and every vertex with it; the string's texture page is the constant glyphEmit passes to SetDrawMode |
 | 0x8007E9C8 `ScreenFade::draw` | one call: its call site, n-th in the logic frame (`CallSiteObjects`, `render/call_site_objects.h`, held by `tomba::Session::callSites`) | the OT slot and bucket, colour, span and blend page | the colour moves by t when the blend is unchanged |
-| 0x8007E1B8 `UiSprite::quads`, 0x8007E6DC `UiSprite::compose` | one call, by call site as above (the DEMO menu 0x80106824 and every 2D sprite reach these) | `AnchoredPackets` from the placement word; compose adds the definition's texture page | the anchor moves by t |
 | 0x8003C8F4 `Render::billboardEmit` (reached from 0x8003C2D4 and the other three composers) | the call: the n-th call from the site drawing this node (`CallSiteObjects::object(returnAddress, node)`; a composer reaches one node twice a frame, so the node alone would be two serials and ambiguous) | `BillboardState`: GTE CR0-7 and per drawn particle its corners, bucket and packet | the transform and corners move by t, then RTPT/RTPS project again; the packet words (colour, CLUT, UV) are the later state's, so a flipbook frame (A00's flame steps U by 0x20 a frame) changes on the in-between |
-| 0x8007CC00 `DialogGlyphs` | the dialog box's glyphs, by the box | `AnchoredPackets`: the box's rect, each glyph packet's bucket and command words | the box's rect moves by t and every glyph with it |
+| 0x8007CC00 `DialogGlyphs` | the dialog box's glyphs, by the box | `AnchoredPackets` (`render/anchored_packets.h`): the box's rect, each glyph packet's bucket and command words | the box's rect moves by t and every glyph with it |
 | 0x8007CDD4 `DialogGlyphs::prompt` | the dialog box | `AnchoredPackets`: the box's rect, the prompt sprite and its mode packet in bucket 2 | the box's rect moves by t and the prompt with it |
-| 0x8005019C `Panel::build`, 0x8004FFB4 `Panel::fillQuad` | one call, by call site as the 2D writers | `AnchoredPackets` from the panel's rect | the rect moves by t |
-| 0x80129114, 0x8012D9E8, 0x8013E08C `GuestKeyedEmitters` A01/A00 leaves, MAIN 0x800328BC (a node's 0x80027A4C stamp, called from the area effect leaves), A07 0x80117D4C (strip through 0x80117AB8), A0D 0x80110C14 (ring of stamps), A0F 0x80116ABC (wire of 0x80112D10 lines) and 0x801143C4 (lens flare and its 0x80027A4C sparkles); A03 0x801113B4 (ribbon of 0x80110B00 quads), A06 0x80129AF8 (line, keyed by call site); 0x801311FC `::a01Effect`, A03 0x80109EEC (HUD) | the node in a0 for a leaf, one screen for a body that takes no object (`quad_state.h`, `runGuestEmitter`) | the packets the guest body linked (`quad_state.h`) | the packets' screen vertices move by t |
+| 0x80129114, 0x8012D9E8, 0x8013E08C `GuestKeyedEmitters` A01/A00 leaves, MAIN 0x800328BC (a node's 0x80027A4C stamp, called from the area effect leaves), A07 0x80117D4C (strip through 0x80117AB8), A0D 0x80110C14 (ring of stamps), A0F 0x80116ABC (wire of 0x80112D10 lines) and 0x801143C4 (lens flare and its 0x80027A4C sparkles); A03 0x801113B4 (ribbon of 0x80110B00 quads), A06 0x80129AF8 (line, keyed by call site); 0x801311FC `::a01Effect` | the node in a0 for a leaf, one screen for a body that takes no object (`quad_state.h`, `runGuestEmitter`) | the packets the guest body linked (`quad_state.h`) | the packets' screen vertices move by t |
 | 0x80026864 `LetterboxBars::tick` | one call, by its slot | the two bars' height and the OT slot (`Saved`) | the bar height moves by t and both rects are re-emitted |
 
 Not state producers: `SopGround::draw` 0x80109FE0, `Render::cmdListDispatch` 0x8003CDD8, `Render::subPartWalk`

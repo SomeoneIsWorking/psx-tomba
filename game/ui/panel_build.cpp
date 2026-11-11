@@ -10,11 +10,10 @@
 #include "render/guest_ordering_table.h"
 #include "render/libgpu_draw_mode.h"
 #include "render/list_job.h"
-#include "render/list_state_producer.h"
+#include "render/object_draw.h"
 #include "ui/panel.h"
 
 #include <array>
-#include <memory>
 
 namespace tomba {
 namespace {
@@ -46,7 +45,6 @@ constexpr std::uint32_t kModeWords = 2u;
 constexpr std::uint32_t kTexturePage = 0x5Fu;
 constexpr std::uint32_t kFills = 5u;
 constexpr std::uint32_t kFillBytes = 40u;
-constexpr std::uint32_t kPacketBytes = 4u * kCornerBytes + kModeBytes + kFills * kFillBytes;
 
 enum Edge : std::uint8_t { Top, Bottom, Left, Right, Centre };
 
@@ -133,16 +131,6 @@ void writeRect(const psx::present::EmitMemory &memory, std::uint32_t at, const R
   memory.mem_w16(at + 6u, static_cast<std::uint16_t>(rect.h));
 }
 
-class PanelProducer final : public render::ListStateProducer {
-public:
-  using ListStateProducer::ListStateProducer;
-
-protected:
-  void emit(const psx::present::EmitMemory &memory, std::uint32_t, const render::ListCall &call) const override {
-    Panel::build(memory, call);
-  }
-};
-
 } // namespace
 
 // FUN_8005019C(rect r4, style r5, shadow r6, otBucket r7)
@@ -197,11 +185,8 @@ void Panel::drawPanel(Core *core) {
   ::GuestFrame<kFrameBytes, 7> frame(core, kSpills);
   const render::EmitterObject object(
       *core, Panel::kBuild, render::OwnObject{sessionOf(core).callSites.object(core->r[31], call.list)});
-  render::ListJobWriter job(*core, 0, call, kPacketBytes);
-  job.input(*core, call.list, sizeof(Rect), render::InputBlend::Lanes16);
   const std::uint32_t packets = render::PacketPool(*core).cursor();
   Panel::build(*core, call);
-  job.save(*core);
   const Rect rect = readRect(*core, call.list);
   sessionOf(core).drawReplay.updateDraws().note(*core,
                                                 {.writer = Panel::kBuild,
@@ -241,10 +226,6 @@ void Panel::rebuild(const psx::present::EmitMemory & /*memory*/,
     place(fill + kFillVertices[2], x, y + h);
     place(fill + kFillVertices[3], x + w, y + h);
   }
-}
-
-void Panel::registerStateRenders(psx::present::StateProducerTable &renders, Core &core) {
-  renders.install(kBuild, std::make_unique<PanelProducer>(core));
 }
 
 } // namespace tomba

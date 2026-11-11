@@ -8,6 +8,7 @@
 #include "horizontal_visibility_cull.h"
 #include "list_job.h"
 #include "model_packet.h"
+#include "object_draw.h"
 #include "trig.h"
 
 #include <array>

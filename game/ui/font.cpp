@@ -26,7 +26,6 @@
 #include "guest_abi.h"
 #include "guest_call.h"
 #include "projected_vertex.h"
-#include "render/anchored_packets.h"
 #include "render/guest_ordering_table.h"
 #include <format>
 #include <lucent/log.h>
@@ -613,9 +612,6 @@ L_80078F04: {
   c->r[2] = (uint32_t)c->mem_r16(c->r[18] + 8u);
   c->r[4] = c->r[4] + 4u;
   glyphPackets.setCursor(c->r[4]);
-  tomba::render::AnchoredPackets drawn(command[1], kGlyphTexturePage);
-  drawn.add(c->r[19], command);
-  drawn.save(*c);
 }
 L_80078F70:
   c->r[2] = c->r[2] + 8u;
@@ -913,10 +909,6 @@ void Font::iconGlyphEmit(Core *c) {
 
   c->r[3] = (uint32_t)(int32_t)glyph.x();
   c->r[2] = (uint32_t)((int32_t)glyph.x() - originX);
-}
-
-void Font::registerStateRenders(psx::present::StateProducerTable &renders) {
-  renders.install(kGlyphEmit, tomba::render::AnchoredPackets::render());
 }
 
 void Font::registerOverrides(native::NativeOverrideCatalog &natives) {

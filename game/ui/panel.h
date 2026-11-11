@@ -3,7 +3,6 @@
 #pragma once
 #include "emit_memory.h"
 #include "frame/update_block_draws.h"
-#include "state_producer.h"
 
 #include <cstdint>
 class Core;
@@ -26,7 +25,6 @@ public:
 
   // Registers FUN_8005019C and FUN_8004FFB4. Idempotent.
   static void install(native::NativeOverrideCatalog &natives);
-  static void registerStateRenders(psx::present::StateProducerTable &renders, Core &core);
 
   struct PushDialogBackdropArgs {
     int16_t x;

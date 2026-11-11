@@ -8,6 +8,7 @@
 #include "guest_abi.h"
 #include "guest_ordering_table.h"
 #include "list_job.h"
+#include "object_draw.h"
 #include "scaled_sprites.h"
 
 #include <algorithm>

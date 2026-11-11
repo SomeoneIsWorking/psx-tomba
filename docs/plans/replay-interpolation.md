@@ -168,7 +168,12 @@ above lives there).
 - A menu page (`0x1F800136 >= 2`: items, options, card, quit) holds the field draw off and draws in the page step
   alone; `Render::pageStep`, the override of G:8010810C, selects the `Page` variant and the page byte (task +0x6B), so
   a page change forgets. A card page's BIOS calls (`TestEvent`, `_card_info`) refuse its in-betweens.
-- Not a replayable frame, `forget()`: a frame whose field frame did not draw (load, SOP, the title menu, boot cards), a switch between `0x8003F9A8` and `0x8003FA44` or between stages,
+- A03's cart ride: G:80108CAC (from GAME's G:8010766C) runs A03's draw 0x8010B328 in place of the field draw (HUD,
+  A03's HUD `0x80109EEC`, Tomba through `0x80109CE0`, list C, the ground walker `0x801109D4`, list D), then the page
+  step. `Render::ride`, its override, selects `DrawSection::Variant::Ride`; the field draw's tracks cover it.
+- SOP's narration crawl while `Sop::fieldUpdate`'s startup delay (sm+0x60) holds the draw tail off: the crawl alone,
+  `DrawSection::Variant::Narration`.
+- Not a replayable frame, `forget()`: a frame whose field frame did not draw (load, the title menu, boot cards), a switch between `0x8003F9A8` and `0x8003FA44` or between stages,
   a savestate restore (`TitleState::restored`).
 
 ## Hazards
@@ -195,8 +200,8 @@ above lives there).
    design drops device stores.
 5. **Writers after the section** (slots 1 and 2): unknown; the probe's identity check finds them.
 6. **Cost.** Each in-between re-runs the whole section with its producers; Spyro 1 measured about 36M host
-   instructions a replay against 87M for draw and present. Tomba's producers do more per call (`ListJob`
-   copies of record bytes), so hazard 1's fix is also the cost fix.
+   instructions a replay against 87M for draw and present. Tomba's producers did more per call (copies of
+   record bytes), so hazard 1's fix is also the cost fix.
 
 ## Steps
 
@@ -221,8 +226,7 @@ source that lists `(identity, address, fields, rule)` at each sample; a record p
 drawn at its later value. One implementation for both titles.
 
 The command-matrix rule blends rotation with `gte::rotationBetween` (`present/gte_control.h`) and
-translation by t; `ListJob`'s `InputBlend::Camera` (`game/render/list_job.h`) and `blendGteControl` already
-do this for producer state and are the code to share, not copy.
+translation by t; `blendGteControl` already does this and is the code to share, not copy.
 
 ## Proof
 
@@ -256,7 +260,7 @@ writers' `CallSiteObjects` counts are put back after it), `draw_motion.*` and `d
 `beforeDraw` and are the orchestrators' overrides, so every guest caller replays (GAME's submode frames, DEMO's
 attract frame 0x80106EBC). In GAME the section also runs the page step G:8010810C, which links the pause menu after
 the draw; a paused draw replays with its inputs held (issue 0055). A menu page replays the page step alone
-(`DrawSection::Variant::Page`). A variant or stage switch, a frame that did not
+(`DrawSection::Variant::Page`), A03's cart ride its own draw (`Ride`). A variant or stage switch, a frame that did not
 draw, a declared cut and a savestate restore forget the earlier sample. Steps 0 and 1 resolved as: no refusal in any run (no device or
 yield in the section, slots 1 and 2 linked nothing missing from the frames); hazard 1 is harmless for replayed
 intervals (their states are never composed) and the call-site counts are restored; hazard 2's depth comes with the

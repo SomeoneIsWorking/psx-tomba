@@ -9,8 +9,6 @@
 // cut is the draw window.
 #pragma once
 
-#include "state_producer.h"
-
 #include "emit_memory.h"
 #include "list_job.h"
 
@@ -52,7 +50,6 @@ public:
   emit(const psx::present::EmitMemory &memory, const ListCall &call, const horizontal_cull::Visibility &visible);
 
   static void registerOverrides(native::NativeOverrideCatalog &natives);
-  static void registerStateRenders(psx::present::StateProducerTable &renders, Core &core);
 };
 
 } // namespace tomba::render

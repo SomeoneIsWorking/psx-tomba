@@ -72,9 +72,9 @@ Tomba! 1 (`titles/tomba1/game/`, shortened to `t1/` below).
 | hop | title | joins | owner |
 |---|---|---|---|
 | 1 | T2 | psxport F-FPS60.1 | `game/core/entry/runtime.cpp:tomba::Runtime::stateProducer` — `tomba::Session::stateProducers` (`docs/producers.md`) |
-| 2 | T2 | psxport F-FPS60.1 | `game/render/list_state_producer.cpp:ListStateProducer` — an emitter call replayed over host memory at t |
+| 2 | T2 | psxport F-FPS60.1 | `game/render/anchored_packets.h:AnchoredPackets` — a 2D writer's saved packets moved by t (`DialogGlyphs`) |
 | 3 | T2 | psxport F-FPS60.2 | `game/core/frame/frame_cut.h:FrameCut::isCut` — stage, area, sub-scene, SOP shot or camera re-place |
-| 4 | T2 | psxport F-FPS60 replay | `game/core/frame/draw_replay.h:DrawReplay` — gameplay in-betweens drawn by the field draw replayed; hops 1-2 compose only the frames it does not draw (title, SOP, menus, pause) |
+| 4 | T2 | psxport F-FPS60 replay | `game/core/frame/draw_replay.h:DrawReplay` — gameplay in-betweens drawn by the field draw replayed; hops 1-2 compose only an interval it does not replay |
 
 T1 runs at 60 fps natively; it joins no F-FPS60 hop.
 

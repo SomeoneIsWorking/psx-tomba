@@ -133,3 +133,28 @@ Still composed, so no producer is deleted by this: A03's cart frames (G:80108CAC
 step, never the field draw, so `DrawReplay` is not entered) and the area-load transition (Panel `0x8005019C` right
 after a warp; `scratch/pages/a03`). Their producers (Font, Panel, UiSprite, SubdividedGround and the A03 HUD
 `0x80109EEC`) stay until those frames get a section.
+
+**Cart ride and narration replayed; their producers deleted (2026-11-11).** The frames that still composed were
+A03's cart ride and the first 29 frames of the new game's narration, not an area-load screen: the Panel that
+composed after `warp 3/0` is the ride's intro dialog box.
+
+- Ride: G:80108CAC (GAME's G:8010766C) runs A03's draw 0x8010B328 (`0x8004FD30`, `0x80025D98`, A03's HUD
+  `0x80109EEC`, Tomba via `0x80109CE0`, `0x8003BCF4`, the ground walker `0x801109D4(0x800F2418)`, `0x8003C048`) in
+  place of the field draw, then the page step. `Render::ride` overrides 0x8010B328 and selects `DrawSection::Variant::Ride`;
+  the field draw's tracks (view, Tomba, node pools, records) cover it.
+- Narration: `Sop::fieldUpdate` runs the crawl `NarrationScroller::kEntry` while its startup delay (sm+0x60) holds
+  the draw tail off; that frame now selects `Variant::Narration`, the crawl alone.
+
+Shown (`scratch/a03cart`, unpaced, player settings): the ride with in-betweens on and off ends in identical RAM and
+scratchpad at frame 1500 (`dg0`, `dg1`); mid-ride crops `dg1/ride_halfway.png` (Tomba and the cart) and `r5/track.png` (the track's
+bends) step between their neighbours; the cave wall moves within 3 pixels of halfway, Tomba's hair within 1.75 native
+pixels of the screen midpoint (always above it). With every state render unregistered, nothing composes over the warps 0/0, 1/0, 4/0, 3/0 (`cw`), the ride
+(`cr`), walk, pause, options and map (`cg`), items, pause and load (`cp`), boot to the title and attract (`cf`) or
+the new game through SOP and OPN (`co2`).
+
+Deleted: the state renders and per-call saves of `Font::glyphEmit`, `UiSprite::quads`/`compose`, `Panel::build` and
+`SubdividedGround`, the A03 HUD wrapper `GuestKeyedEmitters::a03Hud`, and with them `ListStateProducer` and
+`ListJobWriter`/`ListJob` (`list_job.h` keeps `ListCall`). The overrides stay for their keys, the widescreen clip and
+the update-block notes the replay rebuilds. The final build's census, with the remaining state renders registered
+(ScreenFade, BillboardState, GuestKeyedEmitters, DialogGlyphs), composes nothing in the same plans (`fw`, `dg1`,
+`fg`, `fp`, `ff`, `fo`). The only in-betweens not replayed are the 130 of the card page, refused at its BIOS calls.

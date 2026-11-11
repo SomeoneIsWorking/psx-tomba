@@ -27,7 +27,6 @@
 #include "core/overrides/native_override_catalog.h"
 #include "entry/session.h"
 #include "guest_call.h"
-#include "render/anchored_packets.h"
 #include "render/guest_ordering_table.h"
 
 #include "blend.h"
@@ -171,11 +170,6 @@ void UiSprite::registerOverrides(native::NativeOverrideCatalog &natives) {
   natives.declare(kCompose, "UiSprite::compose", producerEntry<kCompose, &UiSprite::compose>);
   natives.declare(0x8007E8DCu, "UiSprite::drawFromTable", &UiSprite::drawFromTable);
   natives.declare(0x8007E998u, "UiSprite::drawFixedDef152", &UiSprite::drawFixedDef152);
-}
-
-void UiSprite::registerStateRenders(psx::present::StateProducerTable &renders) {
-  renders.install(kQuads, render::AnchoredPackets::render());
-  renders.install(kCompose, render::AnchoredPackets::render());
 }
 
 } // namespace tomba

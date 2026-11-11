@@ -14,7 +14,6 @@
 // parameter c->r[4]. Now real instance methods with explicit typed arguments.
 #pragma once
 
-#include "state_producer.h"
 #include <cstdint>
 #include <stdint.h>
 class Core;
@@ -198,11 +197,6 @@ public:
   // Declares drawText, drawTextSmall, glyphEmit (a producer: its string in a3 is the drawn object)
   // and iconGlyphEmit.
   static void registerOverrides(native::NativeOverrideCatalog &natives);
-  // Each glyph is an object saved as its sprite command words; the render moves its position.
-  static void registerStateRenders(psx::present::StateProducerTable &renders);
-
-  // The texture page glyphEmit's SetDrawMode call gives the string; each glyph sprite takes it.
-  static constexpr std::uint32_t kGlyphTexturePage = 31u;
 
   // While held, glyphEmit places each glyph `pastY` lines below its word: text a replay draws at a blended place.
   class PlacedGlyphs {

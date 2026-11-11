@@ -7,7 +7,6 @@
 #include "gte_registers.h"
 #include "guest_ordering_table.h"
 #include "horizontal_visibility_cull.h"
-#include "list_state_producer.h"
 #include "model_packet.h"
 #include "object_draw.h"
 #include "view_clip.h"
@@ -18,7 +17,6 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
-#include <memory>
 #include <optional>
 #include <utility>
 #include <vector>
@@ -620,19 +618,6 @@ std::uint32_t emitRecord(const psx::present::EmitMemory &memory,
   return packet;
 }
 
-class SubdividedGroundRender final : public ListStateProducer {
-public:
-  using ListStateProducer::ListStateProducer;
-
-protected:
-  void emit(const psx::present::EmitMemory &memory, std::uint32_t, const ListCall &call) const override {
-    SubdividedGround::emit(memory, call, horizontal_cull::forDrawWindow(&core()));
-  }
-};
-
-// Sixteen packets for a record subdivided twice.
-constexpr std::uint32_t kMostPacketsPerRecord = 16u;
-
 } // namespace
 
 std::uint32_t
@@ -658,20 +643,11 @@ void GroundClipTally::report() const {
 void SubdividedGround::draw(Core *c) {
   const ListCall call = ListCall::fromRegisters(*c);
   const EmitterObject object(*c, kEntry, call.list);
-  ListJobWriter job(*c, 0u, call, (call.count * kMostPacketsPerRecord + kClippedPackets) * kModelGt4.packetBytes);
-  job.input(*c, call.list, call.count * kModelGt4.recordBytes);
-  job.input(*c, kSplitCount, sizeof(std::uint32_t));
-  job.input(*c, kLeafCount, sizeof(std::uint32_t));
   c->r[2] = emit(*c, call, horizontal_cull::forDrawWindow(c));
-  job.save(*c);
 }
 
 void SubdividedGround::registerOverrides(native::NativeOverrideCatalog &natives) {
   natives.declareOverlay("A03", kEntry, "SubdividedGround::draw", &SubdividedGround::draw);
-}
-
-void SubdividedGround::registerStateRenders(psx::present::StateProducerTable &renders, Core &core) {
-  renders.install(kEntry, std::make_unique<SubdividedGroundRender>(core));
 }
 
 } // namespace tomba::render

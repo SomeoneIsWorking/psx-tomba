@@ -5,7 +5,6 @@
 // Y, 3 both; a mirrored axis pulls its texture coordinates in by one texel (5 pushes V out by one). 4 and anything
 // above 5 leave the staged positions as the previous quad left them.
 #include "core.h"
-#include "render/anchored_packets.h"
 #include "render/guest_ordering_table.h"
 #include "ui/ui_sprite.h"
 
@@ -104,7 +103,6 @@ void UiSprite::quads(Core *c) {
       defBase + static_cast<std::uint32_t>(static_cast<std::int16_t>(core.mem_r16(indexPtr)) * 4);
   std::int32_t count = static_cast<std::int16_t>(core.mem_r16(entry));
   std::uint32_t piece = defBase + static_cast<std::uint32_t>(static_cast<std::int16_t>(core.mem_r16(entry + 2u)));
-  render::AnchoredPackets drawn(core.mem_r32(placement), 0u);
 
   do {
     core.mem_w32(kStage + kUv0, core.mem_r32(piece));
@@ -176,15 +174,11 @@ void UiSprite::quads(Core *c) {
       core.mem_w32(packet + 4u + word * 4u, command[word]);
     }
     packets.setCursor(packet + kPacketBytes);
-    drawn.add(bucket, command);
     piece += kPieceBytes;
     count -= 1;
   } while (count != 0);
 
   core.r[2] = stage.word(kUv3);
-  if (core.emission.isOpen()) {
-    drawn.save(core);
-  }
 }
 
 } // namespace tomba
