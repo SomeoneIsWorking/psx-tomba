@@ -6,9 +6,8 @@ how the composer renders it between two frames. The mechanism is psxport `presen
 
 In-betweens are not composed from these: every draw is replayed (`DrawReplay`, `docs/plans/replay-interpolation.md`):
 the field and room draws, paused frames, menu pages, A03's cart ride, the DEMO title and attract demo, SOP and its
-narration. A state render runs only for an interval the replay does not cover, and no screen checked has one (issue
-0055). Font, UiSprite, Panel and SubdividedGround have no state render and save nothing; the keys stay, they name the
-packets' objects for the depth test.
+narration. Tomba registers no state render (issue 0055); the keys stay, they name the packets' objects for the owner
+ledger and the depth test.
 
 ## Keyed producers
 
@@ -34,27 +33,19 @@ culled primitive does not shift its neighbours and two commands drawing one shar
 | 0x80116904 | A08 | `RainStreaks::draw` | A0 | per drop: its trail slot `0x801485E8 + 4i` (fixed seed, so drop i is one lattice point) |
 | 0x80141A94 | A06 | `TileGridLayer::emitClamped` | A0 | the grid node |
 
-## State producers
+## Scope-only producers
 
-A state producer saves what it drew at each frame (`core.frameStates.save` under the object's scope) and has a
-`render(from, to, t)` the composer runs for the object between two frames (psxport `presentation.md`, Frame
-model). Each owner's `registerStateRenders` installs it in `tomba::Session::stateProducers` from `tomba::Runtime::registerOverrides`, keyed by the producer address.
-Tomba's frame cuts stay `tomba::FrameCut`.
+These open a scope and save nothing; their packets are keyed to the object for the owner ledger.
 
-| Producer | Object | Saved state | Render |
-|---|---|---|---|
-| 0x8007E9C8 `ScreenFade::draw` | one call: its call site, n-th in the logic frame (`CallSiteObjects`, `render/call_site_objects.h`, held by `tomba::Session::callSites`) | the OT slot and bucket, colour, span and blend page | the colour moves by t when the blend is unchanged |
-| 0x8003C8F4 `Render::billboardEmit` (reached from 0x8003C2D4 and the other three composers) | the call: the n-th call from the site drawing this node (`CallSiteObjects::object(returnAddress, node)`; a composer reaches one node twice a frame, so the node alone would be two serials and ambiguous) | `BillboardState`: GTE CR0-7 and per drawn particle its corners, bucket and packet | the transform and corners move by t, then RTPT/RTPS project again; the packet words (colour, CLUT, UV) are the later state's, so a flipbook frame (A00's flame steps U by 0x20 a frame) changes on the in-between |
-| 0x8007CC00 `DialogGlyphs` | the dialog box's glyphs, by the box | `AnchoredPackets` (`render/anchored_packets.h`): the box's rect, each glyph packet's bucket and command words | the box's rect moves by t and every glyph with it |
-| 0x8007CDD4 `DialogGlyphs::prompt` | the dialog box | `AnchoredPackets`: the box's rect, the prompt sprite and its mode packet in bucket 2 | the box's rect moves by t and the prompt with it |
-| 0x80129114, 0x8012D9E8, 0x8013E08C `GuestKeyedEmitters` A01/A00 leaves, MAIN 0x800328BC (a node's 0x80027A4C stamp, called from the area effect leaves), A07 0x80117D4C (strip through 0x80117AB8), A0D 0x80110C14 (ring of stamps), A0F 0x80116ABC (wire of 0x80112D10 lines) and 0x801143C4 (lens flare and its 0x80027A4C sparkles); A03 0x801113B4 (ribbon of 0x80110B00 quads), A06 0x80129AF8 (line, keyed by call site); 0x801311FC `::a01Effect` | the node in a0 for a leaf, one screen for a body that takes no object (`quad_state.h`, `runGuestEmitter`) | the packets the guest body linked (`quad_state.h`) | the packets' screen vertices move by t |
-| 0x80026864 `LetterboxBars::tick` | one call, by its slot | the two bars' height and the OT slot (`Saved`) | the bar height moves by t and both rects are re-emitted |
+| Producer | Object |
+|---|---|
+| 0x8007E9C8 `ScreenFade::draw` | one call: its call site, n-th in the logic frame (`CallSiteObjects`, `render/call_site_objects.h`, held by `tomba::Session::callSites`) |
+| 0x8003C8F4 `Render::billboardEmit` (reached from 0x8003C2D4 and the other three composers) | the call: the n-th call from the site drawing this node (`CallSiteObjects::object(returnAddress, node)`); inside 0x8004CC88's `ObjectDrawScope`, the node's instances |
+| 0x8007CC00 `DialogGlyphs`, 0x8007CDD4 `DialogGlyphs::prompt` | the dialog box |
+| 0x80129114, 0x8012D9E8, 0x8013E08C `GuestKeyedEmitters` A01/A00 leaves, MAIN 0x800328BC (a node's 0x80027A4C stamp, called from the area effect leaves), A07 0x80117D4C (strip through 0x80117AB8), A0D 0x80110C14 (ring of stamps), A0F 0x80116ABC (wire of 0x80112D10 lines) and 0x801143C4 (lens flare and its 0x80027A4C sparkles); A03 0x801113B4 (ribbon of 0x80110B00 quads), A06 0x80129AF8 (line, keyed by call site); 0x801311FC `::a01Effect` | the node in a0 for a leaf, one screen for a body that takes no object; the guest body runs under it |
+| `SopGround::draw` 0x80109FE0, `Render::cmdListDispatch` 0x8003CDD8, `Render::subPartWalk` 0x8003F174, `Render::sharedTransformWalk` 0x8003F07C, `OverlayGroundGt3Gt4::entityLoop` 0x801401B8 | as in Keyed producers; their packets come from the emitters below |
 
-Not state producers: `SopGround::draw` 0x80109FE0, `Render::cmdListDispatch` 0x8003CDD8, `Render::subPartWalk`
-0x8003F174, `Render::sharedTransformWalk` 0x8003F07C and `OverlayGroundGt3Gt4::entityLoop` 0x801401B8 open
-scopes only; their packets come from the emitters above. A packet a scope's guest code writes itself stays as the
-guest drew it. Keyed blend still runs for what is left keyed (psxport `FramePresenter::presentRecords`); see
-issue 0033.
+A packet a scope's guest code writes itself stays as the guest drew it.
 
 Element namers (not producers; they name elements of the innermost open object):
 

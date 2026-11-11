@@ -4,7 +4,6 @@
 #include "core.h"
 #include "core/overrides/native_override_catalog.h"
 #include "guest_abi.h"
-#include "render/anchored_packets.h"
 #include "render/guest_ordering_table.h"
 #include "render/libgpu_draw_mode.h"
 
@@ -65,7 +64,6 @@ void DialogGlyphs::emit(Core *c) {
   const std::uint32_t node = c->r[4];
   ::GuestFrame<kFrameBytes, 2> frame(c, kSpills);
   const psx::present::EmissionScope::Guard object(c->emission, kEmit, node, 0);
-  render::AnchoredPackets drawn(c->mem_r32(node + kRect), kTexturePage);
 
   std::uint16_t row = kNoClutRow;
   if (c->mem_r8(node + kHighlightable) == 1 && c->mem_r8(node + kVariant) == 1) {
@@ -96,9 +94,6 @@ void DialogGlyphs::emit(Core *c) {
     c->mem_w16(packet + 0x10u, (character & kWide) != 0 ? static_cast<std::uint16_t>(width << 1) : width);
     c->mem_w16(packet + 0x12u, c->mem_r16(kTemplateHeight));
     render::OrderingTable::active(*c).link({.packet = packet, .words = kSpriteWords, .bucket = kBucket});
-    const std::uint32_t command[kSpriteWords] = {
-        c->mem_r32(packet + 4u), c->mem_r32(packet + 8u), c->mem_r32(packet + 0xCu), c->mem_r32(packet + 0x10u)};
-    drawn.add(kBucket, command);
     packet += kSpriteBytes;
   }
 
@@ -107,14 +102,12 @@ void DialogGlyphs::emit(Core *c) {
   c->r[2] = render::setDrawMode(
       *c, {.packet = packet, .drawOnDisplay = 0, .dither = 0, .texturePage = kTexturePage, .window = 0});
   render::OrderingTable::active(*c).link({.packet = packet, .words = kModeWords, .bucket = kBucket});
-  drawn.save(*c);
 }
 
 void DialogGlyphs::prompt(Core *c) {
   const std::uint32_t rect = c->r[4];
   ::GuestFrame<kPromptFrameBytes, 3> frame(c, kPromptSpills);
   const psx::present::EmissionScope::Guard object(c->emission, kPrompt, rect, 0);
-  render::AnchoredPackets drawn(c->mem_r32(rect), kTexturePage);
 
   const render::PacketPool pool(*c);
   const std::uint32_t packet = pool.cursor();
@@ -130,9 +123,6 @@ void DialogGlyphs::prompt(Core *c) {
   c->mem_w16(packet + 0x10u, kPromptSize);
   c->mem_w16(packet + 0x12u, kPromptSize);
   render::OrderingTable::active(*c).link({.packet = packet, .words = kSpriteWords, .bucket = kBucket});
-  const std::uint32_t command[kSpriteWords] = {
-      c->mem_r32(packet + 4u), c->mem_r32(packet + 8u), c->mem_r32(packet + 0xCu), c->mem_r32(packet + 0x10u)};
-  drawn.add(kBucket, command);
 
   const std::uint32_t mode = packet + kSpriteBytes;
   pool.setCursor(mode + kModeBytes);
@@ -140,17 +130,11 @@ void DialogGlyphs::prompt(Core *c) {
   render::setDrawMode(*c, {.packet = mode, .drawOnDisplay = 0, .dither = 0, .texturePage = kTexturePage, .window = 0});
   render::OrderingTable::active(*c).link({.packet = mode, .words = kModeWords, .bucket = kBucket});
   c->r[2] = c->mem_r32(mode);
-  drawn.save(*c);
 }
 
 void DialogGlyphs::registerOverrides(native::NativeOverrideCatalog &natives) {
   natives.declare(kEmit, "DialogGlyphs::emit", &DialogGlyphs::emit);
   natives.declare(kPrompt, "DialogGlyphs::prompt", &DialogGlyphs::prompt);
-}
-
-void DialogGlyphs::registerStateRenders(psx::present::StateProducerTable &renders) {
-  renders.install(kEmit, render::AnchoredPackets::render());
-  renders.install(kPrompt, render::AnchoredPackets::render());
 }
 
 } // namespace tomba

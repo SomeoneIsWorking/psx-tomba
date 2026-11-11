@@ -15,7 +15,6 @@
 // The screen cull goes through horizontal_visibility_cull.h, so at 4:3 the packets are the guest's.
 #pragma once
 
-#include "state_producer.h"
 
 #include "emit_memory.h"
 #include "list_job.h"

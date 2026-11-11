@@ -12,7 +12,6 @@
 // (horizontal_visibility_cull.h), so at 4:3 the packets and the scratchpad are the guest's.
 #pragma once
 
-#include "state_producer.h"
 
 #include "model_packet.h"
 

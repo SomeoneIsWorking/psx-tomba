@@ -12,7 +12,6 @@
 //                 particle projected by RTPT/RTPS (corners from FUN_8003B220 into guest stack r29+16..+45),
 //                 depth-culled and bucketed, its colour/UV filled by FUN_8003B054, then a 10-word packet
 //                 (tag + BUF+4..+36) linked into the OT bucket.
-#include "billboard_state.h"
 #include "core.h"
 #include "core/overrides/guest_jal.h"
 #include "core/overrides/native_override_catalog.h"
@@ -22,11 +21,17 @@
 #include "guest_call.h"
 #include "guest_ordering_table.h"
 #include "horizontal_visibility_cull.h"
+#include "object_draw.h"
 #include "render.h"
 
 #include <lucent/log.h>
 
 #include <cstdlib>
+
+namespace {
+constexpr uint32_t kBillboardEmit = 0x8003C8F4u;      // FUN_8003C8F4
+constexpr uint32_t kBillboardInstances = 0x8004CC88u; // FUN_8004CC88, one node's instances as one draw
+} // namespace
 // original guest-instruction fallbacks for the test-only substrate gate. The image-qualified runtime dispatcher is a
 // single PROCESS-GLOBAL table shared by EVERY Core (SBS core A AND core B), so the trampolines below MUST defer to the
 // real guest body on core B (the pure-substrate oracle) — otherwise the oracle runs this native mirror and SBS compares
@@ -452,7 +457,7 @@ void Render::billboardInstances() {
     return;
   }
   const tomba::render::ObjectDrawScope draw(
-      *c, tomba::render::BillboardState::kInstances, eng(c).graphicsBind.records.object(node));
+      *c, kBillboardInstances, eng(c).graphicsBind.records.object(node));
   GuestReg<17> entryReg(c);
   entryReg = c->mem_r32(node + kInstanceTable) + kInstancePosition;
   for (uint32_t index = 0; (int32_t)index < (int16_t)c->mem_r16(node + kInstanceCount); index++) {
@@ -466,7 +471,6 @@ void Render::billboardInstances() {
       c->mem_w32(node + 0x34, (uint32_t)(int32_t)(int16_t)c->mem_r16(entry) << 16);
       c->r[4] = node;
       tomba::guest::dispatchJalToReturn(*c, {.target = kInstancePlace, .returnAddress = 0x8004CD5Cu});
-      sessionOf(c).objectDraw.numberNext(index);
       const uint32_t kind = c->mem_r8(node + 3);
       if (kind < 2u || (uint8_t)(kind - 4u) < 7u) {
         if (kind >= 2u) {
@@ -497,13 +501,10 @@ void Render::billboardEmit() {
   if (c->mem_r32(node + 56) == 0) {
     return;
   }
-  // The node's particles are one object. A composer reaches this twice for one node, so the object is the
-  // call: the n-th call from the site drawing this node. The node alone would give both calls one object
-  // with two serials, which the composer keeps whole.
+  // A node is drawn twice in one frame, so the object is the call: the n-th call from the site drawing this node.
   const tomba::render::EmitterObject object(*c,
-                                            tomba::render::BillboardState::kEmitter,
+                                            kBillboardEmit,
                                             tomba::render::OwnObject{sessionOf(c).callSites.object(c->r[31], node)});
-  tomba::render::BillboardState drawn(c->gte());
   GuestFrame frame(c, 96); // real guest stack frame: guest 0x8003B220 writes through this as a real
                            // guest address, and callers' own frames must already be allocated
                            // (see GuestFrame's comment) for this base to land on the same bytes
@@ -651,20 +652,12 @@ void Render::billboardEmit() {
     const uint32_t bucket = c->mem_r32(FR(56));
     tomba::render::OrderingTable::active(*c).link({.packet = tail, .words = 9u, .bucket = bucket});
     tail += 4;
-    std::array<uint32_t, tomba::render::BillboardState::kPacketWords> command{};
-    for (uint32_t word = 0; word < command.size(); ++word) {
-      command[word] = c->mem_r32(BUF + 4u + word * 4u);
-      c->mem_w32(tail, command[word]);
+    for (uint32_t word = 0; word < 9u; ++word) {
+      c->mem_w32(tail, c->mem_r32(BUF + 4u + word * 4u));
       tail += 4;
     }
     packets.setCursor(tail);
-    std::array<uint32_t, tomba::render::BillboardState::kCornerWords> corners{};
-    for (uint32_t word = 0; word < corners.size(); ++word) {
-      corners[word] = c->mem_r32(FR(16) + word * 4u);
-    }
-    drawn.add(corners, bucket, command);
   }
-  drawn.save(*c);
 }
 
 // ==================================================================================================
@@ -707,8 +700,8 @@ void perobj_billboard_install(native::NativeOverrideCatalog &natives) {
   natives.declare(0x8003C464u, "ov_billboardCompose2", ov_billboardCompose2);
   natives.declare(0x8003C788u, "ov_billboardCompose3", ov_billboardCompose3);
   natives.declare(0x8003C5F8u, "ov_billboardComposeC5F8", ov_billboardComposeC5F8);
-  natives.declare(tomba::render::BillboardState::kEmitter, "ov_billboardEmit", ov_billboardEmit);
-  natives.declare(tomba::render::BillboardState::kInstances, "ov_billboardInstances", ov_billboardInstances);
+  natives.declare(kBillboardEmit, "ov_billboardEmit", ov_billboardEmit);
+  natives.declare(kBillboardInstances, "ov_billboardInstances", ov_billboardInstances);
 }
 
 } // namespace tomba

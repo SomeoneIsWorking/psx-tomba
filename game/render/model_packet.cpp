@@ -3,7 +3,6 @@
 
 #include "core/overrides/guest_jal.h"
 #include "horizontal_visibility_cull.h"
-#include "trig.h"
 
 #include <array>
 #include <cstddef>
@@ -316,12 +315,6 @@ bool ModelPacket::hidden(const psx::present::EmitMemory &memory, std::uint32_t f
 
 std::int32_t emitterTrig(const psx::present::EmitMemory &memory, EmitterTrigCall call, std::int32_t angle) {
   Core &core = memory.core();
-  if (memory.hosted()) {
-    // The guest's trig frame is guest stack; the render reads the same table through the callee's own port.
-    Trig trig;
-    trig.core = &core;
-    return call.cosine ? trig.rcos(angle) : trig.rsin(angle);
-  }
   return static_cast<std::int32_t>(
       tomba::guest::dispatchJalToReturn(core,
                                         {.target = call.cosine ? kRcos : kRsin, .returnAddress = call.returnAddress},

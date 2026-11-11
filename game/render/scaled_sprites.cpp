@@ -49,11 +49,9 @@ Edges edgesOf(std::uint32_t corner, bool flipped, std::uint32_t flippedFar) {
 } // namespace
 
 std::uint32_t ScaledSprites::stamp(const psx::present::EmitMemory &memory, const Stamp &stamp) {
-  if (!memory.hosted()) {
-    Core &core = memory.core();
-    core.mem_w32(core.r[29] - 4u, core.r[17]);
-    core.mem_w32(core.r[29] - 8u, core.r[16]);
-  }
+  Core &core = memory.core();
+  core.mem_w32(core.r[29] - 4u, core.r[17]);
+  core.mem_w32(core.r[29] - 8u, core.r[16]);
   const FxSpritePublish publish{memory};
   const PacketPool pool(memory);
   psx::cpu::Gte &gte = memory.core().gte();

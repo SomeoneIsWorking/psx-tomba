@@ -36,7 +36,6 @@ public:
   void deliverPad(Core &core, const psx::input::PadDelivery &delivery) override;
   std::optional<psx::gpu::PacketPoolExtent> packetPool(Core &core) const override;
   bool interpolates() const override;
-  const psx::present::StateProducer *stateProducer(Core &core, std::uint32_t producer) const override;
   bool sealedFrameIsCut(Core &core) const override;
   psx::present::ReplayFrame *replayFrame(Core &core) override;
   int displayHeight() const override;

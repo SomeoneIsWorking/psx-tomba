@@ -1,7 +1,6 @@
 // game/ui/dialog_glyphs.h — the dialog box's text, FUN_8007CC00, and its continue prompt, FUN_8007CDD4.
 // FUN_8007C940 lays the text into the glyph list at 0x800ECB88; FUN_8007CC00 draws it as 8x16 sprites into bucket 2.
 #pragma once
-#include "state_producer.h"
 
 #include <cstdint>
 class Core;
@@ -24,9 +23,6 @@ public:
   static void prompt(Core *c);
 
   static void registerOverrides(native::NativeOverrideCatalog &natives);
-  // A box's glyphs, and its prompt, are each an object saved as their packets anchored at the box's rect; the render
-  // moves the rect.
-  static void registerStateRenders(psx::present::StateProducerTable &renders);
 };
 
 } // namespace tomba

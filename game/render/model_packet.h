@@ -203,8 +203,7 @@ private:
   ModelStage mStage;
 };
 
-// A guest rsin/rcos call from an emitter body: the guest leaf from its call site, or over host memory the same
-// table read natively.
+// A guest rsin/rcos call from an emitter body: the guest leaf from its call site.
 struct EmitterTrigCall {
   bool cosine;
   std::uint32_t returnAddress;

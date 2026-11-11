@@ -4,10 +4,10 @@
 #include "core.h"
 #include "core/overrides/native_override_catalog.h"
 #include "entry/session.h"
-#include "quad_state.h"
+#include "guest_call.h"
+#include "emission_scope.h"
 
 #include <iterator>
-#include <memory>
 #include <utility>
 
 namespace tomba::render {
@@ -19,7 +19,7 @@ constexpr std::uint32_t kScreenObject = 0u;
 std::uint32_t objectOf(Core &core, EmitterKey key) {
   switch (key) {
   case EmitterKey::Node:
-    return nodeObject(core);
+    return eng(&core).graphicsBind.records.object(core.r[4]);
   case EmitterKey::CallSite:
     return sessionOf(&core).callSites.object(core.r[31]);
   case EmitterKey::Screen:
@@ -30,7 +30,9 @@ std::uint32_t objectOf(Core &core, EmitterKey key) {
 
 template <std::size_t Index> void drawForGuest(Core *core) {
   constexpr GuestKeyedEmitter kLeaf = GuestKeyedEmitters::kEmitters[Index];
-  runGuestEmitter(*core, kLeaf.emitter, objectOf(*core, kLeaf.key), "GuestKeyedEmitters");
+  const psx::present::EmissionScope::Guard scope(core->emission, kLeaf.emitter, objectOf(*core, kLeaf.key), 0);
+  psx::cpu::callOriginalToReturn(
+      *core, kLeaf.emitter, psx::cpu::ExecutionBudget::currentTurn(*core), "GuestKeyedEmitters");
 }
 
 void declare(native::NativeOverrideCatalog &natives, const GuestKeyedEmitter &leaf, psx::cpu::NativeFunction draw) {
@@ -50,12 +52,6 @@ void declareAll(native::NativeOverrideCatalog &natives, std::index_sequence<Inde
 
 void GuestKeyedEmitters::registerOverrides(native::NativeOverrideCatalog &natives) {
   declareAll(natives, std::make_index_sequence<std::size(kEmitters)>{});
-}
-
-void GuestKeyedEmitters::registerStateRenders(psx::present::StateProducerTable &renders) {
-  for (const GuestKeyedEmitter &leaf : kEmitters) {
-    renders.install(leaf.emitter, std::make_unique<QuadStateRender>());
-  }
 }
 
 } // namespace tomba::render

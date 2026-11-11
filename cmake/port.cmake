@@ -191,7 +191,6 @@ set(GAME_SRC
   game/audio/music_coord.cpp
   game/scene/startup.cpp
   game/ui/font.cpp
-  game/render/anchored_packets.cpp
   game/ui/panel.cpp
   game/ui/options_page.cpp
   game/scene/level_load.cpp
@@ -259,7 +258,6 @@ set(GAME_SRC
   game/render/scaled_sprites.cpp         # FUN_80027A4C — scaled sprite-record writer
   game/render/perobj_dispatch.cpp
   game/render/perobj_billboard.cpp
-  game/render/billboard_state.cpp
   game/render/subpart_walk_shared.cpp
   game/render/subpart_walk.cpp
   game/render/compose_tint_gate.cpp
@@ -267,7 +265,6 @@ set(GAME_SRC
   game/render/object_draw.cpp
   game/render/line_strip.cpp
   game/render/guest_keyed_emitters.cpp
-  game/render/quad_state.cpp
   game/render/area_map.cpp
   game/render/text_label.cpp
   game/render/render_walk_dispatch.cpp

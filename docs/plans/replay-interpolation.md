@@ -179,10 +179,9 @@ above lives there).
 ## Hazards
 
 1. **Producer host state inside a replay.** `GuestRedraw` runs title overrides (`SideEffectMode::Discard`:
-   services execute). Tomba's producers book host state on every call: `core.frameStates.save`, emission
-   keys, `ObjectDraw` part numbers, and `Session::callSites` (`CallSiteObjects`) n-th-call counters, which
-   `FrameDriver` resets once per frame. Three replays before the real draw shift the real draw's call-site
-   objects and triple the saves. Owner: psxport `EmissionScope`/`FrameStates` must not book under a redraw,
+   services execute). Tomba's producers book host state on every call: emission keys and
+   `Session::callSites` (`CallSiteObjects`) n-th-call counters, which `FrameDriver` resets once per frame. Three
+   replays before the real draw shift the real draw's call-site objects. Owner: psxport `EmissionScope`/`FrameStates` must not book under a redraw,
    and `CallSiteObjects` must not count under one; or the producers the replay replaces are deleted first.
 2. **No places, so no depth and no sub-pixel.** `gpu::decodePackets` is called with `.places = {}`
    (`gp0_draw_state.cpp`): replayed primitives carry no `GtePlace`, so they are whole native pixels with no

@@ -4,7 +4,6 @@
 #pragma once
 
 #include "emit_memory.h"
-#include "state_producer.h"
 #include <cstdint>
 
 struct Core;
@@ -50,8 +49,8 @@ public:
     float scrollPastX = 0.0f;
     float scrollPastY = 0.0f;
   };
-  // The grid walk both emitters share, over the guest or a render's host memory: the sprites of every tile the
-  // draw window shows, chained under a draw mode packet at the background bucket.
+  // The grid walk both emitters share: the sprites of every tile the draw window shows, chained under a draw mode
+  // packet at the background bucket.
   static void emitGrid(const psx::present::EmitMemory &memory, const EmitGridArgs &args);
 
 private:

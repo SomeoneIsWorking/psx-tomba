@@ -1,15 +1,11 @@
-// game/render/object_draw.h — one object drawn by several emitter calls, saved as one state.
+// game/render/object_draw.h — the emission scope of one object drawn by several emitter calls.
 // A billboard node's instances (FUN_8004CC88) are one draw whose billboard composes are its parts.
 #pragma once
 
 #include "emission_scope.h"
-#include "state_producer.h"
 
-#include <cstddef>
 #include <cstdint>
 #include <optional>
-#include <span>
-#include <vector>
 
 class Core;
 
@@ -20,25 +16,13 @@ public:
   bool isOpen() const {
     return open_;
   }
-  // Numbers the next call's part, for a draw whose calls draw its own numbered instances.
-  void numberNext(std::uint32_t number) {
-    next_ = number;
-  }
-  // The next emitter call of the open draw, rendered by `producer`.
-  void beginPart(std::uint32_t producer);
-  // The state of the current part.
-  void addPart(std::span<const std::byte> state);
 
 private:
   friend class ObjectDrawScope;
   bool open_ = false;
-  std::uint32_t next_ = 0;     // number of the next call
-  std::uint32_t number_ = 0;   // of the current call
-  std::uint32_t producer_ = 0; // of the current call
-  std::vector<std::byte> bytes_;
 };
 
-// Opens the object's scope and its draw; saves the parts under it when the draw ends.
+// Opens the object's scope and its draw; the emitter calls inside it draw under that scope.
 class ObjectDrawScope {
 public:
   ObjectDrawScope(Core &core, std::uint32_t producer, std::uint32_t object);
@@ -66,23 +50,6 @@ public:
 
 private:
   std::optional<psx::present::EmissionScope::Guard> guard_;
-};
-
-// Saves the state of the emitter call now drawing: as the open draw's part, or under its own scope.
-void saveEmitterState(Core &core, std::span<const std::byte> state);
-
-// The render of an object draw's parts, each by its own producer from `producers`.
-class ObjectDrawRender final : public psx::present::StateProducer {
-public:
-  explicit ObjectDrawRender(const psx::present::StateProducers &producers) : producers_(producers) {}
-
-  void render(const psx::present::StateInterval &states, psx::present::PrimitiveSink &sink) const override;
-
-private:
-  const psx::present::StateProducers &producers_;
-  // Part offsets of the two states, kept so a render allocates only when a draw outgrows them.
-  mutable std::vector<std::size_t> laterParts_;
-  mutable std::vector<std::size_t> earlierParts_;
 };
 
 } // namespace tomba::render

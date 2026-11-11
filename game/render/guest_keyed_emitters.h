@@ -1,8 +1,7 @@
 // game/render/guest_keyed_emitters.h — guest render bodies the title has not ported, keyed to an owner.
 //
-// An area overlay's render leaf draws through guest bodies only that
-// image has, so nothing keys its packets and every record holding one is shown whole. Each is wrapped: its
-// packets are saved as its owner's state and the render moves their positions by t (quad_state.h).
+// An area overlay's render leaf draws through guest bodies only that image has, so nothing else keys its packets.
+// Each runs the guest body under its owner's emission scope.
 //
 // The node in a0 owns a leaf that draws one object:
 //   MAIN 0x800328BC  the node's sprite stamp: 0x80027A4C over the records in a1 with the node's texture word at +0x44,
@@ -22,8 +21,6 @@
 // A body that takes no object draws one screen:
 //   A01  0x801311FC  a per-frame effect: a texture-window packet and its GT4 particles.
 #pragma once
-
-#include "state_producer.h"
 
 #include <cstdint>
 #include <string_view>
@@ -68,9 +65,7 @@ public:
       {"A01", 0x801311FCu, EmitterKey::Screen, "GuestKeyedEmitters::a01Effect"},
   };
 
-  // Overrides and renders both come from kEmitters.
   static void registerOverrides(native::NativeOverrideCatalog &natives);
-  static void registerStateRenders(psx::present::StateProducerTable &renders);
 };
 
 } // namespace tomba::render

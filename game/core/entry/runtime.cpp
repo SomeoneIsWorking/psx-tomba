@@ -13,19 +13,10 @@
 #include "overrides/native_override_catalog.h"
 #include "overrides/register_overrides.h"
 #include "platform_hle.h"
-#include "render/billboard_state.h"
-#include "render/guest_keyed_emitters.h"
 #include "render/guest_ordering_table.h"
-#include "render/letterbox_bars.h"
-#include "render/packed_mesh.h"
-#include "render/screen_fade.h"
-#include "render/subdivided_ground.h"
 #include "resident_natives.h"
 #include "sched/scheduler.h"
 #include "sched/task_slot_layout.h"
-#include "tile_grid_layer.h"
-#include "ui/dialog_glyphs.h"
-#include "unlit_model_emitter.h"
 
 #include <array>
 #include <cstdio>
@@ -115,11 +106,6 @@ void Runtime::registerOverrides(Game &game) {
   natives.declare(kChangeThread, "Scheduler::yield", changeThread);
   natives.declare(kSpawnAndWait, "Scheduler::spawnAndWait", spawnAndWait);
   bindLoadedResident(game.core);
-  psx::present::StateProducerTable &renders = sessionOf(&game.core).stateProducers;
-  ScreenFade::registerStateRenders(renders);
-  tomba::render::BillboardState::registerStateRenders(renders, game.core);
-  tomba::render::GuestKeyedEmitters::registerStateRenders(renders);
-  DialogGlyphs::registerStateRenders(renders);
 }
 
 // Only immediately after the resident load; an overlay supplies its own image declarations.
@@ -150,10 +136,6 @@ std::optional<psx::gpu::PacketPoolExtent> Runtime::packetPool(Core &core) const 
 
 bool Runtime::interpolates() const {
   return true;
-}
-
-const psx::present::StateProducer *Runtime::stateProducer(Core &core, std::uint32_t producer) const {
-  return sessionOf(&core).stateProducers.find(producer);
 }
 
 bool Runtime::sealedFrameIsCut(Core &core) const {

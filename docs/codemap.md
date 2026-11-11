@@ -70,13 +70,13 @@ Frame loop: owned. `tomba::FrameDriver` runs one pass of `0x80050B08` (update `0
 | `OverlayGt3Gt4`, `OverlayGroundGt3Gt4` | `game/render/overlay_*gt3gt4.*` | The overlay scenery GT3/GT4 emitters |
 | `PackedMesh`, `DropShadow` | `game/render/packed_mesh.h`, `game/render/drop_shadow.h` | The packed-mesh writer FUN_80027768 and the drop shadow FUN_8002AB5C |
 | `ListCall` | `game/render/list_job.h` | The registers a model list emitter takes |
-| `ObjectEffect`, `ObjectDraw` | `game/render/object_effect.h`, `game/render/object_draw.h` | The dispatcher's per-object effect over an emitted packet span, saved with each emitter's state; a billboard node's instances as one object with numbered parts |
+| `ObjectEffect`, `ObjectDraw` | `game/render/object_effect.h`, `game/render/object_draw.h` | The dispatcher's per-object effect over an emitted packet span; a billboard node's instances as one scoped object |
 | `BackdropPlane` | `game/render/backdrop_plane.h` | A0E's boss arena waterfall plane FUN_80110CA4: its grid, reflection and haze band |
 | `BackdropSprites` | `game/render/backdrop_sprites.h` | A0E's boss arena background sprites FUN_80111E14: seeded anchors stamped as scaled sprites |
 | `GradientBackdrop` | `game/render/gradient_backdrop.h` | A0E's boss arena sky FUN_80114178: gouraud bands across the draw window |
 | `LineStrip`, `AreaMap`, `ScaledSprites` | `game/render/line_strip.h`, `game/render/area_map.h`, `game/render/scaled_sprites.h` | A08's node strip and A02/A07's map+marker; the scaled sprite-record writer the FX sprite emitters stamp through |
-| `GuestKeyedEmitters`, `QuadStateRender` | `game/render/guest_keyed_emitters.h`, `game/render/quad_state.h` | The guest render fns keyed to their node (the A01/A00 unported leaves, the DEMO and A01 bodies that take no object): state = the packets they linked, render moves the screen vertices |
-| `AnchoredPackets`, `BillboardState`, `CallSiteObjects` | `game/render/anchored_packets.h`, `game/render/billboard_state.h`, `game/render/call_site_objects.h` | Saved state of anchored 2D writers and billboards; the call-site object key |
+| `GuestKeyedEmitters` | `game/render/guest_keyed_emitters.h` | The guest render fns run under their owner's scope (the A01/A00 unported leaves, the DEMO and A01 bodies that take no object) |
+| `CallSiteObjects` | `game/render/call_site_objects.h` | The call-site object key |
 | `ScreenFade`, `LetterboxBars`, `HudGaugeEmitter` | `game/render/screen_fade.h`, `game/render/letterbox_bars.h`, `game/render/hud_gauge_emitter.h` | The fade leaf FUN_8007E9C8, the cutscene letterbox FUN_80026864, the HUD gauge FUN_8004FD30 (keyed: its glyph rows draw through the still-guest FUN_8004EB94) |
 | `NodeXform`, `ObjModelView`, `QuadRtptSubmit`, `LibgpuDrawEnv` | `game/render/` | Node transforms, model-view setup, the shared quad submit, DRAWENV compile |
 | `Cull`, `Visibility` | `game/render/cull.h`, `game/render/horizontal_visibility_cull.h` | Per-object cull and LOD; the one horizontal visibility test over the draw window |
@@ -92,8 +92,8 @@ Frame loop: owned. `tomba::FrameDriver` runs one pass of `0x80050B08` (update `0
 
 - A Tomba! 2 guest function replaced natively → the `game/` subsystem that owns it, declared through
   `NativeOverrideCatalog`, with its row in `docs/guest-addresses.md`.
-- A producer or state render → `game/render/` or `game/ui/`, registered in `tomba::Runtime::registerOverrides`
-  and listed in `docs/producers.md`.
+- A producer → `game/render/` or `game/ui/`, registered in `tomba::Runtime::registerOverrides` and listed in
+  `docs/producers.md`.
 - Per-frame order, input, timing or the presentation fence → `game/core/frame/frame_driver.cpp`.
 - Guest task scheduling → `game/core/sched/`.
 - A developer command → `game/core/debug/`, applied at a frame boundary.
