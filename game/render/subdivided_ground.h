@@ -28,6 +28,21 @@ class Visibility;
 
 namespace tomba::render {
 
+// The records drawn as the guest drew them because their call's clipped-packet budget was spent, over the run.
+class GroundClipTally {
+public:
+  void add(std::uint32_t records) {
+    records_ += records;
+    calls_ += records != 0u ? 1u : 0u;
+  }
+  // One run-end line, the counts zero or not.
+  void report() const;
+
+private:
+  std::uint64_t records_ = 0;
+  std::uint64_t calls_ = 0;
+};
+
 class SubdividedGround {
 public:
   // (a0 = record list, a1 = OT base, a2 = count); the end of the list in v0.

@@ -3,6 +3,7 @@
 
 #include "core.h"
 #include "core/overrides/native_override_catalog.h"
+#include "entry/session.h"
 #include "gte_registers.h"
 #include "guest_ordering_table.h"
 #include "horizontal_visibility_cull.h"
@@ -12,11 +13,14 @@
 #include "view_clip.h"
 #include "wide_window.h"
 
+#include <lucent/log.h>
+
 #include <algorithm>
 #include <array>
 #include <cmath>
 #include <memory>
 #include <optional>
+#include <utility>
 #include <vector>
 
 namespace tomba::render {
@@ -100,18 +104,30 @@ enum class Tint : std::uint8_t {
   Fog,   // toward the far colour by SZ - kFogDepth (the averaged path past kFogBucket)
 };
 
+// Where a path puts a corner its own projection placed without error, so a neighbour sharing it meets the edge.
+enum class Edges : std::uint8_t {
+  Placed, // where the GTE placed it (the averaged path and the subdivided leaves link the GTE's vertices)
+  Split,  // on its word, an edge between two such corners bent at the halfway word (0x8010F968's split)
+};
+
 // Packets one call may add for records it draws from their clipped polygons.
 constexpr std::uint32_t kClippedPackets = 256u;
 // Each fan triangle of a clipped polygon is halved once in model space, so its texture bends with the view.
 constexpr std::uint32_t kPiecesPerTriangle = 4u;
+
+// What a call may still add from clipped polygons, and the records it could not.
+struct ClipBudget {
+  std::uint32_t packets = kClippedPackets;
+  std::uint32_t refused = 0;
+};
 
 // What every packet of one record shares.
 struct Quad {
   const psx::present::EmitMemory &memory;
   std::uint32_t record;
   const OrderingTable &ot;
-  bool exact;                 // no GTE error projecting the record's corners
-  std::uint32_t &budget;      // packets the call may still add from clipped polygons
+  bool exact; // no GTE error projecting the record's corners
+  ClipBudget &budget;
   wide_window::Window window; // the columns the picture shows
 
   // The picture shows columns past the guest's 320; at 4:3 every path is the guest's.
@@ -134,16 +150,24 @@ struct Quad {
                                            const std::array<ModelPoint, 4> &corners,
                                            ViewClip::Columns columns,
                                            std::int32_t bucket,
-                                           Tint tint) const;
+                                           Tint tint,
+                                           Edges edges) const;
   // A projection with a GTE error put in place: the record drawn from its clipped polygon across the picture, or
   // the guest's packet when the budget is spent.
-  std::optional<std::uint32_t> linkErrored(std::uint32_t packet, std::int32_t bucket, Tint tint) const;
+  std::optional<std::uint32_t> linkErrored(std::uint32_t packet, std::int32_t bucket, Tint tint, Edges edges) const;
   // What the guest skips or culls for a GTE error, in the margins only: inside its 320 columns it drew nothing.
-  std::uint32_t
-  linkMargins(std::uint32_t packet, const std::array<ModelPoint, 4> &corners, std::int32_t bucket, Tint tint) const;
+  std::uint32_t linkMargins(std::uint32_t packet,
+                            const std::array<ModelPoint, 4> &corners,
+                            std::int32_t bucket,
+                            Tint tint,
+                            Edges edges) const;
 
 private:
-  void storePoint(std::uint32_t packet, std::uint32_t corner, const ClipPoint &point, Tint tint) const;
+  void storePoint(std::uint32_t packet,
+                  std::uint32_t corner,
+                  const ClipPoint &point,
+                  const std::optional<psx::gte::ProjectedVertex> &guest,
+                  Tint tint) const;
 };
 
 // 0x8010F1A0's leaf: RotTransPers4 of the corners, culled and linked at the farthest corner's bucket.
@@ -180,7 +204,7 @@ std::uint32_t projectSubdivided(const Quad &quad,
   }
   const std::int32_t bucket = splitBucketOf(depths);
   if (static_cast<std::int32_t>(flag) < 0) {
-    return splitBucket(bucket) ? quad.linkMargins(packet, c, bucket, Tint::Black) : packet;
+    return splitBucket(bucket) ? quad.linkMargins(packet, c, bucket, Tint::Black, Edges::Placed) : packet;
   }
   const ModelPacket model(memory, kModelGt4, {.record = quad.record, .packet = packet}, kOverlayStage);
   if (!model.onScreen(visible) || !splitBucket(bucket)) {
@@ -254,15 +278,19 @@ std::uint8_t channel(double value) {
   return static_cast<std::uint8_t>(std::clamp(std::lround(value), 0l, 255l));
 }
 
-void Quad::storePoint(std::uint32_t packet, std::uint32_t corner, const ClipPoint &point, Tint tint) const {
+void Quad::storePoint(std::uint32_t packet,
+                      std::uint32_t corner,
+                      const ClipPoint &point,
+                      const std::optional<psx::gte::ProjectedVertex> &guest,
+                      Tint tint) const {
   psx::cpu::Gte &gte = memory.core().gte();
-  // The GTE gives the point its depth; its place on screen is the unrounded one, so cut edges meet their neighbours'.
+  // The GTE gives the point its depth; a cut point's place on screen is the unrounded one.
   loadModelPoint(gte, point);
   GtePlace place = gte.projected(2).place();
   const ViewClip::Screen at = ViewClip::screen(gte, point);
   place.x = static_cast<float>(at.x);
   place.y = static_cast<float>(at.y);
-  memory.storeVertex(packet + ModelPacket::kScreen[corner], psx::gte::ProjectedVertex::nearest(place));
+  memory.storeVertex(packet + ModelPacket::kScreen[corner], guest.value_or(psx::gte::ProjectedVertex::nearest(place)));
   const auto depth = static_cast<std::int32_t>(gte.readData(psx::gte::kSz3));
   const bool black = tint == Tint::Black && depth < kBlackDepth;
   const std::uint32_t colour = packet + ModelPacket::kColour[corner];
@@ -283,34 +311,66 @@ std::optional<std::uint32_t> Quad::linkClipped(std::uint32_t packet,
                                                const std::array<ModelPoint, 4> &corners,
                                                ViewClip::Columns columns,
                                                std::int32_t bucket,
-                                               Tint tint) const {
+                                               Tint tint,
+                                               Edges edges) const {
   psx::cpu::Gte &gte = memory.core().gte();
   const std::array<ModelPoint, 4> around{corners[0], corners[1], corners[3], corners[2]};
-  const std::vector<ClipPoint> polygon = ViewClip::visible(gte, ViewClip::place(gte, around), columns);
+  const std::vector<ClipPoint> placed = ViewClip::place(gte, around);
+  // Each corner as the guest's path links it, where its own projection has no error.
+  std::array<std::optional<psx::gte::ProjectedVertex>, 4> guestCorner{};
+  for (std::size_t corner = 0; corner < around.size(); ++corner) {
+    loadModelPoint(gte, placed[corner]);
+    if (static_cast<std::int32_t>(gte.readControl(psx::gte::kFlag)) >= 0) {
+      const psx::gte::ProjectedVertex vertex = gte.projected(2);
+      guestCorner[corner] = edges == Edges::Split ? psx::gte::ProjectedVertex::whole(vertex.word()) : vertex;
+    }
+  }
+  const std::vector<ClipPoint> polygon = ViewClip::visible(gte, placed, columns);
   if (polygon.size() < 3u) {
     return packet;
   }
   const auto pieces = static_cast<std::uint32_t>(polygon.size() - 2u) * kPiecesPerTriangle;
-  if (pieces > budget) {
+  if (pieces > budget.packets) {
+    ++budget.refused;
     return std::nullopt;
   }
-  budget -= pieces;
-  const auto triangle = [&](const ClipPoint &a, const ClipPoint &b, const ClipPoint &c) {
+  budget.packets -= pieces;
+  // A polygon point the clip kept from a corner takes that corner's guest vertex.
+  std::vector<std::optional<psx::gte::ProjectedVertex>> guest(polygon.size());
+  for (std::size_t i = 0; i < polygon.size(); ++i) {
+    for (std::size_t corner = 0; corner < placed.size(); ++corner) {
+      const ClipPoint &c = placed[corner];
+      if (polygon[i].x == c.x && polygon[i].y == c.y && polygon[i].z == c.z) {
+        guest[i] = guestCorner[corner];
+      }
+    }
+  }
+  // The midpoint of polygon edge `from`-`to`: on a split edge between two guest corners, the guest's halfway word.
+  const auto middle = [&](std::size_t from, std::size_t to) {
+    const bool edge = (from + 1u) % polygon.size() == to || (to + 1u) % polygon.size() == from;
+    std::optional<psx::gte::ProjectedVertex> vertex;
+    if (edges == Edges::Split && edge && guest[from] && guest[to]) {
+      vertex = psx::gte::ProjectedVertex::whole(halfwayScreen(guest[from]->word(), guest[to]->word()));
+    }
+    return std::pair{polygon[from].toward(polygon[to], 0.5), vertex};
+  };
+  using Point = std::pair<ClipPoint, std::optional<psx::gte::ProjectedVertex>>;
+  const auto triangle = [&](const Point &a, const Point &b, const Point &c) {
     stampModes(packet);
-    storePoint(packet, 0u, a, tint);
-    storePoint(packet, 1u, b, tint);
-    storePoint(packet, 2u, c, tint);
-    storePoint(packet, 3u, c, tint);
+    storePoint(packet, 0u, a.first, a.second, tint);
+    storePoint(packet, 1u, b.first, b.second, tint);
+    storePoint(packet, 2u, c.first, c.second, tint);
+    storePoint(packet, 3u, c.first, c.second, tint);
     link(packet, bucket);
     packet += kModelGt4.packetBytes;
   };
   for (std::size_t i = 1; i + 1 < polygon.size(); ++i) {
-    const ClipPoint &a = polygon[0];
-    const ClipPoint &b = polygon[i];
-    const ClipPoint &c = polygon[i + 1];
-    const ClipPoint ab = a.toward(b, 0.5);
-    const ClipPoint bc = b.toward(c, 0.5);
-    const ClipPoint ca = c.toward(a, 0.5);
+    const Point a{polygon[0], guest[0]};
+    const Point b{polygon[i], guest[i]};
+    const Point c{polygon[i + 1], guest[i + 1]};
+    const Point ab = middle(0, i);
+    const Point bc = middle(i, i + 1);
+    const Point ca = middle(i + 1, 0);
     triangle(a, ab, ca);
     triangle(ab, b, bc);
     triangle(ca, bc, c);
@@ -319,24 +379,24 @@ std::optional<std::uint32_t> Quad::linkClipped(std::uint32_t packet,
   return packet;
 }
 
-std::optional<std::uint32_t> Quad::linkErrored(std::uint32_t packet, std::int32_t bucket, Tint tint) const {
+std::optional<std::uint32_t>
+Quad::linkErrored(std::uint32_t packet, std::int32_t bucket, Tint tint, Edges edges) const {
   return linkClipped(packet,
                      modelCorners(memory, record),
                      {.left = static_cast<double>(window.left), .right = static_cast<double>(window.right)},
                      bucket,
-                     tint);
+                     tint,
+                     edges);
 }
 
-std::uint32_t Quad::linkMargins(std::uint32_t packet,
-                                const std::array<ModelPoint, 4> &corners,
-                                std::int32_t bucket,
-                                Tint tint) const {
+std::uint32_t Quad::linkMargins(
+    std::uint32_t packet, const std::array<ModelPoint, 4> &corners, std::int32_t bucket, Tint tint, Edges edges) const {
   constexpr auto kGuestRight = static_cast<double>(wide_window::kGuestWidth);
   for (const ViewClip::Columns margin :
        {ViewClip::Columns{.left = static_cast<double>(window.left), .right = 0.0},
         ViewClip::Columns{.left = kGuestRight, .right = static_cast<double>(window.right)}}) {
     if (margin.left < margin.right) {
-      packet = linkClipped(packet, corners, margin, bucket, tint).value_or(packet);
+      packet = linkClipped(packet, corners, margin, bucket, tint, edges).value_or(packet);
     }
   }
   return packet;
@@ -368,7 +428,8 @@ splitOnScreen(const Quad &quad, std::uint32_t packet, const std::array<std::int3
     return packet;
   }
   if (!quad.exact && quad.widened()) {
-    if (const std::optional<std::uint32_t> end = quad.linkErrored(packet, bucket, fade ? Tint::Fade : Tint::Plain)) {
+    if (const std::optional<std::uint32_t> end =
+            quad.linkErrored(packet, bucket, fade ? Tint::Fade : Tint::Plain, Edges::Split)) {
       return *end;
     }
   }
@@ -431,7 +492,7 @@ std::uint32_t linkAveraged(const Quad &quad,
   quad.memory.mem_w32(kOverlayStage.bucket, static_cast<std::uint32_t>(bucket));
   if (!quad.exact && quad.widened()) {
     const Tint tint = bucket > kFogBucket ? Tint::Fog : Tint::Plain;
-    if (const std::optional<std::uint32_t> end = quad.linkErrored(model.packet(), bucket, tint)) {
+    if (const std::optional<std::uint32_t> end = quad.linkErrored(model.packet(), bucket, tint, Edges::Placed)) {
       return *end;
     }
   }
@@ -483,7 +544,8 @@ culledMargins(const Quad &quad, std::uint32_t packet, const Path &path, const st
   case Path::Kind::None:
     return packet;
   case Path::Kind::Averaged:
-    return quad.linkMargins(packet, corners, path.bucket, path.bucket > kFogBucket ? Tint::Fog : Tint::Plain);
+    return quad.linkMargins(
+        packet, corners, path.bucket, path.bucket > kFogBucket ? Tint::Fog : Tint::Plain, Edges::Placed);
   case Path::Kind::SplitFaded:
   case Path::Kind::Split:
   case Path::Kind::Subdivide: {
@@ -494,7 +556,7 @@ culledMargins(const Quad &quad, std::uint32_t packet, const Path &path, const st
     const Tint tint = path.kind == Path::Kind::SplitFaded ? Tint::Fade
                       : path.kind == Path::Kind::Split    ? Tint::Plain
                                                           : Tint::Black;
-    return quad.linkMargins(packet, corners, bucket, tint);
+    return quad.linkMargins(packet, corners, bucket, tint, tint == Tint::Black ? Edges::Placed : Edges::Split);
   }
   }
   return packet;
@@ -504,7 +566,7 @@ std::uint32_t emitRecord(const psx::present::EmitMemory &memory,
                          const OrderingTable &ot,
                          const Visibility &visible,
                          const ModelPacket &model,
-                         std::uint32_t &budget) {
+                         ClipBudget &budget) {
   psx::cpu::Gte &gte = memory.core().gte();
   const std::uint32_t record = model.record();
   const std::uint32_t packet = model.packet();
@@ -575,10 +637,21 @@ constexpr std::uint32_t kMostPacketsPerRecord = 16u;
 std::uint32_t
 SubdividedGround::emit(const psx::present::EmitMemory &memory, const ListCall &call, const Visibility &visible) {
   const OrderingTable ot(memory, call.ot);
-  std::uint32_t budget = kClippedPackets;
-  return emitModelList(memory, call, kModelGt4, kOverlayStage, [&](const ModelPacket &model) {
+  ClipBudget budget;
+  const std::uint32_t end = emitModelList(memory, call, kModelGt4, kOverlayStage, [&](const ModelPacket &model) {
     return emitRecord(memory, ot, visible, model, budget);
   });
+  sessionOf(&memory.core()).groundClip.add(budget.refused);
+  return end;
+}
+
+void GroundClipTally::report() const {
+  lucent::info("ground",
+               "run-end: {} A03 ground record(s) in {} call(s) drawn as the guest drew them, the {}-packet clip "
+               "budget spent",
+               records_,
+               calls_,
+               kClippedPackets);
 }
 
 void SubdividedGround::draw(Core *c) {

@@ -47,6 +47,7 @@ public:
   psx::game::TitleAudio *audio(Core &core) const override;
   psx::state::NativeStatePort *nativeState(Core &core) const override;
   const psx::game::HostIdentity *hostIdentity() const override;
+  void reportRun(Core &core) const override;
 
 private:
   // FUN_80050B08's init prefix without its scheduler loop.

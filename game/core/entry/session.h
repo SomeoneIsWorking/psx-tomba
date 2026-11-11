@@ -25,6 +25,7 @@
 #include "render/call_site_objects.h"
 #include "render/object_draw.h"
 #include "render/screen_fade.h"
+#include "render/subdivided_ground.h"
 #include "state_producer.h"
 #include "ui/save_menu.h"
 
@@ -53,6 +54,7 @@ public:
   std::unique_ptr<Render> render;
   render::CallSiteObjects callSites; // the objects of the 2D writers, counted per logic frame
   render::ObjectDraw objectDraw;     // the object draw open now, whose emitter calls are its parts
+  render::GroundClipTally groundClip;
   EngineCd cd;
   TitleState titleState{cd, drawReplay};
   sched::Scheduler scheduler; // after `cd`, which it holds slot 2 for

@@ -238,6 +238,10 @@ psx::state::NativeStatePort *Runtime::nativeState(Core &core) const {
   return &sessionOf(&core).titleState;
 }
 
+void Runtime::reportRun(Core &core) const {
+  sessionOf(&core).groundClip.report();
+}
+
 const psx::game::HostIdentity *Runtime::hostIdentity() const {
   return &kHostIdentity;
 }
