@@ -72,7 +72,7 @@ Scheduler::Stanza Scheduler::runCoroutineStanza(int slot, std::uint32_t base, st
     demoNative_[slot] = false;
     gameNative_[slot] = false;
     gameCoop_[slot] = false;
-    coro_[slot] = std::make_unique<Coro>();
+    coro_[slot] = std::make_unique<Coro>(game_.perf.clock());
     coro_[slot]->start([this, slot, base, entry] {
       runGuestTask({.slot = slot, .base = base, .entry = entry});
     });

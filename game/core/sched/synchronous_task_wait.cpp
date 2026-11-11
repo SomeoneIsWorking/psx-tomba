@@ -64,7 +64,7 @@ void Scheduler::runSyncSlot(int slot) {
                 startPc,
                 core.r[29]);
 
-  coro_[slot] = std::make_unique<Coro>();
+  coro_[slot] = std::make_unique<Coro>(game_.perf.clock());
   Coro &coroutine = *coro_[slot];
   coroutine.start([&core, startPc] {
     const auto result =
