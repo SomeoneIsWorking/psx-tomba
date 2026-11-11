@@ -16,19 +16,14 @@ namespace tomba::native {
 // Declarations key on address, or on image name plus address where overlays reuse a slot.
 class NativeOverrideCatalog {
 public:
-  // `producer` names the argument register of the drawn object when the function writes guest packets.
-  void declare(std::uint32_t address,
-               std::string_view name,
-               psx::cpu::NativeFunction function,
-               std::optional<psx::present::Producer> producer = std::nullopt);
+  void declare(std::uint32_t address, std::string_view name, psx::cpu::NativeFunction function);
 
   // Overlay declarations may share an address with resident or other-overlay ones; the image name is
   // part of the key and is checked again when the image is bound.
   void declareOverlay(std::string_view imageName,
                       std::uint32_t address,
                       std::string_view name,
-                      psx::cpu::NativeFunction function,
-                      std::optional<psx::present::Producer> producer = std::nullopt);
+                      psx::cpu::NativeFunction function);
 
   // Installs resident declarations only where the supplied image still owns the address. Idempotent.
   void bindResident(Core &core, psx::cpu::ImageIdentity resident, GuestAddressRange residentText) const;
@@ -61,7 +56,6 @@ private:
     std::uint32_t address = 0;
     std::string name;
     psx::cpu::NativeFunction function = nullptr;
-    std::optional<psx::present::Producer> producer;
   };
 
   void bindOverlay(Core &core,

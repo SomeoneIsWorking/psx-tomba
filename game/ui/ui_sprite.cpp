@@ -138,18 +138,15 @@ void rebuild(const psx::present::EmitMemory &memory,
   }
 }
 
-// Each call is an object of its own: what one call site draws, n-th in its frame. A call in the update block is
-// noted with its anchor and definition, so a replay places its pieces at t.
-template <std::uint32_t Entry, void (*Body)(Core *)> void producerEntry(Core *c) {
+// A call in the update block is noted, as its call site's n-th in the frame, with its anchor and definition, so a
+// replay places its pieces at t.
+template <std::uint32_t Entry, void (*Body)(Core *)> void notedEntry(Core *c) {
   const std::uint32_t object = sessionOf(c).callSites.object(c->r[31]);
   const std::uint32_t placement = c->r[4];
   const auto definition = static_cast<std::uint32_t>(c->mem_r16s(c->r[5]));
   const std::uint32_t defBase = c->r[6];
   const std::uint32_t first = render::PacketPool(*c).cursor();
-  {
-    const psx::present::EmissionScope::Guard scope(c->emission, Entry, object, 0);
-    Body(c);
-  }
+  Body(c);
   const std::uint32_t pieces =
       first + (static_cast<std::uint32_t>(c->mem_r16s(defBase + (definition * 4u))) * kShape<Entry>.bytes);
   sessionOf(c).drawReplay.updateDraws().note(*c,
@@ -166,8 +163,8 @@ template <std::uint32_t Entry, void (*Body)(Core *)> void producerEntry(Core *c)
 } // namespace
 
 void UiSprite::registerOverrides(native::NativeOverrideCatalog &natives) {
-  natives.declare(kQuads, "UiSprite::quads", producerEntry<kQuads, &UiSprite::quads>);
-  natives.declare(kCompose, "UiSprite::compose", producerEntry<kCompose, &UiSprite::compose>);
+  natives.declare(kQuads, "UiSprite::quads", notedEntry<kQuads, &UiSprite::quads>);
+  natives.declare(kCompose, "UiSprite::compose", notedEntry<kCompose, &UiSprite::compose>);
   natives.declare(0x8007E8DCu, "UiSprite::drawFromTable", &UiSprite::drawFromTable);
   natives.declare(0x8007E998u, "UiSprite::drawFixedDef152", &UiSprite::drawFixedDef152);
 }

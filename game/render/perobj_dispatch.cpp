@@ -228,9 +228,6 @@ void Render::cmdListDispatch() {
       c->r[22] = flag;
       c->r[23] = SCR;
       c->r[31] = 0x8003D07Cu; // RE'd return-address constant (guest 0x8003CDD8, right before guest 0x8003F698)
-      // The command's current life is the drawn object; billboard callers reach this body without the dispatcher.
-      const psx::present::EmissionScope::Guard command(
-          c->emission, 0x8003CDD8u, eng(c).graphicsBind.records.object(cmd), 0);
       perModeDispatch();
     } // if (geomblk != 0)
     i++;
@@ -356,7 +353,7 @@ void ov_perModeDispatch(Core *c) {
 // overlay_gt3gt4.cpp, overlay_ground_gt3gt4.cpp, quad_rtpt_submit.cpp) — B now always runs the real guest 0x8003CDD8/
 // guest 0x8003F698 bodies, closing the leak at its source.
 void perobj_dispatch_install(native::NativeOverrideCatalog &natives) {
-  natives.declare(0x8003CDD8u, "ov_cmdListDispatch", ov_cmdListDispatch, psx::present::Producer{psx::present::Arg::A0});
+  natives.declare(0x8003CDD8u, "ov_cmdListDispatch", ov_cmdListDispatch);
   natives.declare(0x8003F698u, "ov_perModeDispatch", ov_perModeDispatch);
 }
 

@@ -96,7 +96,6 @@ void Render::subPartWalk(Core *c) {
       c->r[5] = tomba::render::OrderingTable::active(*c).base();
       c->r[31] = 0x8003F230u; // jal-site ra
       c->r[6] = passThrough;
-      const auto part = c->emission.instance(eng(c).graphicsBind.records.object(sub));
       psx::cpu::callGuestNow(*c, __func__, 0x8003F698u);
 
       index += 1;
@@ -117,7 +116,7 @@ static void ov_subpart_walk(Core *c) {
 }
 
 void subpart_walk_install(native::NativeOverrideCatalog &natives) {
-  natives.declare(0x8003F174u, "Render::subPartWalk", ov_subpart_walk, psx::present::Producer{psx::present::Arg::A0});
+  natives.declare(0x8003F174u, "Render::subPartWalk", ov_subpart_walk);
 }
 
 } // namespace tomba

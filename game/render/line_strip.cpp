@@ -9,7 +9,6 @@
 #include "guest_abi.h"
 #include "guest_ordering_table.h"
 #include "libgpu_draw_mode.h"
-#include "object_draw.h"
 
 #include <cstdlib>
 #include <lucent/log.h>
@@ -141,7 +140,6 @@ void emitForGuest(Core *core) {
   const ListCall call{
       .list = node, .ot = core->mem_r32(OrderingTable::kBasePointer), .count = 0, .a3 = 0, .sp = core->r[29], .a1 = 0};
   ::GuestFrame<kFrameBytes, 10> frame(core, kSpills);
-  const EmitterObject object(*core, LineStrip::kEmitter, OwnObject{eng(core).graphicsBind.records.object(node)});
   LineStrip::emit(*core, call);
 }
 

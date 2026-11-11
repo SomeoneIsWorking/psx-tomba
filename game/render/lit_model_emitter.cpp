@@ -8,7 +8,6 @@
 #include "horizontal_visibility_cull.h"
 #include "list_job.h"
 #include "model_packet.h"
-#include "object_draw.h"
 #include "trig.h"
 
 #include <array>
@@ -101,7 +100,6 @@ void runGuest(Core &core, const Visibility &visible, LitModelEmitter::FlagBits b
 }
 
 template <std::uint32_t Entry, bool Quad, LitModelEmitter::FlagBits Bits> void emitAt(Core *core) {
-  const EmitterObject object(*core, Entry, core->r[4]);
   const Visibility visible = horizontal_cull::forDrawWindow(core);
   if constexpr (Quad) {
     LitModelEmitter::gt4(*core, visible, Bits);

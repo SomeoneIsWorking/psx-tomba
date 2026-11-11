@@ -1,5 +1,5 @@
 // game/ui/panel_build.cpp — Panel::build, guest FUN_8005019C, the 9-slice panel.
-// Four 8x8 corner sprites, a DR_MODE for texture page 0x5F, then five fills; each call is its own object.
+// Four 8x8 corner sprites, a DR_MODE for texture page 0x5F, then five fills.
 #include "blend.h"
 #include "core.h"
 #include "core/overrides/native_override_catalog.h"
@@ -10,7 +10,6 @@
 #include "render/guest_ordering_table.h"
 #include "render/libgpu_draw_mode.h"
 #include "render/list_job.h"
-#include "render/object_draw.h"
 #include "ui/panel.h"
 
 #include <array>
@@ -183,14 +182,13 @@ void Panel::drawPanel(Core *core) {
                               .sp = core->r[29],
                               .a1 = core->r[5]};
   ::GuestFrame<kFrameBytes, 7> frame(core, kSpills);
-  const render::EmitterObject object(
-      *core, Panel::kBuild, render::OwnObject{sessionOf(core).callSites.object(core->r[31], call.list)});
+  const std::uint32_t object = sessionOf(core).callSites.object(core->r[31], call.list);
   const std::uint32_t packets = render::PacketPool(*core).cursor();
   Panel::build(*core, call);
   const Rect rect = readRect(*core, call.list);
   sessionOf(core).drawReplay.updateDraws().note(*core,
                                                 {.writer = Panel::kBuild,
-                                                 .object = sessionOf(core).callSites.object(core->r[31], call.list),
+                                                 .object = object,
                                                  .packets = {packets, 0u},
                                                  .values = {static_cast<std::uint32_t>(rect.x),
                                                             static_cast<std::uint32_t>(rect.y),

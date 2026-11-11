@@ -7,8 +7,6 @@
 #include "fx_sprite_publish.h"
 #include "gte_registers.h"
 #include "guest_ordering_table.h"
-#include "model_element.h"
-#include "object_draw.h"
 #include "ordering_table.h"
 
 namespace tomba::render {
@@ -192,9 +190,6 @@ void PackedMesh::write(Core *core) {
                       .a3 = core->r[7],
                       .sp = core->r[29],
                       .a1 = core->r[5]};
-  // Unscoped, the call is its own object: SOP 0x8010BF54 draws one list twice a frame.
-  const EmitterObject object(
-      *core, kWriter, core->emission.isOpen() ? call.list : sessionOf(core).callSites.object(core->r[31], call.list));
   emit(*core, Variant::ClutRows, call);
 }
 
@@ -205,11 +200,8 @@ void PackedMesh::emit(const psx::present::EmitMemory &memory, Variant variant, c
   std::uint32_t record = call.list;
   for (std::uint32_t index = 0;; ++index, record += kRecordBytes) {
     const auto last = static_cast<std::int32_t>(memory.mem_r32(record + 4u)) <= 0;
-    {
-      const psx::present::ElementScope element(memory, modelElement(ModelList::PackedMesh, index));
-      if (mesh.write({.record = record, .packet = packet})) {
-        packet += kPacketBytes;
-      }
+    if (mesh.write({.record = record, .packet = packet})) {
+      packet += kPacketBytes;
     }
     if (last) {
       break;
@@ -251,7 +243,6 @@ void PackedMesh::emitScreen(const psx::present::EmitMemory &memory, const Screen
 void PackedMesh::registerOverrides(native::NativeOverrideCatalog &natives) {
   natives.declare(kWriter, "PackedMesh::write", &PackedMesh::write);
   natives.declareOverlay("A08", kVOffsetWriter, "PackedMesh::writeVOffset", [](Core *core) {
-    const EmitterObject object(*core, kWriter, core->r[4]);
     emit(*core,
          Variant::VOffset,
          {.list = core->r[4],
@@ -262,9 +253,6 @@ void PackedMesh::registerOverrides(native::NativeOverrideCatalog &natives) {
           .a1 = core->r[5]});
   });
   natives.declare(kScreenWriter, "PackedMesh::writeScreen", [](Core *core) {
-    const std::uint32_t object =
-        core->emission.isOpen() ? core->r[4] : sessionOf(core).callSites.object(core->r[31], core->r[4]);
-    const psx::present::EmissionScope::Guard scope(core->emission, kScreenWriter, object, 0);
     emitScreen(*core, {.list = core->r[4], .clutRows = core->r[5], .ot = core->mem_r32(OrderingTable::kBasePointer)});
   });
 }

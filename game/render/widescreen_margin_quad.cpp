@@ -168,8 +168,6 @@ int32_t marginOtzIndex(int32_t zPlusBias) {
 
 // The override entry: the node keys the quads it draws.
 void ov_emit(Core *c) {
-  const std::uint32_t object = eng(c).graphicsBind.records.object(c->r[4]);
-  const psx::present::EmissionScope::Guard scope(c->emission, WidescreenMarginQuad::kEmitter, object, 0);
   WidescreenMarginQuad::emit(c);
 }
 
@@ -384,7 +382,7 @@ void WidescreenMarginQuad::emit(Core *c) {
 }
 
 void WidescreenMarginQuad::registerOverrides(native::NativeOverrideCatalog &natives) {
-  natives.declareOverlay("A00", kEmitter, "&WidescreenMarginQuad::emit", &ov_emit);
+  natives.declareOverlay("A00", kEmitter, "&WidescreenMarginQuad::emit", &WidescreenMarginQuad::emit);
 }
 
 } // namespace tomba

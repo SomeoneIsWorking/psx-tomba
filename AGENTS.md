@@ -12,7 +12,7 @@ shared `psxport` Lightrec runtime. Execution policy: the `dynarec-port`, `dynare
 - [`docs/re-frontier.md`](docs/re-frontier.md) and
   [`titles/tomba1/docs/re-frontier.md`](titles/tomba1/docs/re-frontier.md): RE chains per title.
 - [`docs/features.md`](docs/features.md): feature hops; [`docs/guest-addresses.md`](docs/guest-addresses.md):
-  the Tomba! 2 guest address index; [`docs/producers.md`](docs/producers.md): the 60 fps producers.
+  the Tomba! 2 guest address index; [`docs/draw-emitters.md`](docs/draw-emitters.md): the native model emitters.
 - Rendering: [`external/psxport/docs/presentation.md`](external/psxport/docs/presentation.md).
 
 ## Titles and isolation

@@ -6,7 +6,6 @@
 #include "core/overrides/native_override_catalog.h"
 #include "entry/session.h"
 #include "horizontal_visibility_cull.h"
-#include "object_draw.h"
 #include "projected_vertex.h"
 
 #include <algorithm>
@@ -112,7 +111,6 @@ void wave(const psx::present::EmitMemory &memory,
 // Every copy draws inside a replayed section, so it saves nothing.
 template <std::uint32_t Entry, bool Quad, const UnlitModelEmitter::Variant &Data> void emitAt(Core *core) {
   const ListCall call = ListCall::fromRegisters(*core);
-  const EmitterObject object(*core, Entry, call.list);
   core->r[2] = UnlitModelEmitter::emit(*core, call, horizontal_cull::forDrawWindow(core), Data, Quad);
 }
 

@@ -26,7 +26,6 @@ std::uint32_t RenderRecordPool::allocate(Core &core) {
   core.mem_w16(kFreeCount, static_cast<std::uint16_t>(count - 1));
   const std::uint32_t record = core.mem_r32(cursor);
   core.mem_w32(kFreeCursor, cursor + 4u);
-  ++generations_[record & kRecordOffsetMask];
   return record;
 }
 
@@ -39,11 +38,6 @@ void RenderRecordPool::allocateForGuest(Core &core) {
   if (static_cast<std::int16_t>(count) > 0) {
     core.r[3] = core.mem_r32(kFreeCursor);
   }
-}
-
-std::uint32_t RenderRecordPool::object(std::uint32_t record) const {
-  const auto found = generations_.find(record & kRecordOffsetMask);
-  return incarnationObject(record, found == generations_.end() ? 0u : found->second);
 }
 
 void RenderRecordPool::sample(Core &core) {

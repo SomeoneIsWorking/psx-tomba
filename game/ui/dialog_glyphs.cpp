@@ -63,7 +63,6 @@ constexpr std::uint8_t kLayoutColumns[2] = {0x00, 0x10};
 void DialogGlyphs::emit(Core *c) {
   const std::uint32_t node = c->r[4];
   ::GuestFrame<kFrameBytes, 2> frame(c, kSpills);
-  const psx::present::EmissionScope::Guard object(c->emission, kEmit, node, 0);
 
   std::uint16_t row = kNoClutRow;
   if (c->mem_r8(node + kHighlightable) == 1 && c->mem_r8(node + kVariant) == 1) {
@@ -107,7 +106,6 @@ void DialogGlyphs::emit(Core *c) {
 void DialogGlyphs::prompt(Core *c) {
   const std::uint32_t rect = c->r[4];
   ::GuestFrame<kPromptFrameBytes, 3> frame(c, kPromptSpills);
-  const psx::present::EmissionScope::Guard object(c->emission, kPrompt, rect, 0);
 
   const render::PacketPool pool(*c);
   const std::uint32_t packet = pool.cursor();

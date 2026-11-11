@@ -263,9 +263,7 @@ set(GAME_SRC
   game/render/subpart_walk.cpp
   game/render/compose_tint_gate.cpp
   game/render/object_effect.cpp
-  game/render/object_draw.cpp
   game/render/line_strip.cpp
-  game/render/guest_keyed_emitters.cpp
   game/render/area_map.cpp
   game/render/text_label.cpp
   game/render/render_walk_dispatch.cpp

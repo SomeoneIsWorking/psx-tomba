@@ -9,7 +9,6 @@
 #include "guest_ordering_table.h"
 #include "horizontal_visibility_cull.h"
 #include "list_job.h"
-#include "object_draw.h"
 
 #include <cstdint>
 
@@ -164,7 +163,6 @@ ListCall callOf(Core &core) {
 void DustField::draw(Core *c) {
   GuestFrame<0x40, 9> frame(c, kDustSpills);
   const ListCall call = callOf(*c);
-  const EmitterObject object(*c, kDustEntry, OwnObject{call.list});
   drawPoints(psx::present::EmitMemory(*c), kDust, call);
 }
 
@@ -176,7 +174,6 @@ void DustField::drawSnow(Core *c) {
   if (!PacketPool(memory).hasRoom()) {
     return;
   }
-  const EmitterObject object(*c, kSnowEntry, OwnObject{call.list});
   drawPoints(memory, kSnow, call);
 }
 

@@ -8,7 +8,6 @@
 #include "guest_ordering_table.h"
 #include "horizontal_visibility_cull.h"
 #include "model_packet.h"
-#include "object_draw.h"
 #include "view_clip.h"
 #include "wide_window.h"
 
@@ -637,7 +636,6 @@ void GroundClipTally::report() const {
 
 void SubdividedGround::draw(Core *c) {
   const ListCall call = ListCall::fromRegisters(*c);
-  const EmitterObject object(*c, kEntry, call.list);
   c->r[2] = emit(*c, call, horizontal_cull::forDrawWindow(c));
 }
 

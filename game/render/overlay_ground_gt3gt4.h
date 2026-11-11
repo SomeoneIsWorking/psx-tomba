@@ -55,12 +55,9 @@ public:
   static constexpr Variant kA0L{{false, 1u}, {false, 2u}};
 
   // The A00 pair's entries.
-  static constexpr std::uint32_t kA00Gt3 = 0x8013FB88u;
-  static constexpr std::uint32_t kA00Gt4 = 0x8013FE58u;
 
-  // FUN_8013FB88/FUN_8013FE58(rec=a0, ot_base=a1, count=a2) -> advanced rec ptr in v0: the call opens its own
-  // drawing object under `entry`, runs the body and saves the call for its render.
-  static void leaf(Core *c, std::uint32_t entry, bool quad, const ListDepth &depth);
+  // FUN_8013FB88/FUN_8013FE58(rec=a0, ot_base=a1, count=a2) -> advanced rec ptr in v0.
+  static void leaf(Core *c, bool quad, const ListDepth &depth);
   // The bodies over any memory; each returns the address past its list.
   static std::uint32_t
   emitGt3(const psx::present::EmitMemory &memory, const tomba::render::ListCall &call, const ListDepth &depth);

@@ -7,7 +7,6 @@
 #include "guest_ordering_table.h"
 #include "libgpu_draw_mode.h"
 #include "list_job.h"
-#include "object_draw.h"
 
 namespace tomba::render {
 namespace {
@@ -97,7 +96,6 @@ template <std::uint32_t Variant> void emitForGuest(Core *core) {
   const ListCall call{
       .list = 0, .ot = core->mem_r32(OrderingTable::kBasePointer), .count = 0, .a3 = 0, .sp = core->r[29], .a1 = 0};
   ::GuestFrame<kFrameBytes, 5> frame(core, kSpills);
-  const EmitterObject object(*core, layout.emitter, OwnObject{layout.emitter});
   AreaMap::emit(*core, call, Variant);
   // The down axis's scaling is the body's last mult; it leaves hi/lo guest-visible.
   psx::cpu::multiply(core, core->mem_r16s(layout.down) - layout.downOrigin, static_cast<std::int32_t>(0xB40B40B5u));

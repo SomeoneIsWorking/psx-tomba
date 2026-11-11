@@ -9,7 +9,6 @@
 #include "guest_ordering_table.h"
 #include "horizontal_visibility_cull.h"
 #include "list_job.h"
-#include "object_draw.h"
 #include "wide_window.h"
 
 #include <algorithm>
@@ -286,7 +285,6 @@ void BackdropPlane::draw(Core *c) {
     const psx::present::EmitMemory memory(*c);
     const std::uint32_t ot = OrderingTable::active(memory).base();
     const ListCall call{.list = node, .ot = ot, .count = 0, .a3 = 0, .sp = c->r[psx::cpu::kSp], .a1 = ot};
-    const EmitterObject object(*c, kEntry, OwnObject{node});
     drawGrids(memory, call, *c);
   }
   psx::cpu::callGuestNow(*c, __func__, kSpriteHalf, node);

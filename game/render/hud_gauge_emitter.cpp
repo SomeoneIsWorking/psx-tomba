@@ -260,18 +260,8 @@ void HudGaugeEmitter::emitItem(Core *c) {
       *c, {.target = kFunLabelOrDigits, .returnAddress = kRaItemFinal}, sp + kWord0Off, item.labelByte(), 0u, 3u);
 }
 
-namespace {
-// The frame entry, with the gauge's own packets keyed: the glyph row its item leaves draw through the
-// guest FUN_8004EB94 was unkeyed, so every record holding one was shown whole.
-void emitFrameEntry(Core *c) {
-  const std::uint32_t object = sessionOf(c).callSites.object(c->r[31], 0u);
-  const psx::present::EmissionScope::Guard scope(c->emission, HudGaugeEmitter::kEmitter, object, 0);
-  HudGaugeEmitter::emitFrame(c);
-}
-} // namespace
-
 void HudGaugeEmitter::registerOverrides(native::NativeOverrideCatalog &natives) {
-  natives.declare(kEmitter, "&HudGaugeEmitter::emitFrame", &emitFrameEntry);
+  natives.declare(kEmitter, "&HudGaugeEmitter::emitFrame", &HudGaugeEmitter::emitFrame);
   natives.declare(0x8004FB4Cu, "&HudGaugeEmitter::emitItem", &HudGaugeEmitter::emitItem);
 }
 

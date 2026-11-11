@@ -1,4 +1,4 @@
-// game/render/call_site_objects.h — the drawing objects of a writer reached from many call sites.
+// game/render/call_site_objects.h — which call of a 2D writer an update-block draw is, to pair it across frames.
 #pragma once
 
 #include <algorithm>
@@ -18,7 +18,7 @@ public:
   // The n-th call from `returnAddress` drawing `list` in the logic frame, so a call keeps its object while
   // the site's other lists come and go. The site is its order of first call in the session.
   std::uint32_t object(std::uint32_t returnAddress, std::uint32_t list) {
-    // Past the field widths calls share an object, which the composer keeps whole as ambiguous.
+    // Past the field widths calls share an object.
     const std::uint32_t nth = std::min(count(returnAddress, list), kListNthMask);
     const std::uint32_t site = std::min(siteOrdinal(returnAddress), kListSiteMask);
     return kListObject | (site << kListSiteShift) | (nth << kListNthShift) | ((list & kRamMask) >> 2);
@@ -32,8 +32,7 @@ private:
   static constexpr std::uint32_t kSiteBits = 24u;
   static constexpr std::uint32_t kSiteMask = (1u << kSiteBits) - 1u;
   static constexpr std::uint32_t kNoList = 0u;
-  // (site, list) objects: 0b111 above a 6-bit site, a 4-bit n and the list's main-RAM word; no guest address
-  // reaches 0xE0000000, so they never meet an object a scope names.
+  // (site, list) objects: 0b111 above a 6-bit site, a 4-bit n and the list's main-RAM word.
   static constexpr std::uint32_t kListObject = 0xE0000000u;
   static constexpr std::uint32_t kListSiteShift = 23u;
   static constexpr std::uint32_t kListSiteMask = 0x3Fu;

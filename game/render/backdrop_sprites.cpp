@@ -8,7 +8,6 @@
 #include "guest_abi.h"
 #include "guest_ordering_table.h"
 #include "list_job.h"
-#include "object_draw.h"
 #include "scaled_sprites.h"
 
 #include <cstdint>
@@ -102,7 +101,6 @@ void BackdropSprites::draw(Core *c) {
   const psx::present::EmitMemory memory(*c);
   FxSpritePublish{memory}.loadSceneCamera(kDqa);
   const std::uint32_t ot = OrderingTable::active(memory).base();
-  const EmitterObject object(*c, kEntry, OwnObject{kAnchors});
   stampAnchors(memory, ot);
 }
 

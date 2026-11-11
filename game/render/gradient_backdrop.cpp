@@ -2,7 +2,6 @@
 #include "gradient_backdrop.h"
 #include "core.h"
 #include "core/overrides/native_override_catalog.h"
-#include "emission_scope.h"
 #include "guest_abi.h"
 #include "guest_call.h"
 #include "guest_ordering_table.h"
@@ -49,7 +48,6 @@ std::array<Band, kBandCount> bandsAt(std::int32_t origin) {
 
 // The bands and their draw mode packet, under one object scope.
 void emitBands(Core *c, const OrderingTable &ot, const PacketPool &pool, const psx::present::EmitMemory &memory) {
-  const psx::present::EmissionScope::Guard object(c->emission, kEntry, 0, 0);
   const std::int32_t origin = (-(c->mem_r16s(kCameraPitch) * kPitchToScreenY)) >> 12;
   // Retail spans columns [0, 320); the record canvas widens that to its margins.
   const wide_window::Window window = wide_window::drawWindow(c);

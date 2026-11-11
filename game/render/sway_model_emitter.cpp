@@ -8,7 +8,6 @@
 #include "horizontal_visibility_cull.h"
 #include "list_job.h"
 #include "model_packet.h"
-#include "object_draw.h"
 
 #include <array>
 
@@ -311,7 +310,6 @@ void SwayModelEmitter::cueGt4(Core &core, const Visibility &visible) {
 namespace {
 
 template <std::uint32_t Entry, void (*Body)(Core &, const Visibility &)> void emitAt(Core *core) {
-  const EmitterObject object(*core, Entry, core->r[4]);
   Body(*core, horizontal_cull::forDrawWindow(core));
 }
 

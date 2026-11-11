@@ -14,7 +14,6 @@
 #include "gte_registers.h"
 #include "guest_ordering_table.h"
 #include "list_job.h"
-#include "model_element.h"
 
 #include <array>
 #include <cstddef>
@@ -26,6 +25,9 @@ class Visibility;
 }
 
 namespace tomba::render {
+
+// A model block's record lists: its GT3 records, then its GT4 records (FUN_800803DC, FUN_80146478, FUN_801401B8).
+enum class ModelList : std::uint8_t { Gt3, Gt4 };
 
 // Record offsets of one corner's s16 model coordinates.
 struct ModelCorner {
@@ -223,7 +225,6 @@ std::uint32_t emitModelList(const psx::present::EmitMemory &memory,
   const PacketPool pool(memory);
   std::uint32_t packet = pool.cursor();
   for (std::uint32_t index = 0; index != call.count; ++index, record += shape.recordBytes) {
-    const psx::present::ElementScope element(memory, modelElement(shape.list, index));
     const ModelPacket model(memory, shape, {.record = record, .packet = packet}, stage);
     if constexpr (std::is_same_v<std::invoke_result_t<Emit &, const ModelPacket &>, bool>) {
       if (emit(model)) {

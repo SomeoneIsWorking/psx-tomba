@@ -95,7 +95,6 @@ void ObjectEffect::apply(const psx::present::EmitMemory &memory, std::uint32_t l
       std::abort();
     }
     if (shape.colourWords != 0) {
-      const psx::present::PacketAmendScope amend(memory, packet);
       switch (kind_) {
       case Kind::ColorAdd:
         // The three channel bytes only: the command byte shares the word.

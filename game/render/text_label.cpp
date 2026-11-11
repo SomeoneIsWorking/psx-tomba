@@ -153,9 +153,6 @@ void textLabelBody(Core *c) {
 }
 
 void ov_textLabelEmit(Core *c) {
-  const std::uint32_t node = c->r[4];
-  const std::uint32_t object = eng(c).graphicsBind.records.object(node);
-  const psx::present::EmissionScope::Guard scope(c->emission, 0x80039F4Cu, object, 0);
   rend(c)->textLabelEmit();
 }
 } // namespace

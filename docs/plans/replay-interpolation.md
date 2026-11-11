@@ -1,6 +1,6 @@
 # Tomba! 2 gameplay in-betweens on ReplayFrame
 
-Moves Tomba! 2's gameplay 60 fps in-betweens from producer composition (`docs/producers.md`) to psxport's
+Moves Tomba! 2's gameplay 60 fps in-betweens from producer composition (removed; `docs/draw-emitters.md` keeps the emitters) to psxport's
 replay route (`external/psxport/docs/plans/replay-interpolation.md`, `presentation.md` Interpolation, Replay):
 the guest's own field draw re-run in a `GuestRedraw` at blended inputs. Spyro 1's
 `titles/spyro1/core/frame/draw_section.*` in psx-spyro is the reference title.
@@ -125,7 +125,7 @@ statically; the probe's identity check answers it.
 |---|---|---|---|---|---|
 | view rotation | `0x1F8000F8`, 5 words (9 s16 + pad) | Matrix (`gte::rotationBetween`) | single | every step, copied into GTE R | M:8003CDD8, M:8003C2D4, M:8003D23C; built by `CutsceneCamera::lookAt` (`kCamScratch + 40`) in the update |
 | view translation | `0x1F80010C..0x1F800114`, 3 x s32 | Vector | single | every step (added to each object's RT) | same; `lookAt` `applyMatrixLV(.., 0x1F80010C)` |
-| camera pitch, yaw | `0x1F8000F0`, `0x1F8000F2` (s16) | Angle12 | single | A0E `GradientBackdrop`, A06 `TileGridLayer::emitClamped` | `lookAt` (`kCamScratch + 32/34`), `docs/producers.md` |
+| camera pitch, yaw | `0x1F8000F0`, `0x1F8000F2` (s16) | Angle12 | single | A0E `GradientBackdrop`, A06 `TileGridLayer::emitClamped` | `lookAt` (`kCamScratch + 32/34`) |
 | camera eye, target | `0x1F8000D2..0x1F8000E6` | Derived (not read by the section) | | | `lookAt` reads them in the update |
 | Tomba position | `0x800E7EAC/B0/B4`, s32 16.16 | Vector | single | `0x800597AC` inside step `0x8003B588` | M:800597AC (+0x2E/+0x32/+0x36), `camera_state.h kMasterX` |
 | Tomba angles | `0x800E7ED4/D6/D8` (+0x54..+0x58), s16 | Angle12 (x3) | single | `0x800597AC` | M:800597AC |
@@ -185,11 +185,10 @@ above lives there).
 
 ## Hazards
 
-1. **Producer host state inside a replay.** `GuestRedraw` runs title overrides (`SideEffectMode::Discard`:
-   services execute). Tomba's producers book host state on every call: emission keys and
-   `Session::callSites` (`CallSiteObjects`) n-th-call counters, which `FrameDriver` resets once per frame. Three
-   replays before the real draw shift the real draw's call-site objects. Owner: psxport `EmissionScope`/`FrameStates` must not book under a redraw,
-   and `CallSiteObjects` must not count under one; or the producers the replay replaces are deleted first.
+1. **Title host state inside a replay.** `GuestRedraw` runs title overrides (`SideEffectMode::Discard`:
+   services execute). `Session::callSites` (`CallSiteObjects`) counts 2D writer calls per frame for
+   `UpdateBlockDraws` pairing; `DrawSection::draw` restores it after the replays so the real draw counts from the
+   frame start. Emission keys are gone (psxport `EmissionScope` removed).
 2. **No places, so no depth and no sub-pixel.** `gpu::decodePackets` is called with `.places = {}`
    (`gp0_draw_state.cpp`): replayed primitives carry no `GtePlace`, so they are whole native pixels with no
    view depth. Tomba's real records draw producer primitives with places and depth bands (A03 band bias, the

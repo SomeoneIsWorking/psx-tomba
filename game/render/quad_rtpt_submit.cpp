@@ -8,7 +8,6 @@
 #include "guest_ordering_table.h"
 #include "horizontal_visibility_cull.h"
 #include "list_job.h"
-#include "object_draw.h"
 
 #include <array>
 #include <cstdint>
@@ -99,10 +98,6 @@ ListCall submitCall(Core &core) {
 
 void submitForGuest(Core *core) {
   const ListCall call = submitCall(*core);
-  // A drawer reaches this once per object it walks, from one site with one stack template: the walked object names it.
-  const std::uint32_t drawn = core->emission.isOpen() ? core->emission.current().object : call.list;
-  const render::EmitterObject object(
-      *core, QuadRtptSubmit::kSubmit, render::OwnObject{sessionOf(core).callSites.object(core->r[31], drawn)});
   QuadRtptSubmit::submit(*core, call, horizontal_cull::forDrawWindow(core));
 }
 

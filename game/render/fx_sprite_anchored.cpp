@@ -8,7 +8,6 @@
 #include "guest_abi.h"
 #include "guest_ordering_table.h"
 #include "list_job.h"
-#include "object_draw.h"
 #include "packed_mesh.h"
 #include "scaled_sprites.h"
 
@@ -94,8 +93,6 @@ void drawForGuest(Core *c, FxSpriteAnchored::Variant variant, uint32_t node, uin
                               .a1 = 0};
   FxSpriteAnchored::Drawn drawn = FxSpriteAnchored::Drawn::Nothing;
   {
-    const render::EmitterObject object(
-        *c, emitterOf(variant), render::OwnObject{eng(c).graphicsBind.records.object(node)});
     drawn = FxSpriteAnchored::draw(*c, variant, call);
   }
   if (drawn == FxSpriteAnchored::Drawn::Culled && resolveReturn != 0) {

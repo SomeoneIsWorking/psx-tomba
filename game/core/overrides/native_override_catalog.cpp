@@ -12,18 +12,8 @@
 #include <vector>
 
 namespace tomba::native {
-namespace {
 
-bool sameProducer(const std::optional<psx::present::Producer> &a, const std::optional<psx::present::Producer> &b) {
-  return a.has_value() == b.has_value() && (!a || a->object == b->object);
-}
-
-} // namespace
-
-void NativeOverrideCatalog::declare(std::uint32_t address,
-                                    std::string_view name,
-                                    psx::cpu::NativeFunction function,
-                                    std::optional<psx::present::Producer> producer) {
+void NativeOverrideCatalog::declare(std::uint32_t address, std::string_view name, psx::cpu::NativeFunction function) {
   if (address == 0u || name.empty() || function == nullptr) {
     lucent::error("tomba-native", "refused incomplete native override declaration at 0x{:08X}", address);
     std::abort();
@@ -34,7 +24,7 @@ void NativeOverrideCatalog::declare(std::uint32_t address,
     return entry.imageName.empty() && entry.address == address;
   });
   if (existing != entries.end()) {
-    if (existing->function == function && existing->name == name && sameProducer(existing->producer, producer)) {
+    if (existing->function == function && existing->name == name) {
       return;
     }
     lucent::error("tomba-native",
@@ -44,14 +34,13 @@ void NativeOverrideCatalog::declare(std::uint32_t address,
                   address);
     std::abort();
   }
-  entries.push_back({{}, address, std::string(name), function, producer});
+  entries.push_back({{}, address, std::string(name), function});
 }
 
 void NativeOverrideCatalog::declareOverlay(std::string_view imageName,
                                            std::uint32_t address,
                                            std::string_view name,
-                                           psx::cpu::NativeFunction function,
-                                           std::optional<psx::present::Producer> producer) {
+                                           psx::cpu::NativeFunction function) {
   if (imageName.empty() || address == 0u || name.empty() || function == nullptr) {
     lucent::error("tomba-native", "refused incomplete overlay override declaration at 0x{:08X}", address);
     std::abort();
@@ -62,7 +51,7 @@ void NativeOverrideCatalog::declareOverlay(std::string_view imageName,
     return entry.imageName == imageName && entry.address == address;
   });
   if (existing != entries.end()) {
-    if (existing->function == function && existing->name == name && sameProducer(existing->producer, producer)) {
+    if (existing->function == function && existing->name == name) {
       return;
     }
     lucent::error("tomba-native",
@@ -73,7 +62,7 @@ void NativeOverrideCatalog::declareOverlay(std::string_view imageName,
                   address);
     std::abort();
   }
-  entries.push_back({std::string(imageName), address, std::string(name), function, producer});
+  entries.push_back({std::string(imageName), address, std::string(name), function});
 }
 
 void NativeOverrideCatalog::bindResident(Core &core,
@@ -108,7 +97,7 @@ void NativeOverrideCatalog::bindResident(Core &core,
       ++retained;
       continue;
     }
-    if (!core.nativeDispatcher().install({key, entry.name, entry.function, entry.producer})) {
+    if (!core.nativeDispatcher().install({key, entry.name, entry.function})) {
       lucent::error("tomba-native",
                     "failed to bind '{}' to active image {}:{} at 0x{:08X}",
                     entry.name,
@@ -167,7 +156,7 @@ void NativeOverrideCatalog::bindOverlay(Core &core,
       ++retained;
       continue;
     }
-    if (!core.nativeDispatcher().install({key, entry.name, entry.function, entry.producer})) {
+    if (!core.nativeDispatcher().install({key, entry.name, entry.function})) {
       lucent::error("tomba-native",
                     "failed to bind '{}' to active overlay {}:{} at 0x{:08X}",
                     entry.name,

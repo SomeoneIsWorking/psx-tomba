@@ -475,33 +475,16 @@ void TileGridLayer::cycleSopPalettes(Core *c) {
 
 void TileGridLayer::registerOverrides(native::NativeOverrideCatalog &natives) {
   natives.declareOverlay("A00", 0x8011534Cu, "&TileGridLayer::scrollStep", &TileGridLayer::scrollStep);
-  natives.declareOverlay(
-      "A00", 0x80115598u, "&TileGridLayer::emit", &TileGridLayer::emit, psx::present::Producer{psx::present::Arg::A0});
+  natives.declareOverlay("A00", 0x80115598u, "&TileGridLayer::emit", &TileGridLayer::emit);
   for (const auto &[image, entry] : {std::pair<std::string_view, std::uint32_t>{"A0A", 0x801142ECu},
                                      {"A0B", 0x801141B0u},
                                      {"A0D", 0x80116B9Cu},
                                      {"A0F", 0x80116778u}}) {
-    natives.declareOverlay(image,
-                           entry,
-                           "&TileGridLayer::emitUnbiased",
-                           &TileGridLayer::emitUnbiased,
-                           psx::present::Producer{psx::present::Arg::A0});
+    natives.declareOverlay(image, entry, "&TileGridLayer::emitUnbiased", &TileGridLayer::emitUnbiased);
   }
-  natives.declareOverlay("SOP",
-                         Sop::kGridDraw.entry,
-                         "&TileGridLayer::emitSop",
-                         &TileGridLayer::emitSop,
-                         psx::present::Producer{psx::present::Arg::A0});
-  natives.declareOverlay("A06",
-                         0x80141A94u,
-                         "&TileGridLayer::emitClamped",
-                         &TileGridLayer::emitClamped,
-                         psx::present::Producer{psx::present::Arg::A0});
-  natives.declareOverlay("A07",
-                         0x8012F938u,
-                         "&TileGridLayer::emitRowLead",
-                         &TileGridLayer::emitRowLead,
-                         psx::present::Producer{psx::present::Arg::A0});
+  natives.declareOverlay("SOP", Sop::kGridDraw.entry, "&TileGridLayer::emitSop", &TileGridLayer::emitSop);
+  natives.declareOverlay("A06", 0x80141A94u, "&TileGridLayer::emitClamped", &TileGridLayer::emitClamped);
+  natives.declareOverlay("A07", 0x8012F938u, "&TileGridLayer::emitRowLead", &TileGridLayer::emitRowLead);
 }
 
 } // namespace tomba

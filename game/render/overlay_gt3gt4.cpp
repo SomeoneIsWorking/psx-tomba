@@ -27,9 +27,7 @@
 #include "guest_ordering_table.h"
 #include "horizontal_visibility_cull.h"
 #include "list_job.h"
-#include "model_element.h"
 #include "model_packet.h"
-#include "object_draw.h"
 #include <cstddef>
 #include <lucent/log.h>
 #include <stdio.h>
@@ -160,10 +158,7 @@ uint32_t OverlayGt3Gt4::emitGt3(const psx::present::EmitMemory &memory,
     return rec;
   }
   uint32_t pool = tomba::render::PacketPool(memory).cursor();
-  const uint32_t list = rec;
   for (; count != 0; count--, rec += 36) {
-    const psx::present::ElementScope primitive(
-        memory, tomba::render::modelElement(tomba::render::ModelList::Gt3, (rec - list) / 36));
     c->gte().writeData(0, memory.mem_r32(rec + 16)); // VXY0
     uint32_t vz01 = memory.mem_r32(rec + 20);
     c->gte().writeData(2, memory.mem_r32(rec + 24)); // VXY1
@@ -271,10 +266,7 @@ OverlayGt3Gt4::emitGt4(const psx::present::EmitMemory &memory, const tomba::rend
     return rec;
   }
   uint32_t pool = tomba::render::PacketPool(memory).cursor();
-  const uint32_t list = rec;
   for (; count != 0; count--, rec += 44) {
-    const psx::present::ElementScope primitive(
-        memory, tomba::render::modelElement(tomba::render::ModelList::Gt4, (rec - list) / 44));
     c->gte().writeData(0, memory.mem_r32(rec + 20)); // VXY0
     uint32_t vz01 = memory.mem_r32(rec + 24);
     c->gte().writeData(2, memory.mem_r32(rec + 28)); // VXY1
@@ -389,10 +381,8 @@ using tomba::render::ListCall;
 constexpr uint32_t kA08Gt3 = 0x80140FBCu;
 constexpr uint32_t kA08Gt4 = 0x801411D8u;
 
-// A leaf's call is its own drawing object: (leaf, the object that reached it), or (leaf, list) outside one.
-template <uint32_t Entry, bool Quad, uint32_t Scroll> void emitAt(Core *c) {
+template <bool Quad, uint32_t Scroll> void emitAt(Core *c) {
   const ListCall call = ListCall::fromRegisters(*c);
-  const tomba::render::EmitterObject object(*c, Entry, call.list);
   if constexpr (Quad) {
     c->r[2] = OverlayGt3Gt4::emitGt4(*c, call, Scroll);
   } else {
@@ -412,14 +402,14 @@ constexpr uint32_t kA08Scroll = OverlayGt3Gt4::kA08Scroll;
 
 // A00's leaves, copied unchanged into A07 and A0L; A08's pair adds the texture scroll.
 constexpr Leaf kLeaves[] = {
-    {"A00", 0x801465ECu, false, &emitAt<0x801465ECu, false, kNoScroll>},
-    {"A00", 0x801467BCu, true, &emitAt<0x801467BCu, true, kNoScroll>},
-    {"A07", 0x801311D0u, false, &emitAt<0x801311D0u, false, kNoScroll>},
-    {"A07", 0x801313A0u, true, &emitAt<0x801313A0u, true, kNoScroll>},
-    {"A0L", 0x80112DECu, false, &emitAt<0x80112DECu, false, kNoScroll>},
-    {"A0L", 0x80112FBCu, true, &emitAt<0x80112FBCu, true, kNoScroll>},
-    {"A08", kA08Gt3, false, &emitAt<kA08Gt3, false, kA08Scroll>},
-    {"A08", kA08Gt4, true, &emitAt<kA08Gt4, true, kA08Scroll>},
+    {"A00", 0x801465ECu, false, &emitAt<false, kNoScroll>},
+    {"A00", 0x801467BCu, true, &emitAt<true, kNoScroll>},
+    {"A07", 0x801311D0u, false, &emitAt<false, kNoScroll>},
+    {"A07", 0x801313A0u, true, &emitAt<true, kNoScroll>},
+    {"A0L", 0x80112DECu, false, &emitAt<false, kNoScroll>},
+    {"A0L", 0x80112FBCu, true, &emitAt<true, kNoScroll>},
+    {"A08", kA08Gt3, false, &emitAt<false, kA08Scroll>},
+    {"A08", kA08Gt4, true, &emitAt<true, kA08Scroll>},
 };
 
 } // namespace

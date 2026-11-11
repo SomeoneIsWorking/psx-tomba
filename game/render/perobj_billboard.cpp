@@ -21,7 +21,6 @@
 #include "guest_call.h"
 #include "guest_ordering_table.h"
 #include "horizontal_visibility_cull.h"
-#include "object_draw.h"
 #include "render.h"
 
 #include <lucent/log.h>
@@ -456,8 +455,6 @@ void Render::billboardInstances() {
   if ((int16_t)c->mem_r16(node + kInstanceCount) <= 0) {
     return;
   }
-  const tomba::render::ObjectDrawScope draw(
-      *c, kBillboardInstances, eng(c).graphicsBind.records.object(node));
   GuestReg<17> entryReg(c);
   entryReg = c->mem_r32(node + kInstanceTable) + kInstancePosition;
   for (uint32_t index = 0; (int32_t)index < (int16_t)c->mem_r16(node + kInstanceCount); index++) {
@@ -501,10 +498,6 @@ void Render::billboardEmit() {
   if (c->mem_r32(node + 56) == 0) {
     return;
   }
-  // A node is drawn twice in one frame, so the object is the call: the n-th call from the site drawing this node.
-  const tomba::render::EmitterObject object(*c,
-                                            kBillboardEmit,
-                                            tomba::render::OwnObject{sessionOf(c).callSites.object(c->r[31], node)});
   GuestFrame frame(c, 96); // real guest stack frame: guest 0x8003B220 writes through this as a real
                            // guest address, and callers' own frames must already be allocated
                            // (see GuestFrame's comment) for this base to land on the same bytes

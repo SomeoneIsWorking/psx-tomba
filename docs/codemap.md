@@ -1,7 +1,7 @@
 # Codemap — Tomba! 2 and Tomba! 1
 
 Where the code lives and what each owner owns. Feature chains are in `docs/features.md`, guest
-function owners in `docs/guest-addresses.md`, producers in `docs/producers.md`, Tomba! 1 in
+function owners in `docs/guest-addresses.md`, model emitters in `docs/draw-emitters.md`, Tomba! 1 in
 `titles/tomba1/docs/codemap.md`; the framework side is `external/psxport/docs/codemap.md`.
 
 Frame loop: owned. `tomba::FrameDriver` runs one pass of `0x80050B08` (update `0x800788AC`, scheduler `0x80051E60`); `FrameCadence` replaces its VBlank gate. Tomba! 1: `titles/tomba1/docs/codemap.md`.
@@ -13,8 +13,8 @@ Frame loop: owned. `tomba::FrameDriver` runs one pass of `0x80050B08` (update `0
 | `tomba::Catalog`, `createCatalog` | `game/core/entry/catalog.h` | The product catalog: index 0 Tomba! 1, index 1 Tomba! 2, one picker panel each; the only place both title trees are named |
 | `bootStubIdentity`, `mainExecutableIdentity` | `game/core/entry/identity.h` | SCUS_944.54 and MAIN.EXE size, SHA-256, PS-X EXE header and disc paths, from `config/images.json` |
 | `loadMainExecutable` | `game/core/entry/main_handoff.h` | The stub-to-MAIN.EXE handoff: read from the disc, authenticate, load, set the entry registers |
-| `tomba::Runtime` | `game/core/entry/runtime.h` | The `GameRuntime`: CRT0 and `bootInit`, stock library bindings and overrides, session, frame driver, scheduler, pad delivery, packet pool, producers, frame cuts, widescreen (`AspectPolicy`: 4:3 over the boot cards), commands, audio, dev warp, world readout |
-| `tomba::Session` | `game/core/entry/session.h` | Per-Game title state: `Engine`, render, CD and its save-state port, scheduler, audio, dev warp, override catalog, state producers, call sites; the `eng()`/`rend()`/`fade()` accessors |
+| `tomba::Runtime` | `game/core/entry/runtime.h` | The `GameRuntime`: CRT0 and `bootInit`, stock library bindings and overrides, session, frame driver, scheduler, pad delivery, packet pool, frame cuts, widescreen (`AspectPolicy`: 4:3 over the boot cards), commands, audio, dev warp, world readout |
+| `tomba::Session` | `game/core/entry/session.h` | Per-Game title state: `Engine`, render, CD and its save-state port, scheduler, audio, dev warp, override catalog, state producers, update-block call sites; the `eng()`/`rend()`/`fade()` accessors |
 | `tomba::Settings` | `game/core/entry/settings.h` | `PSXPORT_NO_FMV`, `PSXPORT_AUTO_SKIP`, read once from the CVar registry |
 | `Engine`, `StepReturn` | `game/core/engine/` | The stage driver: field run, frame ticks, task machine, object leaves, state dispatch, scene frame |
 | `tomba::FrameDriver` | `game/core/frame/frame_driver.h` | One pass of the retail main loop FUN_80050B08 per frame and exactly one presentation fence (`docs/re/frame-loop.md`) |
@@ -46,7 +46,7 @@ Frame loop: owned. `tomba::FrameDriver` runs one pass of `0x80050B08` (update `0
 | `Actor`, `BehaviorDispatch`, `ObjectList`, `Animation` | `game/object/` | The guest object lens, behaviour dispatch, entity-list walks, animation VM, rewards, cube text |
 | `ActorTomba`, `ActorInteraction`, `Collision`, `ActorTargeting` | `game/player/` | Tomba's actor (G block), item interaction, collision grid, targeting |
 | `Spawn`, `Pool`, `AreaSlots`, `ObjectTable`, `Placement`, `CollisionResolve`, `GraphicsBind`, `AreaEntries` | `game/world/` | Field object population, placement, collision resolve, render binding and the per-area entry records with their map-screen names |
-| `RenderRecordPool` | `game/world/render_record_pool.h` | The render-record free stack FUN_8007AAE8 and each record's life, the object key of record-keyed producers; the record run's `MotionLiveness` |
+| `RenderRecordPool` | `game/world/render_record_pool.h` | The render-record free stack FUN_8007AAE8; the record run's `MotionLiveness` |
 | `Demo`, `Sop`, `StartBinStage` | `game/scene/demo.h`, `game/scene/sop.h`, `game/scene/start_bin_stage.h` | The DEMO front end (OP.STR), the SOP intro field, task-0's disc tables and boot preloads |
 | `NarrationScroller` | `game/scene/narration_scroller.h` | SOP's narration crawl S:8010C79C: steps then places its lines; a replay places them at the blended scroll |
 | `ScriptInterp`, `ScriptObject` | `game/scene/script_*` | The cutscene script interpreter and its vocabulary |
@@ -71,14 +71,13 @@ Frame loop: owned. `tomba::FrameDriver` runs one pass of `0x80050B08` (update `0
 | `OverlayGt3Gt4`, `OverlayGroundGt3Gt4` | `game/render/overlay_*gt3gt4.*` | The overlay scenery GT3/GT4 emitters |
 | `PackedMesh`, `DropShadow` | `game/render/packed_mesh.h`, `game/render/drop_shadow.h` | The packed-mesh writer FUN_80027768 and the drop shadow FUN_8002AB5C |
 | `ListCall` | `game/render/list_job.h` | The registers a model list emitter takes |
-| `ObjectEffect`, `ObjectDraw` | `game/render/object_effect.h`, `game/render/object_draw.h` | The dispatcher's per-object effect over an emitted packet span; a billboard node's instances as one scoped object |
+| `ObjectEffect` | `game/render/object_effect.h` | The dispatcher's per-object effect over an emitted packet span |
 | `BackdropPlane` | `game/render/backdrop_plane.h` | A0E's boss arena waterfall plane FUN_80110CA4: its grid, reflection and haze band |
 | `BackdropSprites` | `game/render/backdrop_sprites.h` | A0E's boss arena background sprites FUN_80111E14: seeded anchors stamped as scaled sprites |
 | `GradientBackdrop` | `game/render/gradient_backdrop.h` | A0E's boss arena sky FUN_80114178: gouraud bands across the draw window |
 | `LineStrip`, `AreaMap`, `ScaledSprites` | `game/render/line_strip.h`, `game/render/area_map.h`, `game/render/scaled_sprites.h` | A08's node strip and A02/A07's map+marker; the scaled sprite-record writer the FX sprite emitters stamp through |
-| `GuestKeyedEmitters` | `game/render/guest_keyed_emitters.h` | The guest render fns run under their owner's scope (the A01/A00 unported leaves, the DEMO and A01 bodies that take no object) |
-| `CallSiteObjects` | `game/render/call_site_objects.h` | The call-site object key |
-| `ScreenFade`, `LetterboxBars`, `HudGaugeEmitter` | `game/render/screen_fade.h`, `game/render/letterbox_bars.h`, `game/render/hud_gauge_emitter.h` | The fade leaf FUN_8007E9C8, the cutscene letterbox FUN_80026864, the HUD gauge FUN_8004FD30 (keyed: its glyph rows draw through the still-guest FUN_8004EB94) |
+| `CallSiteObjects` | `game/render/call_site_objects.h` | Which call of a 2D writer an update-block draw is (`UpdateBlockDraws` pairing) |
+| `ScreenFade`, `LetterboxBars`, `HudGaugeEmitter` | `game/render/screen_fade.h`, `game/render/letterbox_bars.h`, `game/render/hud_gauge_emitter.h` | The fade leaf FUN_8007E9C8, the cutscene letterbox FUN_80026864, the HUD gauge FUN_8004FD30 |
 | `NodeXform`, `ObjModelView`, `QuadRtptSubmit`, `LibgpuDrawEnv` | `game/render/` | Node transforms, model-view setup, the shared quad submit, DRAWENV compile |
 | `Cull`, `Visibility` | `game/render/cull.h`, `game/render/horizontal_visibility_cull.h` | Per-object cull and LOD; the one horizontal visibility test over the draw window |
 | widescreen | `game/render/wide_window.h`, `game/render/widescreen_margin_quad.h`, `game/render/wide_re_*.cpp` | The draw window and margin width, margin quads, retained-width libgpu leaves |
@@ -93,8 +92,8 @@ Frame loop: owned. `tomba::FrameDriver` runs one pass of `0x80050B08` (update `0
 
 - A Tomba! 2 guest function replaced natively → the `game/` subsystem that owns it, declared through
   `NativeOverrideCatalog`, with its row in `docs/guest-addresses.md`.
-- A producer → `game/render/` or `game/ui/`, registered in `tomba::Runtime::registerOverrides` and listed in
-  `docs/producers.md`.
+- A draw owner → `game/render/` or `game/ui/`, registered in `tomba::Runtime::registerOverrides`; a model emitter is
+  listed in `docs/draw-emitters.md`.
 - Per-frame order, input, timing or the presentation fence → `game/core/frame/frame_driver.cpp`.
 - Guest task scheduling → `game/core/sched/`.
 - A developer command → `game/core/debug/`, applied at a frame boundary.

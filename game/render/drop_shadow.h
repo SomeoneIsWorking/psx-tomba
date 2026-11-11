@@ -26,7 +26,6 @@ public:
 
   // FUN_8002AB5C with the node in a0.
   static void draw(Core &core);
-  // Each shadow is an object of its own: its render record's current life.
   static void registerOverrides(native::NativeOverrideCatalog &natives);
 };
 

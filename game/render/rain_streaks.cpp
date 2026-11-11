@@ -92,7 +92,6 @@ void RainStreaks::draw(Core *c) {
   std::uint32_t pool = packets.cursor();
   for (std::uint32_t drop = 0; drop < kDropCount; drop++) {
     const std::uint32_t trail = kDropTrails + drop * 4u;
-    const auto streakScope = c->emission.instance(trail);
     const auto multiplier = static_cast<std::int32_t>(c->mem_r32(kLcgMultiplier));
     const std::int32_t latticeX = static_cast<std::int32_t>(seed) >> 16;
     seed = static_cast<std::uint32_t>(psx::cpu::multiply(c, static_cast<std::int32_t>(seed), multiplier)) + 1u;
@@ -157,8 +156,7 @@ void RainStreaks::draw(Core *c) {
 }
 
 void RainStreaks::registerOverrides(native::NativeOverrideCatalog &natives) {
-  natives.declareOverlay(
-      "A08", kEntry, "RainStreaks::draw", &RainStreaks::draw, psx::present::Producer{psx::present::Arg::A0});
+  natives.declareOverlay("A08", kEntry, "RainStreaks::draw", &RainStreaks::draw);
 }
 
 } // namespace tomba

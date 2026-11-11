@@ -53,7 +53,6 @@ calls it. A row whose handler is file-local names the file that declares the ove
 | 0x80031744 | LIVE | `ScriptInterp::refreshCachedTailLo` | game/scene/script_interp.cpp |  | ORACLE: guest 0x80031744 |
 | 0x80031780 | LIVE | `Collision::listScan` | game/player/collision.cpp | 0x80031780 | list-tail resolver / reset. Walks the 8-byte-stride linked list rooted… |
 | 0x800318A0 | LIVE | `ObjModelView::composeIntoGte` | game/render/obj_model_view.cpp |  | ORACLE: guest 0x800318A0 (tools/dynamic differential evidence equivale… |
-| 0x800328BC | LIVE | `GuestKeyedEmitters::nodeStamp` | game/render/guest_keyed_emitters.cpp | 0x80027A4C | The node's sprite stamp the area effect leaves call; keyed to the node. |
 | 0x80032A44 | LIVE | `Rng::inRange` | game/math/rng.cpp |  | scaled random. Disas 0x80032A44..0x80032A84 verbatim: `sra v0, 15` on … |
 | 0x80036DFC | LIVE | `SaveMenu::runHandler` | game/ui/save_menu.cpp |  |  |
 | 0x80036DFC | LIVE | `SaveMenu::dispatchBody` | game/ui/save_menu.cpp |  |  |
@@ -528,7 +527,6 @@ calls it. A row whose handler is file-local names the file that declares the ove
 | 0x8010957C | LIVE | `AreaFadeSequencer::step` | game/scene/area_fade_sequencer.cpp | 0x8007E9C8 0x8010CC68 0x8010D030 | A0L per-node fade sequencer run by `Engine::fieldRun` while sm[0x4e]==0xb. |
 | 0x801099B4 | LIVE | `UnlitModelEmitter::gt3` (SOP) | game/render/unlit_model_emitter.cpp |  | SOP unlit GT3; A0B and A0C copy its body. |
 | 0x80109C80 | LIVE | `UnlitModelEmitter::gt4` (SOP) | game/render/unlit_model_emitter.cpp |  | SOP unlit GT4. |
-| 0x80109EEC | LIVE | `GuestKeyedEmitters::a03Hud` (A03) | game/render/guest_keyed_emitters.cpp |  | The area HUD, keyed as one screen. |
 | 0x80109FE0 | LIVE | `SopGround::draw` | game/render/sop_ground.cpp | 0x801099B4 0x80109C80 | SOP ground blocks; producer, object = block |
 | 0x8010A0E0 | LIVE | `Sop::scenePrepass` | game/scene/sop.cpp |  | SOP scene cam-frustum prepass — native ownership of FUN_8010A0E0 (Ghid… |
 | 0x8010A3AC | LIVE | `Sop::sceneGridGather` | game/scene/sop.cpp |  | sceneGridGather — native port of guest FUN_8010A3AC (Ghidra decomp |
@@ -570,10 +568,8 @@ calls it. A row whose handler is file-local names the file that declares the ove
 | 0x80110290 | LIVE | `SubdividedGround::draw` (A03) | game/render/subdivided_ground.cpp |  | Ground GT4 with 0x8010F968 (screen split) and 0x8010F1A0 (model split) folded in; the two splits pick the band from depth - 0xE9, the averaged path from depth. |
 | 0x801103F4 | LIVE | `UnlitModelEmitter::gt3` (A0A) | game/render/unlit_model_emitter.cpp |  | Flagged unlit GT3 (kFlagged). |
 | 0x80110698 | LIVE | `UnlitModelEmitter::gt4` (A0A) | game/render/unlit_model_emitter.cpp |  | Flagged unlit GT4 (kFlagged). |
-| 0x80110C14 | LIVE | `GuestKeyedEmitters::a0dRing` (A0D) | game/render/guest_keyed_emitters.cpp | 0x80027A4C | The node's ring of 21 sprite stamps, keyed to the node. |
 | 0x80110CA4 | LIVE | `BackdropPlane::draw` (A0E) | game/render/backdrop_plane.cpp |  | Boss arena waterfall: 10x7 GT4 plane mirrored about y 0 and a 10-quad additive haze band, then FUN_801104D0. |
 | 0x801110BC | LIVE | `DustField::draw` (A0B) | game/render/dust_field.cpp |  | 513 lattice points as white rects; producer, object = node. |
-| 0x801113B4 | LIVE | `GuestKeyedEmitters::a03Ribbon` (A03) | game/render/guest_keyed_emitters.cpp |  | The node ribbon through 0x80110B00, keyed to the node; A0B has another body here. |
 | 0x80111E14 | LIVE | `BackdropSprites::draw` (A0E) | game/render/backdrop_sprites.cpp | 0x80027A4C | Boss arena background sprites: eight seeded anchors stamped by ScaledSprites at bucket 0x7FE; producer. |
 | 0x80112188 | LIVE | `ActorMeleeEngage::doIt` | game/ai/actor_melee_engage.cpp | 0x80022C78 0x80055844 0x80084080 |  |
 | 0x80112188 | LIVE | `ActorMeleeEngage::registerOverrides` | game/ai/actor_melee_engage.cpp |  |  |
@@ -600,7 +596,6 @@ calls it. A row whose handler is file-local names the file that declares the ove
 | 0x80114178 | LIVE | `GradientBackdrop::emit` (A0E) | game/render/gradient_backdrop.cpp |  | Boss arena sky: four G4 bands across the draw window at bucket 0x7FF. |
 | 0x801141B0 | LIVE | `TileGridLayer::emitUnbiased` (A0B) | game/render/tile_grid_layer.cpp |  | Tile grid with no V bias; producer, object = map cell. |
 | 0x801142EC | LIVE | `TileGridLayer::emitUnbiased` (A0A) | game/render/tile_grid_layer.cpp |  | Tile grid with no V bias; producer, object = map cell. |
-| 0x801143C4 | LIVE | `GuestKeyedEmitters::lensFlare` (A0F) | game/render/guest_keyed_emitters.cpp |  | The node's lens flare and its 0x80027A4C sparkles, keyed to the node. |
 | 0x80114458 | LIVE | `UnlitModelEmitter::gt3` (A0E) | game/render/unlit_model_emitter.cpp |  | Flagged unlit GT3 (kFlagged). |
 | 0x801146FC | LIVE | `UnlitModelEmitter::gt4` (A0E) | game/render/unlit_model_emitter.cpp |  | Flagged unlit GT4 (kFlagged). |
 | 0x80114A5C | LIVE | `UnlitModelEmitter::gt3` (A0F) | game/render/unlit_model_emitter.cpp |  | kA0a's body, scroll on the first matching flag with its own bucket (kA0f). |
@@ -612,12 +607,10 @@ calls it. A row whose handler is file-local names the file that declares the ove
 | 0x80115A70 | LIVE | `UnlitModelEmitter::gt4` (A0F) | game/render/unlit_model_emitter.cpp |  | Flagged unlit GT4 (kFlagged). |
 | 0x80116778 | LIVE | `TileGridLayer::emitUnbiased` (A0F) | game/render/tile_grid_layer.cpp |  | Tile grid with no V bias; producer, object = map cell. |
 | 0x80116904 | LIVE | `RainStreaks::draw` | game/render/rain_streaks.cpp | 0x80083DE0 0x80084220 0x80084660 0x80084690 | A08 rain streaks; producer, element = drop |
-| 0x80116ABC | LIVE | `GuestKeyedEmitters::a0fWire` (A0F) | game/render/guest_keyed_emitters.cpp |  | The node's wire of 0x80112D10 shimmer lines, keyed to the node. |
 | 0x80116B9C | LIVE | `TileGridLayer::emitUnbiased` (A0D) | game/render/tile_grid_layer.cpp |  | Tile grid with no V bias; producer, object = map cell. |
 | 0x80117658 | LIVE | `beh_prng_velocity_machine` | game/ai/beh_prng_velocity_machine.cpp |  |  |
 | 0x801178A4 | LIVE | `whiteFlashPhaseRamp` | game/ai/beh_a06_multi_actor.cpp |  | the 5-phase white-flash phase ramp SM. See the file header for the pha… |
 | 0x80117AAC | LIVE | `whiteFadeHold` | game/ai/beh_a06_multi_actor.cpp |  | 3-state fade-hold-fade-back companion to whiteFlashPhaseRamp. |
-| 0x80117D4C | LIVE | `GuestKeyedEmitters::a07Rope` (A07) | game/render/guest_keyed_emitters.cpp |  | Sagging 16-point strip through 0x80117AB8, keyed to the node. |
 | 0x80118240 | LIVE | `beh_typed_init_exit_poker` | game/ai/beh_typed_init_exit_poker.cpp |  |  |
 | 0x80118690 | LIVE | `shared_8690` | game/ai/beh_typed_init_exit_poker.cpp |  | Shared block @0x80118690: FUN_80051D90(node[0x10], a1_buf, 0x1F8000C0)… |
 | 0x801189E8 | LIVE | `beh_a06_multi_actor` | game/ai/beh_a06_multi_actor.cpp |  | The guest body 0x801189E8 is ONE function that descends sp by 32 and s… |
@@ -654,7 +647,6 @@ calls it. A row whose handler is file-local names the file that declares the ove
 | 0x801280D0 | LIVE | `beh_a08_scene_actor` | game/ai/beh_a08_scene_actor.cpp |  |  |
 | 0x801281B8 | LIVE | `RopeSwing::swingTickAndBendSegments` | game/ai/rope_swing.cpp |  | ORACLE: overlay guest 0x801281B8 |
 | 0x80128760 | LIVE | `beh_linked_advance_branch` | game/ai/beh_linked_advance_branch.cpp |  |  |
-| 0x80129AF8 | LIVE | `GuestKeyedEmitters::a06Line` (A06) | game/render/guest_keyed_emitters.cpp |  | Three-point line, keyed by call site. |
 | 0x80129BAC | LIVE | `LitModelEmitter::gt3` (A08) | game/render/lit_model_emitter.cpp |  | Lit GT3 list emitter; the A05 and A07 copies share the native. |
 | 0x80129C00 | LIVE | `beh_anim_trigger_gates` | game/ai/beh_anim_trigger_gates.cpp |  |  |
 | 0x8012A06C | LIVE | `LitModelEmitter::gt4` (A08) | game/render/lit_model_emitter.cpp |  | Lit GT4 list emitter. |

@@ -8,7 +8,6 @@
 #include "horizontal_visibility_cull.h"
 #include "list_job.h"
 #include "model_packet.h"
-#include "object_draw.h"
 
 #include <algorithm>
 #include <array>
@@ -189,7 +188,6 @@ bool emitGt4(const psx::present::EmitMemory &memory,
 
 template <std::uint32_t Entry, bool Quad> void emitAt(Core *core) {
   const ListCall call = ListCall::fromRegisters(*core);
-  const EmitterObject object(*core, Entry, call.list);
   core->r[2] = FogModelEmitter::emit(*core, call, horizontal_cull::forDrawWindow(core), Quad);
 }
 

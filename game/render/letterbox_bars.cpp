@@ -130,7 +130,6 @@ void LetterboxBars::tick(Core &core, std::uint32_t slot, int margin) {
   default:
     return;
   }
-  const psx::present::EmissionScope::Guard object(core.emission, kEntry, slot, 0);
   const std::array<std::uint32_t, 2> bars = drawBars(core, {.slot = slot, .margin = margin});
   sessionOf(&core).drawReplay.updateDraws().note(
       core,

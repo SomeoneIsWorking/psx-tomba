@@ -579,8 +579,6 @@ L_80078ECC:
   c->r[2] = c->r[4] + 8u;
   c->mem_w8(c->r[18] + 13u, (uint8_t)c->r[2]);
 L_80078F04: {
-  // A glyph is an object of its own, named by its character's address.
-  const auto glyph = c->emission.instance(c->r[16]);
   // prepend a 4-word GP0 packet from the packet pool into the OT bucket for this colorArg.
   const tomba::render::PacketPool glyphPackets(*c);
   const auto glyphOt = tomba::render::OrderingTable::active(*c);
@@ -915,7 +913,7 @@ void Font::registerOverrides(native::NativeOverrideCatalog &natives) {
   natives.declare(kDrawText, "ov_drawText", ov_drawText);
   natives.declare(0x80079324u, "ov_drawTextSmall", ov_drawTextSmall); // 8x8 sibling of drawText
   // A text draw is the object of its string (a3); each glyph names its byte offset in it.
-  natives.declare(kGlyphEmit, "Font::glyphEmit", Font::glyphEmit, psx::present::Producer{psx::present::Arg::A3});
+  natives.declare(kGlyphEmit, "Font::glyphEmit", Font::glyphEmit);
   natives.declare(0x80078988u, "Font::iconGlyphEmit", Font::iconGlyphEmit); // icon/SJIS glyph strings
 }
 

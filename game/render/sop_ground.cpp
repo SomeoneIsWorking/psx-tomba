@@ -42,7 +42,6 @@ void SopGround::draw(Core *c) {
   for (std::uint32_t slot = 0; slot < count; slot++) {
     const std::uint32_t block = blocks + c->mem_r16(list + kListIndices + slot * 2u) * 4u;
     const std::uint32_t counts = c->mem_r32(block);
-    const auto drawn = c->emission.instance(block);
     c->r[4] = block + kBlockRecords;
     c->r[5] = orderingTable;
     c->r[6] = counts & 0xFFu;
@@ -57,8 +56,7 @@ void SopGround::draw(Core *c) {
 }
 
 void SopGround::registerOverrides(native::NativeOverrideCatalog &natives) {
-  natives.declareOverlay(
-      "SOP", kEntry, "SopGround::draw", &SopGround::draw, psx::present::Producer{psx::present::Arg::A0});
+  natives.declareOverlay("SOP", kEntry, "SopGround::draw", &SopGround::draw);
 }
 
 } // namespace tomba

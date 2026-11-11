@@ -76,7 +76,6 @@ void Render::sharedTransformWalk(Core *c) {
         c->r[5] = tomba::render::OrderingTable::active(*c).base();
         c->r[31] = 0x8003F140u; // jal-site ra
         c->r[6] = passThrough;
-        const auto part = c->emission.instance(eng(c).graphicsBind.records.object(sub));
         psx::cpu::callGuestNow(*c, __func__, 0x8003F698u);
 
         index += 1;
@@ -99,10 +98,7 @@ static void ov_shared_transform_walk(Core *c) {
 }
 
 void shared_transform_walk_install(native::NativeOverrideCatalog &natives) {
-  natives.declare(0x8003F07Cu,
-                  "Render::sharedTransformWalk",
-                  ov_shared_transform_walk,
-                  psx::present::Producer{psx::present::Arg::A0});
+  natives.declare(0x8003F07Cu, "Render::sharedTransformWalk", ov_shared_transform_walk);
 }
 
 } // namespace tomba

@@ -29,8 +29,6 @@ constexpr std::uint32_t kCueShift = 5u;
 constexpr std::uint32_t kSizeShift = 11u;
 
 void drawEntry(Core *core) {
-  const psx::present::EmissionScope::Guard object(
-      core->emission, DropShadow::kDraw, eng(core).graphicsBind.records.object(core->r[4]), 0);
   DropShadow::draw(*core);
 }
 

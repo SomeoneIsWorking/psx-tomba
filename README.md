@@ -107,7 +107,7 @@ publishing it under `scratch/bin/<slug>/`; a title whose disc is absent gets no 
 - [`docs/codemap.md`](docs/codemap.md): subsystem ownership and placement
 - [`docs/features.md`](docs/features.md): where each title joins psxport's feature hops
 - [`docs/guest-addresses.md`](docs/guest-addresses.md): Tomba! 2 guest function to native owner
-- [`docs/producers.md`](docs/producers.md): Tomba! 2's 60 fps producers and state renders
+- [`docs/draw-emitters.md`](docs/draw-emitters.md): Tomba! 2's native model emitters and their callers
 - [`titles/tomba1/docs/re-frontier.md`](titles/tomba1/docs/re-frontier.md): Tomba! 1's independent chain
 
 Open defects live in [`docs/issues/`](docs/issues/). New analysis starts from the executable, the

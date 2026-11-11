@@ -8,7 +8,6 @@
 #include "guest_abi.h"
 #include "guest_ordering_table.h"
 #include "list_job.h"
-#include "object_draw.h"
 #include "scaled_sprites.h"
 
 #include <algorithm>
@@ -76,8 +75,6 @@ void emitPerParticle(Core *c) {
                               .a3 = records,
                               .sp = c->r[29],
                               .a1 = 0};
-  const render::EmitterObject object(
-      *c, FxSpriteSwarm::kEmitter, render::OwnObject{eng(c).graphicsBind.records.object(node)});
 
   if (!FxSpriteSwarm::begin(*c, call)) {
     return;

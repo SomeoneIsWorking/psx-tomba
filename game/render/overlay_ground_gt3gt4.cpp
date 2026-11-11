@@ -60,9 +60,7 @@
 #include "guest_ordering_table.h"
 #include "horizontal_visibility_cull.h"
 #include "list_job.h"
-#include "model_element.h"
 #include "model_packet.h"
-#include "object_draw.h"
 #include <array>
 #include <cstdint>
 #include <lucent/log.h>
@@ -128,10 +126,7 @@ uint32_t OverlayGroundGt3Gt4::emitGt3(const psx::present::EmitMemory &memory,
   uint32_t pool = tomba::render::PacketPool(memory).cursor();
   const uint32_t sp = call.sp; // the real frame below it is 6 scratch words, no spills
 
-  const uint32_t list = rec;
   for (; count != 0; count--, rec += 36) {
-    const psx::present::ElementScope primitive(
-        memory, tomba::render::modelElement(tomba::render::ModelList::Gt3, (rec - list) / 36));
     c->gte().writeData(0, memory.mem_r32(rec + 16)); // VXY0
     uint32_t vz01 = memory.mem_r32(rec + 20);
     c->gte().writeData(2, memory.mem_r32(rec + 24)); // VXY1
@@ -270,10 +265,7 @@ uint32_t OverlayGroundGt3Gt4::emitGt4(const psx::present::EmitMemory &memory,
   uint32_t pool = tomba::render::PacketPool(memory).cursor();
   const uint32_t sp = call.sp; // the real frame below it is 8 scratch words, no spills
 
-  const uint32_t list = rec;
   for (; count != 0; count--, rec += 44) {
-    const psx::present::ElementScope primitive(
-        memory, tomba::render::modelElement(tomba::render::ModelList::Gt4, (rec - list) / 44));
     c->gte().writeData(0, memory.mem_r32(rec + 20)); // VXY0
     uint32_t vz01 = memory.mem_r32(rec + 24);
     c->gte().writeData(2, memory.mem_r32(rec + 28)); // VXY1
@@ -439,18 +431,17 @@ void OverlayGroundGt3Gt4::entityLoop(Core *c) {
     uint32_t tableSlot = table + (uint32_t)idx * 4;
     uint32_t counts = c->mem_r32(tableSlot);
     uint32_t recBase = tableSlot + 4;
-    const auto entity = c->emission.instance(tableSlot);
 
     c->r[4] = recBase;
     c->r[5] = otBase;
     c->r[6] = counts & 0xFFu;
-    leaf(c, OverlayGroundGt3Gt4::kA00Gt3, false, kA00.gt3);
+    leaf(c, false, kA00.gt3);
     recBase = c->r[2];
 
     c->r[4] = recBase;
     c->r[5] = otBase;
     c->r[6] = (counts >> 16) & 0xFFu;
-    leaf(c, OverlayGroundGt3Gt4::kA00Gt4, true, kA00.gt4);
+    leaf(c, true, kA00.gt4);
   }
 
   c->r[31] = c->mem_r32(c->r[29] + 36);
@@ -462,17 +453,15 @@ void OverlayGroundGt3Gt4::entityLoop(Core *c) {
   c->r[29] += 40;
 }
 
-void OverlayGroundGt3Gt4::leaf(Core *c, std::uint32_t entry, bool quad, const ListDepth &depth) {
+void OverlayGroundGt3Gt4::leaf(Core *c, bool quad, const ListDepth &depth) {
   const tomba::render::ListCall call = tomba::render::ListCall::fromRegisters(*c);
-  const tomba::render::EmitterObject object(*c, entry, call.list);
   c->r[2] = quad ? emitGt4(*c, call, depth) : emitGt3(*c, call, depth);
 }
 
 namespace {
 
-// Each leaf's call is its own drawing object: (leaf, the entity or walker object that reached it).
-template <std::uint32_t Entry, bool Quad, const OverlayGroundGt3Gt4::Variant &Data> void emitAt(Core *c) {
-  OverlayGroundGt3Gt4::leaf(c, Entry, Quad, Quad ? Data.gt4 : Data.gt3);
+template <bool Quad, const OverlayGroundGt3Gt4::Variant &Data> void emitAt(Core *c) {
+  OverlayGroundGt3Gt4::leaf(c, Quad, Quad ? Data.gt4 : Data.gt3);
 }
 
 constexpr const auto &kA00 = OverlayGroundGt3Gt4::kA00;
@@ -489,10 +478,10 @@ struct Copy {
 
 // The A00 pair; the scenery walkers A02 0x80124CB8, A07 0x8012DA14 and A0L 0x8010B0B8 call their copies.
 constexpr Copy kCopies[] = {
-    {"A00", 0x8013FB88u, 0x8013FE58u, &emitAt<0x8013FB88u, false, kA00>, &emitAt<0x8013FE58u, true, kA00>},
-    {"A02", 0x801246A4u, 0x8012496Cu, &emitAt<0x801246A4u, false, kFarthest>, &emitAt<0x8012496Cu, true, kFarthest>},
-    {"A07", 0x8012C7E0u, 0x8012CAA8u, &emitAt<0x8012C7E0u, false, kFarthest>, &emitAt<0x8012CAA8u, true, kFarthest>},
-    {"A0L", 0x8010AA4Cu, 0x8010AD40u, &emitAt<0x8010AA4Cu, false, kA0L>, &emitAt<0x8010AD40u, true, kA0L>},
+    {"A00", 0x8013FB88u, 0x8013FE58u, &emitAt<false, kA00>, &emitAt<true, kA00>},
+    {"A02", 0x801246A4u, 0x8012496Cu, &emitAt<false, kFarthest>, &emitAt<true, kFarthest>},
+    {"A07", 0x8012C7E0u, 0x8012CAA8u, &emitAt<false, kFarthest>, &emitAt<true, kFarthest>},
+    {"A0L", 0x8010AA4Cu, 0x8010AD40u, &emitAt<false, kA0L>, &emitAt<true, kA0L>},
 };
 
 } // namespace
@@ -503,11 +492,7 @@ void OverlayGroundGt3Gt4::registerOverrides(native::NativeOverrideCatalog &nativ
     natives.declareOverlay(copy.image, copy.gt4, "OverlayGroundGt3Gt4::gt4", copy.gt4Body);
   }
   // Each listed table slot is the drawn object; gt3/gt4 name its records.
-  natives.declareOverlay("A00",
-                         0x801401B8u,
-                         "&OverlayGroundGt3Gt4::entityLoop",
-                         &OverlayGroundGt3Gt4::entityLoop,
-                         psx::present::Producer{psx::present::Arg::A0});
+  natives.declareOverlay("A00", 0x801401B8u, "&OverlayGroundGt3Gt4::entityLoop", &OverlayGroundGt3Gt4::entityLoop);
 }
 
 } // namespace tomba

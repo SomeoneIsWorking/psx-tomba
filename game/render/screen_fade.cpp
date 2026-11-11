@@ -10,7 +10,6 @@
 #include "guest_ordering_table.h"
 #include "wide_window.h"
 
-
 namespace tomba {
 
 namespace {
@@ -33,10 +32,7 @@ constexpr std::uint32_t kModeBytes = 12u;
 constexpr std::uint32_t kSubtractiveTpage = 0x40u;
 constexpr std::uint32_t kAdditiveTpage = 0x20u;
 
-// Each call is an object of its own: the fade a call site draws, n-th in its frame.
 void drawEntry(Core *core) {
-  const std::uint32_t object = sessionOf(core).callSites.object(core->r[31]);
-  const psx::present::EmissionScope::Guard scope(core->emission, ScreenFade::kLeaf, object, 0);
   ScreenFade::draw(*core, tomba::wide_window::drawWindow(core));
 }
 
