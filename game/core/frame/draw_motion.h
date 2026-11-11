@@ -28,7 +28,7 @@ public:
                                                                    float t) const;
 
 private:
-  static constexpr std::size_t kTracks = 18;
+  static constexpr std::size_t kTracks = 17;
 
   psx::present::TransformRule transform_;
   psx::present::RingRule gridScroll_;
@@ -40,7 +40,6 @@ private:
   ResidentImage a01_{"A01", 0x80132358u};
   ResidentImage a02_{"A02", 0x80124DB8u};
   ResidentImage a06_{"A06", 0x8013CF00u};
-  ResidentImage a0d_{"A0D", 0x80113628u};
   ResidentImage a0f_{"A0F", 0x80115364u};
   std::array<psx::present::MotionTrack, kTracks> tracks_;
   const psx::present::MotionTrack *tileGrid_ = nullptr;

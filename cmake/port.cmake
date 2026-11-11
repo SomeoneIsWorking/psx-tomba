@@ -229,6 +229,7 @@ set(GAME_SRC
   game/render/list_state_producer.cpp
   game/render/lit_model_emitter.cpp
   game/render/unlit_model_emitter.cpp
+  game/render/wave_phases.cpp
   game/render/sway_model_emitter.cpp
   game/render/sop_ground.cpp
   game/render/rain_streaks.cpp

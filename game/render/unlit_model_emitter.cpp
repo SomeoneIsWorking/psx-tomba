@@ -1,11 +1,15 @@
 // game/render/unlit_model_emitter.cpp — the unlit model emitters. See unlit_model_emitter.h.
 #include "unlit_model_emitter.h"
 
+#include "blend.h"
 #include "core.h"
 #include "core/overrides/native_override_catalog.h"
+#include "entry/session.h"
 #include "horizontal_visibility_cull.h"
+#include "projected_vertex.h"
 
 #include <algorithm>
+#include <optional>
 #include <string_view>
 
 namespace tomba::render {
@@ -53,22 +57,53 @@ void scrollUv(const psx::present::EmitMemory &memory,
 // rsin's 4.12 result to a screen-row offset.
 constexpr std::int32_t kWaveShift = 10;
 
+std::int32_t waveRows(const psx::present::EmitMemory &memory, std::uint32_t call, std::int32_t phase, std::int32_t x) {
+  return emitterTrig(memory, {.cosine = false, .returnAddress = call}, phase + x * 4) >> kWaveShift;
+}
+
+// A replay places each corner's whole-row offset t of the way from the one the list read in the draw before.
 void wave(const psx::present::EmitMemory &memory,
           const ModelPacket &packet,
           const ModelShape &shape,
-          const UnlitModelEmitter::ScreenWave &rule) {
+          const UnlitModelEmitter::ScreenWave &rule,
+          std::uint32_t list) {
   if (rule.flag == 0u || (packet.flags() & rule.flag) == 0u) {
     return;
   }
-  const std::int32_t phase = static_cast<std::int32_t>(memory.mem_r32(rule.phase));
+  const std::uint32_t phaseWord = memory.mem_r32(rule.phase);
+  const auto phase = static_cast<std::int32_t>(phaseWord);
+  DrawReplay &replay = sessionOf(&memory.core()).drawReplay;
+  struct Blend {
+    std::int32_t earlier;
+    float t;
+  };
+  std::optional<Blend> blend;
+  if (const std::optional<float> t = replay.frame().replaying()) {
+    if (const std::optional<std::uint32_t> earlier = replay.wavePhases().earlier(list)) {
+      blend = Blend{.earlier = static_cast<std::int32_t>(*earlier), .t = *t};
+    }
+  } else {
+    replay.wavePhases().note(list, phaseWord);
+  }
   for (int corner = 0; corner < shape.cornerCount; ++corner) {
     const auto index = static_cast<std::size_t>(corner);
     const std::int32_t x = memory.mem_r16s(packet.record() + shape.corners[index].x);
     const std::uint32_t call = shape.cornerCount == 3 ? rule.gt3Calls[index] : rule.gt4Calls[index];
-    const std::int32_t offset =
-        emitterTrig(memory, {.cosine = false, .returnAddress = call}, phase + x * 4) >> kWaveShift;
-    const std::uint32_t sy = packet.packet() + ModelPacket::kScreen[index] + 2u;
-    memory.mem_w16(sy, static_cast<std::uint16_t>(memory.mem_r16(sy) + static_cast<std::uint32_t>(offset)));
+    const std::int32_t from = blend ? waveRows(memory, call, blend->earlier, x) : 0;
+    const std::int32_t rows = waveRows(memory, call, phase, x);
+    const std::uint32_t at = packet.packet() + ModelPacket::kScreen[index];
+    const psx::gte::ProjectedVertex vertex = memory.loadVertex(at);
+    const std::uint32_t word = vertex.word();
+    const auto y = static_cast<std::uint16_t>((word >> 16) + static_cast<std::uint32_t>(rows));
+    const psx::gte::ProjectedVertex stepped =
+        vertex.steppedTo((word & 0xFFFFu) | (static_cast<std::uint32_t>(y) << 16));
+    if (!blend) {
+      memory.storeVertex(at, stepped);
+      continue;
+    }
+    GtePlace place = vertex.place();
+    place.y += static_cast<float>(psx::present::lerpExact(from, rows, blend->t));
+    memory.storeVertex(at, {stepped.word(), place});
   }
   packet.biasBucket(rule.bucketBias);
 }
@@ -198,7 +233,7 @@ std::uint32_t UnlitModelEmitter::emit(const psx::present::EmitMemory &memory,
     }
     packet.storeLastUv();
     scrollUv(memory, packet, variant.uvScroll);
-    wave(memory, packet, shape, variant.wave);
+    wave(memory, packet, shape, variant.wave, call.list);
     packet.link(call.ot);
     return true;
   });

@@ -80,8 +80,6 @@ constexpr std::array kTileGridFields{MotionField{.offset = 0x28}, MotionField{.o
 constexpr RecordByte kTileGridLive{.offset = 0, .low = 1, .high = 1};
 // A01's sway phase, a 12-bit angle the walker A01:80132358 steps before its leaves read it.
 constexpr std::uint32_t kA01Sway = render::SwayModelEmitter::kSwayPhase;
-// A0D's screen wave phase, an rsin angle the walker A0D:80113628 steps after drawing.
-constexpr std::uint32_t kA0dWave = render::UnlitModelEmitter::kA0dWavePhase;
 constexpr std::array kAngleLow{MotionField{.offset = 0, .motion = Motion::Angle12Low}};
 // UV scrolls the area objects step in the update, read as u16 >> 4: A02's U (& 0xFF) | V (mod 0x180) and band
 // (+0x100 mod 0x800); A06's U (& 0xFF).
@@ -139,7 +137,6 @@ DrawMotion::DrawMotion(world::RenderRecordPool &records) {
                    .rule = &gridScroll_,
                    .records = {.live = kTileGridLive}};
   tracks_[at++] = {.name = "A01 sway", .address = kA01Sway, .fields = kAngleLow, .records = {.liveness = &a01_}};
-  tracks_[at++] = {.name = "A0D wave", .address = kA0dWave, .fields = kAngleLow, .records = {.liveness = &a0d_}};
   tracks_[at++] = {.name = "A02 scroll",
                    .address = kA02Scroll,
                    .fields = kWord,

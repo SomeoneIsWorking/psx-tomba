@@ -135,7 +135,7 @@ statically; the probe's identity check answers it.
 | billboard nodes (type 0x10) | node +0x2E/+0x32/+0x36, +0x5A angle; +0x38 the current frame of the sprite set at +0x3C | Vector, Angle12 (the node pools); +0x38 Step | node life | `0x8003C2D4` -> `0x8003C8F4` | M:8003C2D4, M:8003C8F4, M:8003B220: the quads are the set's static 16-byte entries |
 | effect table | `0x800EC188 + 0x40i`, i < 40: +0 live, +7 model, +0xC scale, +0x1E/+0x22/+0x26 position s16, +0x28.. angles | Vector, Angle12, Scalar; +0/+7 Step | slot + model byte | `0x8003D23C` | M:8003F024, M:8003D23C |
 | tile-grid scroll | node `0x800ED018` +0x28 X\|Y, wrapped into the pitch X\|Y at +0x30 | `RingRule` (periods in the record) | live while +0 is 1 | `0x8003DF04` area grids | A00:8011534C recomputes it in the update from the view angles |
-| scenery UV scroll, sway and wave phase | A01 `0x80139004`, A0D `0x8011CC68` (Angle12Low); A02 `0x8012C928`, `0x8012C92C`, A06 `0x8014A450`, A0F `0x8012092E` (`RingRule`) | as listed | live while the overlay holds its walker (`ResidentImage`) | the area walkers and unlit emitters | below, State |
+| scenery UV scroll and sway | A01 `0x80139004` (Angle12Low); A02 `0x8012C928`, `0x8012C92C`, A06 `0x8014A450`, A0F `0x8012092E` (`RingRule`) | as listed | live while the overlay holds its walker (`ResidentImage`) | the area walkers and unlit emitters | below, State |
 | vitality gauge | `0x800BF87E` fill, `0x800BF87F` length (sprite widths in pixels) | Step | single | `0x80025744` | M:80026100, M:80061A7C, M:80024F18, M:80026148 |
 | texture clock | `0x1F80017C` (u16, +1 per field frame) | Step | | flipbooks, A0E `BackdropPlane` | G:80108B0C |
 | hit flash | `0x800E7E8D` flags, `0x800E7E98..9A` colour, from `0x1F800247` | Step (draw-written) | | `0x8003B588` | M:8003B588 |
@@ -313,12 +313,17 @@ What steps at 30 Hz, by RE (`scratch/replay-gaps/{main,a01,a02,a06,a0a,a0d,a0f}`
   `Angle12Low` sampled before the draw, so an in-between is the blended phase plus the draw's own steps, within the
   rand spread of S's. Paired on every interval in `warp 1/0` (`a1`, 657 of 657); the only moving scenery there is the
   fire, whose per-draw random `0x1F800080` steps with S by design, so no halfway sway was seen in frames.
-- **A0D wave** `0x8011CC68`: the walker A0D:80113628 adds `0x1F + (rand >> 8)` after drawing; `Angle12Low`. At
-  `warp 13/0` (`scratch/review-fix/areas`, `still`) the word steps about 0x50 a frame and pairs on every draw (610 of
-  610). With the view still (13/0 after 1800 frames, the boss intro's dialog, `scratch/scrolls/s3/s13_0`) the water's
-  in-between is not halfway: in-between 2918 is byte-identical to real 2918 and in-between 2921 to real 2920, while
-  other pairs differ. The wave's readers A0D:80112DE4 and A0D:801131B0 are not decompiled, so whether they round the
-  phase to whole texels or vertices (no halfway possible) or the track misses an input is not traced.
+- **A0D wave** `0x8011CC68`: the walker A0D:80113628 adds `0x1F + (rand >> 8)` after drawing, and the emitters
+  A0D:80112DE4/801131B0 (`UnlitModelEmitter`, `kA0d`) add `rsin(phase + 4x) >> 10` whole rows to each flagged
+  vertex, so a blended phase lands on one tick's rows and the in-between equaled a neighbour. The phase is not a
+  track: `render::WavePhases` (a `MotionSource`) keeps the phase each model list read in the last real draw, and a
+  replay places each corner at the blend of that draw's rows and its own, sub-row (`lerpExact`); the replay's phase
+  is the coming draw's, since its rand draws are the real draw's (74 of 74 lists matched in
+  `scratch/rr0058/wd`). Real draws keep the projected vertex's place under the row step (`steppedTo`). Shown at
+  `warp 13/0` after 1800 frames with the view still (`scratch/rr0058/wb` before, `wa` after,
+  `wave_halfway.png`, `patchdy.py`): moving water patches move 0.00 of the way on the in-between before and 0.50
+  after where only the wave moves; another step of the water, untraced, still lands whole on the real present. fps60 on and off leave main RAM and the scratchpad identical 20 and 320 frames after the wait (`wa`,
+  `wo`).
 - **UV scrolls**, all read as `u16 >> 4` or a byte: A02 `0x8012C928` (`+= speed >> 8 & 0xFF`, A02:801255A4 from the
   object A02:80118B50) and `0x8012C92A` (`+0xC` or `+0x20` mod 0x180, A02:801255C0 from A02:80118354, 801199EC) and
   `0x8012C92C` (`+0x100` mod 0x800); A06 `0x8014A450` (`-(|v| >> 7) - 8 & 0xFF`, A06:8013D6BC from A06:80134564), all in

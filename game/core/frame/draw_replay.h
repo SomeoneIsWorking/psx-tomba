@@ -5,6 +5,7 @@
 #include "frame/draw_section.h"
 #include "frame/frame_cut.h"
 #include "frame/update_block_draws.h"
+#include "render/wave_phases.h"
 #include "replay_frame.h"
 
 #include <array>
@@ -35,6 +36,10 @@ public:
   [[nodiscard]] UpdateBlockDraws &updateDraws() {
     return updateDraws_;
   }
+  // The phases A0D's screen wave read in the last real draw, by model list.
+  [[nodiscard]] render::WavePhases &wavePhases() {
+    return wavePhases_;
+  }
   // While a replay runs: how far past its scroll words it scrolls the tile grid, X and Y.
   [[nodiscard]] std::optional<std::array<float, 2>> gridScrollPast() const;
 
@@ -42,7 +47,8 @@ private:
   DrawSection section_;
   DrawMotion motion_;
   UpdateBlockDraws updateDraws_;
-  std::array<psx::present::MotionSource *, 1> sources_{&updateDraws_};
+  render::WavePhases wavePhases_;
+  std::array<psx::present::MotionSource *, 2> sources_{&updateDraws_, &wavePhases_};
   psx::present::ReplayFrame frame_;
   std::optional<DrawSection::Selection> drawn_;
   bool drewThisFrame_ = false;
