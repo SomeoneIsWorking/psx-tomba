@@ -4,10 +4,8 @@
 #include "core.h"
 #include "core/overrides/native_override_catalog.h"
 #include "horizontal_visibility_cull.h"
-#include "list_state_producer.h"
 
 #include <algorithm>
-#include <memory>
 #include <string_view>
 
 namespace tomba::render {
@@ -35,11 +33,6 @@ scrollAmount(const psx::present::EmitMemory &memory, UnlitModelEmitter::ScrollRe
   return read == UnlitModelEmitter::ScrollRead::Byte ? memory.mem_r8(word) : memory.mem_r16(word) >> 4;
 }
 
-// The scroll word's period: a byte read wraps at a byte, a shifted read at the whole half-word.
-std::uint32_t scrollPeriod(UnlitModelEmitter::ScrollRead read) {
-  return read == UnlitModelEmitter::ScrollRead::Byte ? 0x100u : 0x10000u;
-}
-
 void scrollUv(const psx::present::EmitMemory &memory,
               const ModelPacket &packet,
               const UnlitModelEmitter::UvScroll &scroll) {
@@ -57,8 +50,7 @@ void scrollUv(const psx::present::EmitMemory &memory,
   }
 }
 
-// The wave's phase repeats every rsin turn; only its low half reaches the sine.
-constexpr std::uint32_t kWavePeriod = 0x1000u;
+// rsin's 4.12 result to a screen-row offset.
 constexpr std::int32_t kWaveShift = 10;
 
 void wave(const psx::present::EmitMemory &memory,
@@ -81,56 +73,12 @@ void wave(const psx::present::EmitMemory &memory,
   packet.biasBucket(rule.bucketBias);
 }
 
-// A gameplay copy: the replayed field draw is its only in-between, so it saves nothing.
+// Every copy draws inside a replayed section, so it saves nothing.
 template <std::uint32_t Entry, bool Quad, const UnlitModelEmitter::Variant &Data> void emitAt(Core *core) {
   const ListCall call = ListCall::fromRegisters(*core);
   const EmitterObject object(*core, Entry, call.list);
   core->r[2] = UnlitModelEmitter::emit(*core, call, horizontal_cull::forDrawWindow(core), Data, Quad);
 }
-
-// A copy SOP reaches: its frames compose from the saved call.
-template <std::uint32_t Entry, bool Quad, const UnlitModelEmitter::Variant &Data> void emitSavingAt(Core *core) {
-  const ListCall call = ListCall::fromRegisters(*core);
-  const EmitterObject object(*core, Entry, call.list);
-  const Visibility visible = horizontal_cull::forDrawWindow(core);
-  const ModelShape &shape = Quad ? kModelGt4 : kModelGt3;
-  ListJobWriter job(*core, Quad ? 1u : 0u, call, call.count * shape.packetBytes);
-  job.input(*core, call.list, call.count * shape.recordBytes);
-  if (Data.hideFlag != 0u || Data.xHide.active) {
-    job.input(*core, kHideWord, sizeof(std::uint32_t));
-  }
-  for (const UnlitModelEmitter::ScrollBit &bit : Data.uvScroll.bits) {
-    const std::uint32_t period = scrollPeriod(Data.uvScroll.read);
-    if (bit.flag != 0u) {
-      job.input(*core, bit.u, sizeof(std::uint16_t), InputBlend::Wrapped, period);
-    }
-    if (bit.v != 0u) {
-      job.input(*core, bit.v, sizeof(std::uint16_t), InputBlend::Wrapped, period);
-    }
-  }
-  if (Data.wave.flag != 0u) {
-    job.input(*core, Data.wave.phase, sizeof(std::uint16_t), InputBlend::Wrapped, kWavePeriod);
-    job.input(*core, Data.wave.phase + sizeof(std::uint16_t), sizeof(std::uint16_t));
-  }
-  core->r[2] = UnlitModelEmitter::emit(*core, call, visible, Data, Quad);
-  job.save(*core);
-}
-
-// The render of one emitter entry: its body over host memory.
-class UnlitStateProducer final : public ListStateProducer {
-public:
-  UnlitStateProducer(Core &core, const UnlitModelEmitter::Variant &variant, bool quad)
-      : ListStateProducer(core), mVariant(variant), mQuad(quad) {}
-
-protected:
-  void emit(const psx::present::EmitMemory &memory, std::uint32_t, const ListCall &call) const override {
-    UnlitModelEmitter::emit(memory, call, horizontal_cull::forDrawWindow(&core()), mVariant, mQuad);
-  }
-
-private:
-  const UnlitModelEmitter::Variant &mVariant;
-  bool mQuad;
-};
 
 struct Copy {
   std::string_view image; // empty for the resident executable
@@ -139,7 +87,6 @@ struct Copy {
   psx::cpu::NativeFunction gt3Body;
   psx::cpu::NativeFunction gt4Body;
   const UnlitModelEmitter::Variant *variant;
-  bool composed; // drawn outside the replayed field draw, so it has a state render
 };
 
 constexpr const auto &kResident = UnlitModelEmitter::kResident;
@@ -162,179 +109,114 @@ constexpr Copy kCopies[] = {
     {{},
      0x8007FDB0u,
      0x8008007Cu,
-     &emitSavingAt<0x8007FDB0u, false, kResident>,
-     &emitSavingAt<0x8008007Cu, true, kResident>,
-     &kResident,
-     true},
-    {"SOP",
-     0x801099B4u,
-     0x80109C80u,
-     &emitSavingAt<0x801099B4u, false, kSop>,
-     &emitSavingAt<0x80109C80u, true, kSop>,
-     &kSop,
-     true},
-    {"A0B",
-     0x80112A24u,
-     0x80112CF0u,
-     &emitAt<0x80112A24u, false, kSop>,
-     &emitAt<0x80112CF0u, true, kSop>,
-     &kSop,
-     false},
-    {"A0C",
-     0x80113788u,
-     0x80113A54u,
-     &emitAt<0x80113788u, false, kSop>,
-     &emitAt<0x80113A54u, true, kSop>,
-     &kSop,
-     false},
+     &emitAt<0x8007FDB0u, false, kResident>,
+     &emitAt<0x8008007Cu, true, kResident>,
+     &kResident},
+    {"SOP", 0x801099B4u, 0x80109C80u, &emitAt<0x801099B4u, false, kSop>, &emitAt<0x80109C80u, true, kSop>, &kSop},
+    {"A0B", 0x80112A24u, 0x80112CF0u, &emitAt<0x80112A24u, false, kSop>, &emitAt<0x80112CF0u, true, kSop>, &kSop},
+    {"A0C", 0x80113788u, 0x80113A54u, &emitAt<0x80113788u, false, kSop>, &emitAt<0x80113A54u, true, kSop>, &kSop},
     {"A01",
      0x80132690u,
      0x801329C4u,
      &emitAt<0x80132690u, false, kA01Cue>,
      &emitAt<0x801329C4u, true, kA01Cue>,
-     &kA01Cue,
-     false},
+     &kA01Cue},
     {"A0A",
      0x801103F4u,
      0x80110698u,
      &emitAt<0x801103F4u, false, kFlagged>,
      &emitAt<0x80110698u, true, kFlagged>,
-     &kFlagged,
-     false},
+     &kFlagged},
     {"A0B",
      0x80113150u,
      0x801133F4u,
      &emitAt<0x80113150u, false, kFlagged>,
      &emitAt<0x801133F4u, true, kFlagged>,
-     &kFlagged,
-     false},
+     &kFlagged},
     {"A0C",
      0x80113EB4u,
      0x80114158u,
      &emitAt<0x80113EB4u, false, kFlagged>,
      &emitAt<0x80114158u, true, kFlagged>,
-     &kFlagged,
-     false},
+     &kFlagged},
     {"A0D",
      0x80113748u,
      0x801139ECu,
      &emitAt<0x80113748u, false, kFlagged>,
      &emitAt<0x801139ECu, true, kFlagged>,
-     &kFlagged,
-     false},
+     &kFlagged},
     {"A0E",
      0x80113AECu,
      0x80113DE0u,
      &emitAt<0x80113AECu, false, kA0eArena>,
      &emitAt<0x80113DE0u, true, kA0eArena>,
-     &kA0eArena,
-     false},
+     &kA0eArena},
     {"A0E",
      0x80114458u,
      0x801146FCu,
      &emitAt<0x80114458u, false, kFlagged>,
      &emitAt<0x801146FCu, true, kFlagged>,
-     &kFlagged,
-     false},
+     &kFlagged},
     {"A0F",
      0x801157CCu,
      0x80115A70u,
      &emitAt<0x801157CCu, false, kFlagged>,
      &emitAt<0x80115A70u, true, kFlagged>,
-     &kFlagged,
-     false},
+     &kFlagged},
     {"A0H",
      0x8010B6BCu,
      0x8010B960u,
      &emitAt<0x8010B6BCu, false, kFlagged>,
      &emitAt<0x8010B960u, true, kFlagged>,
-     &kFlagged,
-     false},
+     &kFlagged},
     {"A0I",
      0x8010BB40u,
      0x8010BDE4u,
      &emitAt<0x8010BB40u, false, kFlagged>,
      &emitAt<0x8010BDE4u, true, kFlagged>,
-     &kFlagged,
-     false},
+     &kFlagged},
     {"A0J",
      0x8010AB20u,
      0x8010ADC4u,
      &emitAt<0x8010AB20u, false, kFlagged>,
      &emitAt<0x8010ADC4u, true, kFlagged>,
-     &kFlagged,
-     false},
+     &kFlagged},
     {"A0G",
      0x8010BC40u,
      0x8010BF28u,
      &emitAt<0x8010BC40u, false, kSopNear>,
      &emitAt<0x8010BF28u, true, kSopNear>,
-     &kSopNear,
-     false},
+     &kSopNear},
     {"A0I",
      0x8010B3DCu,
      0x8010B6C4u,
      &emitAt<0x8010B3DCu, false, kSopNear>,
      &emitAt<0x8010B6C4u, true, kSopNear>,
-     &kSopNear,
-     false},
+     &kSopNear},
     {"A0H",
      0x8010AF58u,
      0x8010B240u,
      &emitAt<0x8010AF58u, false, kSopNearWide>,
      &emitAt<0x8010B240u, true, kSopNearWide>,
-     &kSopNearWide,
-     false},
+     &kSopNearWide},
     {"A06",
      0x8013CF00u,
      0x8013D1E4u,
      &emitAt<0x8013CF00u, false, kA06Scroll>,
      &emitAt<0x8013D1E4u, true, kA06Scroll>,
-     &kA06Scroll,
-     false},
-    {"A06",
-     0x8013BA44u,
-     0x8013BD40u,
-     &emitAt<0x8013BA44u, false, kA06>,
-     &emitAt<0x8013BD40u, true, kA06>,
-     &kA06,
-     false},
-    {"A0A",
-     0x8010F97Cu,
-     0x8010FD74u,
-     &emitAt<0x8010F97Cu, false, kA0a>,
-     &emitAt<0x8010FD74u, true, kA0a>,
-     &kA0a,
-     false},
-    {"A0F",
-     0x80114A5Cu,
-     0x80114E70u,
-     &emitAt<0x80114A5Cu, false, kA0f>,
-     &emitAt<0x80114E70u, true, kA0f>,
-     &kA0f,
-     false},
-    {"A0D",
-     0x80112DE4u,
-     0x801131B0u,
-     &emitAt<0x80112DE4u, false, kA0d>,
-     &emitAt<0x801131B0u, true, kA0d>,
-     &kA0d,
-     false},
-    {"A03", 0x80110094u, 0u, &emitAt<0x80110094u, false, kA03>, nullptr, &kA03, false},
-    {"A02",
-     0x80124DB8u,
-     0x80125100u,
-     &emitAt<0x80124DB8u, false, kA02>,
-     &emitAt<0x80125100u, true, kA02>,
-     &kA02,
-     false},
+     &kA06Scroll},
+    {"A06", 0x8013BA44u, 0x8013BD40u, &emitAt<0x8013BA44u, false, kA06>, &emitAt<0x8013BD40u, true, kA06>, &kA06},
+    {"A0A", 0x8010F97Cu, 0x8010FD74u, &emitAt<0x8010F97Cu, false, kA0a>, &emitAt<0x8010FD74u, true, kA0a>, &kA0a},
+    {"A0F", 0x80114A5Cu, 0x80114E70u, &emitAt<0x80114A5Cu, false, kA0f>, &emitAt<0x80114E70u, true, kA0f>, &kA0f},
+    {"A0D", 0x80112DE4u, 0x801131B0u, &emitAt<0x80112DE4u, false, kA0d>, &emitAt<0x801131B0u, true, kA0d>, &kA0d},
+    {"A03", 0x80110094u, 0u, &emitAt<0x80110094u, false, kA03>, nullptr, &kA03},
+    {"A02", 0x80124DB8u, 0x80125100u, &emitAt<0x80124DB8u, false, kA02>, &emitAt<0x80125100u, true, kA02>, &kA02},
     {"A0J",
      0x8010A3ACu,
      0x8010A69Cu,
      &emitAt<0x8010A3ACu, false, kSopNearLifted>,
      &emitAt<0x8010A69Cu, true, kSopNearLifted>,
-     &kSopNearLifted,
-     false},
+     &kSopNearLifted},
 };
 
 } // namespace
@@ -406,18 +288,6 @@ void UnlitModelEmitter::gt3(Core &core, const Visibility &visible, const Variant
 
 void UnlitModelEmitter::gt4(Core &core, const Visibility &visible, const Variant &variant) {
   core.r[2] = emit(core, ListCall::fromRegisters(core), visible, variant, true);
-}
-
-void UnlitModelEmitter::registerStateRenders(psx::present::StateProducerTable &renders, Core &core) {
-  for (const Copy &copy : kCopies) {
-    if (!copy.composed) {
-      continue;
-    }
-    renders.install(copy.gt3, std::make_unique<UnlitStateProducer>(core, *copy.variant, false));
-    if (copy.gt4 != 0u) {
-      renders.install(copy.gt4, std::make_unique<UnlitStateProducer>(core, *copy.variant, true));
-    }
-  }
 }
 
 void UnlitModelEmitter::registerOverrides(native::NativeOverrideCatalog &natives) {

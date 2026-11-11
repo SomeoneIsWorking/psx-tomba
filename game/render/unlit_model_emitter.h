@@ -27,8 +27,6 @@
 // The screen cull goes through horizontal_visibility_cull.h, so at 4:3 the packets are the guest's.
 #pragma once
 
-#include "state_producer.h"
-
 #include "emit_memory.h"
 #include "guest_ordering_table.h"
 #include "list_job.h"
@@ -64,7 +62,7 @@ public:
     std::uint32_t modeMask;
     Staging staging;
     NearClamp nearClamp;
-    bool gt4DropsSorted; // GT4 skips its link once a farthest/nearest record is sorted
+    bool gt4DropsSorted;   // GT4 skips its link once a farthest/nearest record is sorted
     std::int32_t bandBias; // OrderingTable::compressDepth's band bias
   };
   // How a scroll word reads: its u16 >> 4, or its low byte.
@@ -338,8 +336,6 @@ public:
                             const Variant &variant,
                             bool quad);
   static void registerOverrides(native::NativeOverrideCatalog &natives);
-  // The renders of the saved calls, at every entry the emitter is declared at.
-  static void registerStateRenders(psx::present::StateProducerTable &renders, Core &core);
 };
 
 } // namespace tomba::render

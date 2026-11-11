@@ -119,14 +119,12 @@ void Runtime::registerOverrides(Game &game) {
   natives.declare(kSpawnAndWait, "Scheduler::spawnAndWait", spawnAndWait);
   bindLoadedResident(game.core);
   psx::present::StateProducerTable &renders = sessionOf(&game.core).stateProducers;
-  tomba::render::UnlitModelEmitter::registerStateRenders(renders, game.core);
   tomba::render::SubdividedGround::registerStateRenders(renders, game.core);
   Font::registerStateRenders(renders);
   ScreenFade::registerStateRenders(renders);
   tomba::render::LetterboxBars::registerStateRenders(renders);
   UiSprite::registerStateRenders(renders);
   tomba::render::BillboardState::registerStateRenders(renders, game.core);
-  tomba::render::PackedMesh::registerStateRenders(renders, game.core);
   tomba::render::GuestKeyedEmitters::registerStateRenders(renders);
   Panel::registerStateRenders(renders, game.core);
   DialogGlyphs::registerStateRenders(renders);

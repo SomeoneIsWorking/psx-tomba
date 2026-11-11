@@ -108,5 +108,8 @@ paused village, 8 presents identical, the menu whole, its in-betweens replayed (
 **SOP and title replayed.** `DrawSection` gained `Sop` and `Title` variants (plan, Boot and title), so the opening and
 title in-betweens replay instead of composing. The SOP grid's state render and per-call save are deleted
 (`TileGridLayer`); boot unskipped through title, attract, menu and new-game SOP (`scratch/replay-gaps/op7`): 1922
-intervals replayed, 0 refused, 0 held. Still to delete: the resident and SOP `UnlitModelEmitter` renders and saves,
-`PackedMesh::write`/`emitScreen` and `::demoEdgeSprites`, once a census shows nothing outside a section composes them.
+intervals replayed, 0 refused, 0 held. The resident and SOP `UnlitModelEmitter` renders and per-call saves, `PackedMesh::write`/`emitScreen`'s
+and the DEMO edge sprites' wrapper are deleted with them. Census on that build (`scratch/replay-gaps/k1`, boot
+unskipped, title, new game, SOP, OPN, into A00): 3301 intervals replayed, 0 refused, 0 dropped producers; the only
+held in-betweens are the boot cards (logic 0) and four scene changes. `k2` (`warp 0/0`, walk, map, pause, options
+page): 1883 replayed, 0 refused; 12 held on the pause options page, which is not a field draw.

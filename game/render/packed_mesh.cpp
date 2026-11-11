@@ -7,12 +7,8 @@
 #include "fx_sprite_publish.h"
 #include "gte_registers.h"
 #include "guest_ordering_table.h"
-#include "list_state_producer.h"
 #include "model_element.h"
 #include "ordering_table.h"
-#include "quad_state.h"
-
-#include <memory>
 
 namespace tomba::render {
 namespace {
@@ -141,16 +137,6 @@ private:
   std::uint32_t vOffset_;
 };
 
-class MeshStateProducer final : public ListStateProducer {
-public:
-  using ListStateProducer::ListStateProducer;
-
-protected:
-  void emit(const psx::present::EmitMemory &memory, std::uint32_t variant, const ListCall &call) const override {
-    PackedMesh::emit(memory, static_cast<PackedMesh::Variant>(variant), call);
-  }
-};
-
 } // namespace
 
 void PackedRecord::uv(const psx::present::EmitMemory &memory, const Uv &uv) {
@@ -208,16 +194,7 @@ void PackedMesh::write(Core *core) {
   // Unscoped, the call is its own object: SOP 0x8010BF54 draws one list twice a frame.
   const EmitterObject object(
       *core, kWriter, core->emission.isOpen() ? call.list : sessionOf(core).callSites.object(core->r[31], call.list));
-  writeSaving(*core, Variant::ClutRows, call);
-}
-
-void PackedMesh::writeSaving(Core &core, Variant variant, const ListCall &call) {
-  const std::uint32_t records = PackedRecord::count(core, call.list);
-  ListJobWriter job(core, static_cast<std::uint32_t>(variant), call, records * kPacketBytes);
-  job.input(core, call.list, records * kRecordBytes);
-  job.input(core, kDepthCue, sizeof(std::uint32_t));
-  emit(core, variant, call);
-  job.save(core);
+  emit(*core, Variant::ClutRows, call);
 }
 
 void PackedMesh::emit(const psx::present::EmitMemory &memory, Variant variant, const ListCall &call) {
@@ -272,7 +249,6 @@ void PackedMesh::emitScreen(const psx::present::EmitMemory &memory, const Screen
 
 void PackedMesh::registerOverrides(native::NativeOverrideCatalog &natives) {
   natives.declare(kWriter, "PackedMesh::write", &PackedMesh::write);
-  // A08 draws it only in the replayed field draw, so it saves nothing.
   natives.declareOverlay("A08", kVOffsetWriter, "PackedMesh::writeVOffset", [](Core *core) {
     const EmitterObject object(*core, kWriter, core->r[4]);
     emit(*core,
@@ -288,16 +264,8 @@ void PackedMesh::registerOverrides(native::NativeOverrideCatalog &natives) {
     const std::uint32_t object =
         core->emission.isOpen() ? core->r[4] : sessionOf(core).callSites.object(core->r[31], core->r[4]);
     const psx::present::EmissionScope::Guard scope(core->emission, kScreenWriter, object, 0);
-    const std::uint32_t before = PacketPool(*core).cursor();
     emitScreen(*core, {.list = core->r[4], .clutRows = core->r[5], .ot = core->mem_r32(OrderingTable::kBasePointer)});
-    saveQuads(*core,
-              {.emitter = kScreenWriter, .object = object, .before = before, .after = PacketPool(*core).cursor()});
   });
-}
-
-void PackedMesh::registerStateRenders(psx::present::StateProducerTable &renders, Core &core) {
-  renders.install(kWriter, std::make_unique<MeshStateProducer>(core));
-  renders.install(kScreenWriter, std::make_unique<QuadStateRender>());
 }
 
 } // namespace tomba::render

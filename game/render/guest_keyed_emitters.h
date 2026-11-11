@@ -1,6 +1,6 @@
 // game/render/guest_keyed_emitters.h — guest render bodies the title has not ported, keyed to an owner.
 //
-// An area overlay's render leaf, or the front end's chrome drawer, draws through guest bodies only that
+// An area overlay's render leaf draws through guest bodies only that
 // image has, so nothing keys its packets and every record holding one is shown whole. Each is wrapped: its
 // packets are saved as its owner's state and the render moves their positions by t (quad_state.h).
 //
@@ -20,7 +20,6 @@
 //   A06 0x80129AF8  a semi-transparent three-point line from a1 through the midpoint to a0, colour a2, bucket a3,
 //                   drawn by the node handlers 0x80129C50 (twice) and 0x8012A564.
 // A body that takes no object draws one screen:
-//   DEMO 0x80106690  the front end's two edge sprites (x 0 and 0x100, clut 0x7FE8) into the pool.
 //   A01  0x801311FC  a per-frame effect: a texture-window packet and its GT4 particles.
 //   A03  0x80109EEC  the area's HUD, sprites at bucket 3, drawn by 0x8010B328 before the ground.
 #pragma once
@@ -67,7 +66,6 @@ public:
       {"A0D", 0x80110C14u, EmitterKey::Node, "GuestKeyedEmitters::a0dRing"},
       {"A03", 0x801113B4u, EmitterKey::Node, "GuestKeyedEmitters::a03Ribbon"},
       {"A06", 0x80129AF8u, EmitterKey::CallSite, "GuestKeyedEmitters::a06Line"},
-      {"DEMO", 0x80106690u, EmitterKey::Screen, "GuestKeyedEmitters::demoEdgeSprites"},
       {"A01", 0x801311FCu, EmitterKey::Screen, "GuestKeyedEmitters::a01Effect"},
       {"A03", 0x80109EECu, EmitterKey::Screen, "GuestKeyedEmitters::a03Hud"},
   };
