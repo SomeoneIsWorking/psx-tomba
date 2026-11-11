@@ -2,7 +2,7 @@
 
 Features: F-FPS60.
 
-Status: open (2026-11-11). Traced; not fixed.
+Status: fixed (2026-11-11) for replayed in-betweens; a composed in-between (menus, pause) keeps the newer entries.
 
 ## Reproduction
 `warp 13/0` from a paused boot stepped to 1050, step 1800 (the boss intro with the view still), unpaced, `ires=0`,
@@ -22,9 +22,18 @@ table in A0D near `0x80117580` (the writer is not found statically). An in-betwe
 and `psxport runtime/psx/present/record_cluts.cpp:RecordCluts::resolve` gives its primitives that record's CLUT
 entries, so the rotation shows on the in-between before the tick it belongs to.
 
-## Proper fix
-Blend the CLUT entries of an in-between: `RecordCluts` resolves each key to the entries `t` of the way between the
-earlier record's pool and the newer one's, 15-bit channel by channel, so a rotation cross-fades. That is a framework
-change for every replaying title (any CLUT swap, a hit flash included, would cross-fade for one present), and a
-cycle that steps every other tick still changes on one present in four unless the title also spreads it over its
-period. Not started: it is a presentation choice to confirm before building.
+## Fix
+`RecordCluts::index(shown, {earlier, t})` (psxport `runtime/psx/present/record_cluts.cpp`): a CLUT the in-between's
+primitives sample that both records sampled (same VRAM position, same depth) with different entries resolves to
+their blend at t = k/n, each 5-bit channel by `lerpInt`, the STP bit from the newer tick, 0x0000 (the transparent
+texel) never blended. The cycle is a rotation, so entry i goes from colour c[i] to c[i+1]; blending each entry gives
+the halfway colour between the two shown entries, which is what the in-between should show between two real frames.
+No rotation is guessed: the blend works on the two real tables only. A cycle that steps every other tick still
+changes over two presents of four; spreading it over its period would need the cycle's owner and is not done.
+
+## Evidence
+Run `h3` (fix, fps60 on) and `h4` (fps60 off), same plan. Water box mean change per present: 5.6, 1.2, 1.1, 5.1,
+5.5, 0, 0, 3.8, 4.3, 2.5, 2.4 (before: the 8.4 and 8.1 steps landed on one present). At in-between 8, 0 of 216 moving
+tiles equal the newer real (before: 216); its mean distance from the midpoint of its neighbours is 1.5 against 5.7
+and 6.3 from each (the wave's motion is the rest). `h3_water_7_8_9.png`: the middle crop is the cross-fade. The real
+presents of `h3` are byte-identical to `h4`'s, and guest RAM at the two marks is identical with fps60 on and off.
