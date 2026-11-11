@@ -49,6 +49,8 @@ constexpr std::array kNodePools{NodePool{0x800EF478u, 0xC4u, 0x3Au},
                                 NodePool{0x800FE198u, 0xD0u, 0x2Au},
                                 NodePool{0x800FB858u, 0x108u, 0x28u},
                                 NodePool{0x800FB218u, 0x140u, 0x05u}};
+// Node world MATRIX at +0x98; A03's ride draw 0x80109870 poses Tomba from his cart's.
+constexpr auto kNodeTransform = psx::present::transformFields(0x98);
 constexpr std::array kNodeKeys{MotionKey{.offset = 0x08, .mask = 0xFF00FF00u}};
 constexpr RecordByte kNodeLive{.offset = 1, .low = 1, .high = 0xFF};
 
@@ -93,6 +95,8 @@ constexpr std::array kWord{MotionField{.offset = 0}};
 
 constexpr std::array<const char *, kNodePools.size()> kNodePoolNames{
     "nodes 0xC4", "nodes 0xD0", "nodes 0x108", "nodes 0x140"};
+constexpr std::array<const char *, kNodePools.size()> kNodeTransformNames{
+    "node transforms 0xC4", "node transforms 0xD0", "node transforms 0x108", "node transforms 0x140"};
 
 } // namespace
 
@@ -101,7 +105,7 @@ DrawMotion::DrawMotion(world::RenderRecordPool &records) {
   const MotionRecords recordRun{
       .stride = RenderRecordPool::kRecordStride, .count = RenderRecordPool::kRecordCount, .liveness = &records};
   std::size_t at = 0;
-  tracks_[at++] = {.name = "view", .address = kView, .fields = kViewFields, .rule = &transform_};
+  tracks_[at++] = {.name = "view", .address = kView, .fields = kViewFields, .rule = &view_};
   tracks_[at++] = {.name = "view angles", .address = kViewAngles, .fields = kViewAngleFields};
   tracks_[at++] = {.name = "tomba", .address = kTomba, .fields = kNodeFields};
   tracks_[at++] = {.name = "effect nodes",
@@ -114,6 +118,12 @@ DrawMotion::DrawMotion(world::RenderRecordPool &records) {
     tracks_[at++] = {.name = kNodePoolNames[pool],
                      .address = nodes.base,
                      .fields = kNodeFields,
+                     .keys = kNodeKeys,
+                     .records = {.stride = nodes.stride, .count = nodes.count, .live = kNodeLive}};
+    tracks_[at++] = {.name = kNodeTransformNames[pool],
+                     .address = nodes.base,
+                     .fields = kNodeTransform,
+                     .rule = &transform_,
                      .keys = kNodeKeys,
                      .records = {.stride = nodes.stride, .count = nodes.count, .live = kNodeLive}};
   }

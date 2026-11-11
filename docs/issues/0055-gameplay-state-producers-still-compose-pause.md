@@ -148,7 +148,7 @@ composed after `warp 3/0` is the ride's intro dialog box.
 Shown (`scratch/a03cart`, unpaced, player settings): the ride with in-betweens on and off ends in identical RAM and
 scratchpad at frame 1500 (`dg0`, `dg1`); mid-ride crops `dg1/ride_halfway.png` (Tomba and the cart) and `r5/track.png` (the track's
 bends) step between their neighbours; the cave wall moves within 3 pixels of halfway, Tomba's hair within 1.75 native
-pixels of the screen midpoint (always above it). With every state render unregistered, nothing composes over the warps 0/0, 1/0, 4/0, 3/0 (`cw`), the ride
+pixels of the screen midpoint (always above it; fixed below, ride entry). With every state render unregistered, nothing composes over the warps 0/0, 1/0, 4/0, 3/0 (`cw`), the ride
 (`cr`), walk, pause, options and map (`cg`), items, pause and load (`cp`), boot to the title and attract (`cf`) or
 the new game through SOP and OPN (`co2`).
 
@@ -158,3 +158,23 @@ Deleted: the state renders and per-call saves of `Font::glyphEmit`, `UiSprite::q
 the update-block notes the replay rebuilds. The final build's census, with the remaining state renders registered
 (ScreenFade, BillboardState, GuestKeyedEmitters, DialogGlyphs), composes nothing in the same plans (`fw`, `dg1`,
 `fg`, `fp`, `ff`, `fo`). The only in-betweens not replayed are the 130 of the card page, refused at its BIOS calls.
+
+**Last state renders deleted (2026-11-11).** ScreenFade, BillboardState, DialogGlyphs and the GuestKeyedEmitters
+renders and saves are gone, and with them `AnchoredPackets`, `quad_state.h` (`QuadStateRender`, `runGuestEmitter`),
+`ObjectDraw`'s part states and `saveEmitterState`, `Session::stateProducers`/`renderMemory`, `Runtime::stateProducer`
+and the emitters' host-memory branches. Tomba registers no state render; the overrides keep their scopes for the
+owner ledger. Census on that build (`scratch/a03cart`, unpaced, player settings, `debug compose`): warps 0/0, 1/0,
+4/0, 3/0 (`e2w`), walk, pause, options and map (`e2g`), items, pause and load (`e2p`, 130 card-page in-betweens
+refused as before), boot to the title and attract (`e2f`), new game through SOP and OPN (`e2o`): no interval
+composed. The one in-between after a GAME scene start is shown whole in `e2o` as it was in `fo`.
+
+**Ride: Tomba's in-betweens sat a native line high (2026-11-11).** Cause: `game/core/frame/draw_motion.cpp` blended
+the view MATRIX at 0x1F8000F8 with its translation straight, but the view's translation is -R·C; while the camera
+turns and follows the cart, the straight translation puts an object moving with the camera 13-17 units (camera
+space) above its chord, about one native line. psxport `TransformRule::Translation::View` moves the camera instead,
+and the view track uses it. Separately, A03's 0x80109870 copies Tomba's pose matrix from his cart's node +0x98,
+which no track blended, so his turn stepped at the logic rate; the node pools' +0x98 MATRIX is now tracked
+(`node transforms`). Shown (`scratch/a03cart`, unpaced, player settings): Tomba's hair centroid in-betweens move
+from 6-15 px (8x) above the midpoint (`h2`) to within 1.2 px (`h3`, `h3/ride_halfway.png`); the far track's bias
+from -1.95 to +0.58 px; ride RAM and scratchpad identical with in-betweens on and off (`dg2`, `dg3`); village walk
+in-betweens within 1.4 px of halfway (`v1/village_halfway.png`).

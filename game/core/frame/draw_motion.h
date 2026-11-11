@@ -28,9 +28,11 @@ public:
                                                                    float t) const;
 
 private:
-  static constexpr std::size_t kTracks = 17;
+  static constexpr std::size_t kTracks = 21;
 
   psx::present::TransformRule transform_;
+  psx::present::TransformRule view_{psx::present::TransformRule::Rows::Rotation,
+                                    psx::present::TransformRule::Translation::View};
   psx::present::RingRule gridScroll_;
   psx::present::RingRule a02Scroll_{{0x100u, 0x180u}};
   psx::present::RingRule a02Band_{{0x800u, 0u}};
