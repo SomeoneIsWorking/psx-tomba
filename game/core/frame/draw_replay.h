@@ -3,6 +3,7 @@
 
 #include "frame/draw_motion.h"
 #include "frame/draw_section.h"
+#include "frame/frame_cut.h"
 #include "replay_frame.h"
 
 #include <optional>
@@ -17,8 +18,8 @@ public:
 
   // `variant` is about to draw, paused or not: paired with the last frame's draw when both drew it in one stage.
   void beforeDraw(Core &core, DrawSection::Variant variant);
-  // The logic frame ended; one that did not draw, or that FrameCut declared a cut, breaks the pairing.
-  void endFrame(bool cut);
+  // The logic frame ended; one that did not draw, or whose cut may postdate its sample, breaks the pairing.
+  void endFrame(const FrameCut &cut);
   // The next draw pairs with nothing (a savestate restore).
   void forget();
 
@@ -32,6 +33,7 @@ private:
   psx::present::ReplayFrame frame_;
   std::optional<DrawSection::Selection> drawn_;
   bool drewThisFrame_ = false;
+  bool placedBeforeSample_ = false;
 };
 
 } // namespace tomba

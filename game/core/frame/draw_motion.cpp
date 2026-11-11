@@ -67,6 +67,25 @@ constexpr std::array kEffectFields{
     MotionField{.offset = 0x2C, .motion = Motion::Angle12Low},
 };
 
+// The tile grid 0x800ED018 (TileGridLayer): the update's 0x8011534C wraps scroll X|Y at +0x28 into pitch X|Y at
+// +0x30 from the view angles; live in state 1.
+constexpr std::uint32_t kTileGrid = 0x800ED018u;
+constexpr std::array kTileGridFields{MotionField{.offset = 0x28}, MotionField{.offset = 0x30}};
+constexpr RecordByte kTileGridLive{.offset = 0, .low = 1, .high = 1};
+// A01's sway phase, a 12-bit angle the walker A01:80132358 steps before its leaves read it.
+constexpr std::uint32_t kA01Sway = 0x80139004u;
+// A0D's screen wave phase, an rsin angle the walker A0D:80113628 steps after drawing.
+constexpr std::uint32_t kA0dWave = 0x8011CC68u;
+constexpr std::array kAngleLow{MotionField{.offset = 0, .motion = Motion::Angle12Low}};
+// UV scrolls the area objects step in the update, read as u16 >> 4: A02 0x8012C928 (& 0xFF) | 0x8012C92A (mod
+// 0x180), 0x8012C92C (+0x100 mod 0x800); A06 0x8014A450 (& 0xFF).
+constexpr std::uint32_t kA02Scroll = 0x8012C928u;
+constexpr std::uint32_t kA02Band = 0x8012C92Cu;
+constexpr std::uint32_t kA06Scroll = 0x8014A450u;
+// A0F's U scroll 0x8012092E, -2 & 0x3F a draw, after the walker A0F:80115364 drew with it; read as a byte.
+constexpr std::uint32_t kA0fScroll = 0x8012092Cu;
+constexpr std::array kWord{MotionField{.offset = 0}};
+
 constexpr std::array<const char *, kNodePools.size()> kNodePoolNames{
     "nodes 0xC4", "nodes 0xD0", "nodes 0x108", "nodes 0x140"};
 
@@ -106,6 +125,30 @@ DrawMotion::DrawMotion(world::RenderRecordPool &records) {
                    .records = recordRun};
   tracks_[at++] = {
       .name = "effects", .address = kEffects, .fields = kEffectFields, .keys = kEffectKeys, .records = kEffectRun};
+  tracks_[at++] = {.name = "tile grid",
+                   .address = kTileGrid,
+                   .fields = kTileGridFields,
+                   .rule = &gridScroll_,
+                   .records = {.live = kTileGridLive}};
+  tracks_[at++] = {.name = "A01 sway", .address = kA01Sway, .fields = kAngleLow, .records = {.liveness = &a01_}};
+  tracks_[at++] = {.name = "A0D wave", .address = kA0dWave, .fields = kAngleLow, .records = {.liveness = &a0d_}};
+  tracks_[at++] = {.name = "A02 scroll",
+                   .address = kA02Scroll,
+                   .fields = kWord,
+                   .rule = &a02Scroll_,
+                   .records = {.liveness = &a02_}};
+  tracks_[at++] = {
+      .name = "A02 band", .address = kA02Band, .fields = kWord, .rule = &a02Band_, .records = {.liveness = &a02_}};
+  tracks_[at++] = {.name = "A06 scroll",
+                   .address = kA06Scroll,
+                   .fields = kWord,
+                   .rule = &a06Scroll_,
+                   .records = {.liveness = &a06_}};
+  tracks_[at++] = {.name = "A0F scroll",
+                   .address = kA0fScroll,
+                   .fields = kWord,
+                   .rule = &a0fScroll_,
+                   .records = {.liveness = &a0f_}};
 }
 
 } // namespace tomba

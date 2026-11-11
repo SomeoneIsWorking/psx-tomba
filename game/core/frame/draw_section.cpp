@@ -3,8 +3,8 @@
 #include "core.h"
 #include "entry/session.h"
 #include "frame/frame_driver.h"
+#include "frame/image_residency.h"
 #include "guest_redraw.h"
-#include "image_identity.h"
 #include "ordering_table.h"
 #include "render/guest_ordering_table.h"
 #include "render/render.h"
@@ -21,13 +21,7 @@ constexpr std::string_view kPageStepImage = "GAME";
 } // namespace
 
 bool DrawSection::pageStepResident(const Core &core) {
-  const psx::cpu::ImageCatalog &images = core.imageCatalog();
-  const std::optional<psx::cpu::ImageIdentity> image = images.resolve(kPageStep);
-  if (!image) {
-    return false;
-  }
-  const std::optional<psx::cpu::ImageDescription> description = images.describe(*image);
-  return description && description->name == kPageStepImage;
+  return imageHolds(core, kPageStep, kPageStepImage);
 }
 
 std::optional<std::uint32_t> DrawSection::draw(Core &core, psx::present::GuestRedraw &redraw) const {

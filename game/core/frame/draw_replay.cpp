@@ -1,6 +1,7 @@
 #include "frame/draw_replay.h"
 
 #include "core.h"
+#include "entry/session.h"
 
 namespace tomba {
 
@@ -8,6 +9,7 @@ DrawReplay::DrawReplay(world::RenderRecordPool &records) : motion_(records), fra
 
 void DrawReplay::beforeDraw(Core &core, DrawSection::Variant variant) {
   drewThisFrame_ = true;
+  placedBeforeSample_ = eng(&core).frameCut().cameraPlacing();
   const DrawSection::Selection selection{.variant = variant, .pageStep = DrawSection::pageStepResident(core)};
   if (drawn_ != selection) {
     frame_.forget();
@@ -17,12 +19,14 @@ void DrawReplay::beforeDraw(Core &core, DrawSection::Variant variant) {
   frame_.beforeDraw(core);
 }
 
-void DrawReplay::endFrame(bool cut) {
-  // The cut is known only after the draw sampled, so that sample may predate the scene change.
-  if (!drewThisFrame_ || cut) {
+void DrawReplay::endFrame(const FrameCut &cut) {
+  // A camera re-placed before the draw sampled is already in that sample; a scene change may not be.
+  const bool staleSample = cut.sceneChanged() || (cut.isCut() && !placedBeforeSample_);
+  if (!drewThisFrame_ || staleSample) {
     forget();
   }
   drewThisFrame_ = false;
+  placedBeforeSample_ = false;
 }
 
 void DrawReplay::forget() {

@@ -25,11 +25,19 @@ public:
   void noteCameraPlaced() {
     cameraPlaced_ = true;
   }
+  // Whether FUN_8006EA00 has run so far in the pass being built.
+  [[nodiscard]] bool cameraPlacing() const {
+    return cameraPlaced_;
+  }
   // The pass that built the next record has ended.
   void notePassEnded(Core &core);
   // Whether the most recently ended pass is a cut from the one before it.
   [[nodiscard]] bool isCut() const {
     return cut_;
+  }
+  // Whether that cut is a scene change, which can land after the draw.
+  [[nodiscard]] bool sceneChanged() const {
+    return sceneChanged_;
   }
 
 private:
@@ -44,6 +52,7 @@ private:
   std::optional<SceneIdentity> previous_;
   bool cameraPlaced_ = false;
   bool cut_ = true;
+  bool sceneChanged_ = true;
 };
 
 } // namespace tomba

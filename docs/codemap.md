@@ -23,7 +23,8 @@ Frame loop: owned. `tomba::FrameDriver` runs one pass of `0x80050B08` (update `0
 | `FrameCadence` | `game/core/frame/frame_cadence.h` | The frame-rate decision, published into the guest's quota byte |
 | `DrawReplay` | `game/core/frame/draw_replay.h` | Gameplay in-betweens, paused and attract frames included: the field or room draw replayed with its moving inputs blended (`ReplayFrame`), entered from `Render::frame`/`frameX` |
 | `DrawSection` | `game/core/frame/draw_section.h` | M:8003F9A8 or M:8003FA44, then in GAME the page step G:8010810C (the pause menu), as a replay section; `linked` names the OT chain of either display buffer |
-| `DrawMotion` | `game/core/frame/draw_motion.h` | The tracks: view MATRIX and angles, Tomba, the node pools, the render records' world MATRIX and part angles (live by `RenderRecordPool`'s free stack), the effect table |
+| `DrawMotion` | `game/core/frame/draw_motion.h` | The tracks: view MATRIX and angles, Tomba, the node pools, the render records' world MATRIX and part angles (live by `RenderRecordPool`'s free stack), the effect table, the tile-grid scroll, the area overlays' sway, wave and UV scroll words |
+| `ResidentImage`, `imageHolds` | `game/core/frame/image_residency.h` | Whether a named image (GAME, an area overlay) holds an address; a track's liveness while its overlay is resident |
 | `FrameCut` | `game/core/frame/frame_cut.h` | Whether a sealed record is a cut (stage, area, sub-scene, SOP shot, camera re-place) |
 | `FrameDiagnostics` | `game/core/frame/frame_diagnostics.h` | Per-frame title probes reported after the frame |
 | `tomba::sched::Scheduler` | `game/core/sched/` | The guest task machine FUN_80051E60: three-slot table, yield/spawn/close, stage stanzas, synchronous task wait |
@@ -31,7 +32,7 @@ Frame loop: owned. `tomba::FrameDriver` runs one pass of `0x80050B08` (update `0
 | `installResidentNatives`, `Engine::frameUpdate`, `Engine::drawOTag` | `game/resident_natives.h` | Natives outside any subsystem's registration; the per-VBlank update and the OT draw |
 | guest structure types | `game/engine_types.h` | Native mirrors of the engine's in-RAM structures |
 | `tomba::DebugMenu` | `game/core/debug/debug_menu.h` | The title debug menu (psxport `TitleDebugMenu`): the warp catalogue (area, entry; sourced area names, room entries marked) and position readout, items, event flags, sound test, `tp`, and the diagnostics verbs |
-| `DevControl`, `DevWarp`, `DevItems`, `DevFlags`, `DevGate` | `game/core/debug/dev_*` | `warp`, `items`, `flag` requests: armed by the debug menu, applied by the frame driver at a frame boundary |
+| `DevControl`, `DevWarp`, `DevItems`, `DevFlags`, `DevCameraPlace`, `DevGate` | `game/core/debug/dev_*` | `warp`, `items`, `flag`, `camplace` (an area event's camera re-place, a declared cut) requests: armed by the debug menu, applied by the frame driver at a frame boundary |
 | `tomba::diagnostics` | `game/core/debug/diagnostics.h` | Diagnostic verbs' bodies: `ents`, `node`, `geomblk`, `stage`, `seq`, `bgm`, `invtest`, ... |
 | `AutoDrive` | `game/core/debug/auto_drive.h` | `PSXPORT_AUTO_SKIP`: the front end driven into GAME free-roam at frame boundaries |
 | `VerificationCounters` | `game/core/debug/verification_counters.h` | Title verification tallies on the diagnostics channel |

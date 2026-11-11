@@ -14,6 +14,7 @@ void FrameCut::notePassEnded(Core &core) {
       .introShot = core.mem_r8(kIntroShotByte),
   };
   const bool sceneChanged = !previous_.has_value() || *previous_ != current;
+  sceneChanged_ = sceneChanged;
   cut_ = sceneChanged || cameraPlaced_;
   lucent::debug("cut",
                 "cut={} scene={} camera={} stage={:08X} area={} sub={} shot={}",

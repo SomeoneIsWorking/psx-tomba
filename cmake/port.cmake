@@ -18,6 +18,7 @@ set(GAME_SRC
   game/cd/engine_cd.cpp
   game/core/assets/asset.cpp
   game/core/debug/auto_drive.cpp
+  game/core/debug/dev_camera_place.cpp
   game/core/debug/dev_control.cpp
   game/core/debug/dev_flags.cpp
   game/core/debug/dev_items.cpp
@@ -25,6 +26,7 @@ set(GAME_SRC
   game/core/frame/boot_cards.cpp
   game/core/frame/frame_cadence.cpp
   game/core/frame/frame_cut.cpp
+  game/core/frame/image_residency.cpp
   game/core/frame/frame_diagnostics.cpp
   game/core/frame/frame_driver.cpp
   game/core/frame/draw_motion.cpp

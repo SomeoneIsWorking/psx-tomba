@@ -129,11 +129,11 @@ statically; the probe's identity check answers it.
 | Tomba part angles | each command at `[0x800E7F40 + 4i]` +8..+0xD, s16 x 3 | Pose or Angle12 per part (open 2) | command address | `0x800597AC` (`0x80085480(cmd + 8)`) | M:800597AC |
 | Tomba command matrices | command +0x18..+0x34 | Derived (rebuilt by `0x800597AC` in the section) | | | M:800597AC |
 | object command matrices | command +0x18..+0x29 rotation, +0x2C/+0x30/+0x34 position | Matrix + Vector as one ruled track | command address + `RenderRecordPool::object` life | `0x8003CDD8`, `0x8003F07C`, `0x8003F174` | M:8003CDD8; built in the update by `0x800597AC` from `0x80058648`, `0x8005950C`, `0x80060C60` (inferred update callers) |
-| billboard nodes (type 0x10) | node +0x2E/+0x32/+0x36, +0x5A angle; particles under node +0x38 | Vector, Angle12; particle records open 3 | node + record life | `0x8003C2D4` -> `0x8003C8F4` | M:8003C2D4; `BillboardState` saves the corners |
+| billboard nodes (type 0x10) | node +0x2E/+0x32/+0x36, +0x5A angle; +0x38 the current frame of the sprite set at +0x3C | Vector, Angle12 (the node pools); +0x38 Step | node life | `0x8003C2D4` -> `0x8003C8F4` | M:8003C2D4, M:8003C8F4, M:8003B220: the quads are the set's static 16-byte entries |
 | effect table | `0x800EC188 + 0x40i`, i < 40: +0 live, +7 model, +0xC scale, +0x1E/+0x22/+0x26 position s16, +0x28.. angles | Vector, Angle12, Scalar; +0/+7 Step | slot + model byte | `0x8003D23C` | M:8003F024, M:8003D23C |
-| tile-grid scroll | node `0x800ED018`, two scroll words | wrapped (map size) | single | `0x8003DF04` area grids | `TileGridLayer` state (`docs/producers.md`) |
-| scenery UV scroll, sway phase, A0E arena phase `0x800BF850` | per emitter, as `ListJob` inputs | wrapped / Linear | single per area | the area emitters | `UnlitModelEmitter`, `SwayModelEmitter`, `BackdropPlane` saves |
-| HUD slide | `0x800BF87E`, `0x800BF87F` | Scalar or Step (open 4) | single | `0x80025744` | M:80025744 |
+| tile-grid scroll | node `0x800ED018` +0x28 X\|Y, wrapped into the pitch X\|Y at +0x30 | `RingRule` (periods in the record) | live while +0 is 1 | `0x8003DF04` area grids | A00:8011534C recomputes it in the update from the view angles |
+| scenery UV scroll, sway and wave phase | A01 `0x80139004`, A0D `0x8011CC68` (Angle12Low); A02 `0x8012C928`, `0x8012C92C`, A06 `0x8014A450`, A0F `0x8012092E` (`RingRule`) | as listed | live while the overlay holds its walker (`ResidentImage`) | the area walkers and unlit emitters | below, State |
+| vitality gauge | `0x800BF87E` fill, `0x800BF87F` length (sprite widths in pixels) | Step | single | `0x80025744` | M:80026100, M:80061A7C, M:80024F18, M:80026148 |
 | texture clock | `0x1F80017C` (u16, +1 per field frame) | Step | | flipbooks, A0E `BackdropPlane` | G:80108B0C |
 | hit flash | `0x800E7E8D` flags, `0x800E7E98..9A` colour, from `0x1F800247` | Step (draw-written) | | `0x8003B588` | M:8003B588 |
 
@@ -158,8 +158,9 @@ above lives there).
 - `tomba::FrameCut` (`game/core/frame/frame_cut.cpp`): stage pointer, area byte, sub-scene, intro shot, camera
   re-place, decided at `notePassEnded`, after that pass's draw already sampled and replayed. The presenter reads it
   through `sealedFrameIsCut` when it seals that pass's record S, and `cutBetween` holds the interval S'→S: S is
-  shown as drawn and its replayed in-betweens are dropped. `DrawReplay::endFrame` forgets on the same flag, since
-  S's sample may predate the change, so S→S+1 is held too (`NotReplayed`) and pairing starts again at S+1→S+2.
+  shown as drawn and its replayed in-betweens are dropped. `DrawReplay::endFrame` forgets on a scene change, since
+  S's sample may predate it, so S→S+1 is held too (`NotReplayed`) and pairing starts again at S+1→S+2; a camera
+  re-place that ran before the draw sampled is in S's sample, so S→S+1 pairs.
   A warp arrives through the game's own transition and is a scene change.
 - Not a replayable frame, `forget()`: a frame whose field frame did not draw (`0x1F800136 >= 2` menu pages, load,
   card machine, SOP, the title menu, boot cards), a switch between `0x8003F9A8` and `0x8003FA44` or between stages,
@@ -233,9 +234,10 @@ missing; `presentseq` advances 0.5 per simulated vblank; `replay:warn` 0; no `No
 1. Whether anything links into the OT after the section during play (slots 1 and 2): the probe.
 2. Tomba's part angles (command +8..+0xD) come from the animation VM (`Animation::step`); blending them as
    angles may cross a keyframe switch. The VM's keyframe pair and progress layout is not mapped here.
-3. The billboard particle records under node +0x38 and their identity (`BillboardState` saves projected
-   corners, not the records).
-4. HUD slide words `0x800BF87E/F`: who writes them and whether they ramp.
+3. Resolved: node +0x38 is not a particle pool but the current frame of the sprite set at +0x3C (M:8003C8F4 reads
+   `[+0x3C] + [[+0x38]] * 4` for a quad count and offset, M:8003B220 builds each quad from the set's static entry),
+   so billboards move by their node.
+4. Resolved: `0x800BF87E/F` are the vitality gauge's fill and length, not a slide (below, State).
 5. Whether the camera shake (`CutsceneCamera`, `kShakeRand` `0x8009A450`) needs a cut limit: shake moves the
    view by up to 16 units a frame and should blend, but a re-place must not.
 6. The A03 (`0x80113050`) and A0C (`0x8011AD44`) closures name call targets with no body (`0x89B3FDE0`,
@@ -267,24 +269,55 @@ the free stack and leave the record's bytes. `RenderRecordPool` is the run's `Mo
 records the free stack (`[0x800E7E74]`, count `0x800ED098`) names as free. Village `0/0` samples 441 live records,
 cave `1/0` 286, with 283 and 285 paired as records come and go.
 
-Open: a warp's cut lands on a pass whose load breaks the record chain, so its arrival
-is held by the chain break before `cutBetween` is consulted; a cut with an unbroken chain (camera re-place
-M:8006EA00) is not yet shown: its callers are all in area overlays (A00 0x80128ECC in the scripted state machine
-FUN_80128D04, A06 0x8011B440/0x80126568/0x8012CF68/0x8013201C, A0A 0x8010B794, A0B 0x8010C218, A0C 0x80116C34,
-A0D 0x8010B040, A0E 0x8010BA04, A0F 0x8010BF48) and no warp reaches one at arrival. No CLUT upload refusal was seen in A04 in 24 in-betweens (hazard 4 unproven either way); the effect table's
+A warp's cut lands on a pass whose load breaks the record chain, so its arrival is held by the chain break before
+`cutBetween` is consulted. The camera re-place M:8006EA00 has no warp-reachable caller: every one is an area event's
+script, an object behaviour in the update, ending a scripted shot (A00 FUN_80128D04 case 5, object table
+0x80149E84; A06 FUN_80126334 case 6 after `restoreMode` FUN_8006E1E4, FUN_80131DD8 state 3, FUN_8011AF68,
+FUN_8012C4C4; A0A 0x8010B794, A0B 0x8010C218, A0C 0x80116C34, A0D 0x8010B040, A0E 0x8010BA04, A0F 0x8010BF48), each
+followed by `0x800E806C = 0`. The `camplace` debug option (`debug/dev_camera_place.cpp`) does the same at a frame
+boundary: 0x8006EA00 through its override (which notes the cut), then the byte. Since the re-place runs before the
+draw samples, that sample already holds the placed camera: `DrawReplay::endFrame` forgets only on a scene change or a
+re-place after the sample, so S'→S is held and S→S+1 pairs. Shown (`scratch/replay-gaps/cp2`, `warp 0/0` running
+right): `cut=1 composed=0` for 1511→1512, the in-between the whole new frame, then 1512→1513 `composed=1` with Tomba
+and the house halfway (`halfway.png`).
+
+No CLUT upload refusal was seen in A04 in 24 in-betweens (hazard 4 unproven either way); the effect table's
 scale (+0xC, `Motion::Low16`) is tracked but not yet shown halfway: its only writer is the leaf-particle handler
 M:80027254 (`life - (life >> 7)` a frame) on slots M:8007B26C allocates for the debris spawner M:80027144, whose callers
 are impact sites in MAIN and the area overlays; no table slot was live in the village pad replay, in `warp` 0/0, 1/0,
-4/0, 5/0 or 8/0 walks, or under repeated attack and jump taps (`[motion] run-end: effects: 0 of 0`). Not tracked, stepping at
-30 Hz: the HUD slide (0x800BF87E/F, writer not found), the tile-grid scroll (node 0x800ED018 +0x28/+0x2A wrapped by
-the pitch +0x30/+0x32, `TileGridLayer`), A01's sway phase (0x80139004, `+= 0x20 + (rand >> 12)` in the draw walker
-A01 FUN_80132358, a 12-bit angle) and billboard particles (node +0x38). A01's UV scroll (0x801388EC/0x801388EE) steps
-0x40 texels every third frame inside that walker by design and is not blended; what the update block links before the
-section is captured at t = 1 (dialog text, fades, letterbox). In play no producer state render runs any more
-(census, issue 0055: `scratch/review-findings/cg2` and `cm`, `warp 0/0`, walk, pause, options, select, every
-in-between replayed; the earlier `c3` census never warped). The state renders left serve the title menu and the new
-game's scripted opening (SOP in GAME, then OPN; `co2`); the SOP intro at boot presents once per frame. The gameplay
-producers are deleted, and the area emitters save nothing (issue 0055).
+4/0, 5/0 or 8/0 walks, or under repeated attack and jump taps (`[motion] run-end: effects: 0 of 0`).
+
+What steps at 30 Hz, by RE (`scratch/replay-gaps/{main,a01,a02,a06,a0a,a0d,a0f}`, bodies present):
+
+- **Tile grid** (`0x800ED018`): A00:8011534C, in the update block's area-mode step 0x8001CAC0, writes scroll X|Y at
+  +0x28 from the view angles wrapped into the pitch at +0x30. Tracked by `RingRule` (psxport), the period word
+  carried in the record. Shown (`v2`, `warp 0/0` as Tomba starts running): the sky's clouds sit at -8, -8, -16, -24
+  sink pixels in presents 1-4, in-between 4 halfway between its neighbours where the scroll moved 2 native pixels; a
+  1-pixel step shows at one end, the guest's scroll being whole pixels.
+- **A01 sway** `0x80139004`: each scenery walker call A01:80132358 steps it by `0x20 + (rand >> 12)` before its leaves
+  (A01:8012F8D8 rsin/rcos of phase + vertex) read it, about 0xF0 a frame over the area's walker calls. Tracked as
+  `Angle12Low` sampled before the draw, so an in-between is the blended phase plus the draw's own steps, within the
+  rand spread of S's. Paired on every interval in `warp 1/0` (`a1`, 657 of 657); the only moving scenery there is the
+  fire, whose per-draw random `0x1F800080` steps with S by design, so no halfway sway was seen in frames.
+- **A0D wave** `0x8011CC68`: the walker A0D:80113628 adds `0x1F + (rand >> 8)` after drawing; `Angle12Low`. Not reached
+  in frames (the scan's warp to 13/0 did not arrive before its frame budget).
+- **UV scrolls**, all read as `u16 >> 4` or a byte: A02 `0x8012C928` (`+= speed >> 8 & 0xFF`, A02:801255A4 from the
+  object A02:80118B50) and `0x8012C92A` (`+0xC` or `+0x20` mod 0x180, A02:801255C0 from A02:80118354, 801199EC) and
+  `0x8012C92C` (`+0x100` mod 0x800); A06 `0x8014A450` (`-(|v| >> 7) - 8 & 0xFF`, A06:8013D6BC from A06:80134564), all in
+  the update; A0F `0x8012092E` (`-2 & 0x3F` after the walker A0F:80115364 drew). Tracked by `RingRule` with fixed
+  periods, live while the overlay is resident. Not shown in frames: at `warp 2/0` A02's words did not move (its
+  scroll objects are not at entry 0), and A06/A0F were not reached by a scan.
+- **Kept stepping**, the guest's value cannot show a halfway: A01's UV scroll `0x801388EC/EE` (0x40 texels every third
+  frame); A0A's `0x8011BF14/16/1A` (A0A:8011024C, a 6-frame table flipbook plus a 1-texel scroll a frame, so its in-between
+  is a whole texel or a flipbook frame); A0F's second scroll `0x80120938` (1 texel every other frame) and its texture
+  window offsets `0x80120928..0x80120934` (0x40 steps, a flipbook); the vitality gauge `0x800BF87E/F`, whose fill and
+  length are sprite widths in whole pixels changed by at most one a frame (M:80061A7C drains one every other frame,
+  M:80024F18/M:80026148 grow the length one a frame) or by a pickup's whole amount at once (M:80026100).
+- **2D draws linked in the update block** (dialog glyphs `0x8007CC00`, `ScreenFade` `0x8007E9C8`, `LetterboxBars`
+  `0x80026864`, `UiSprite`): their packets are built and linked before the section from state the update steps in the
+  same call, so the replay starts from an OT that already holds S's packets and cannot rebuild them at t without
+  running those writers twice. They are captured at t = 1. Redrawing them at t needs each writer's state machine split
+  into an update step and a draw the section calls; not done.
 
 Nothing leaks: one pad replay (`scratch/pause-replay/rec2/session.pad`, boot into the village, walk, jump, turn,
 pause and unpause) run with fps60 off and on, after psxport 53125a32 stopped replays with fps60 off (the off run

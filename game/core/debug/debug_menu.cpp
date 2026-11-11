@@ -175,6 +175,16 @@ DebugMenu::DebugMenu() {
           },
       .inMenu = false,
   });
+  verb({
+      .name = "camplace",
+      .summary = "Re-place the camera at Tomba next frame, as an area event ends (a declared cut)",
+      .run =
+          [](const DebugCall &call) {
+            call.reply = devControl(call.core).cameraPlace().arm();
+          },
+      .refusal = fieldRefusal,
+      .inMenu = false,
+  });
 
   section("Diagnostics");
   const auto logged = [](void (*action)(Core &), std::string_view name) {

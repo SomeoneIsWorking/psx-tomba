@@ -147,7 +147,7 @@ void FrameDriver::stepFrame(Core &core, uint32_t frame) {
   session.scheduler.tickSleepCountdown();
   finishPass(core);
   eng(&core).frameCut().notePassEnded(core);
-  session.drawReplay.endFrame(eng(&core).frameCut().isCut());
+  session.drawReplay.endFrame(eng(&core).frameCut());
   game.perf.frameEnd();
   // Close the frame's cadence transaction, once per frame, with the counts named. This reports on
   // the GUEST's own mechanism, not on the port's: the guest's vsync callback (LAB_800506B4) is what
