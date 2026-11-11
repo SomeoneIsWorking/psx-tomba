@@ -71,7 +71,9 @@ Gameplay walks one OT chain per frame, `dma2LinkedList(env + 0x1FFC)` (`Engine::
 DRAWENV packet sits at env + 0x2014 and is named out by that test.
 
 The capture includes every packet linked into this frame's OT before the section ran (the update block's
-writers, below): they are in the OT the replay starts from, so they come back at their real (t = 1) place.
+writers, below): they are in the OT the replay starts from, so they come back at their real (t = 1) place, except
+those a writer notes to `UpdateBlockDraws` (the letterbox, the fade fill), which each replay rewrites in place from
+the two ticks' values blended (issue 0057).
 
 ### Devices, VRAM, yields
 

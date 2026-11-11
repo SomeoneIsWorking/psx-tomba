@@ -36,8 +36,8 @@ public:
   // One leaf call: a0 = 0x00BBGGRR fill color, a1 = blend, a2 = OT slot.
   void applyLeafCall(uint32_t color, uint32_t blend, uint32_t otSlot);
 
-  // FUN_8007E9C8 with the guest's register arguments; the fill spans `window`'s columns.
-  static void draw(Core &core, const tomba::wide_window::Window &window);
+  // FUN_8007E9C8 with the guest's register arguments; the fill spans `window`'s columns. Returns the fill packet.
+  static std::uint32_t draw(Core &core, const tomba::wide_window::Window &window);
   static void registerOverrides(native::NativeOverrideCatalog &natives);
   // Each call is an object saved as its colour, span and blend; the render moves the colour.
   static void registerStateRenders(psx::present::StateProducerTable &renders);

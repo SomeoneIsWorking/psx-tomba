@@ -32,6 +32,7 @@ set(GAME_SRC
   game/core/frame/draw_motion.cpp
   game/core/frame/draw_replay.cpp
   game/core/frame/draw_section.cpp
+  game/core/frame/update_block_draws.cpp
   game/core/frame/scea_splash.cpp
   game/core/hle/libapi_intr.cpp
   game/core/overrides/native_override_catalog.cpp

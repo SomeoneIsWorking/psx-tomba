@@ -7,7 +7,8 @@
 
 namespace tomba {
 
-DrawReplay::DrawReplay(world::RenderRecordPool &records) : motion_(records), frame_(section_, motion_.tracks()) {}
+DrawReplay::DrawReplay(world::RenderRecordPool &records)
+    : motion_(records), frame_(section_, motion_.tracks(), sources_) {}
 
 void DrawReplay::beforeDraw(Core &core, DrawSection::Variant variant) {
   beforeDraw(core, {.variant = variant, .pageStep = DrawSection::pageStepResident(core)});
@@ -40,6 +41,7 @@ void DrawReplay::endFrame(const FrameCut &cut) {
   }
   drewThisFrame_ = false;
   placementsAtSample_ = 0;
+  updateDraws_.open();
 }
 
 std::optional<std::array<float, 2>> DrawReplay::gridScrollPast() const {

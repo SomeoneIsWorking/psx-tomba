@@ -6,6 +6,7 @@
 #include "core/overrides/guest_jal.h"
 #include "core/overrides/native_override_catalog.h"
 #include "entry/session.h"
+#include "frame/update_block_draws.h"
 #include "gp0_primitive_decode.h"
 #include "guest_abi.h"
 #include "guest_call.h"
@@ -38,10 +39,20 @@ constexpr std::uint32_t kSubtractiveTpage = 0x40u;
 constexpr std::uint32_t kAdditiveTpage = 0x20u;
 
 // Each call is an object of its own: the fade a call site draws, n-th in its frame.
+void rebuildFill(Core &core, const UpdateBlockDraws::Draw &earlier, const UpdateBlockDraws::Draw &later, float t);
+
 void drawEntry(Core *core) {
-  const psx::present::EmissionScope::Guard object(
-      core->emission, ScreenFade::kLeaf, sessionOf(core).callSites.object(core->r[31]), 0);
-  ScreenFade::draw(*core, tomba::wide_window::drawWindow(core));
+  const std::uint32_t object = sessionOf(core).callSites.object(core->r[31]);
+  const std::uint32_t color = core->r[4] & 0x00FFFFFFu;
+  const std::uint32_t blend = core->r[5] & 0xFFu;
+  const psx::present::EmissionScope::Guard scope(core->emission, ScreenFade::kLeaf, object, 0);
+  const std::uint32_t fill = ScreenFade::draw(*core, tomba::wide_window::drawWindow(core));
+  sessionOf(core).drawReplay.updateDraws().note(*core,
+                                                {.writer = ScreenFade::kLeaf,
+                                                 .object = object,
+                                                 .packets = {fill, 0u},
+                                                 .values = {color, blend},
+                                                 .rebuild = &rebuildFill});
 }
 
 // What one fade drew: its fill colour and span, and the blend its draw mode packet set.
@@ -65,6 +76,17 @@ std::uint32_t lerpColor(std::uint32_t from, std::uint32_t to, float t) {
   return color;
 }
 
+std::uint32_t fillWord(std::uint32_t color) {
+  return (static_cast<std::uint32_t>(kFillCommand) << 24) | (color & 0x00FFFFFFu);
+}
+
+// The fill's colour at t; a blend switch draws the later fade.
+void rebuildFill(Core &core, const UpdateBlockDraws::Draw &earlier, const UpdateBlockDraws::Draw &later, float t) {
+  if (earlier.values[1] == later.values[1]) {
+    core.mem_w32(later.packets[0] + 4u, fillWord(lerpColor(earlier.values[0], later.values[0], t)));
+  }
+}
+
 // The fill at t: its colour moves, its span and blend are the later frame's.
 class FadeRender final : public psx::present::StateProducer {
 public:
@@ -74,7 +96,7 @@ public:
     const auto earlier = from.data() == to.data() ? later : psx::present::stateAs<Saved>(from);
     const std::uint32_t color =
         earlier.texturePage == later.texturePage ? lerpColor(earlier.color, later.color, t) : later.color;
-    const std::uint32_t command[kFillWords] = {(static_cast<std::uint32_t>(kFillCommand) << 24) | color,
+    const std::uint32_t command[kFillWords] = {fillWord(color),
                                                static_cast<std::uint16_t>(later.left),
                                                (static_cast<std::uint32_t>(ScreenFade::kGuestHeight) << 16) |
                                                    static_cast<std::uint16_t>(later.width)};
@@ -94,7 +116,7 @@ void ScreenFade::applyLeafCall(uint32_t color, uint32_t blend, uint32_t otSlot) 
   psx::cpu::callGuestNow(*core, __func__, kLeaf, color, blend, otSlot);
 }
 
-void ScreenFade::draw(Core &core, const tomba::wide_window::Window &window) {
+std::uint32_t ScreenFade::draw(Core &core, const tomba::wide_window::Window &window) {
   GuestFrame<kFrameBytes, 3> frame(&core, kSpills);
   const std::uint32_t color = core.r[4];
   const std::uint32_t blend = core.r[5] & 0xFFu;
@@ -144,6 +166,7 @@ void ScreenFade::draw(Core &core, const tomba::wide_window::Window &window) {
   core.r[2] = pool.cursor();
   core.r[3] = PacketPool::kCursorPage;
   core.r[4] = ot.slot(slot);
+  return fill;
 }
 
 void ScreenFade::registerStateRenders(psx::present::StateProducerTable &renders) {

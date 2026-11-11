@@ -5,12 +5,17 @@
 #include "core.h"
 #include "core/overrides/native_override_catalog.h"
 #include "emit_memory.h"
+#include "entry/session.h"
+#include "frame/update_block_draws.h"
 #include "gp0_primitive_decode.h"
 #include "guest_ordering_table.h"
+#include "projected_vertex.h"
 #include "state_bytes.h"
 #include "ui/panel.h"
 #include "wide_window.h"
 
+#include <array>
+#include <cmath>
 #include <memory>
 
 namespace tomba::render {
@@ -27,29 +32,59 @@ constexpr std::uint8_t kCueOpen = 1;
 constexpr std::uint8_t kCueClosed = 0;
 constexpr std::uint8_t kCueEnd = 2;
 constexpr std::uint32_t kBlackNearBucket = 1u; // FUN_8007FCC8 mode: no fill colour, OT bucket 1
+// The 0x60 rect packet after its tag: colour, corner x|y, size w|h.
+constexpr std::uint32_t kBarCorner = 8u;
+constexpr std::uint32_t kBarSize = 12u;
 
 struct DrawBarsArgs {
   std::uint32_t slot;
   int margin;
 };
-void drawBars(Core &core, const DrawBarsArgs &args) {
+// The top bar's packet and the bottom's.
+std::array<std::uint32_t, 2> drawBars(Core &core, const DrawBarsArgs &args) {
   auto [slot, margin] = args;
   const int x = -margin;
   const int width = wide_window::kGuestWidth + 2 * margin;
   const std::int16_t top = static_cast<std::int16_t>(core.mem_r16(slot + LetterboxBars::kHeight));
-  Panel::pushDialogBackdrop(&core,
-                            {.x = static_cast<std::int16_t>(x),
-                             .y = 0,
-                             .w = static_cast<std::int16_t>(width),
-                             .h = top,
-                             .mode = kBlackNearBucket});
+  const std::uint32_t topBar = Panel::pushDialogBackdrop(&core,
+                                                         {.x = static_cast<std::int16_t>(x),
+                                                          .y = 0,
+                                                          .w = static_cast<std::int16_t>(width),
+                                                          .h = top,
+                                                          .mode = kBlackNearBucket});
   const std::int16_t bottom = static_cast<std::int16_t>(core.mem_r16(slot + LetterboxBars::kHeight));
-  Panel::pushDialogBackdrop(&core,
-                            {.x = static_cast<std::int16_t>(x),
-                             .y = static_cast<std::int16_t>(LetterboxBars::kGuestHeight - bottom),
-                             .w = static_cast<std::int16_t>(width),
-                             .h = bottom,
-                             .mode = kBlackNearBucket});
+  const std::uint32_t bottomBar =
+      Panel::pushDialogBackdrop(&core,
+                                {.x = static_cast<std::int16_t>(x),
+                                 .y = static_cast<std::int16_t>(LetterboxBars::kGuestHeight - bottom),
+                                 .w = static_cast<std::int16_t>(width),
+                                 .h = bottom,
+                                 .mode = kBlackNearBucket});
+  return {topBar, bottomBar};
+}
+
+// A bar's packet: its corner at `y` lines, sub-line placed, `height` lines tall.
+struct BarPlace {
+  std::uint32_t packet;
+  double y;
+  std::int32_t height;
+};
+void placeBar(Core &core, const BarPlace &bar) {
+  const auto x = static_cast<float>(static_cast<std::int16_t>(core.mem_r16(bar.packet + kBarCorner)));
+  psx::present::EmitMemory(core).storeVertex(
+      bar.packet + kBarCorner, psx::gte::ProjectedVertex::nearest({x, static_cast<float>(bar.y), 0.0f, 0.0f}));
+  core.mem_w16(bar.packet + kBarSize + 2u, static_cast<std::uint16_t>(bar.height));
+}
+
+// The bars' edges at the height t of the way; the bars are as tall as the higher height, so each reaches its
+// screen edge, and at t = 1 they are the later frame's.
+void rebuildBars(Core &core, const UpdateBlockDraws::Draw &earlier, const UpdateBlockDraws::Draw &later, float t) {
+  const auto from = static_cast<std::int32_t>(earlier.values[0]);
+  const auto to = static_cast<std::int32_t>(later.values[0]);
+  const double edge = psx::present::lerpExact(from, to, t);
+  const auto height = static_cast<std::int32_t>(std::ceil(edge));
+  placeBar(core, {.packet = later.packets[0], .y = edge - height, .height = height});
+  placeBar(core, {.packet = later.packets[1], .y = LetterboxBars::kGuestHeight - edge, .height = height});
 }
 
 void tickEntry(Core *core) {
@@ -132,7 +167,14 @@ void LetterboxBars::tick(Core &core, std::uint32_t slot, int margin) {
     return;
   }
   const psx::present::EmissionScope::Guard object(core.emission, kEntry, slot, 0);
-  drawBars(core, {.slot = slot, .margin = margin});
+  const std::array<std::uint32_t, 2> bars = drawBars(core, {.slot = slot, .margin = margin});
+  sessionOf(&core).drawReplay.updateDraws().note(
+      core,
+      {.writer = kEntry,
+       .object = slot,
+       .packets = bars,
+       .values = {static_cast<std::uint32_t>(static_cast<std::int16_t>(core.mem_r16(slot + kHeight))), 0u},
+       .rebuild = &rebuildBars});
   const auto table = core.otTables.slotOf(OrderingTable::active(core).base());
   if (table) {
     core.frameStates.save(core.emission.current(),

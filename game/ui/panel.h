@@ -35,7 +35,8 @@ public:
     uint32_t mode;
   };
   // FUN_8007FCC8: one GP0 0x60 packet into the near or far bucket; `mode` 0x80 selects far, any of 0x7F means no fill.
-  static void pushDialogBackdrop(Core *c, const PushDialogBackdropArgs &args);
+  // Returns the packet.
+  static std::uint32_t pushDialogBackdrop(Core *c, const PushDialogBackdropArgs &args);
 
   struct FillArgs {
     std::uint32_t rect; // s16 x, y, w, h

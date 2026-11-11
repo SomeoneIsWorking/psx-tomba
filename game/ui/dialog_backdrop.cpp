@@ -53,7 +53,7 @@ constexpr uint32_t OT_BUCKET_NEAR = 1u;
 } // namespace
 
 // ORACLE: guest 0x8007FCC8
-void Panel::pushDialogBackdrop(Core *c, const PushDialogBackdropArgs &args) {
+std::uint32_t Panel::pushDialogBackdrop(Core *c, const PushDialogBackdropArgs &args) {
   auto [x, y, w, h, mode] = args;
   const uint32_t bucket = (mode & MODE_FAR_BUCKET) ? OT_BUCKET_FAR : OT_BUCKET_NEAR;
 
@@ -77,6 +77,7 @@ void Panel::pushDialogBackdrop(Core *c, const PushDialogBackdropArgs &args) {
 
   // Link it at the head of its bucket: the packet inherits whatever was there, and becomes the head.
   tomba::render::OrderingTable::active(*c).link({.packet = packet, .words = TAG_WORD_COUNT, .bucket = bucket});
+  return packet;
 }
 
 // Guest-ABI entry: x/y/w/h in r4-r7, mode off the caller's stack (see the ARGUMENT NOTE above).
