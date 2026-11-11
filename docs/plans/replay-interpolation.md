@@ -276,12 +276,17 @@ script, an object behaviour in the update, ending a scripted shot (A00 FUN_80128
 FUN_8012C4C4; A0A 0x8010B794, A0B 0x8010C218, A0C 0x80116C34, A0D 0x8010B040, A0E 0x8010BA04, A0F 0x8010BF48), each
 followed by `0x800E806C = 0`. The `camplace` debug option (`debug/dev_camera_place.cpp`) does the same at a frame
 boundary: 0x8006EA00 through its override (which notes the cut), then the byte. Since the re-place runs before the
-draw samples, that sample already holds the placed camera: `DrawReplay::endFrame` forgets only on a scene change or a
-re-place after the sample, so S'→S is held and S→S+1 pairs. Shown (`scratch/replay-gaps/cp2`, `warp 0/0` running
+draw samples, that sample already holds the placed camera: `DrawReplay` keeps `FrameCut::cameraPlacements()` at the
+sample and `endFrame` forgets on a scene change or when the pass ended with more placements than that, so a second
+re-place after the sample also holds, S'→S is held and S→S+1 pairs. Again on 2026-11-11 (`scratch/review-fix/camplace`):
+the re-place interval `cut=true camera=1`, the next ones paired. Shown (`scratch/replay-gaps/cp2`, `warp 0/0` running
 right): `cut=1 composed=0` for 1511→1512, the in-between the whole new frame, then 1512→1513 `composed=1` with Tomba
 and the house halfway (`halfway.png`).
 
-No CLUT upload refusal was seen in A04 in 24 in-betweens (hazard 4 unproven either way); the effect table's
+Hazard 4: the GPU DMA queue's native `ov_gpuDmaQueueEnqueue` (`render/wide_re_gpu_dma_queue.cpp`) polls the ready
+bit from host code, which a discarded run served 0 for ever, so a replay reaching an upload hung. psxport's journal
+now stops a discarded run at a device access from host code and the interval is refused (`replay:warn` names the
+address); no CLUT upload refusal was seen in A04 in 24 in-betweens. The effect table's
 scale (+0xC, `Motion::Low16`) is tracked but not yet shown halfway: its only writer is the leaf-particle handler
 M:80027254 (`life - (life >> 7)` a frame) on slots M:8007B26C allocates for the debris spawner M:80027144, whose callers
 are impact sites in MAIN and the area overlays; no table slot was live in the village pad replay, in `warp` 0/0, 1/0,
@@ -291,22 +296,28 @@ What steps at 30 Hz, by RE (`scratch/replay-gaps/{main,a01,a02,a06,a0a,a0d,a0f}`
 
 - **Tile grid** (`0x800ED018`): A00:8011534C, in the update block's area-mode step 0x8001CAC0, writes scroll X|Y at
   +0x28 from the view angles wrapped into the pitch at +0x30. Tracked by `RingRule` (psxport), the period word
-  carried in the record. Shown (`v2`, `warp 0/0` as Tomba starts running): the sky's clouds sit at -8, -8, -16, -24
-  sink pixels in presents 1-4, in-between 4 halfway between its neighbours where the scroll moved 2 native pixels; a
-  1-pixel step shows at one end, the guest's scroll being whole pixels.
+  carried in the record. The guest scroll is whole pixels, so the in-between places the grid by the scroll's unrounded
+  halfway: `DrawMotion::gridScrollPast` gives the blended scroll's fraction past the rounded one (`RingRule::exactHalf`)
+  and `TileGridLayer`'s vertex stores add it. Shown (`scratch/review-fix/grid2`, `warp 0/0` running right, `edge.txt`):
+  a cloud edge at 512, 496, 496, 488, 480, 472, 464, 448 sink pixels on real presents and 504, 496, 492, 484, 476,
+  468, 456 on the in-betweens, each halfway, one-native-pixel steps included (`strip.png`); 0 of 1669 unpaired.
 - **A01 sway** `0x80139004`: each scenery walker call A01:80132358 steps it by `0x20 + (rand >> 12)` before its leaves
   (A01:8012F8D8 rsin/rcos of phase + vertex) read it, about 0xF0 a frame over the area's walker calls. Tracked as
   `Angle12Low` sampled before the draw, so an in-between is the blended phase plus the draw's own steps, within the
   rand spread of S's. Paired on every interval in `warp 1/0` (`a1`, 657 of 657); the only moving scenery there is the
   fire, whose per-draw random `0x1F800080` steps with S by design, so no halfway sway was seen in frames.
-- **A0D wave** `0x8011CC68`: the walker A0D:80113628 adds `0x1F + (rand >> 8)` after drawing; `Angle12Low`. Not reached
-  in frames (the scan's warp to 13/0 did not arrive before its frame budget).
+- **A0D wave** `0x8011CC68`: the walker A0D:80113628 adds `0x1F + (rand >> 8)` after drawing; `Angle12Low`. At
+  `warp 13/0` (`scratch/review-fix/areas`, `still`) the word steps about 0x50 a frame and pairs on every draw (610 of
+  610); a halfway wave was not isolated in frames, since the view moves the water too.
 - **UV scrolls**, all read as `u16 >> 4` or a byte: A02 `0x8012C928` (`+= speed >> 8 & 0xFF`, A02:801255A4 from the
   object A02:80118B50) and `0x8012C92A` (`+0xC` or `+0x20` mod 0x180, A02:801255C0 from A02:80118354, 801199EC) and
   `0x8012C92C` (`+0x100` mod 0x800); A06 `0x8014A450` (`-(|v| >> 7) - 8 & 0xFF`, A06:8013D6BC from A06:80134564), all in
   the update; A0F `0x8012092E` (`-2 & 0x3F` after the walker A0F:80115364 drew). Tracked by `RingRule` with fixed
-  periods, live while the overlay is resident. Not shown in frames: at `warp 2/0` A02's words did not move (its
-  scroll objects are not at entry 0), and A06/A0F were not reached by a scan.
+  periods, live while the overlay is resident. Scanned 2026-11-11 (`scratch/review-fix/areas`): every track pairs (A02
+  1457, A06 627, A0F 1563 draws, 0 unpaired); A02's words did not move at `warp 2/0` or `2/1` nor A06's at `6/0` in 16
+  ticks (their scroll objects are not at those entries), and A0F's U steps -2 a tick at `15/0`, where the purple void
+  moves about 24 sink pixels a present with no real/in-between alternation (`still/s15_0`, `phase.py`), which the
+  view's own motion confounds, so no scroll is shown halfway in frames yet.
 - **Kept stepping**, the guest's value cannot show a halfway: A01's UV scroll `0x801388EC/EE` (0x40 texels every third
   frame); A0A's `0x8011BF14/16/1A` (A0A:8011024C, a 6-frame table flipbook plus a 1-texel scroll a frame, so its in-between
   is a whole texel or a flipbook frame); A0F's second scroll `0x80120938` (1 texel every other frame) and its texture
@@ -316,16 +327,17 @@ What steps at 30 Hz, by RE (`scratch/replay-gaps/{main,a01,a02,a06,a0a,a0d,a0f}`
 - **2D draws linked in the update block** (dialog glyphs `0x8007CC00`, `ScreenFade` `0x8007E9C8`, `LetterboxBars`
   `0x80026864`, `UiSprite`): their packets are built and linked before the section from state the update steps in the
   same call, so the replay starts from an OT that already holds S's packets and cannot rebuild them at t without
-  running those writers twice. They are captured at t = 1. Redrawing them at t needs each writer's state machine split
-  into an update step and a draw the section calls; not done.
+  running those writers twice. They are captured at t = 1 (issue 0057).
 
 Nothing leaks: one pad replay (`scratch/pause-replay/rec2/session.pad`, boot into the village, walk, jump, turn,
 pause and unpause) run with fps60 off and on, after psxport 53125a32 stopped replays with fps60 off (the off run
 replays 0 intervals, the on run 1438), leaves main RAM and the scratchpad byte-identical at every pad frame it
 reached, 1 to 1638 (`scratch/review-findings/leak_fps{0,1}`, `leakcmp.py`). The earlier proof at two pad frames
 compared two runs that both replayed. Repeated on the committed tree after the tile-grid, sway, wave and scroll
-tracks, camplace and the SOP and title sections (`scratch/replay-gaps/leak{0,1}`, built from `git archive` in
-`scratch/headcheck`): the on run replays 1552 intervals, and all 1638 pad frames reached match byte for byte. Paced on the same build (`scratch/replay-gaps/paced`, `warp 0/0`
+tracks, camplace and the SOP and title sections, and again after the tile-grid placement, the SOP update flag and the
+re-place count (`scratch/review-fix/leak{0,1}`, HEAD built from `git archive` without the uncommitted
+`subdivided_ground.cpp`): the on run replays 1552 intervals, 0 refused, and all 1638 pad frames reached match byte for
+byte. Paced on the same build (`scratch/replay-gaps/paced`, `warp 0/0`
 running right, 1-minute load 2.4): 698 of 701 simulated 60.00 Hz vblanks advance half a tick, 3 repeat; 1747
 intervals replayed, 0 refused, 0 held; the run-end unpaired counts are the node pools' and record lists' births
 and deaths (98 of 15312 effect nodes, 376 of 763641 record transforms), every other track 0.
@@ -335,10 +347,14 @@ through `DrawSection`'s `Sop` and `Title` variants. SOP's draw tail (FUN_801092B
 has the same body and no caller) is the scenery walker 0x80109FE0(0x800F2418), the list step 0x8003C048 and, outside
 beat 5 (0x800BF9B4), the parallax grid 0x8010C26C(0x800ED018); while sm[0x52] is 1 the text scroller FUN_8010C79C
 follows and links the narration lines into the same OT, so the section runs it too (without it the narration showed
-only on real presents). The grid step replays through `TileGridLayer::drawSop`, the grid walk without the CLUT
-palette cycles: those are LoadImage uploads (0x80081218), which hang a replay. The title is DEMO FUN_80106690 (the
+only on real presents), after clearing the in-field-update flag `Sop::kInFieldUpdate` the real frame clears before it.
+The grid step replays through `TileGridLayer::drawSop`, the grid walk of `runSop` without the CLUT palette cycles:
+those are LoadImage uploads (0x80081218) through the GPU DMA queue, which refuse a replay (hazard 4), and with them in
+the replay 110 SOP intervals were refused (`scratch/review-fix/sop2`). On the fixed build (`soprun`): 1904 intervals
+replayed, 0 refused, 0 held; the t = 1 probe (`t1run`, `t1title`) matches every following real present pixel for
+pixel in SOP, attract and the title menu. The title is DEMO FUN_80106690 (the
 two edge sprites) and FUN_80106824(menu, item), selected by `Demo::s2SubMachine` (menu 0, item sm+0x68 != 0) and
 `s3SubMachine` (menu 1, item sm+0x68 != 2). Boot unskipped through the title, attract, menu and new-game SOP
 (`scratch/replay-gaps/op7`): 1922 intervals replayed, 0 refused, 0 held; the narration is on every present. Open: the
 scroller steps its scroll inside the replay, so while the narration scrolls an in-between shows the next tick's line
-position instead of halfway; the scroll word needs a track that the scroller's own step lands on.
+position instead of halfway (issue 0056).
