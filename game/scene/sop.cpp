@@ -28,6 +28,7 @@
 #include "sched/scheduler.h"
 
 #include "game.h"
+#include "scene/narration_scroller.h"
 #include "sop.h"
 #include <algorithm> // std::swap / std::min / std::max used by sceneGridGather
 #include <stdio.h>
@@ -536,7 +537,7 @@ void Sop::fieldUpdate() {
   sm = c->mem_r32(TASK_SM_PTR);
   uint16_t s52 = c->mem_r16(sm + kScrollerPhase);
   if (s52 == 1) {
-    psx::cpu::callGuestNow(*c, __func__, kTextScroller);
+    psx::cpu::callGuestNow(*c, __func__, NarrationScroller::kEntry); // links its lines into the same OT
     if (c->r[2] == 0) {
       return; // still running -> stay
     }

@@ -158,7 +158,7 @@ L_8009A6B8:;
 }
 
 void Str::registerOverrides(native::NativeOverrideCatalog &natives) {
-  natives.declare(0x80079528u, "ov_strLength", ov_strLength);
+  natives.declare(kLength, "ov_strLength", ov_strLength);
   natives.declare(0x8009A3E0u, "ov_copyBytes", ov_copyBytes);
   {
     natives.declare(0x8009A640u, "&Str::compareBytes", &Str::compareBytes);

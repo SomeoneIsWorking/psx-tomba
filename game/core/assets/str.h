@@ -1,6 +1,7 @@
 // game/core/str.h — resident native string leaves with image-aware registration.
 // The leaves are stateless; guest memory and registers remain owned by the supplied Core.
 #pragma once
+#include <cstdint>
 #include <stdint.h>
 class Core;
 
@@ -12,6 +13,7 @@ namespace tomba {
 
 class Str {
 public:
+  static constexpr std::uint32_t kLength = 0x80079528u;
   // Register the resident string leaves with the title's image-aware catalog.
   static void registerOverrides(native::NativeOverrideCatalog &natives);
 

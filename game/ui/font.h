@@ -27,6 +27,7 @@ namespace tomba {
 
 class Font {
 public:
+  static constexpr std::uint32_t kDrawText = 0x80079374u;
   Core *core = nullptr;
 
   // init: FUN_80075130 — font / text system init orchestrator (no args, no return). Called
@@ -202,6 +203,28 @@ public:
 
   // The texture page glyphEmit's SetDrawMode call gives the string; each glyph sprite takes it.
   static constexpr std::uint32_t kGlyphTexturePage = 31u;
+
+  // While held, glyphEmit places each glyph `pastY` lines below its word: text a replay draws at a blended place.
+  class PlacedGlyphs {
+  public:
+    PlacedGlyphs(Font &font, float pastY) : font_(font), entry_(font.glyphPastY_) {
+      font_.glyphPastY_ = pastY;
+    }
+    PlacedGlyphs(const PlacedGlyphs &) = delete;
+    PlacedGlyphs &operator=(const PlacedGlyphs &) = delete;
+    PlacedGlyphs(PlacedGlyphs &&) = delete;
+    PlacedGlyphs &operator=(PlacedGlyphs &&) = delete;
+    ~PlacedGlyphs() {
+      font_.glyphPastY_ = entry_;
+    }
+
+  private:
+    Font &font_;
+    float entry_;
+  };
+
+private:
+  float glyphPastY_ = 0.0f;
 };
 
 } // namespace tomba

@@ -20,9 +20,12 @@
 #include "core.h"
 #include "core/overrides/guest_jal.h" // GuestFrame/guest_fn — ABI vocabulary (2026-07-15 readability pass)
 #include "core/overrides/native_override_catalog.h"
+#include "emit_memory.h"
+#include "entry/session.h"
 #include "game.h"
 #include "guest_abi.h"
 #include "guest_call.h"
+#include "projected_vertex.h"
 #include "render/anchored_packets.h"
 #include "render/guest_ordering_table.h"
 #include <format>
@@ -595,7 +598,12 @@ L_80078F04: {
   c->mem_w32(c->r[4] + 0u, c->r[2]);
   c->r[2] = command[1];
   c->r[4] = c->r[4] + 4u;
-  c->mem_w32(c->r[4] + 0u, c->r[2]);
+  if (const float pastY = eng(c).font.glyphPastY_; pastY != 0.0f) {
+    const GtePlace word = psx::gte::ProjectedVertex::whole(command[1]).place();
+    psx::present::EmitMemory(*c).storeVertex(c->r[4], {command[1], {word.x, word.y + pastY, 0.0f, 0.0f}});
+  } else {
+    c->mem_w32(c->r[4] + 0u, c->r[2]);
+  }
   c->r[2] = command[2];
   c->r[4] = c->r[4] + 4u;
   c->mem_w32(c->r[4] + 0u, c->r[2]);
@@ -912,7 +920,7 @@ void Font::registerStateRenders(psx::present::StateProducerTable &renders) {
 }
 
 void Font::registerOverrides(native::NativeOverrideCatalog &natives) {
-  natives.declare(0x80079374u, "ov_drawText", ov_drawText);
+  natives.declare(kDrawText, "ov_drawText", ov_drawText);
   natives.declare(0x80079324u, "ov_drawTextSmall", ov_drawTextSmall); // 8x8 sibling of drawText
   // A text draw is the object of its string (a3); each glyph names its byte offset in it.
   natives.declare(kGlyphEmit, "Font::glyphEmit", Font::glyphEmit, psx::present::Producer{psx::present::Arg::A3});

@@ -39,6 +39,7 @@
 #include "lit_model_emitter.h"     // class LitModelEmitter — A01/A05/A07/A08 point-lit GT3/GT4 emitters
 #include "math/trig.h"             // class Trig — rsin/ratan2/angleCmp override wiring
 #include "melee_proximity.h"       // class MeleeProximity — melee-proximity/approach-anchor leaf
+#include "narration_scroller.h"    // class NarrationScroller — SOP narration crawl (0x8010C79C)
 #include "node_xform.h"            // class NodeXform — per-object child-transform-propagate family
 #include "obj_model_view.h"        // class ObjModelView — shared effect-mesh model-view compose leaf (0x800318A0)
 #include "overlay_ground_gt3gt4.h" // class OverlayGroundGt3Gt4 — A00-overlay GROUND/SCENE GT3/GT4 cluster
@@ -123,6 +124,7 @@ void register_engine_overrides(Game &game, native::NativeOverrideCatalog &native
   tomba::render::UnlitModelEmitter::registerOverrides(natives); // resident and SOP/A0B/A0C GT3/GT4 emitters
   tomba::render::SwayModelEmitter::registerOverrides(natives);  // A01 sway, scroll and cue GT3/GT4 emitters
   SopGround::registerOverrides(natives);                        // SOP intro ground blocks (0x80109FE0)
+  NarrationScroller::registerOverrides(natives);                // SOP narration crawl (0x8010C79C)
   RainStreaks::registerOverrides(natives);                      // A08 rain streaks (0x80116904)
   tomba::render::DustField::registerOverrides(natives);         // A0B dust field (0x801110BC), A04 snow
   tomba::render::SubdividedGround::registerOverrides(natives);  // A03 ground GT4 (0x80110290)

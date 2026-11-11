@@ -206,6 +206,7 @@ set(GAME_SRC
   game/core/engine/engine_frame_ticks.cpp
   game/scene/field_transition.cpp
   game/scene/sop.cpp
+  game/scene/narration_scroller.cpp
   game/scene/demo.cpp
   game/scene/card_load_machine.cpp
   game/camera/cutscene_camera.cpp

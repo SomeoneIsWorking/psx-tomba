@@ -10,6 +10,7 @@
 #include "render/render.h"
 #include "render/tile_grid_layer.h"
 #include "scene/demo.h"
+#include "scene/narration_scroller.h"
 #include "scene/sop.h"
 
 #include <array>
@@ -47,7 +48,7 @@ bool DrawSection::drawSteps(Core &core, psx::present::GuestRedraw &redraw) const
       return true;
     }
     redraw.writeByte(Sop::kInFieldUpdate, 0u);
-    return redraw.dispatch(Sop::kTextScroller, {});
+    return redraw.dispatch(NarrationScroller::kEntry, {});
   }
   case Variant::Title: {
     const std::array edges{0u};

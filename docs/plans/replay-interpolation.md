@@ -355,6 +355,7 @@ replayed, 0 refused, 0 held; the t = 1 probe (`t1run`, `t1title`) matches every 
 pixel in SOP, attract and the title menu. The title is DEMO FUN_80106690 (the
 two edge sprites) and FUN_80106824(menu, item), selected by `Demo::s2SubMachine` (menu 0, item sm+0x68 != 0) and
 `s3SubMachine` (menu 1, item sm+0x68 != 2). Boot unskipped through the title, attract, menu and new-game SOP
-(`scratch/replay-gaps/op7`): 1922 intervals replayed, 0 refused, 0 held; the narration is on every present. Open: the
-scroller steps its scroll inside the replay, so while the narration scrolls an in-between shows the next tick's line
-position instead of halfway (issue 0056).
+(`scratch/replay-gaps/op7`): 1922 intervals replayed, 0 refused, 0 held; the narration is on every present. The
+scroller is `NarrationScroller` (`scene/narration_scroller.cpp`), which steps and then places: a replay places the
+lines at the blend of the scroll the last tick drew and the one its step reaches, sub-line through
+`Font::PlacedGlyphs`, so the narration scrolls halfway (issue 0056).
