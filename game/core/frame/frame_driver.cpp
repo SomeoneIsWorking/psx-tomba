@@ -48,10 +48,17 @@ uint32_t flipBuffer(Core &core) {
   return env;
 }
 
-// The pass top after the dwell reset: this pass draws into the pool of the current parity.
+// The pass top after the dwell reset. The guest draws each pass into its parity's pool while the GPU reads the
+// other; finishPass draws the OT before the next pass, so every pass has both pools.
 void rotatePacketPool(Core &core) {
-  core.mem_w32(PacketPool::kLastCursor, core.mem_r32(PacketPool::kCursor));
-  core.mem_w32(PacketPool::kCursor, (PacketPool::kBase + bufferParity(core) * PacketPool::kStride) & 0xffffffu);
+  const uint32_t last = core.mem_r32(PacketPool::kCursor);
+  if ((last | 0x80000000u) > PacketPool::kEnd) {
+    lucent::error(
+        "tomba-frame", "the pass ended its packets at {:08X}, past the pool end {:08X}", last, PacketPool::kEnd);
+    std::abort();
+  }
+  core.mem_w32(PacketPool::kLastCursor, last);
+  core.mem_w32(PacketPool::kCursor, PacketPool::kBase & 0xffffffu);
 }
 
 void finishPass(Core &core) {
@@ -86,7 +93,7 @@ void FrameDriver::enterLoop(Core &core) {
     core.otTables.name(kOtTable, base, kOtEntries, sizeof(uint32_t), psx::gpu::OtWalk::HighToLow);
   }
   const uint8_t parity = bufferParity(core);
-  core.mem_w32(PacketPool::kCursor, PacketPool::kBase + (1u - parity) * PacketPool::kStride);
+  core.mem_w32(PacketPool::kCursor, PacketPool::kBase);
   const uint32_t env = kDisplayBufferBase + parity * kDisplayBufferStride;
   core.mem_w32(OrderingTable::kBasePointer, env);
   clearOrderingTable(core, env);

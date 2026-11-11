@@ -8,7 +8,7 @@ loop per frame; `enterLoop` is the prologue, called at the end of `tomba::Runtim
 |---|---|---|
 | `0x1F800135` u8 | buffer parity | read/flipped by `tomba::FrameDriver` |
 | `0x800ED8C8` u32 | env pointer = `0x800E80A8 + parity * 0x2070` | `cfg.otBasePtr`, written on every flip |
-| `0x800BF544` / `0x800BF4F4` | packet pool cur/last; pass top: last = cur, cur = `(0x800BFE68 + parity * 0x14000) & 0xFFFFFF` | `rotatePacketPool` |
+| `0x800BF544` / `0x800BF4F4` | packet pool cur/last; pass top: last = cur, cur = `(0x800BFE68 + parity * 0x14000) & 0xFFFFFF` | `rotatePacketPool`: cur = `0x800BFE68` every pass, both pools (below) |
 | `0x800E809C` u16 | dwell counter, zeroed at pass top | `FrameCadence::beginLogicFrame` |
 | `0x1F800235` u8 | vblank quota the pass waits for | `FrameCadence` |
 | `0x800788AC` | per-frame state update | `Engine::frameUpdate` |
@@ -21,6 +21,15 @@ loop per frame; `enterLoop` is the prologue, called at the end of `tomba::Runtim
 | state 2 | PutDispEnv(env+0x2000), state = 1, flip (no clear) | |
 | state 3 | ClearOTagR(env, 0x800) | |
 | other | next pass | |
-| prologue | pool cur = `0x800BFE68 + (1 - parity) * 0x14000`, env from parity, ClearOTagR(env) | `tomba::FrameDriver::enterLoop` |
+| prologue | pool cur = `0x800BFE68 + (1 - parity) * 0x14000`, env from parity, ClearOTagR(env) | `tomba::FrameDriver::enterLoop` (cur = `0x800BFE68`) |
 
 PutDispEnv `0x8008179C` has two callers, both in this loop (0x80050D48, 0x80050D9C).
+
+## Packet pool
+
+The guest splits 0x800BFE68..0x800E7E68 into two 80 KB parity pools so a pass can build while the GPU reads the
+other's packets. `finishPass` draws the OT before the next pass top, so no packet outlives its pass, and the port
+gives every pass both pools from `0x800BFE68`. The widened 16:9 cull outgrows one pool: in the opening's letterboxed
+village shot after A00 binds the second time (logic frame ~5760) passes use 0x133E4..0x14204 bytes, and a parity-1
+pass ran past 0x800E7E68 into the pad edge mask and the render-record free-stack cursor `0x800E7E74` (issue 0058).
+The same opening at 4:3 never aborts. A pass that ends past `PacketPool::kEnd` aborts at the next pass top.

@@ -97,6 +97,8 @@ public:
   // The two parity pools, kStride bytes each from kBase.
   static constexpr std::uint32_t kBase = 0x800BFE68u;
   static constexpr std::uint32_t kStride = 0x14000u;
+  // One past both pools; the port's pass draws into either (FrameDriver).
+  static constexpr std::uint32_t kEnd = kBase + 2u * kStride;
   // Guest word holding the cursor the previous pass ended at.
   static constexpr std::uint32_t kLastCursor = 0x800BF4F4u;
 
