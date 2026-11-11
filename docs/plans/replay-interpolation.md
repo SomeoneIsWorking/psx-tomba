@@ -314,7 +314,10 @@ What steps at 30 Hz, by RE (`scratch/replay-gaps/{main,a01,a02,a06,a0a,a0d,a0f}`
   fire, whose per-draw random `0x1F800080` steps with S by design, so no halfway sway was seen in frames.
 - **A0D wave** `0x8011CC68`: the walker A0D:80113628 adds `0x1F + (rand >> 8)` after drawing; `Angle12Low`. At
   `warp 13/0` (`scratch/review-fix/areas`, `still`) the word steps about 0x50 a frame and pairs on every draw (610 of
-  610); a halfway wave was not isolated in frames, since the view moves the water too.
+  610). With the view still (13/0 after 1800 frames, the boss intro's dialog, `scratch/scrolls/s3/s13_0`) the water's
+  in-between is not halfway: in-between 2918 is byte-identical to real 2918 and in-between 2921 to real 2920, while
+  other pairs differ. The wave's readers A0D:80112DE4 and A0D:801131B0 are not decompiled, so whether they round the
+  phase to whole texels or vertices (no halfway possible) or the track misses an input is not traced.
 - **UV scrolls**, all read as `u16 >> 4` or a byte: A02 `0x8012C928` (`+= speed >> 8 & 0xFF`, A02:801255A4 from the
   object A02:80118B50) and `0x8012C92A` (`+0xC` or `+0x20` mod 0x180, A02:801255C0 from A02:80118354, 801199EC) and
   `0x8012C92C` (`+0x100` mod 0x800); A06 `0x8014A450` (`-(|v| >> 7) - 8 & 0xFF`, A06:8013D6BC from A06:80134564), all in
@@ -323,7 +326,13 @@ What steps at 30 Hz, by RE (`scratch/replay-gaps/{main,a01,a02,a06,a0a,a0d,a0f}`
   1457, A06 627, A0F 1563 draws, 0 unpaired); A02's words did not move at `warp 2/0` or `2/1` nor A06's at `6/0` in 16
   ticks (their scroll objects are not at those entries), and A0F's U steps -2 a tick at `15/0`, where the purple void
   moves about 24 sink pixels a present with no real/in-between alternation (`still/s15_0`, `phase.py`), which the
-  view's own motion confounds, so no scroll is shown halfway in frames yet.
+  view's own motion confounds. Re-scanned (`scratch/scrolls/scan2`, every entry, 6 frames each after 420): A02's
+  `0x8012C928..0x8012C92F` never move at entries 0-8, so its scroll objects A02:80118B50, 80118354, 801199EC are not
+  spawned by any arrival; A06's `0x8014A450` moves only for a few frames after arriving at 6/12 and then holds (0xCC,
+  `s4`), an arrival transient. With the view still at 15/0 (`s3/s15_0`) the void's mean difference alternates 4.5
+  (an in-between to the real of its own tick S) and 14-23 (a real to the next in-between): the in-between is close to S
+  and most of the void's change lands with the tick because `0x80120930`, a texture-window flipbook word, toggles 0x40/0x80 every tick (kept
+  stepping, below), and the U scroll's share is the small difference. None of A02, A06, A0F is shown halfway in frames.
 - **Kept stepping**, the guest's value cannot show a halfway: A01's UV scroll `0x801388EC/EE` (0x40 texels every third
   frame); A0A's `0x8011BF14/16/1A` (A0A:8011024C, a 6-frame table flipbook plus a 1-texel scroll a frame, so its in-between
   is a whole texel or a flipbook frame); A0F's second scroll `0x80120938` (1 texel every other frame) and its texture
