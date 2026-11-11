@@ -8,7 +8,7 @@
 namespace tomba {
 
 DrawReplay::DrawReplay(world::RenderRecordPool &records)
-    : motion_(records), frame_(section_, motion_.tracks(), sources_) {}
+    : motion_(records), frame_(section_, motion_.tracks(), sources_, &paletteCycles_) {}
 
 void DrawReplay::beforeDraw(Core &core, DrawSection::Variant variant) {
   beforeDraw(core, {.variant = variant, .pageStep = DrawSection::pageStepResident(core)});

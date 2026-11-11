@@ -5,6 +5,7 @@
 #include "frame/draw_section.h"
 #include "frame/frame_cut.h"
 #include "frame/update_block_draws.h"
+#include "render/palette_cycles.h"
 #include "render/wave_phases.h"
 #include "replay_frame.h"
 
@@ -49,6 +50,7 @@ private:
   UpdateBlockDraws updateDraws_;
   render::WavePhases wavePhases_;
   std::array<psx::present::MotionSource *, 2> sources_{&updateDraws_, &wavePhases_};
+  render::PaletteCycles paletteCycles_;
   psx::present::ReplayFrame frame_;
   std::optional<DrawSection::Selection> drawn_;
   bool drewThisFrame_ = false;

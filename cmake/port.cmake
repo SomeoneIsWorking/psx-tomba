@@ -228,6 +228,7 @@ set(GAME_SRC
   game/render/list_job.cpp
   game/render/lit_model_emitter.cpp
   game/render/unlit_model_emitter.cpp
+  game/render/palette_cycles.cpp
   game/render/wave_phases.cpp
   game/render/sway_model_emitter.cpp
   game/render/sop_ground.cpp

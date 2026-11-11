@@ -148,6 +148,7 @@
 #include "guest_ordering_table.h"
 #include "libgpu_draw_mode.h"
 #include "list_job.h"
+#include "palette_cycles.h"
 #include "render.h"
 #include "scene/sop.h"
 #include "wide_window.h"
@@ -209,12 +210,7 @@ int clampedRow(const psx::present::EmitMemory &memory, int row, int rowstride, i
   return row < mapbytes ? row : mapbytes - rowstride;
 }
 
-constexpr uint32_t kSopPaletteCycles = 0x8010D2FCu; // 3 x {u8 *script, u32 image, u16 x, u16 y}
-constexpr uint32_t kSopPaletteCycleStride = 12u;
-constexpr uint32_t kSopPaletteCountdowns = 0x8010D390u; // 3 x u8
-constexpr uint32_t kSopPaletteCycleCount = 3u;
-constexpr uint8_t kPaletteScriptLoop = 0xFFu; // {0xFF, n}: rewind the script n bytes
-constexpr uint32_t kClutRowBytes = 32u;       // 16 colours
+constexpr uint32_t kSopPaletteCountdowns = 0x8010D390u; // u8 per cycle
 constexpr uint32_t kLoadImage = 0x80081218u;
 constexpr uint32_t kLoadImageReturn = 0x8010C624u;
 
@@ -449,30 +445,31 @@ void TileGridLayer::emitGrid(const psx::present::EmitMemory &memory, const EmitG
 
 void TileGridLayer::cycleSopPalettes(Core *c) {
   const uint32_t rect = c->r[29] + 0x18u;
-  for (uint32_t i = 0; i < kSopPaletteCycleCount; i++) {
-    const uint32_t cycle = kSopPaletteCycles + i * kSopPaletteCycleStride;
+  using Cycles = render::ScriptedPaletteCycles;
+  for (uint32_t i = 0; i < render::kSopPaletteCycles.count; i++) {
+    const uint32_t cycle = render::kSopPaletteCycles.descriptors + i * Cycles::kStride;
     const uint32_t countdown = kSopPaletteCountdowns + i;
     const uint8_t remaining = (uint8_t)(c->mem_r8(countdown) - 1u);
     c->mem_w8(countdown, remaining);
     if ((int8_t)remaining > 0) {
       continue;
     }
-    uint32_t script = c->mem_r32(cycle);
-    if (c->mem_r8(script) == kPaletteScriptLoop) {
+    uint32_t script = c->mem_r32(cycle + Cycles::kScript);
+    if (c->mem_r8(script) == Cycles::kLoop) {
       script -= c->mem_r8(script + 1u);
-      c->mem_w32(cycle, script);
+      c->mem_w32(cycle + Cycles::kScript, script);
     }
     const uint32_t frameIndex = c->mem_r8(script);
     c->mem_w8(countdown, c->mem_r8(script + 1u));
-    c->mem_w16(rect + 0u, c->mem_r16(cycle + 8u));
+    c->mem_w16(rect + 0u, c->mem_r16(cycle + Cycles::kX));
     c->mem_w16(rect + 4u, 16u);
     c->mem_w16(rect + 6u, 1u);
-    c->mem_w16(rect + 2u, c->mem_r16(cycle + 10u));
+    c->mem_w16(rect + 2u, c->mem_r16(cycle + Cycles::kY));
     c->r[4] = rect;
-    c->r[5] = c->mem_r32(cycle + 4u) + frameIndex * kClutRowBytes;
+    c->r[5] = c->mem_r32(cycle + Cycles::kImage) + frameIndex * Cycles::kFrameBytes;
     c->r[31] = kLoadImageReturn;
     psx::cpu::callGuestNow(*c, __func__, kLoadImage);
-    c->mem_w32(cycle, c->mem_r32(cycle) + 2u);
+    c->mem_w32(cycle + Cycles::kScript, c->mem_r32(cycle + Cycles::kScript) + 2u);
   }
 }
 

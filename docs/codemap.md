@@ -26,6 +26,7 @@ Frame loop: owned. `tomba::FrameDriver` runs one pass of `0x80050B08` (update `0
 | `UpdateBlockDraws` | `game/core/frame/update_block_draws.h` | 2D packets the update block links before the section (the letterbox, `Panel`, `UiSprite` calls), rewritten in each replay from their noted values blended through the replay's `GuestRedraw` |
 | `DrawMotion` | `game/core/frame/draw_motion.h` | The tracks: view MATRIX and angles, Tomba, the node pools, the render records' world MATRIX and part angles (live by `RenderRecordPool`'s free stack), the effect table, the tile-grid scroll, the area overlays' sway and UV scroll words |
 | `render::WavePhases` | `game/render/wave_phases.h` | The phase A0D's screen wave read per model list in the last real draw; a replay places the wave's whole rows t of the way from it (`UnlitModelEmitter`'s `wave`) |
+| `render::PaletteCycles` | `game/render/palette_cycles.h` | The CLUT rows the resident palette cycle owners upload (the scripted routine in A00/A0D/SOP, A00's object FUN_80131840), declared to the replay so an in-between cross-fades a row between its two ticks' frames |
 | `ResidentImage`, `imageHolds` | `game/core/frame/image_residency.h` | Whether a named image (GAME, an area overlay) holds an address; a track's liveness while its overlay is resident |
 | `FrameCut` | `game/core/frame/frame_cut.h` | Whether a sealed record is a cut (stage, area, sub-scene, SOP shot, camera re-place) |
 | `FrameDiagnostics` | `game/core/frame/frame_diagnostics.h` | Per-frame title probes reported after the frame |
