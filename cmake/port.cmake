@@ -237,6 +237,7 @@ set(GAME_SRC
   game/render/camera_lattice.cpp
   game/render/dust_field.cpp
   game/render/subdivided_ground.cpp
+  game/render/view_clip.cpp
   game/render/fog_model_emitter.cpp
   game/render/letterbox_bars.cpp
   game/audio/native_audio.c

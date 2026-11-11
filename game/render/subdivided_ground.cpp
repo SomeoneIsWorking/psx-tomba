@@ -9,10 +9,15 @@
 #include "list_state_producer.h"
 #include "model_packet.h"
 #include "object_draw.h"
+#include "view_clip.h"
+#include "wide_window.h"
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <memory>
+#include <optional>
+#include <vector>
 
 namespace tomba::render {
 namespace {
@@ -39,12 +44,6 @@ constexpr std::uint32_t kSplitColourMask = 0xFEFEFEu;
 constexpr std::uint32_t kClut = 0xAu;  // record u16, to packet +0xE
 constexpr std::uint32_t kTpage = 0xEu; // record u16, to packet +0x1A
 
-// A model corner as 0x8010F1A0 carries it.
-struct Corner {
-  std::int16_t x, y, z;
-  std::uint8_t u, v, r, g, b;
-};
-
 std::uint8_t halfway(std::uint8_t a, std::uint8_t b) {
   return static_cast<std::uint8_t>((a + b) >> 1);
 }
@@ -53,7 +52,7 @@ std::int16_t halfway(std::int16_t a, std::int16_t b) {
   return static_cast<std::int16_t>((a + b) >> 1);
 }
 
-Corner halfway(const Corner &a, const Corner &b) {
+ModelPoint halfway(const ModelPoint &a, const ModelPoint &b) {
   return {halfway(a.x, b.x),
           halfway(a.y, b.y),
           halfway(a.z, b.z),
@@ -93,11 +92,32 @@ void count(const psx::present::EmitMemory &memory, std::uint32_t counter) {
   memory.mem_w32(counter, memory.mem_r32(counter) + 1u);
 }
 
+// How a path colours a corner by its depth.
+enum class Tint : std::uint8_t {
+  Plain,
+  Fade,  // toward the far colour by kSubdivideDepth - SZ (0x8010F968's fade)
+  Black, // black nearer than kBlackDepth (0x8010F1A0's leaves)
+  Fog,   // toward the far colour by SZ - kFogDepth (the averaged path past kFogBucket)
+};
+
+// Packets one call may add for records it draws from their clipped polygons.
+constexpr std::uint32_t kClippedPackets = 256u;
+// Each fan triangle of a clipped polygon is halved once in model space, so its texture bends with the view.
+constexpr std::uint32_t kPiecesPerTriangle = 4u;
+
 // What every packet of one record shares.
 struct Quad {
   const psx::present::EmitMemory &memory;
   std::uint32_t record;
   const OrderingTable &ot;
+  bool exact;                 // no GTE error projecting the record's corners
+  std::uint32_t &budget;      // packets the call may still add from clipped polygons
+  wide_window::Window window; // the columns the picture shows
+
+  // The picture shows columns past the guest's 320; at 4:3 every path is the guest's.
+  [[nodiscard]] bool widened() const {
+    return window.left < 0 || window.right > wide_window::kGuestWidth;
+  }
 
   void link(std::uint32_t packet, std::int32_t bucket) const {
     ot.link({.packet = packet, .words = kModelGt4.packetWords, .bucket = static_cast<std::uint32_t>(bucket)});
@@ -107,15 +127,34 @@ struct Quad {
     memory.mem_w8(packet + ModelPacket::kColour[0] + 3u, static_cast<std::uint8_t>(kGt4Code));
     memory.mem_w16(packet + ModelPacket::kUv[1] + 2u, memory.mem_r16(record + kTpage));
   }
+
+  // `corners`' part in `columns`, projected exactly and linked at `bucket` as triangles from `packet`; nullopt,
+  // with nothing written, when the call's budget cannot hold it.
+  std::optional<std::uint32_t> linkClipped(std::uint32_t packet,
+                                           const std::array<ModelPoint, 4> &corners,
+                                           ViewClip::Columns columns,
+                                           std::int32_t bucket,
+                                           Tint tint) const;
+  // A projection with a GTE error put in place: the record drawn from its clipped polygon across the picture, or
+  // the guest's packet when the budget is spent.
+  std::optional<std::uint32_t> linkErrored(std::uint32_t packet, std::int32_t bucket, Tint tint) const;
+  // What the guest skips or culls for a GTE error, in the margins only: inside its 320 columns it drew nothing.
+  std::uint32_t
+  linkMargins(std::uint32_t packet, const std::array<ModelPoint, 4> &corners, std::int32_t bucket, Tint tint) const;
+
+private:
+  void storePoint(std::uint32_t packet, std::uint32_t corner, const ClipPoint &point, Tint tint) const;
 };
 
 // 0x8010F1A0's leaf: RotTransPers4 of the corners, culled and linked at the farthest corner's bucket.
-std::uint32_t
-projectSubdivided(const Quad &quad, const Visibility &visible, std::uint32_t packet, const std::array<Corner, 4> &c) {
+std::uint32_t projectSubdivided(const Quad &quad,
+                                const Visibility &visible,
+                                std::uint32_t packet,
+                                const std::array<ModelPoint, 4> &c) {
   const psx::present::EmitMemory &memory = quad.memory;
   psx::cpu::Gte &gte = memory.core().gte();
   count(memory, kLeafCount);
-  const auto xy = [](const Corner &corner) {
+  const auto xy = [](const ModelPoint &corner) {
     return (static_cast<std::uint32_t>(static_cast<std::uint16_t>(corner.y)) << 16) |
            static_cast<std::uint16_t>(corner.x);
   };
@@ -135,21 +174,21 @@ projectSubdivided(const Quad &quad, const Visibility &visible, std::uint32_t pac
   gte.execute(psx::gte::kRtps);
   memory.storeVertex(packet + ModelPacket::kScreen[3], gte.projected(2));
   flag |= gte.readControl(psx::gte::kFlag);
-  const ModelPacket model(memory, kModelGt4, {.record = quad.record, .packet = packet}, kOverlayStage);
-  if (!model.onScreen(visible)) {
-    return packet;
-  }
   std::array<std::int32_t, 4> depths{};
   for (std::uint32_t corner = 0; corner < 4u; ++corner) {
     depths[corner] = static_cast<std::int32_t>(gte.readData(psx::gte::kSz0 + corner));
   }
   const std::int32_t bucket = splitBucketOf(depths);
-  if (static_cast<std::int32_t>(flag) < 0 || !splitBucket(bucket)) {
+  if (static_cast<std::int32_t>(flag) < 0) {
+    return splitBucket(bucket) ? quad.linkMargins(packet, c, bucket, Tint::Black) : packet;
+  }
+  const ModelPacket model(memory, kModelGt4, {.record = quad.record, .packet = packet}, kOverlayStage);
+  if (!model.onScreen(visible) || !splitBucket(bucket)) {
     return packet;
   }
   quad.stampModes(packet);
   for (std::uint32_t corner = 0; corner < 4u; ++corner) {
-    const Corner &from = c[corner];
+    const ModelPoint &from = c[corner];
     const bool black = depths[corner] < kBlackDepth;
     const std::uint32_t colour = packet + ModelPacket::kColour[corner];
     memory.mem_w8(colour + 0u, black ? 0u : from.r);
@@ -164,15 +203,15 @@ projectSubdivided(const Quad &quad, const Visibility &visible, std::uint32_t pac
 
 // 0x8010F1A0: halves the model quad `levels` times; the centre is taken between the 0-2 and 2-3 edge midpoints.
 std::uint32_t subdivide(
-    const Quad &quad, const Visibility &visible, std::uint32_t packet, int levels, const std::array<Corner, 4> &c) {
+    const Quad &quad, const Visibility &visible, std::uint32_t packet, int levels, const std::array<ModelPoint, 4> &c) {
   if (levels == 0) {
     return projectSubdivided(quad, visible, packet, c);
   }
-  const Corner top = halfway(c[0], c[1]);
-  const Corner bottom = halfway(c[2], c[3]);
-  const Corner left = halfway(c[0], c[2]);
-  const Corner right = halfway(c[1], c[3]);
-  const Corner centre = halfway(bottom, left);
+  const ModelPoint top = halfway(c[0], c[1]);
+  const ModelPoint bottom = halfway(c[2], c[3]);
+  const ModelPoint left = halfway(c[0], c[2]);
+  const ModelPoint right = halfway(c[1], c[3]);
+  const ModelPoint centre = halfway(bottom, left);
   packet = subdivide(quad, visible, packet, levels - 1, {c[0], top, left, centre});
   packet = subdivide(quad, visible, packet, levels - 1, {top, c[1], centre, right});
   packet = subdivide(quad, visible, packet, levels - 1, {left, centre, c[2], bottom});
@@ -180,9 +219,9 @@ std::uint32_t subdivide(
 }
 
 // The record's corners as 0x80110290 hands them to 0x8010F1A0.
-std::array<Corner, 4> modelCorners(const psx::present::EmitMemory &memory, std::uint32_t record) {
+std::array<ModelPoint, 4> modelCorners(const psx::present::EmitMemory &memory, std::uint32_t record) {
   constexpr std::array<std::uint32_t, 4> kUvAt{8u, 0xCu, 0x10u, 0x12u};
-  std::array<Corner, 4> corners{};
+  std::array<ModelPoint, 4> corners{};
   for (std::size_t corner = 0; corner < corners.size(); ++corner) {
     const ModelCorner &at = kModelGt4.corners[corner];
     const std::uint32_t rgb = record + (corner < 2u ? 0u : 4u);
@@ -200,6 +239,107 @@ std::array<Corner, 4> modelCorners(const psx::present::EmitMemory &memory, std::
                        channel(2u)};
   }
   return corners;
+}
+
+void loadModelPoint(psx::cpu::Gte &gte, const ClipPoint &point) {
+  const auto unit = [](double value) {
+    return static_cast<std::uint16_t>(static_cast<std::int16_t>(std::lround(value)));
+  };
+  gte.writeData(psx::gte::kVxy0, (static_cast<std::uint32_t>(unit(point.y)) << 16) | unit(point.x));
+  gte.writeData(psx::gte::kVz0, unit(point.z));
+  gte.execute(psx::gte::kRtps);
+}
+
+std::uint8_t channel(double value) {
+  return static_cast<std::uint8_t>(std::clamp(std::lround(value), 0l, 255l));
+}
+
+void Quad::storePoint(std::uint32_t packet, std::uint32_t corner, const ClipPoint &point, Tint tint) const {
+  psx::cpu::Gte &gte = memory.core().gte();
+  // The GTE gives the point its depth; its place on screen is the unrounded one, so cut edges meet their neighbours'.
+  loadModelPoint(gte, point);
+  GtePlace place = gte.projected(2).place();
+  const ViewClip::Screen at = ViewClip::screen(gte, point);
+  place.x = static_cast<float>(at.x);
+  place.y = static_cast<float>(at.y);
+  memory.storeVertex(packet + ModelPacket::kScreen[corner], psx::gte::ProjectedVertex::nearest(place));
+  const auto depth = static_cast<std::int32_t>(gte.readData(psx::gte::kSz3));
+  const bool black = tint == Tint::Black && depth < kBlackDepth;
+  const std::uint32_t colour = packet + ModelPacket::kColour[corner];
+  memory.mem_w8(colour + 0u, black ? std::uint8_t{0} : channel(point.r));
+  memory.mem_w8(colour + 1u, black ? std::uint8_t{0} : channel(point.g));
+  memory.mem_w8(colour + 2u, black ? std::uint8_t{0} : channel(point.b));
+  memory.mem_w8(packet + ModelPacket::kUv[corner] + 0u, channel(point.u));
+  memory.mem_w8(packet + ModelPacket::kUv[corner] + 1u, channel(point.v));
+  const ModelPacket model(memory, kModelGt4, {.record = record, .packet = packet}, kOverlayStage);
+  if (tint == Tint::Fade) {
+    model.shade({.corner = static_cast<int>(corner), .intensity = kSubdivideDepth - depth});
+  } else if (tint == Tint::Fog) {
+    model.shade({.corner = static_cast<int>(corner), .intensity = depth - kFogDepth});
+  }
+}
+
+std::optional<std::uint32_t> Quad::linkClipped(std::uint32_t packet,
+                                               const std::array<ModelPoint, 4> &corners,
+                                               ViewClip::Columns columns,
+                                               std::int32_t bucket,
+                                               Tint tint) const {
+  psx::cpu::Gte &gte = memory.core().gte();
+  const std::array<ModelPoint, 4> around{corners[0], corners[1], corners[3], corners[2]};
+  const std::vector<ClipPoint> polygon = ViewClip::visible(gte, ViewClip::place(gte, around), columns);
+  if (polygon.size() < 3u) {
+    return packet;
+  }
+  const auto pieces = static_cast<std::uint32_t>(polygon.size() - 2u) * kPiecesPerTriangle;
+  if (pieces > budget) {
+    return std::nullopt;
+  }
+  budget -= pieces;
+  const auto triangle = [&](const ClipPoint &a, const ClipPoint &b, const ClipPoint &c) {
+    stampModes(packet);
+    storePoint(packet, 0u, a, tint);
+    storePoint(packet, 1u, b, tint);
+    storePoint(packet, 2u, c, tint);
+    storePoint(packet, 3u, c, tint);
+    link(packet, bucket);
+    packet += kModelGt4.packetBytes;
+  };
+  for (std::size_t i = 1; i + 1 < polygon.size(); ++i) {
+    const ClipPoint &a = polygon[0];
+    const ClipPoint &b = polygon[i];
+    const ClipPoint &c = polygon[i + 1];
+    const ClipPoint ab = a.toward(b, 0.5);
+    const ClipPoint bc = b.toward(c, 0.5);
+    const ClipPoint ca = c.toward(a, 0.5);
+    triangle(a, ab, ca);
+    triangle(ab, b, bc);
+    triangle(ca, bc, c);
+    triangle(ab, bc, ca);
+  }
+  return packet;
+}
+
+std::optional<std::uint32_t> Quad::linkErrored(std::uint32_t packet, std::int32_t bucket, Tint tint) const {
+  return linkClipped(packet,
+                     modelCorners(memory, record),
+                     {.left = static_cast<double>(window.left), .right = static_cast<double>(window.right)},
+                     bucket,
+                     tint);
+}
+
+std::uint32_t Quad::linkMargins(std::uint32_t packet,
+                                const std::array<ModelPoint, 4> &corners,
+                                std::int32_t bucket,
+                                Tint tint) const {
+  constexpr auto kGuestRight = static_cast<double>(wide_window::kGuestWidth);
+  for (const ViewClip::Columns margin :
+       {ViewClip::Columns{.left = static_cast<double>(window.left), .right = 0.0},
+        ViewClip::Columns{.left = kGuestRight, .right = static_cast<double>(window.right)}}) {
+    if (margin.left < margin.right) {
+      packet = linkClipped(packet, corners, margin, bucket, tint).value_or(packet);
+    }
+  }
+  return packet;
 }
 
 // 0x8010F968: the projected quad, faded by 0xDAC - SZ when `fade`, split into four on screen.
@@ -226,6 +366,11 @@ splitOnScreen(const Quad &quad, std::uint32_t packet, const std::array<std::int3
   const std::int32_t bucket = splitBucketOf(depths);
   if (!splitBucket(bucket)) {
     return packet;
+  }
+  if (!quad.exact && quad.widened()) {
+    if (const std::optional<std::uint32_t> end = quad.linkErrored(packet, bucket, fade ? Tint::Fade : Tint::Plain)) {
+      return *end;
+    }
   }
   const std::uint32_t top = halfwayScreen(screen[0], screen[1]);
   const std::uint32_t bottom = halfwayScreen(screen[2], screen[3]);
@@ -284,6 +429,12 @@ std::uint32_t linkAveraged(const Quad &quad,
                            const std::array<std::int32_t, 4> &depths,
                            std::int32_t bucket) {
   quad.memory.mem_w32(kOverlayStage.bucket, static_cast<std::uint32_t>(bucket));
+  if (!quad.exact && quad.widened()) {
+    const Tint tint = bucket > kFogBucket ? Tint::Fog : Tint::Plain;
+    if (const std::optional<std::uint32_t> end = quad.linkErrored(model.packet(), bucket, tint)) {
+      return *end;
+    }
+  }
   if (bucket > kFogBucket) {
     for (int corner = 0; corner < 4; ++corner) {
       model.shade({.corner = corner, .intensity = depths[static_cast<std::size_t>(corner)] - kFogDepth});
@@ -294,10 +445,66 @@ std::uint32_t linkAveraged(const Quad &quad,
   return model.packet() + kModelGt4.packetBytes;
 }
 
+// Which of 0x80110290's paths a projected record takes, by its flag and its corners' depths.
+struct Path {
+  enum class Kind : std::uint8_t { None, SplitFaded, Split, Subdivide, Averaged };
+  Kind kind = Kind::None;
+  std::int32_t bucket = 0; // the averaged path's
+};
+
+Path pathOf(psx::cpu::Gte &gte, std::uint32_t flags, const std::array<std::int32_t, 4> &depths) {
+  const std::int32_t far = std::ranges::max(depths);
+  if (far < kNearestDepth) {
+    return {};
+  }
+  const bool subdivided = (flags & 1u) != 0u;
+  if (far < kSubdivideDepth) {
+    return {.kind = subdivided ? Path::Kind::Subdivide : Path::Kind::SplitFaded};
+  }
+  if (subdivided && far < kSplitDepth) {
+    return {.kind = Path::Kind::Split};
+  }
+  gte.execute(psx::gte::kAvsz4);
+  std::int32_t bucket = OrderingTable::bucketOf(static_cast<std::int32_t>(gte.readData(psx::gte::kOtz)));
+  if (!subdivided) {
+    if (bucket < 5) {
+      return {};
+    }
+    bucket = std::min(bucket + kFarPush, OrderingTable::kFarthestBucket);
+  }
+  return {.kind = Path::Kind::Averaged, .bucket = bucket};
+}
+
+// A record the guest culls on its wrong corners still reaches a margin: its part there, as its path would draw it.
+std::uint32_t
+culledMargins(const Quad &quad, std::uint32_t packet, const Path &path, const std::array<std::int32_t, 4> &depths) {
+  const std::array<ModelPoint, 4> corners = modelCorners(quad.memory, quad.record);
+  switch (path.kind) {
+  case Path::Kind::None:
+    return packet;
+  case Path::Kind::Averaged:
+    return quad.linkMargins(packet, corners, path.bucket, path.bucket > kFogBucket ? Tint::Fog : Tint::Plain);
+  case Path::Kind::SplitFaded:
+  case Path::Kind::Split:
+  case Path::Kind::Subdivide: {
+    const std::int32_t bucket = splitBucketOf(depths);
+    if (!splitBucket(bucket)) {
+      return packet;
+    }
+    const Tint tint = path.kind == Path::Kind::SplitFaded ? Tint::Fade
+                      : path.kind == Path::Kind::Split    ? Tint::Plain
+                                                          : Tint::Black;
+    return quad.linkMargins(packet, corners, bucket, tint);
+  }
+  }
+  return packet;
+}
+
 std::uint32_t emitRecord(const psx::present::EmitMemory &memory,
                          const OrderingTable &ot,
                          const Visibility &visible,
-                         const ModelPacket &model) {
+                         const ModelPacket &model,
+                         std::uint32_t &budget) {
   psx::cpu::Gte &gte = memory.core().gte();
   const std::uint32_t record = model.record();
   const std::uint32_t packet = model.packet();
@@ -306,7 +513,8 @@ std::uint32_t emitRecord(const psx::present::EmitMemory &memory,
   memory.mem_w32(packet + ModelPacket::kColour[0], colour01 & kColourCodeMask);
   gte.execute(psx::gte::kRtpt);
   memory.mem_w32(packet + ModelPacket::kColour[1], (colour01 << 4) & kColourMask);
-  memory.mem_w32(kOverlayStage.gte, gte.readControl(psx::gte::kFlag));
+  const std::uint32_t triangleFlag = gte.readControl(psx::gte::kFlag);
+  memory.mem_w32(kOverlayStage.gte, triangleFlag);
   model.storeTriangle();
   const std::uint32_t colour23 = memory.mem_r32(record + 4u);
   memory.mem_w32(packet + ModelPacket::kColour[2], colour23 & kColourMask);
@@ -314,44 +522,39 @@ std::uint32_t emitRecord(const psx::present::EmitMemory &memory,
   memory.mem_w32(packet + ModelPacket::kColour[3], (colour23 << 4) & kColourMask);
   gte.execute(psx::gte::kRtps);
   memory.mem_w32(packet + ModelPacket::kUv[0], memory.mem_r32(record + 8u));
-  memory.mem_w32(kOverlayStage.gte, gte.readControl(psx::gte::kFlag));
+  const std::uint32_t cornerFlag = gte.readControl(psx::gte::kFlag);
+  memory.mem_w32(kOverlayStage.gte, cornerFlag);
   memory.storeVertex(packet + ModelPacket::kScreen[3], gte.projected(2));
-  if (!model.onScreen(visible)) {
-    return packet;
-  }
-  memory.mem_w32(packet + ModelPacket::kUv[1], memory.mem_r32(record + 0xCu));
   std::array<std::int32_t, 4> depths{};
   for (std::uint32_t corner = 0; corner < 4u; ++corner) {
     depths[corner] = static_cast<std::int32_t>(gte.readData(psx::gte::kSz0 + corner));
   }
+  const Quad quad{.memory = memory,
+                  .record = record,
+                  .ot = ot,
+                  .exact = static_cast<std::int32_t>(triangleFlag | cornerFlag) >= 0,
+                  .budget = budget,
+                  .window = wide_window::drawWindow(&memory.core())};
+  if (!model.onScreen(visible)) {
+    return quad.exact || !quad.widened() ? packet
+                                         : culledMargins(quad, packet, pathOf(gte, model.flags(), depths), depths);
+  }
+  memory.mem_w32(packet + ModelPacket::kUv[1], memory.mem_r32(record + 0xCu));
   model.storeLastUv();
-  const std::int32_t far = std::ranges::max(depths);
-  if (far < kNearestDepth) {
+  const Path path = pathOf(gte, model.flags(), depths);
+  switch (path.kind) {
+  case Path::Kind::None:
     return packet;
-  }
-  const Quad quad{memory, record, ot};
-  const bool subdivided = (model.flags() & 1u) != 0u;
-  if (!subdivided) {
-    if (far < kSubdivideDepth) {
-      return splitOnScreen(quad, packet, depths, true);
-    }
-    gte.execute(psx::gte::kAvsz4);
-    std::int32_t bucket = OrderingTable::bucketOf(static_cast<std::int32_t>(gte.readData(psx::gte::kOtz)));
-    if (bucket < 5) {
-      return packet;
-    }
-    bucket = std::min(bucket + kFarPush, OrderingTable::kFarthestBucket);
-    return linkAveraged(quad, model, depths, bucket);
-  }
-  if (far < kSubdivideDepth) {
-    return subdivide(quad, visible, packet, kSubdivideLevels, modelCorners(memory, record));
-  }
-  if (far < kSplitDepth) {
+  case Path::Kind::SplitFaded:
+    return splitOnScreen(quad, packet, depths, true);
+  case Path::Kind::Split:
     return splitOnScreen(quad, packet, depths, false);
+  case Path::Kind::Subdivide:
+    return subdivide(quad, visible, packet, kSubdivideLevels, modelCorners(memory, record));
+  case Path::Kind::Averaged:
+    return linkAveraged(quad, model, depths, path.bucket);
   }
-  gte.execute(psx::gte::kAvsz4);
-  return linkAveraged(
-      quad, model, depths, OrderingTable::bucketOf(static_cast<std::int32_t>(gte.readData(psx::gte::kOtz))));
+  return packet;
 }
 
 class SubdividedGroundRender final : public ListStateProducer {
@@ -372,15 +575,16 @@ constexpr std::uint32_t kMostPacketsPerRecord = 16u;
 std::uint32_t
 SubdividedGround::emit(const psx::present::EmitMemory &memory, const ListCall &call, const Visibility &visible) {
   const OrderingTable ot(memory, call.ot);
+  std::uint32_t budget = kClippedPackets;
   return emitModelList(memory, call, kModelGt4, kOverlayStage, [&](const ModelPacket &model) {
-    return emitRecord(memory, ot, visible, model);
+    return emitRecord(memory, ot, visible, model, budget);
   });
 }
 
 void SubdividedGround::draw(Core *c) {
   const ListCall call = ListCall::fromRegisters(*c);
   const EmitterObject object(*c, kEntry, call.list);
-  ListJobWriter job(*c, 0u, call, call.count * kModelGt4.packetBytes * kMostPacketsPerRecord);
+  ListJobWriter job(*c, 0u, call, (call.count * kMostPacketsPerRecord + kClippedPackets) * kModelGt4.packetBytes);
   job.input(*c, call.list, call.count * kModelGt4.recordBytes);
   job.input(*c, kSplitCount, sizeof(std::uint32_t));
   job.input(*c, kLeafCount, sizeof(std::uint32_t));
