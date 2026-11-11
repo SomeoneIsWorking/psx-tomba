@@ -19,8 +19,6 @@
 namespace tomba {
 namespace {
 
-// G:8010810C, after either draw in GAME: page 1, the pause menu, links its dim and its items into the same OT.
-constexpr std::uint32_t kPageStep = 0x8010810Cu;
 constexpr std::string_view kPageStepImage = "GAME";
 
 } // namespace
@@ -50,6 +48,8 @@ bool DrawSection::drawSteps(Core &core, psx::present::GuestRedraw &redraw) const
     redraw.writeByte(Sop::kInFieldUpdate, 0u);
     return redraw.dispatch(NarrationScroller::kEntry, {});
   }
+  case Variant::Page:
+    return redraw.run(kPageStep, {});
   case Variant::Title: {
     const std::array edges{0u};
     const std::array items{selection_.menu, selection_.item};

@@ -26,6 +26,15 @@ void ovFrameX(Core *c) {
   rend(c)->frameX();
 }
 
+void ovPageStep(Core *c) {
+  rend(c)->pageStep();
+}
+
+// 0x1F800136: 0 play, 1 the pause menu over the field draw, 2 and up a page that holds the field draw off.
+constexpr std::uint32_t kPageGate = 0x1F800136u;
+constexpr std::uint32_t kStageTask = 0x1F800138u;
+constexpr std::uint32_t kTaskPage = 0x6Bu;
+
 } // namespace
 
 // 0x8003f9a8 — per-frame render orchestrator; runs as the guest body.
@@ -42,9 +51,20 @@ void Render::frameX() {
   psx::cpu::callOriginalToReturn(*c, kRoomDraw, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
 }
 
+void Render::pageStep() {
+  Core *c = mCore;
+  DrawReplay &replay = sessionOf(c).drawReplay;
+  if (!replay.frame().replaying() && c->mem_r8(kPageGate) >= 2u) {
+    const std::uint8_t page = c->mem_r8(c->mem_r32(kStageTask) + kTaskPage);
+    replay.beforeDraw(*c, {.variant = DrawSection::Variant::Page, .page = page});
+  }
+  psx::cpu::callOriginalToReturn(*c, DrawSection::kPageStep, psx::cpu::ExecutionBudget::currentTurn(*c), __func__);
+}
+
 void Render::registerOverrides(native::NativeOverrideCatalog &natives) {
   natives.declare(kFieldDraw, "Render::frame", ovFrame);
   natives.declare(kRoomDraw, "Render::frameX", ovFrameX);
+  natives.declareOverlay("GAME", DrawSection::kPageStep, "Render::pageStep", ovPageStep);
 }
 
 } // namespace tomba

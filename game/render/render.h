@@ -24,6 +24,8 @@ public:
   // Per-frame render orchestrators: kFieldDraw and kRoomDraw.
   void frame();
   void frameX();
+  // GAME's page step G:8010810C; on a menu page, with the field draw held off, it is the frame's whole draw.
+  void pageStep();
   // Every guest call of either orchestrator reaches frame/frameX.
   static void registerOverrides(native::NativeOverrideCatalog &natives);
 

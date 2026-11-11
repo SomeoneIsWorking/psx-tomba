@@ -113,3 +113,23 @@ and the DEMO edge sprites' wrapper are deleted with them. Census on that build (
 unskipped, title, new game, SOP, OPN, into A00): 3301 intervals replayed, 0 refused, 0 dropped producers; the only
 held in-betweens are the boot cards (logic 0) and four scene changes. `k2` (`warp 0/0`, walk, map, pause, options
 page): 1883 replayed, 0 refused; 12 held on the pause options page, which is not a field draw.
+
+**Menu pages replayed (2026-11-11).** A page `0x1F800136 >= 2` holds the field draw off; G:8010810C draws it alone
+(case 3 options `0x8007B45C`, 4/8 card `0x8007BF20`, 5 quit `0x8007EF60`, 6 items `FUN_80108624` → `0x800346BC`,
+10 `0x80121040`). `Render::pageStep` overrides it and selects `DrawSection::Variant::Page` with the page byte, so
+items, options and the quit prompt replay instead of composing from Font `0x80078CA8` and Panel `0x8005019C`
+(`scratch/pages`, unpaced, player settings): with every state render unregistered, `c2` composes nothing over items,
+pause and the load screen, where `c3` (no Page variant) showed 1996 in-betweens whole with no keyed object. Idle
+item menu, cursor step and load screen: every present identical to its neighbours (`fx1/{items,items2,load}`).
+
+The card page leaked: its replay ran `TestEvent` (B0:0x0B) through the HLE, which cleared the card event the real
+frame waited for, so the load screen's card machine advanced differently with in-betweens on (RAM at frame 1900 differs
+in 32 bytes, "Checking MEMORY CARD" against "Select slot"). Fixed in psxport: a discarded run refuses at any host
+service with state outside guest memory (`SideEffectJournal::admitHostService`, `Hle::biosCallKeepsHostState`).
+The same plan with in-betweens on and off now ends in identical RAM, the same BIOS call counts (64 `TestEvent`, 64
+`_card_info`), and 130 card-page in-betweens refused (`fx0`, `fx1`).
+
+Still composed, so no producer is deleted by this: A03's cart frames (G:80108CAC runs A03's `0x8010B328` and the page
+step, never the field draw, so `DrawReplay` is not entered) and the area-load transition (Panel `0x8005019C` right
+after a warp; `scratch/pages/a03`). Their producers (Font, Panel, UiSprite, SubdividedGround and the A03 HUD
+`0x80109EEC`) stay until those frames get a section.

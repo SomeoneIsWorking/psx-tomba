@@ -165,8 +165,10 @@ above lives there).
   S's sample may predate it, so S→S+1 is held too (`NotReplayed`) and pairing starts again at S+1→S+2; a camera
   re-place that ran before the draw sampled is in S's sample, so S→S+1 pairs.
   A warp arrives through the game's own transition and is a scene change.
-- Not a replayable frame, `forget()`: a frame whose field frame did not draw (`0x1F800136 >= 2` menu pages, load,
-  card machine, SOP, the title menu, boot cards), a switch between `0x8003F9A8` and `0x8003FA44` or between stages,
+- A menu page (`0x1F800136 >= 2`: items, options, card, quit) holds the field draw off and draws in the page step
+  alone; `Render::pageStep`, the override of G:8010810C, selects the `Page` variant and the page byte (task +0x6B), so
+  a page change forgets. A card page's BIOS calls (`TestEvent`, `_card_info`) refuse its in-betweens.
+- Not a replayable frame, `forget()`: a frame whose field frame did not draw (load, SOP, the title menu, boot cards), a switch between `0x8003F9A8` and `0x8003FA44` or between stages,
   a savestate restore (`TitleState::restored`).
 
 ## Hazards
@@ -253,7 +255,8 @@ writers' `CallSiteObjects` counts are put back after it), `draw_motion.*` and `d
 `tomba::Session::drawReplay` and returned by `tomba::Runtime::replayFrame`. `Render::frame`/`frameX` call
 `beforeDraw` and are the orchestrators' overrides, so every guest caller replays (GAME's submode frames, DEMO's
 attract frame 0x80106EBC). In GAME the section also runs the page step G:8010810C, which links the pause menu after
-the draw; a paused draw replays with its inputs held (issue 0055). A variant or stage switch, a frame that did not
+the draw; a paused draw replays with its inputs held (issue 0055). A menu page replays the page step alone
+(`DrawSection::Variant::Page`). A variant or stage switch, a frame that did not
 draw, a declared cut and a savestate restore forget the earlier sample. Steps 0 and 1 resolved as: no refusal in any run (no device or
 yield in the section, slots 1 and 2 linked nothing missing from the frames); hazard 1 is harmless for replayed
 intervals (their states are never composed) and the call-site counts are restored; hazard 2's depth comes with the
