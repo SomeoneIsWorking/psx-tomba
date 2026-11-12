@@ -30,6 +30,7 @@ add_library(
   "${TOMBA1_ROOT}/game/core/boot/sync_native.cpp"
   "${TOMBA1_ROOT}/game/core/entry/runtime.cpp"
   "${TOMBA1_ROOT}/game/core/entry/identity.cpp"
+  "${TOMBA1_ROOT}/game/render/backdrop_ring.cpp"
   "${TOMBA1_ROOT}/game/render/mesh_chunk.cpp"
   "${TOMBA1_ROOT}/game/render/mesh_draw.cpp"
   "${TOMBA1_ROOT}/game/render/overlay_sprite_groups.cpp"

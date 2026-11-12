@@ -1,5 +1,6 @@
 #include "runtime.h"
 
+#include "backdrop_ring.h"
 #include "cd_native_startup.h"
 #include "context.h"
 #include "core.h"
@@ -91,7 +92,8 @@ void Runtime::stockCdReadLanded(Core &core, const psx::cd::StockReadLanding &lan
     return;
   }
   const auto content = psx::code_module::publishStockReadLanding(core, landing);
-  if (content && !installOverlaySpriteGroups(installerFor(core), content->identity)) {
+  if (content && !(installOverlaySpriteGroups(installerFor(core), content->identity) &&
+                   BackdropRing::install(installerFor(core), content->identity))) {
     lucent::error("tomba1-runtime", "overlay override registration refused for SHA-256 {}", content->hex);
     std::abort();
   }

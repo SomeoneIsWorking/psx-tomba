@@ -1,8 +1,10 @@
 #include "overlay_sprite_groups.h"
 
+#include "backdrop_ring.h"
 #include "core.h"
 #include "game.h"
 #include "guest_call.h"
+#include "overlay_images.h"
 #include "packet_pool.h"
 #include "r3000.h"
 #include "screen_cull.h"
@@ -19,9 +21,6 @@ using psx::cpu::kSp;
 using psx::cpu::kV0;
 using psx::present::CornerDomain;
 using psx::present::ScreenCull;
-
-// The area 4 overlay (LBA 7125, 0x4E000 bytes at 0x800E7388).
-constexpr std::uint64_t kAreaFourOverlay = 0xE12A3C27E1DD9DDCull;
 
 // The retail keeps a part when its x or x+w is below 0x141 and its y or y+h below 0xF1.
 constexpr int kGuestColumns = 0x141;
@@ -55,12 +54,9 @@ std::uint32_t layerSlot(Core &core, std::uint32_t entity) {
   return core.mem_r32(kOrderingTable) + sext8(core.mem_r8(entity + 0x0Fu)) * 4u + kGroupSlots;
 }
 
-// 0x8011DA28 (entity): the frames named by the entity's first two animation slots as raw sprites at (e+0x12, e+0x16),
-// the second raised by e+0x20, then one SetDrawMode for the second frame's first part's tpage.
-void drawTwoFrameGroup(Core *core) {
-  Core &c = *core;
-  const std::uint32_t entity = c.r[kA0];
-  const ScreenCull cull{psx::present::recordCanvasColumns(c.game->guestDisplay.plan(), kGuestColumns), kGuestRows};
+// The frames named by the entity's first two animation slots as raw sprites at `origin`, the second raised
+// by e+0x20, then one SetDrawMode for the second frame's first part's tpage.
+void drawGroup(Core &c, std::uint32_t entity, BackdropRing::Point origin, const ScreenCull &cull) {
   const std::uint8_t flags = c.mem_r8(entity + 0x0Du);
   std::uint32_t tpage = 0;
   for (std::uint32_t pass = 0; pass < 2u; ++pass) {
@@ -84,8 +80,8 @@ void drawTwoFrameGroup(Core *core) {
       const std::uint32_t packet = PacketPool::reserve(c, kSpriteBytes);
       const std::uint32_t width = c.mem_r8(part + 0x0Au);
       const std::uint32_t height = c.mem_r8(part + 0x0Bu);
-      const auto x = static_cast<std::uint16_t>(c.mem_r16(entity + 0x12u) + sext8(c.mem_r8(part + 0x0Eu)));
-      const auto y = static_cast<std::uint16_t>(c.mem_r16(entity + 0x16u) + sext8(c.mem_r8(part + 0x0Fu)) - raise);
+      const auto x = static_cast<std::uint16_t>(origin.x + sext8(c.mem_r8(part + 0x0Eu)));
+      const auto y = static_cast<std::uint16_t>(origin.y + sext8(c.mem_r8(part + 0x0Fu)) - raise);
       c.mem_w16(packet + 0x10u, static_cast<std::uint16_t>(width));
       c.mem_w16(packet + 0x12u, static_cast<std::uint16_t>(height));
       c.mem_w16(packet + 0x08u, x);
@@ -110,7 +106,7 @@ void drawTwoFrameGroup(Core *core) {
   c.r[kSp] = sp - kCallerFrame;
   c.mem_w32(c.r[kSp] + 0x10u, 0u);
   psx::cpu::callGuestNow(c,
-                         "OverlaySpriteGroups::drawTwoFrameGroup",
+                         "OverlaySpriteGroups::drawGroup",
                          kSetDrawMode,
                          packet,
                          0u,
@@ -119,7 +115,19 @@ void drawTwoFrameGroup(Core *core) {
   c.r[kSp] = sp;
   addPrim(c, layerSlot(c, entity), packet);
   c.mem_w32(PacketPool::kCursor, packet + kDrawModeBytes);
-  c.r[kV0] = packet + kDrawModeBytes;
+}
+
+// 0x8011DA28 (entity): the group at (e+0x12, e+0x16), then the backdrop ring's positions beyond the picture.
+void drawTwoFrameGroup(Core *core) {
+  Core &c = *core;
+  const std::uint32_t entity = c.r[kA0];
+  const ScreenCull cull{psx::present::recordCanvasColumns(c.game->guestDisplay.plan(), kGuestColumns), kGuestRows};
+  drawGroup(c, entity, {c.mem_r16(entity + 0x12u), c.mem_r16(entity + 0x16u)}, cull);
+  BackdropRing::drawBeyondPicture(
+      c, entity, {cull.left(), cull.right()}, [&](std::uint32_t column, BackdropRing::Point at) {
+        drawGroup(c, column, at, cull);
+      });
+  c.r[kV0] = c.mem_r32(PacketPool::kCursor);
 }
 
 } // namespace
