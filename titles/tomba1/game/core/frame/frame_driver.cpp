@@ -72,6 +72,7 @@ void FrameDriver::stepFrame(Core &core, std::uint32_t frame) {
   }
 
   context(core).warp.applyArmed(core, frame);
+  context(core).bootSkip.beforeTasks(core);
   context(core).tasks.runScheduledTasks(core);
 
   const std::uint32_t fields = core.mem_r16(kRequestedFields);

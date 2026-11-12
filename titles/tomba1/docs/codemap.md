@@ -17,6 +17,7 @@ Frame loop: owned. `tomba1::FrameDriver` runs the guest task pass and delivers t
 | `initializeSynchronousCd`, CD overrides | `titles/tomba1/game/core/boot/cd_native_startup.h` | CD startup and the CdControl/CdControlF/CdSync/CdReady overrides over `StockLibcd` |
 | `bindTitleLibraryOwners` | `titles/tomba1/game/core/boot/sync_native.h` | The stock library bindings, the DMACallback entry (prior pointer and DICR write) and the GPU timeout leaves |
 | `tomba1::FrameDriver` | `titles/tomba1/game/core/frame/frame_driver.h` | One field: the scheduled tasks, the measured VBlank delivery, one presentation fence |
+| `BootSkip` | `titles/tomba1/game/core/frame/boot_skip.h` | Start or Cross, or a selector preview, ends the SCEA card (`0x800191E0` state 0xB), the logo movie (stream 0x15, stop request `0x1F8001D3`) and the logo hold (`0x80019844` state 0) through each one's own terminal, before the task pass |
 | `StreamFieldTurn` | `titles/tomba1/game/core/frame/stream_field_turn.h` | Per field during a continuous stream: SPU/XA advanced once, then the paced CD pump |
 | `tomba1::DebugMenu` | `titles/tomba1/game/core/debug/debug_menu.h` | The title debug menu (psxport `TitleDebugMenu`): the warp catalogue `warp <area>/<section>` |
 | `tomba1::DevWarp` | `titles/tomba1/game/core/debug/dev_warp.h` | The warp arrival: armed by `DebugMenu`, applied by `FrameDriver::stepFrame` before the tasks run, through the door's own transition (machine 7) |
