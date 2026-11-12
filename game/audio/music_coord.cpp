@@ -2,12 +2,12 @@
 // instant-CD-safe). Owned by Engine; see music_coord.h for the OOP shape.
 //
 // The ingame/area background music is a LOOPING XA clip; a dialog uses sequenced "dialog-tone"
-// songs (current-song byte 0x800bed80 in 4..7 — regular/worry/etc, user-identified) plus
+// songs (FUN_80074BF8's songs 4..7, the regular/worry tones) plus
 // one-shot voice clips, all on the single XA stream. On real hardware the area-music start fires
 // from the gameplay state machine only AFTER the CD-paced scene load, by which time the dialog
 // has the stream/gate, so the looping music never overlapped the dialog tone. With our instant
 // CD reads the area-music start fires immediately (during the dialog gap), so the loop overlaps
-// the dialog tone — the audible bug. Mod: while a dialog tone is the current song, keep the
+// the dialog tone — the audible bug. Mod: while a dialog tone is current or parked under a menu song, keep the
 // looping ingame music suppressed and remembered; resume it once the dialog ends. One-shot voice
 // clips are unaffected (they ARE the dialog audio). The deferred clip is EngineCd::deferredMusic().
 #include "music_coord.h"
@@ -20,18 +20,18 @@
 #include "xa_state.h"
 #include <lucent/log.h> // `coord` diagnostic channel
 
-// The game's CURRENT-SONG index. 4..7 are the dialog tones (regular/worry/etc, user-identified);
-// the looping area/ingame music uses other indices. Read-only from here.
-// NOTE: game/ui/font.cpp:43 names this same address `kTextUnusedFlagAddr` — one of the two names
-// is wrong. Not resolved here; see the report for 0x800BED80.
 namespace tomba {
+namespace {
 
-constexpr uint32_t kCurrentSongIdx = 0x800BED80u;
+bool isDialogTone(uint32_t song) {
+  return song >= 4 && song <= 7;
+}
+
+} // namespace
 
 bool MusicCoord::dialogToneActive() {
   Core *c = this->core;
-  uint32_t s = c->mem_r16(kCurrentSongIdx) & 0xFFFF;
-  return s >= 4 && s <= 7;
+  return isDialogTone(c->mem_r16(kCurrentSong)) || isDialogTone(c->mem_r8(kResumeSong) & 0x7Fu);
 }
 
 // PC-added helper (NOT a port of any FUN_XXXX): snap the game's CD-volume fade CURRENT (0x800be224)
@@ -273,7 +273,7 @@ void MusicCoord::tick() {
   // Edge-triggered: one `coord` line per CHANGE of the (song, xa-active, xa-looping) tuple, not one
   // per frame. The remaining `if` is a state-change detector that also advances the detector's own
   // state — not a channel gate (lucent gates itself, and does not evaluate args when `coord` is off).
-  uint32_t s = c->mem_r16(kCurrentSongIdx) & 0xFFFF;
+  uint32_t s = c->mem_r16(kCurrentSong);
   int a = c->game->xa.isActive(), l = c->game->xa.isLooping();
   if (s != mPrev || a != mPa || l != mPl) {
     lucent::debug("coord",

@@ -198,7 +198,7 @@ void AreaSlots::updateTail() {
   // zero-write below is UNCONDITIONAL — it lives in the branch's delay slot, so it fires whether
   // or not key2 == -1 (was gated on `key2 != -1`, dropping the write on the skip path).
   c->r[17] = 0x800C0000u;
-  int16_t key2 = (int16_t)c->mem_r16(0x800BED80u);
+  int16_t key2 = (int16_t)c->mem_r16(kCurrentSong);
   c->mem_w32(S5, 0);
   if (key2 != -1) {
     uint32_t entry_addr = 0x800BE368u + (uint32_t)((int32_t)key2 * 8);
@@ -212,17 +212,17 @@ void AreaSlots::updateTail() {
       // gen reassigns r16:=S5 here (r16 = 0x800C0000 - 7688), live for both the subid==0 and
       // subid!=0 leaves below.
       c->r[16] = S5;
-      uint8_t subid = c->mem_r8(0x800BE22Au);
+      uint8_t subid = c->mem_r8(kResumeSong);
       // gen source order (shard_7.c:11082-11087): the subid!=0 (BF8) leaf is the fall-through and
       // comes FIRST, the subid==0 (E48) leaf is the branch target — mirror that order so the static
       // call/store sequence matches the oracle (logically identical; the two leaves are exclusive).
       if (subid != 0) {
         // gen zeroes key2 (0x800BED80) in FUN_80074BF8's call delay slot — BEFORE the callee runs.
-        c->mem_w16(0x800BED80u, 0);
+        c->mem_w16(kCurrentSong, 0);
         c->r[4] = (uint32_t)subid;
         c->r[31] = 0x80075CB8u;
         psx::cpu::callGuestNow(*c, __func__, 0x80074BF8u);
-        c->mem_w8(0x800BE22Au, 0); // gen mem_w8(r16+50,0) after BF8 (r16=S5, +50=0x800BE22A)
+        c->mem_w8(kResumeSong, 0); // gen mem_w8(r16+50,0) after BF8 (r16=S5, +50=0x800BE22A)
       } else {
         c->r[4] = 0;
         c->r[31] = 0x80075CC8u;

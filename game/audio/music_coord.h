@@ -19,6 +19,11 @@ class NativeOverrideCatalog;
 
 namespace tomba {
 
+// FUN_80074BF8's BGM state: the playing song (s16, -1 none) and the song it resumes after the current one
+// (u8, 0 none, bit 7 when the resumed song was interrupted).
+inline constexpr uint32_t kCurrentSong = 0x800BED80u;
+inline constexpr uint32_t kResumeSong = 0x800BE22Au;
+
 class MusicCoord {
 public:
   Core *core = nullptr;
@@ -27,8 +32,8 @@ public:
   uint32_t mPrev = 0xDEAD;
   int mPa = -1, mPl = -1;
 
-  // dialogToneActive(): true iff the CURRENT-SONG index (0x800bed80) is in [4, 7] — the
-  //   dialog-tone range (regular/worry/etc, user-identified). Cheap read, safe every frame.
+  // A dialog tone (songs 4..7) is the current song or the one FUN_80074BF8 parked for resumption while a
+  // menu song plays over it.
   bool dialogToneActive();
 
   // musicFadeIn(): snap the game's CD-volume fade CURRENT (0x800be224) to 0 AND zero the SPU

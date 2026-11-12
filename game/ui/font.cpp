@@ -17,6 +17,7 @@
 // per-callee semantics in docs/engine_re.md "FUN_80075130 font / text init". Store widths are exact
 // (sb/sh/sw) — they are the engine-interface state the rest of the engine + retained PSX content read.
 #include "ui/font.h"
+#include "audio/music_coord.h"
 #include "core.h"
 #include "core/overrides/guest_jal.h" // GuestFrame/guest_fn — ABI vocabulary (2026-07-15 readability pass)
 #include "core/overrides/native_override_catalog.h"
@@ -49,12 +50,10 @@ constexpr int32_t kGlyphClassCount = 24;
 
 // Direct engine-state fields FUN_80075130 seeds around the libgpu FntOpen block.
 constexpr uint32_t kTextCursorFlagAddr = 0x800BED78u; // sw 0                     [800751a0/9c]
-constexpr uint32_t kTextUnusedFlagAddr = 0x800BED80u; // sh -1 (jal #9 delay slot)
 constexpr uint32_t kLineTableHeadAddr = 0x800BE358u;  // sw 0 (once)
 constexpr uint32_t kLineTableRowsAddr = 0x800BE3D6u;  // 14x sh 0, stepping -8
 constexpr uint32_t kLineTableRowCount = 14u;
 constexpr uint32_t kLineTableRowStride = 8u;
-constexpr uint32_t kTextStateByteA = 0x800BE22Au; // sb 0
 constexpr uint32_t kTextStateByteB = 0x800BE22Bu; // sb 0
 
 // FntOpenParams — typed lens over the local FntOpen-call struct FUN_80075130 builds on its OWN
@@ -161,9 +160,8 @@ void Font::init() {
 
   // direct: *kTextCursorFlagAddr = 0 (sw)  [800751a0/9c]
   c->mem_w32(kTextCursorFlagAddr, 0);
-  // *kTextUnusedFlagAddr = -1 (sh) — original is the DELAY SLOT of the #9 jal (v0=-1), runs before
-  // #9's body.
-  c->mem_w16(kTextUnusedFlagAddr, 0xffff);
+  // No song playing; the delay slot of the #9 jal, before #9's body.
+  c->mem_w16(kCurrentSong, 0xffff);
   // #9 FUN_800752b4(2) — own
   glyphClassFill(2);
 
@@ -189,8 +187,8 @@ void Font::init() {
   // #14 FUN_80098db0(1, 0xffffff) — dispatched
   tomba::guest::dispatchJalToReturn(*c, {.target = 0x80098db0u, .returnAddress = 0x80075220u}, 1u, 0x00ffffffu);
 
-  // direct: kTextStateByteA/B = 0 (sb each)
-  c->mem_w8(kTextStateByteA, 0);
+  // direct: kResumeSong and kTextStateByteB = 0 (sb each)
+  c->mem_w8(kResumeSong, 0);
   c->mem_w8(kTextStateByteB, 0);
 
   // frame's destructor: lw ra,40(sp); addiu sp,48; jr ra
