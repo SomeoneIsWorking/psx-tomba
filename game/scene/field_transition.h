@@ -47,11 +47,16 @@ public:
   void areaLoadBd4(std::uint32_t area, std::uint32_t mode);
 
 private:
+  // 0x800E7E68: this frame's newly pressed pad bits (FUN_800788AC); 8 is Start.
+  inline static constexpr std::uint32_t kPadPressed = 0x800E7E68u;
+  inline static constexpr std::uint16_t kPadStart = 0x0008u;
+
   // FUN_80107AFC — the MAIN door/sub-scene transition (sm[0x4c]==1..4). sm[0x4e]: 0
   // teardown+fade-clear+load, 1 FADE-OUT (to black), 2 await load, 3 FADE-IN, 4 done->return to
   // field. Cases 1/2/3 run the per-frame update tail (fade frames keep the world ticking).
   // Faithful to transition.c.
   void main();
+  void skipCorridor();
 
   // FUN_80107D3C — transition variant (sm[0x4c]==5/6). sm[0x4e]: 0 load, 1 effect 0x8003fb84, 2
   // await->done.

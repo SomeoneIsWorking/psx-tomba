@@ -50,7 +50,7 @@ Frame loop: owned. `tomba::FrameDriver` runs one pass of `0x80050B08` (update `0
 | `Demo`, `Sop`, `StartBinStage` | `game/scene/demo.h`, `game/scene/sop.h`, `game/scene/start_bin_stage.h` | The DEMO front end (OP.STR), the SOP intro field, task-0's disc tables and boot preloads |
 | `NarrationScroller` | `game/scene/narration_scroller.h` | SOP's narration crawl S:8010C79C: steps then places its lines; a replay places them at the blended scroll |
 | `ScriptInterp`, `ScriptObject` | `game/scene/script_*` | The cutscene script interpreter and its vocabulary |
-| `FieldTransition`, `SceneTransition`, `AreaFadeSequencer`, `BgSceneTransitionSm`, `TransitionState3` | `game/scene/` | The scene and area transition machines |
+| `FieldTransition`, `SceneTransition`, `AreaFadeSequencer`, `BgSceneTransitionSm`, `TransitionState3` | `game/scene/` | The scene and area transition machines; Start skips the door corridor (`FieldTransition::skipCorridor`) |
 | `loadOverlay`, `stepCardLoadMachine` | `game/scene/level_load.h`, `game/scene/card_load_machine.h` | START/DEMO/GAME into the stage slot; memory-card LOAD/SAVE pages and CRD residency |
 | `SceneEvents`, `ParallaxBg`, `ModeStateArm` | `game/scene/` | Scene-event arms, the SOP parallax background, mode-state arms |
 | `Sequencer` | `game/audio/sequencer*.cpp` | libsnd's per-VBlank sequencer and its channel leaves |

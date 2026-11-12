@@ -11,6 +11,8 @@
 #include "render/screen_fade.h" // class ScreenFade — the single fade driver
 #include "sop.h"                // class Sop — transitionAreaLoad (sync FIELD transition load)
 
+#include <lucent/log.h>
+
 // ---- NATIVE SUB-SCENE / DOOR TRANSITION (FUN_80108a60 + its 4 workers)
 // ----------------------------- The sm[0x4a]==5 handler is the field's
 // sub-scene / door transition machine (fade-out -> reload the area-DATA for the
@@ -57,6 +59,10 @@ void FieldTransition::main() {
   Core *c = core;
   uint32_t sm = c->mem_r32(0x1f800138u);
   uint16_t st = c->mem_r16(sm + 0x4e);
+  if (st >= 1 && st <= 3 && c->mem_r8(0x1f80019bu) != 0 && (c->mem_r16(kPadPressed) & kPadStart) != 0) {
+    skipCorridor();
+    return;
+  }
   switch (st) {
   case 0:
     c->mem_w8(0x1f800234u, 1);
@@ -113,6 +119,16 @@ void FieldTransition::main() {
   psx::cpu::callGuestNow(*c, __func__, 0x8006ef38u);
   psx::cpu::callGuestNow(*c, __func__, 0x8007b008u);
   psx::cpu::callGuestNow(*c, __func__, 0x8003fa1cu); // per-frame update (fade frames)
+}
+
+// Start leaves the door corridor (cases 1-3) through case 3's own last step, drawing nothing that frame.
+void FieldTransition::skipCorridor() {
+  Core *c = core;
+  uint32_t sm = c->mem_r32(0x1f800138u);
+  c->mem_w8(sm + 0x6b, 0);
+  c->mem_w16(sm + 0x4e, 4);
+  psx::cpu::callGuestNow(*c, __func__, 0x80050894u, 0);
+  lucent::info("transition", "door corridor skipped (Start)");
 }
 
 // FUN_80107d3c — transition variant (sm[0x4c]==5/6). sm[0x4e]: 0 load, 1 effect

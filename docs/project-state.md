@@ -146,8 +146,10 @@ Missing capability: No application, Gradle/NDK composition, `android-port` consu
 
 ### S023 — Tomba! 2 loads complete without loading-only waits or presentation
 
-Gap: CD reads complete at once (psxport's instant disc), so boot preloads, the attract item launch, the GAME prologue's first area, the in-field area transition and warps finish inside the caller's display field. The "Loading....." card's only caller was `FUN_80044BD4`'s wait loop; `Scheduler::spawnAndWait` overrides it and runs the task to its end in the caller's field (reached by A00's room init FUN_8010AC20 on area 0 entry 7), so that wait presents no field and no card. Not yet classified load by load: which loads still hold frames the player does not control (a door's fade-out and fade-in, the area transition's minimum time, save and load pages), and how many frames each takes from request to the first gameplay frame. The area transition's 5 s minimum/cancel is open: no writer of `FUN_80127798`'s `node[5]=3` is reachable.
-
+Gap: CD reads complete at once (psxport's instant disc), so every load finishes inside the caller's field. The "Loading....." card's only caller was `FUN_80044BD4`'s wait loop; `Scheduler::spawnAndWait` overrides it and runs the task to its end in the caller's field (A00's room init FUN_8010AC20 on area 0 entry 7), so it presents nothing. Measured from the request to the first field-running frame (sm 2/1/2/1), 2026-11-12, `scratch/s023/`:
+- area change without a door (`warp 1/0`): 4 frames, the field machine's own steps (request, load, area select, area init), then the area fades in from black under player control;
+- door (`door 0 9`, `FieldTransition::main`): 69 frames, of which the load wait (sm[0x4e] = 2) is 1; the rest is the guest's door corridor (black, the torch-lit walk fading in, then out to white, 31 + 31 frames) and its one-frame steps. Start skips the corridor through case 3's own last step (`FieldTransition::skipCorridor`): 14 frames with Start at frame 12, then the guest's arrival fade from white, Tomba placed at the same entry.
+Not yet measured: new game to the first gameplay frame, the transition variants FUN_80107D3C/E20/F3C (sm[0x4c] 5-8), memory-card pages, and the area transition object FUN_80127798's node[5]=3 path (no reachable writer).
 ### S024 — Tomba! 1 loads complete without loading-only waits or presentation
 
 Missing capability: No load operation classified for Tomba! 1.
