@@ -315,7 +315,7 @@ set(TOMBA2_GAME_INCLUDES
 target_include_directories(tomba2_game PUBLIC ${TOMBA2_GAME_INCLUDES})
 target_include_directories(tomba2_port PRIVATE ${TOMBA2_GAME_INCLUDES})
 
-target_compile_options(tomba2_game PRIVATE -O2 -g
+target_compile_options(tomba2_game PRIVATE
   ${SDL3_CFLAGS_OTHER} ${FREETYPE_CFLAGS_OTHER})
-target_compile_options(tomba2_port PRIVATE -O2 -g
+target_compile_options(tomba2_port PRIVATE
   ${SDL3_CFLAGS_OTHER} ${FREETYPE_CFLAGS_OTHER})
