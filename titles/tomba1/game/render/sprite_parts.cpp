@@ -15,6 +15,7 @@ namespace tomba1 {
 namespace {
 
 using psx::cpu::kA0;
+using psx::cpu::kV0;
 using psx::present::CornerDomain;
 using psx::present::ScreenCull;
 
@@ -348,10 +349,16 @@ void drawRotatedScaledParts(Core *core) {
             });
 }
 
+// 0x80045AF8 (packet): the four-corner test the area overlays' quad drawers call before linking a packet.
+void quadOnScreen(Core *core) {
+  core->r[kV0] = keeps(*core, core->r[kA0], MeshChunk::cullFor(*core)) ? 1u : 0u;
+}
+
 } // namespace
 
 bool installSpriteParts(const InstallOverride &install) {
-  return install(0x800487A4u, "SpriteParts::plain", drawPlainParts) &&
+  return install(0x80045AF8u, "SpriteParts::quadOnScreen", quadOnScreen) &&
+         install(0x800487A4u, "SpriteParts::plain", drawPlainParts) &&
          install(0x80048BF0u, "SpriteParts::scaled", drawScaledParts) &&
          install(0x80049134u, "SpriteParts::rotated", drawRotatedParts) &&
          install(0x80049994u, "SpriteParts::rotatedScaled", drawRotatedScaledParts);
