@@ -3,6 +3,7 @@
 #include "core.h"
 #include "core/overrides/native_override_catalog.h"
 #include "render/guest_ordering_table.h"
+#include "render/wide_window.h"
 
 namespace tomba {
 
@@ -18,7 +19,6 @@ constexpr uint8_t kTagWordCount = 8u;
 // corners the page blue, the bottom-right one darker.
 constexpr uint8_t kBlueBright = 70u;
 constexpr uint8_t kBlueDark = 16u;
-constexpr uint16_t kScreenW = 320u;
 constexpr uint16_t kScreenH = 240u;
 
 } // namespace
@@ -27,6 +27,10 @@ constexpr uint16_t kScreenH = 240u;
 void OptionsPage::pushBackdrop(Core *c) {
   // Take a packet off the pool and bump it, exactly as the guest allocator does.
   const uint32_t packet = tomba::render::PacketPool(*c).allocate(kPacketBytes);
+  // Retail spans columns [0, 320); the record canvas widens that to its margins.
+  const wide_window::Window window = wide_window::drawWindow(c);
+  const auto left = static_cast<uint16_t>(window.left);
+  const auto right = static_cast<uint16_t>(window.right);
 
   // POLY_G4 body: per-vertex colour word (RGB in the low three bytes, the GP0 opcode riding in the
   // top byte of the FIRST one) followed by that vertex's screen XY. The 4th byte of the other three
@@ -44,13 +48,13 @@ void OptionsPage::pushBackdrop(Core *c) {
   c->mem_w8(packet + 21, 0); // v2
   c->mem_w8(packet + 28, 0);
   c->mem_w8(packet + 29, 0); // v3
-  c->mem_w16(packet + 8, 0);
+  c->mem_w16(packet + 8, left);
   c->mem_w16(packet + 10, 0); // v0 (0,0)
-  c->mem_w16(packet + 16, kScreenW);
+  c->mem_w16(packet + 16, right);
   c->mem_w16(packet + 18, 0); // v1 (320,0)
-  c->mem_w16(packet + 24, 0);
+  c->mem_w16(packet + 24, left);
   c->mem_w16(packet + 26, kScreenH); // v2 (0,240)
-  c->mem_w16(packet + 32, kScreenW);
+  c->mem_w16(packet + 32, right);
   c->mem_w16(packet + 34, kScreenH); // v3 (320,240)
 
   // Link it at the head of its bucket: the packet inherits whatever was there, and becomes the head.
