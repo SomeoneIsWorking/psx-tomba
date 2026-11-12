@@ -123,30 +123,17 @@ constexpr uint32_t guestEntryFor(CameraMode mode) {
   return descriptorFor(mode) != nullptr ? descriptorFor(mode)->guestEntry : 0u;
 }
 
-// The render-mode-keyed PROLOGUE that modes 0 and 1 share: three render modes have a dedicated
-// overlay handler that runs INSTEAD of the mode's own follow, and every other render mode falls
-// through to it. The guest's own dispatch is three equality tests in a fixed order; because the three
-// values are distinct, the order cannot change which one matches, and this table is the single place
-// the addresses live.
-//
-// The four return constants per row are the guest's OWN post-jump addresses, and they are per
-// (mode, render mode) PAIR, not per mode: the guest emits a separate jump for each of the six
-// combinations, and a body that pushes a frame writes its return address into guest stack bytes the
-// reference compares. One constant per mode would therefore be a behaviour change, not a tidy-up —
-// the native path does not need any of them because it reaches these leaves as C++ calls, and the
-// guest-faithful path needs all six.
+// Modes 0 and 1 share this prologue: three render modes run an overlay handler instead of the mode's own follow.
 struct RenderModePrologue {
   uint8_t renderMode;
-  uint32_t forMainFollow;     // the overlay entry mode 0 dispatches into
-  uint32_t forTrackFollow;    // the overlay entry mode 1 dispatches into
-  uint32_t mainFollowReturn;  // the guest's post-jump address for (mode 0, this render mode)
-  uint32_t trackFollowReturn; // ...and for (mode 1, this render mode)
+  uint32_t forMainFollow;  // the overlay entry mode 0 dispatches into
+  uint32_t forTrackFollow; // the overlay entry mode 1 dispatches into
 };
 
 constexpr RenderModePrologue kRenderModePrologues[] = {
-    {2u, 0x80115F58u, 0x80116918u, 0x8006ED38u, 0x8006EE0Cu},
-    {7u, 0x80112DECu, 0x80113660u, 0x8006ED48u, 0x8006EDFCu},
-    {20u, 0x8010AD0Cu, 0x8010B2F0u, 0x8006ED58u, 0x8006EE1Cu},
+    {2u, 0x80115F58u, 0x80116918u},
+    {7u, 0x80112DECu, 0x80113660u},
+    {20u, 0x8010AD0Cu, 0x8010B2F0u},
 };
 inline constexpr size_t kRenderModePrologues_count = std::size(kRenderModePrologues);
 

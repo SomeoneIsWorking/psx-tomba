@@ -665,10 +665,7 @@ void CutsceneCamera::shakeTail() { // FUN_8006C988
 }
 
 // ── the MODE dispatch ────────────────────────────────────────────────────────────────────────────
-// Eighteen modes, one policy: `tomba/camera/camera_mode.h` names them all and says what each one
-// follows, and the table below is reached through it rather than through a second 18-arm switch.
-// The three render modes with a dedicated overlay prologue are looked up rather than tested, and the
-// two dispatchers below (native and guest-faithful) are the only two places the table is read.
+// The modes are named in camera/camera_mode.h; dispatchMode is the one reader of the prologue table.
 namespace {
 using tomba::camera::CameraMode;
 using tomba::camera::FollowTarget;
