@@ -2,7 +2,7 @@
 
 User, 2026-11-12: a Tomba! 2 mod where a second player plays Charles alongside Tomba.
 
-Rules from the user:
+Rules from the user (the model is Tails's co-op in Sonic 2: a sidekick who cannot fail):
 - Local only: pad 2 drops in and out. No online play.
 - Charles cannot leave the screen; the screen edge holds him.
 - Charles has no HP and cannot lose any. A hit gives him only the physical reaction (knockback, hurt
