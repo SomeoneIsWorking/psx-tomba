@@ -13,18 +13,17 @@ the capability rows below:
 - Widescreen: S005 (Tomba! 2), S011 (Tomba! 1).
 - 60 fps interpolation: S006 (Tomba! 2 only; Tomba! 1 is widescreen-only, S013).
 - Loading removal: S023 (Tomba! 2), S024 (Tomba! 1).
-- Picture: S004. Tomba! 2 defaults to the `record` path, the guest's GP0 output recorded per frame and
-  replayed, at 4:3, 320x224; at 1x it is byte-identical to the Beetle `device` path. The display-time
-  native renderer is deleted. Against the pre-migration hybrid it has no widescreen yet (S005), and 60
-  fps interpolation (S006) covers only primitives a producer keys.
+- Picture: S004. Tomba! 2 presents the guest's own GP0 output (the `record` path, recorded per frame;
+  `renderpath device` is Beetle's GPU). The display-time native renderer and the producer layer are deleted;
+  widescreen draws a wider canvas (S005) and 60 fps replays the guest's draw section (S006).
 - Startup: one `tomba2_port` binary and `./run.sh` start both titles through psxport's multi-title host
   with an in-window picker (S026); the separate Tomba! 1 binary and its launcher are gone.
 - Platforms: Linux x86-64 (S019); Windows, macOS and Android are missing (S020-S022).
 
 ## Current focus
 
-S001 — prove one resident and one colliding-overlay override, each scoped back into the
-original guest body, before the recorded gameplay frontier is restored.
+S023 — Tomba! 2 loads complete without loading-only waits or presentation, then S005's remaining 4:3 culls
+and 2D layout.
 
 ## Capability inventory
 
@@ -71,15 +70,15 @@ Gap: Native owners exist across `game/`; 42 declared-at-overlay-address override
 
 ### S004 — Tomba! 2 picture produced completely from game-owned scene state
 
-Gap: The picture is the guest's GP0 output on the GPU device; the display-time native renderer is deleted. Guest-time native ports write the render walk, per-object, billboard, overlay, HUD and UI packets (`codemap.md`, `game/render/`, `game/ui/`); the rest is drawn by guest bodies. Screen fades are the packets of the fade leaf `FUN_8007E9C8`, now native (`ScreenFade::draw`, byte-identical to the retail leaf at 4:3); the intro fades track Beetle frame for frame within one ramp step.
+Gap: The picture is the guest's GP0 output; guest-time native ports write the render walk, per-object, billboard, overlay, HUD and UI packets (`codemap.md`, `game/render/`, `game/ui/`, `draw-emitters.md`), and guest bodies write the rest. Screen fades are the native fade leaf `FUN_8007E9C8` (`ScreenFade::draw`). At free roam the picture matches the Beetle console reference at zero shift, 5.8% of pixels a different colour, spread over the frame (`tools/picture_oracle.py`, 4:3, 2026-11-12); later screens are not compared.
 
 ### S005 — Tomba! 2 true widescreen covers world visibility and 2D layout
 
-Gap: The record path draws a [-M, 320 + M) canvas (`wide_window::drawWindow`). Letterbox bars, screen fades and every native X gate cover it, including the A05/A07/A08 model emitters (`issues/0027`); 4:3 stays byte-identical to retail. Missing: the overlay emitter bodies still run as guest code (`draw-emitters.md`).
+Gap: The record path draws a [-M, 320 + M) canvas (`wide_window::drawWindow`); letterbox bars, screen fades, the sky tile grids and every native X gate cover it (`Visibility`), and 4:3 keeps the guest's [0, 320). Native model emitters (`draw-emitters.md`) cull over the draw window. Still culling at the guest's `SX < 320`: the GT3/GT4 emitter bodies that differ from every native, A04 0x801175FC/0x801178A0 and 0x8013D0F8/0x8013D568, A05 0x8013484C/0x80134B74 and 0x8013AC90/0x8013AF0C, A07 0x8012DBB4/0x8012DE60, A0G 0x8010C3A4/0x8010C664, A0K 0x80114F1C/0x8011562C and 0x801163E0/0x80116708, plus SOP's effect 0x8010BF54 and A01's drawer 0x80132DC0. 2D layout (HUD, dialog, menu pages) is not surveyed at 16:9 or 21:9.
 
 ### S006 — Tomba! 2 interpolation covers moving camera, objects and effects
 
-Gap: Every keyed producer now has a state render (`producers.md`, State producers): the model emitters, the tile grids, the rain, the glyphs, the fade, the 2D sprite writers, the billboards, the drop shadow, the A08 whole-object draw and line strip, the A02 area map, the sprite family and the dialog and panel writers move by t from saved state, and the dispatcher's per-object effect is saved with each emitter's state and re-applied by its render (2026-10-23: gameplay in areas 1 and 8 now composes every in-between, `whole-in-between=0`, `warp 8` turning moving ~8 px per present with each in-between halfway between its neighbours; `scratch/interp-regression/judge3`, `issues/0039`). Producers (`codemap.md`, Producers) key the drawn object: render command, sub-part or scenery table slot, with each model primitive an element (`GT3/GT4 list, index`), so two commands drawing one shared model no longer share keys. Keyed share 29.8% of intro+field-0, 96.9% of area 1, 94.2% of area 8 primitives; with the SOP tile grid, SOP ground, glyph and A08 rain producers, `newgame`+1026 is 99.0% (637,658 of 644,038) and warp 8 holding right 98.3% (321,966 of 327,629, was 62.9%), 0 duplicate keys; 0 duplicate keys in all 1425 consecutive frames; 180, 168 and 511 blended pairs per frame (`newgame`+1000, warp 1+200, warp 8+200). Paired vertices step at most 39 px in area 8 and over 48 px only on three guest teleports (f216 intro objects 110 px, f274 one vertex 49 px, area 1 warp+3 sway scenery 264 px); cuts come from `FrameCut`. Record 1x = device: `recordcheck` mismatched=0 on 1428/1428 records, three shots byte-identical. In-between frames cannot be captured on the record path (`preseq` stores N twice). Real-window play check (2026-10-16, `warp 1`, fps60 on, 16:9, 75 s): after the warp 4,336 presents with no interval over 1.5 vsync and 2,365 in-betweens of 2,382 record presents (in-between presents; before psxport 02e72332 of 2026-10-21 an in-between mixed keyed blend with unkeyed primitives, and since then a record with any unkeyed primitive is shown whole, which is why the 2026-10-22 walks compose almost no gameplay in-between, `issues/0039`), 0 repeats, 0 audio reprimes or drops; the whole run failed on the 30 Hz boot cards and movies (psxport issue 0158; the card fade is presented at 60 Hz since 2026-10-22) and one backwards present at the load end.
+Gap: Every screen that draws replays its guest draw section at blended inputs (`DrawReplay`, `DrawSection`; `plans/replay-interpolation.md`): the field and room draws with the pause menu, menu pages, A03's cart ride, a door's fade frames, SOP's narration and draw tail, the title menu and the attract demo. The update block's letterbox, dialog panel and `UiSprite` draws are rebuilt at t (`UpdateBlockDraws`), and palette cycles cross-fade (`PaletteCycles`). Not replayed: memory-card pages (their BIOS calls refuse an in-between, so they show whole), the stepped boot cards, frames that draw nothing (loads) and declared cuts. Paced `warp 0/0` running right: 698 of 701 simulated 60.00 Hz vblanks advance half a tick, 3 repeat (2026-11-11). Open: Tomba's part angles across an animation keyframe switch and the camera shake's cut limit (plan, Open).
 
 ### S007 — Tomba! 2 accepts native player input through representative gameplay
 
@@ -123,7 +122,7 @@ Gap: FMV/CD owners exist with pre-migration coverage; unobserved on the Lightrec
 
 ### S017 — Tomba! 2 area and scene transitions work throughout the game
 
-Gap: Title-to-gameplay transition recorded; representative transitions unverified.
+Gap: The dev `warp` and `door` verbs arrive through the game's own field transition (`DevWarp`, `FieldTransition::main`; `door` through its fade-out and fade-in), and a scene change is a declared cut (`FrameCut`). Title to gameplay runs from boot and through `PSXPORT_AUTO_SKIP`. Transitions are not walked across the whole game.
 
 ### S018 — Both titles removed their offline guest-source product paths
 
@@ -147,7 +146,7 @@ Missing capability: No application, Gradle/NDK composition, `android-port` consu
 
 ### S023 — Tomba! 2 loads complete without loading-only waits or presentation
 
-Gap: Every reachable load is synchronous and presents no card: boot preloads, attract item launch, GAME prologue first area, the in-field area transition and cold warps all complete inside the caller's own display field, and the "Loading....." card and `Engine::submode1Faithful` are deleted. The card's only caller was `FUN_80044BD4`'s wait loop. `Scheduler::spawnAndWait` is the override there: A00's room init FUN_8010AC20 reaches it on area 0 entry 7, and it runs the task to its end within the caller's field, so the wait presents no field and no card. The area-transition 5 s minimum/cancel is open: no writer of `FUN_80127798`'s `node[5]=3` is reachable. Cold warps to areas 1, 2 and 8 run 300 to 600 fields and open the pause menu without an abort (area handlers 4/5/6 resume across host turns, `test_long_area_handler`; a warp leaves the scripted-opening load mode).
+Gap: CD reads complete at once (psxport's instant disc), so boot preloads, the attract item launch, the GAME prologue's first area, the in-field area transition and warps finish inside the caller's display field. The "Loading....." card's only caller was `FUN_80044BD4`'s wait loop; `Scheduler::spawnAndWait` overrides it and runs the task to its end in the caller's field (reached by A00's room init FUN_8010AC20 on area 0 entry 7), so that wait presents no field and no card. Not yet classified load by load: which loads still hold frames the player does not control (a door's fade-out and fade-in, the area transition's minimum time, save and load pages), and how many frames each takes from request to the first gameplay frame. The area transition's 5 s minimum/cancel is open: no writer of `FUN_80127798`'s `node[5]=3` is reachable.
 
 ### S024 — Tomba! 1 loads complete without loading-only waits or presentation
 
@@ -159,4 +158,4 @@ Gap: Headless REPL `bugreport` at pad frame 2400 saved the presented shot, the P
 
 ### S026 — Tomba runs through psxport's multi-title host and in-window picker
 
-Gap: Both titles are catalogued; headless, both panels reach `demo` and hold it to the end of the run. Tomba! 2's panel plays its opening `MOVIE/OP.STR` and then the in-game attract-demo field (`Demo::stepOpeningMovie` steps the opening, since a blocking `fmv.play` froze the selector for its whole 67 s run — `issues/0041`). Tomba! 2's panel supplies no logo: its title screen draws the TOMBA!2 wordmark inside the one opaque 8bpp title picture on pages (640,256)/(768,256) together with its background art (`scratch/picker4/t2b/title_vram_640_256.png`, the frame's two rects and three polys in `t2b/cmd.log`), so no texture selection separates it; a cut of that picture would carry its background at a hand-placed rectangle. Tomba! 1's panel shows its intro movie; it has no title-owned boot-prefix signal yet, so its publisher card and logo count as its picture until the panel settles. The windowed picker is unrun by an agent. The boot stub `SCUS_944.54` runs under `tools/product_environment.py`'s launch environment; its stdin REPL runs `run N`, but `newgame` never returns (watchdog-free hang, 240 s), and every run fails the exit env audit on `PSXPORT_VK_HEADLESS`, which psxport's `agent_environment` sets and nothing reads. `tools/oracle_title.py` and `tools/title_prompts.py` are unverified against the framework REPL.
+Gap: Both titles are catalogued; headless, both panels reach `demo` and hold it to the end of the run. Tomba! 2's panel plays its opening `MOVIE/OP.STR` and then the in-game attract-demo field (`Demo::stepOpeningMovie` steps the opening, since a blocking `fmv.play` froze the selector for its whole 67 s run — `issues/0041`). Tomba! 2's panel supplies no logo: its title screen draws the TOMBA!2 wordmark inside the one opaque 8bpp title picture on pages (640,256)/(768,256) together with its background art (`scratch/picker4/t2b/title_vram_640_256.png`, the frame's two rects and three polys in `t2b/cmd.log`), so no texture selection separates it; a cut of that picture would carry its background at a hand-placed rectangle. Tomba! 1's panel shows its intro movie; it has no title-owned boot-prefix signal yet, so its publisher card and logo count as its picture until the panel settles. The windowed picker is unrun by an agent. The boot stub `SCUS_944.54` runs under `tools/product_environment.py`'s launch environment; its stdin REPL runs `run N`, but `newgame` never returns (watchdog-free hang, 240 s). `tools/oracle_title.py` and `tools/title_prompts.py` are unverified against the framework REPL.
