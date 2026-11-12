@@ -76,7 +76,7 @@ declared = (
     # The whole camera object, on the same pattern as player.G above: a named sub-range gives the
     # precise message, the block catches everything else. Measured 2026-09-19 equal on both cores at
     # free_roam and at 30/60/120/180/240 frames along the scripted route, while the picture
-    # differed -- which is what moved the search downstream of it (docs/issues/0019).
+    # differed -- which is what moved the search downstream of it.
     DeclaredRange("camera.object", CAM_OBJ, 0x90, False),
     DeclaredRange("camera.mode", CAM_OBJ + 0x64, 1, False),
     DeclaredRange("camera.angles", CAM_OBJ + 0x6C, 6, False),

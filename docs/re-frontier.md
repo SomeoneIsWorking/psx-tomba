@@ -10,9 +10,9 @@ Tomba! 2 representative gameplay is complete.
 ### T2-00 — Preserve authenticated title and overlay identity
 - status: re-partial
 - deps:
-- evidence: Existing binary/run evidence identifies `SCUS_944.54` and the recorded resident/overlay behaviors. C044 records an independently checked MAIN.EXE digest; address-collision evidence identifies `0x801113B4` in A03 and A0B with different entry shapes. The launcher provisioner now owns a size/SHA-256 manifest; its original-disc qualification and remaining runtime boundary are recorded in issue 0005.
+- evidence: Existing binary/run evidence identifies `SCUS_944.54` and the recorded resident/overlay behaviors. C044 records an independently checked MAIN.EXE digest; address-collision evidence identifies `0x801113B4` in A03 and A0B with different entry shapes. The launcher provisioner now owns a size/SHA-256 manifest.
 - where: title provisioning metadata; binary-backed findings; user-supplied disc outside Git
-- gap: Enforce exact-content identity in product loading; historical binary evidence and runtime generation tokens are not an authenticated input manifest. See issue 0005.
+- gap: Enforce exact-content identity in product loading; historical binary evidence and runtime generation tokens are not an authenticated input manifest.
 
 ### T2-01 — Execute authenticated images through psxport Lightrec
 - status: re-partial
@@ -24,14 +24,14 @@ Tomba! 2 representative gameplay is complete.
 ### T2-02 — Prove a resident native override and original call
 - status: in-progress
 - deps: T2-01
-- evidence: Production catalog tests exercise resident generation binding, scoped original calls, and a different-image collision negative through Lightrec. An isolated authenticated MAIN.EXE probe now exercises the shipping `Str::length` native owner, its scoped original guest body, and wrong-address/disabled negatives with 9 translated blocks and zero fallback; issue 0005 owns the full result.
+- evidence: Production catalog tests exercise resident generation binding, scoped original calls, and a different-image collision negative through Lightrec. An isolated authenticated MAIN.EXE probe now exercises the shipping `Str::length` native owner, its scoped original guest body, and wrong-address/disabled negatives with 9 translated blocks and zero fallback.
 - where: title-native owner in `game/`; shared image-aware override/original-call dispatcher in `external/psxport/`
 - gap: Reach this native owner on a real game route and compare the resident original call there; the isolated real-byte fixture does not prove retail reach.
 
 ### T2-03 — Prove colliding-overlay override and original calls
 - status: in-progress
 - deps: T2-02
-- evidence: Binary evidence establishes that numeric address `0x801113B4` belongs to different entry shapes in A03 and A0B; address-only dispatch is therefore invalid. The title activates loaded A00–A0L MODE images through both area-loader paths. A local diagnostic with manifest-authenticated A03/A0B bytes proves two bounded Lightrec original returns, image-scoped fixture selection, retirement, and a wrong-image guest negative (14 translated blocks, zero fallback); issue 0005 records the exact branches and limits.
+- evidence: Binary evidence establishes that numeric address `0x801113B4` belongs to different entry shapes in A03 and A0B; address-only dispatch is therefore invalid. The title activates loaded A00–A0L MODE images through both area-loader paths. A local diagnostic with manifest-authenticated A03/A0B bytes proves two bounded Lightrec original returns, image-scoped fixture selection, retirement, and a wrong-image guest negative (14 translated blocks, zero fallback).
 - where: overlay-authentication owner and shared runtime dispatcher; title-owned override selected by complete image identity
 - gap: No production A03/A0B native owner is declared and no real game route has reached this collision under both overlays. Runtime overlay-content authentication, reached owner/original-call comparison, and representative gameplay remain open; the diagnostic fixture does not establish title conformance.
 

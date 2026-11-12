@@ -82,7 +82,7 @@ external/psxport/tools/port/consumer_build.py --build build/agent --target tomba
 `PSXPORT_LIGHTREC_DIR` and `PSXPORT_LIGHTNING_PREFIX` to the exact maintained dependencies; the
 workflow records and provisions their revisions. Representative gameplay and
 image-qualified override verification
-remain open ([issue 0005](docs/issues/0005-prove-tomba2-image-aware-lightrec-override-dispatch.md)).
+remain open.
 
 ## Intended fresh-install contract
 

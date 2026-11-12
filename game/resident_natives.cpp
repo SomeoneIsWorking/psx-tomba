@@ -71,7 +71,7 @@
 #define SEQ_TICK_WRAPPER 0x800909C0u // FUN_800909c0: per-vblank libsnd tick (user cb + SsSeqCalled)
 // The slot the wrapper dispatches UNCONDITIONALLY, read from the one owner (libsnd_globals.h) and
 // not spelled here: a second copy of a measured address is how the boot guard and the tick drifted
-// onto different pages in the first place (issue 0026), and this guard only means anything while it
+// onto different pages in the first place, and this guard only means anything while it
 // tests the SAME word the dispatch reads.
 
 #include "audio/libsnd_globals.h" // kSeqTickFn — the tick slot the wrapper below dispatches

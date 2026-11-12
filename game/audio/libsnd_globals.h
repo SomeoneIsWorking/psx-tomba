@@ -78,7 +78,7 @@ inline constexpr uint32_t kSeqPrepFn = 0x800931C0u;      // the one-shot pre-loo
 //                             SsSeqCalled.
 //
 // Both are the ones `Engine::frameUpdate`'s boot guard must test (game/resident_natives.cpp), because a
-// guard that reads a DIFFERENT slot than the dispatch is not a guard (issue 0026).
+// guard that reads a DIFFERENT slot than the dispatch is not a guard.
 inline constexpr uint32_t kUserCallback = 0x800AC430u; // DAT_800ac430 — the optional user callback slot
 inline constexpr uint32_t kSeqTickFn = 0x800AC42Cu;    // DAT_800ac42c — the *SsSeqCalled function slot
 inline constexpr uint32_t kTickMode = 0x800AC424u;     // DAT_800ac424 — SsSetTickMode's mode word
