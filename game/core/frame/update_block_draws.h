@@ -30,8 +30,12 @@ public:
 
   // A writer linked `draw` into the frame's OT; kept only between the frame's start and the section's sample.
   void note(Core &core, const Draw &draw);
+  // A writer with no guest owner for its call drew in the update block; it is shown as drawn and counted at run end.
+  void unowned(Core &core, std::uint32_t writer, std::uint32_t returnAddress);
   // A frame begins: nothing it notes before the sample is from the last.
   void open();
+
+  void report() const;
 
   [[nodiscard]] const char *name() const override {
     return "update-block 2D";
@@ -44,6 +48,7 @@ private:
   std::vector<Draw> earlier_;
   std::vector<Draw> later_;
   bool open_ = false;
+  std::uint64_t unowned_ = 0;
   Core *core_ = nullptr; // the sampled frame's, which the rebuilds read
 };
 

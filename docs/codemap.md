@@ -76,7 +76,7 @@ Frame loop: owned. `tomba::FrameDriver` runs one pass of `0x80050B08` (update `0
 | `BackdropSprites` | `game/render/backdrop_sprites.h` | A0E's boss arena background sprites FUN_80111E14: seeded anchors stamped as scaled sprites |
 | `GradientBackdrop` | `game/render/gradient_backdrop.h` | A0E's boss arena sky FUN_80114178: gouraud bands across the draw window |
 | `LineStrip`, `AreaMap`, `ScaledSprites` | `game/render/line_strip.h`, `game/render/area_map.h`, `game/render/scaled_sprites.h` | A08's node strip and A02/A07's map+marker; the scaled sprite-record writer the FX sprite emitters stamp through |
-| `CallSiteObjects` | `game/render/call_site_objects.h` | Which call of a 2D writer an update-block draw is (`UpdateBlockDraws` pairing) |
+| `CallSiteOwner` | `game/render/call_site_owner.h` | The guest object (and loop element) an update-block 2D call draws for, from its caller's registers per call site (`UpdateBlockDraws` pairing) |
 | `ScreenFade`, `LetterboxBars`, `HudGaugeEmitter` | `game/render/screen_fade.h`, `game/render/letterbox_bars.h`, `game/render/hud_gauge_emitter.h` | The fade leaf FUN_8007E9C8, the cutscene letterbox FUN_80026864, the HUD gauge FUN_8004FD30 |
 | `NodeXform`, `ObjModelView`, `QuadRtptSubmit`, `LibgpuDrawEnv` | `game/render/` | Node transforms, model-view setup, the shared quad submit, DRAWENV compile |
 | `Cull`, `Visibility` | `game/render/cull.h`, `game/render/horizontal_visibility_cull.h` | Per-object cull and LOD; the one horizontal visibility test over the draw window |

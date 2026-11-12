@@ -1,7 +1,6 @@
 #include "frame/draw_section.h"
 
 #include "core.h"
-#include "entry/session.h"
 #include "frame/frame_driver.h"
 #include "frame/image_residency.h"
 #include "guest_redraw.h"
@@ -66,12 +65,7 @@ bool DrawSection::drawSteps(Core &core, psx::present::GuestRedraw &redraw) const
 }
 
 std::optional<std::uint32_t> DrawSection::draw(Core &core, psx::present::GuestRedraw &redraw) const {
-  // The 2D writers count calls per logic frame; the real draw must count from where the replays began.
-  Session &session = sessionOf(&core);
-  const render::CallSiteObjects calls = session.callSites;
-  const bool returned = drawSteps(core, redraw);
-  session.callSites = calls;
-  if (!returned) {
+  if (!drawSteps(core, redraw)) {
     return std::nullopt;
   }
   return core.mem_r32(render::OrderingTable::kBasePointer) + kOtHeadOffset;

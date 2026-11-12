@@ -215,6 +215,7 @@ psx::state::NativeStatePort *Runtime::nativeState(Core &core) const {
 
 void Runtime::reportRun(Core &core) const {
   sessionOf(&core).groundClip.report();
+  sessionOf(&core).drawReplay.updateDraws().report();
 }
 
 const psx::game::HostIdentity *Runtime::hostIdentity() const {

@@ -124,7 +124,6 @@ void FrameDriver::stepFrame(Core &core, uint32_t frame) {
   // frame driver only sequences it. The one check that matters is at the bottom.
   eng(&core).cadence().beginLogicFrame();
   rotatePacketPool(core);
-  session.callSites.beginFrame();
   for (uint32_t eventClass : kFrameEvents) {
     game.hle.deliverEvent(eventClass, 0xffffffffu);
   }

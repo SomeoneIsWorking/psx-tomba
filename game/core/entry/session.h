@@ -21,7 +21,6 @@
 #include "math/rng.h"
 #include "math/trig.h"
 #include "render.h"
-#include "render/call_site_objects.h"
 #include "render/screen_fade.h"
 #include "render/subdivided_ground.h"
 #include "ui/save_menu.h"
@@ -49,7 +48,6 @@ public:
   NativeMusic native_music; // mixed over the SPU by `audio`
   MusicList music_list;     // the Sound Test catalogue and the area BGM driver
   std::unique_ptr<Render> render;
-  render::CallSiteObjects callSites; // the objects of the 2D writers, counted per logic frame
   render::GroundClipTally groundClip;
   EngineCd cd;
   TitleState titleState{cd, drawReplay};

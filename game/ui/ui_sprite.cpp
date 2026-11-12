@@ -27,6 +27,7 @@
 #include "core/overrides/native_override_catalog.h"
 #include "entry/session.h"
 #include "guest_call.h"
+#include "render/call_site_owner.h"
 #include "render/guest_ordering_table.h"
 
 #include "blend.h"
@@ -138,20 +139,36 @@ void rebuild(const psx::present::EmitMemory &memory,
   }
 }
 
-// A call in the update block is noted, as its call site's n-th in the frame, with its anchor and definition, so a
+using render::CallSiteOwner;
+constexpr std::uint8_t kS0 = 16;
+constexpr std::uint8_t kS1 = 17;
+constexpr std::uint8_t kS3 = 19;
+// The update block's calls: the popups node behaviour 0x80072520 draws and the area label 0x80072898.
+constexpr CallSiteOwner kOwners[] = {
+    {.returnAddress = 0x800720CCu, .object = kS1, .element = kS0}, // 0x80071DFC: the AP popup node's digit s0
+    {.returnAddress = 0x800724BCu, .object = kS3},                 // 0x80072308: the popup node's left sprite
+    {.returnAddress = 0x80072500u, .object = kS3},                 // 0x80072308: its right or only sprite
+    {.returnAddress = 0x80072A34u, .object = kS1, .element = kS0}, // 0x80072898: the label node's glyph s0 - 1
+};
+
+// A call in the update block is noted, as its caller's object and element, with its anchor and definition, so a
 // replay places its pieces at t.
 template <std::uint32_t Entry, void (*Body)(Core *)> void notedEntry(Core *c) {
-  const std::uint32_t object = sessionOf(c).callSites.object(c->r[31]);
+  const std::optional<std::uint32_t> object = render::callSiteOwner(*c, kOwners);
   const std::uint32_t placement = c->r[4];
   const auto definition = static_cast<std::uint32_t>(c->mem_r16s(c->r[5]));
   const std::uint32_t defBase = c->r[6];
   const std::uint32_t first = render::PacketPool(*c).cursor();
   Body(c);
+  if (!object) {
+    sessionOf(c).drawReplay.updateDraws().unowned(*c, Entry, c->r[31]);
+    return;
+  }
   const std::uint32_t pieces =
       first + (static_cast<std::uint32_t>(c->mem_r16s(defBase + (definition * 4u))) * kShape<Entry>.bytes);
   sessionOf(c).drawReplay.updateDraws().note(*c,
                                              {.writer = Entry,
-                                              .object = object,
+                                              .object = *object,
                                               .packets = {first, pieces},
                                               .values = {static_cast<std::uint32_t>(c->mem_r16s(placement)),
                                                          static_cast<std::uint32_t>(c->mem_r16s(placement + 2u)),

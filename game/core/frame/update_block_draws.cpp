@@ -15,6 +15,18 @@ void UpdateBlockDraws::note(Core &core, const Draw &draw) {
   }
 }
 
+void UpdateBlockDraws::unowned(Core &core, std::uint32_t writer, std::uint32_t returnAddress) {
+  if (!open_ || sessionOf(&core).drawReplay.frame().replaying()) {
+    return;
+  }
+  ++unowned_;
+  lucent::debug("update-draws", "writer 0x{:08X} from 0x{:08X} has no owner; drawn as it is", writer, returnAddress);
+}
+
+void UpdateBlockDraws::report() const {
+  lucent::info("update-draws", "run-end: {} update-block 2D call(s) with no owner, shown as drawn", unowned_);
+}
+
 void UpdateBlockDraws::open() {
   noting_.clear();
   open_ = true;

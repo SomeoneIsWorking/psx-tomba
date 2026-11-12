@@ -186,9 +186,9 @@ above lives there).
 ## Hazards
 
 1. **Title host state inside a replay.** `GuestRedraw` runs title overrides (`SideEffectMode::Discard`:
-   services execute). `Session::callSites` (`CallSiteObjects`) counts 2D writer calls per frame for
-   `UpdateBlockDraws` pairing; `DrawSection::draw` restores it after the replays so the real draw counts from the
-   frame start. Emission keys are gone (psxport `EmissionScope` removed).
+   services execute). An update-block 2D draw is paired by the guest object its caller draws for
+   (`render::callSiteOwner`, read from the caller's registers), so a replay changes no pairing state. Emission keys are
+   gone (psxport `EmissionScope` removed).
 2. **No places, so no depth and no sub-pixel.** `gpu::decodePackets` is called with `.places = {}`
    (`gp0_draw_state.cpp`): replayed primitives carry no `GtePlace`, so they are whole native pixels with no
    view depth. Tomba's real records draw producer primitives with places and depth bands (A03 band bias, the
@@ -259,8 +259,7 @@ missing; `presentseq` advances 0.5 per simulated vblank; `replay:warn` 0; no `No
 
 ## State (2026-11-10)
 
-Built: `game/core/frame/draw_section.*` (both variants, one `GuestRedraw::dispatch` of the orchestrator; the 2D
-writers' `CallSiteObjects` counts are put back after it), `draw_motion.*` and `draw_replay.*`, held by
+Built: `game/core/frame/draw_section.*` (both variants, one `GuestRedraw::dispatch` of the orchestrator), `draw_motion.*` and `draw_replay.*`, held by
 `tomba::Session::drawReplay` and returned by `tomba::Runtime::replayFrame`. `Render::frame`/`frameX` call
 `beforeDraw` and are the orchestrators' overrides, so every guest caller replays (GAME's submode frames, DEMO's
 attract frame 0x80106EBC). In GAME the section also runs the page step G:8010810C, which links the pause menu after

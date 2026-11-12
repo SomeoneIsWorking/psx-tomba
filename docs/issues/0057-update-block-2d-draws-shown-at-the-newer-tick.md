@@ -24,7 +24,8 @@ reads (fade level, bar height, glyph reveal, sprite place).
 
 ## Fix (letterbox)
 `game/core/frame/update_block_draws.cpp:UpdateBlockDraws` is a motion source. A writer in the update block notes the
-packets it linked with the values it built them from, keyed by its entry and its slot or call-site object; the
+packets it linked with the values it built them from, keyed by its entry and the guest object its caller draws for (`render::callSiteOwner`: per call site, the caller
+registers holding the object and its loop element); the
 section's sample keeps them, and each replay rewrites the later tick's packets from the paired values blended, in
 place through its `GuestRedraw` (`writeVertex`, `writeHalf`), so the OT the replay starts from holds them at t.
 Unpaired draws are drawn as they are and reported at run end. A note exists only for a writer that ran this tick, and
@@ -48,7 +49,8 @@ pairs only while the replay's samples pair (`DrawReplay::endFrame` forgets on a 
   width +0x58 by an accelerating step and recentres x +0x54 on 0xA0) and then draws the glyphs (`0x8007CC00`) and the
   panel (`Panel::drawPanel`, `0x8005019C`) from node +0x54 in the same call. Glyphs are not drawn while it opens
   (0x5A..0x5C clear the count `0x1F80017E`) and reveal whole glyphs a tick, so only the panel moves. `Panel::drawPanel`
-  notes the packet run with the rect, keyed by its call-site object; `Panel::rebuild` places the four corner sprites
+  notes the packet run with the rect, keyed by the dialog node (s0 at `0x8007DA38`, `0x8007DD88`, `0x8007DEB4`), the
+  window record (s1 at `0x8004FD00`) or the save prompt's box (one call a frame); `Panel::rebuild` places the four corner sprites
   and five fills from the rect blended (`lerpExact`), sharing `layoutOf` with `Panel::build`. Shown at `warp 13/0`
   +1035 (`scratch/rr0057/a1`, `panel_rise.png`, `panel_grow.png`): the top edge on consecutive presents is 1672, 1620,
   1568, 1528, 1488 ... 1248, 1240 sink px and the left edge 1608, 1576, 1536, 1496 ... 1160, each in-between on the
@@ -63,7 +65,8 @@ pairs only while the replay's samples pair (`DrawReplay::endFrame` forgets on a 
   (spawned by `0x80071B44`, the AP score, and `0x80072114`, a one- or two-sprite popup drawn by `0x80072308`): each tick `0x80071DFC`/`0x80072308`
   projects Tomba's place (or the source node's) through the view and draws the digits there, each bouncing on its own
   phase, through `UiSprite::quads`. `producerEntry` notes each call with its anchor, definition index and table,
-  keyed by its call-site object; the rebuild moves every piece's vertices by the anchor's blended offset, and a call
+  keyed by the popup node (s1 with digit s0 at `0x800720C4`, s3 at `0x800724B4`/`0x800724F8`) or the label node
+  (s1 with glyph s0 at `0x80072A2C`); the rebuild moves every piece's vertices by the anchor's blended offset, and a call
   whose definition changed is drawn as it is. Reached with the debug `ap <amount>` (`DevApPopup`, spawns
   `0x80071B44(Tomba, amount, 0)` at a frame boundary). Shown at `warp 0/0` +420, `ap 500`, frame-exact
   (`scratch/ui0057/a1`, `b1` with the note disabled, `popup_rise.png` top a1, bottom b1; `digits.py`): the third

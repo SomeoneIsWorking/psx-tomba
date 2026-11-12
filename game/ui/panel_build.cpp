@@ -7,6 +7,7 @@
 #include "guest_abi.h"
 #include "guest_redraw.h"
 #include "projected_vertex.h"
+#include "render/call_site_owner.h"
 #include "render/guest_ordering_table.h"
 #include "render/libgpu_draw_mode.h"
 #include "render/list_job.h"
@@ -16,6 +17,19 @@
 
 namespace tomba {
 namespace {
+
+using render::CallSiteOwner;
+constexpr std::uint8_t kS0 = 16;
+constexpr std::uint8_t kS1 = 17;
+// FUN_8005019C's callers and the object each draws for.
+constexpr CallSiteOwner kOwners[] = {
+    {.returnAddress = 0x8004FD08u, .object = kS1}, // 0x8004FB4C: the window record at 0x800BF554 + i * 0x8C
+    {.returnAddress = 0x80073898u},                // 0x800737F8: the save prompt's message box, once a frame
+    {.returnAddress = 0x8007399Cu},                // 0x800738B0: the save prompt's choice box, once a frame
+    {.returnAddress = 0x8007DA40u, .object = kS0}, // 0x8007D594: the dialog node opening
+    {.returnAddress = 0x8007DD90u, .object = kS0}, // 0x8007DC38: the dialog node
+    {.returnAddress = 0x8007DEBCu, .object = kS0}, // 0x8007DDE0: the dialog node
+};
 
 constexpr std::uint32_t kFrameBytes = 0x40u;
 constexpr GuestFrameSpill kSpills[7] = {
@@ -84,8 +98,10 @@ Rect readRect(const psx::present::EmitMemory &memory, std::uint32_t at) {
           static_cast<std::int16_t>(memory.mem_r16s(at + 6u))};
 }
 
-std::uint16_t attribute(std::uint32_t style, std::uint32_t shadow) {
-  const auto bits = static_cast<std::uint16_t>(style);
+// The packet attribute from FUN_8005019C's style (a1) and shadow (a2).
+std::uint16_t attribute(const render::ListCall &call) {
+  const std::uint32_t shadow = call.count;
+  const auto bits = static_cast<std::uint16_t>(call.a1);
   if ((bits & kStyleAlt) != 0) {
     return static_cast<std::uint16_t>(bits + kStyleAltAttr);
   }
@@ -97,13 +113,13 @@ struct Corner {
   std::int16_t x;
   std::int16_t y;
   std::uint8_t u;
+  std::uint16_t attr;
+  std::uint32_t bucket;
 };
 
-void drawCorner(const psx::present::EmitMemory &memory,
-                const render::OrderingTable &ot,
-                std::uint16_t attr,
-                std::uint32_t bucket,
-                const Corner &corner) {
+void drawCorner(const psx::present::EmitMemory &memory, const render::OrderingTable &ot, const Corner &corner) {
+  const std::uint16_t attr = corner.attr;
+  const std::uint32_t bucket = corner.bucket;
   const std::uint32_t packet = render::PacketPool(memory).allocate(kCornerBytes);
   memory.mem_w8(packet + 7u, (attr & kAttrSemi) != 0 ? kSprite8Semi : kSprite8);
   const auto clut = static_cast<std::uint16_t>((((attr & kAttrClutRow) + kClutRowBase) << 6) |
@@ -135,7 +151,7 @@ void writeRect(const psx::present::EmitMemory &memory, std::uint32_t at, const R
 // FUN_8005019C(rect r4, style r5, shadow r6, otBucket r7)
 void Panel::build(const psx::present::EmitMemory &memory, const render::ListCall &call) {
   const render::OrderingTable ot(memory, call.ot);
-  const std::uint16_t attr = attribute(call.a1, call.count);
+  const std::uint16_t attr = attribute(call);
   const std::uint32_t bucket = call.a3;
   const Rect rect = readRect(memory, call.list);
   const Layout<int> layout = layoutOf<int>(rect.x, rect.y, rect.w, rect.h);
@@ -143,11 +159,11 @@ void Panel::build(const psx::present::EmitMemory &memory, const render::ListCall
   for (std::size_t corner = 0; corner < kCornerU.size(); ++corner) {
     drawCorner(memory,
                ot,
-               attr,
-               bucket,
                {.x = static_cast<std::int16_t>(layout.corners[corner][0]),
                 .y = static_cast<std::int16_t>(layout.corners[corner][1]),
-                .u = kCornerU[corner]});
+                .u = kCornerU[corner],
+                .attr = attr,
+                .bucket = bucket});
   }
 
   const std::uint32_t mode = render::PacketPool(memory).allocate(kModeBytes);
@@ -181,14 +197,19 @@ void Panel::drawPanel(Core *core) {
                               .a3 = core->r[7],
                               .sp = core->r[29],
                               .a1 = core->r[5]};
+  const std::optional<std::uint32_t> object = render::callSiteOwner(*core, kOwners);
+  const std::uint32_t returnAddress = core->r[31];
   ::GuestFrame<kFrameBytes, 7> frame(core, kSpills);
-  const std::uint32_t object = sessionOf(core).callSites.object(core->r[31], call.list);
   const std::uint32_t packets = render::PacketPool(*core).cursor();
   Panel::build(*core, call);
+  if (!object) {
+    sessionOf(core).drawReplay.updateDraws().unowned(*core, Panel::kBuild, returnAddress);
+    return;
+  }
   const Rect rect = readRect(*core, call.list);
   sessionOf(core).drawReplay.updateDraws().note(*core,
                                                 {.writer = Panel::kBuild,
-                                                 .object = object,
+                                                 .object = *object,
                                                  .packets = {packets, 0u},
                                                  .values = {static_cast<std::uint32_t>(rect.x),
                                                             static_cast<std::uint32_t>(rect.y),
