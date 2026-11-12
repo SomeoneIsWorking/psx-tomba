@@ -2,8 +2,8 @@
 //
 // class Cull — instance subsystem owned by Engine. Holds the per-object cull body (FUN_8007712C), its
 // camera-relative wrappers, and the standalone view-cone cull (FUN_8002B278). Visibility is the
-// guest's own decision with the guest's near/far/cone limits: obj+1 drives simulation as well as
-// drawing, and the packet pool is sized for what retail keeps.
+// guest's own decision with its near/far limits and its cone widened with a wide canvas: obj+1 drives
+// simulation as well as drawing, so margin objects simulate.
 #pragma once
 #include <cstdint>
 class Core;
@@ -163,6 +163,10 @@ private:
     int queue;
   };
   Decision decide();
+
+  // The guest's cone threshold (cos x 1024) for a widened canvas: the cone's tangent grows with the frustum's
+  // half-diagonal. Unchanged at 4:3.
+  int wideConeThreshold(int threshold) const;
 
   // coneCull2b278's body; commit!=0 also sets the node visible flag on keep.
   int coneCullBody(int commit);

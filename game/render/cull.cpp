@@ -4,6 +4,9 @@
 #include "core/overrides/native_override_catalog.h"
 #include "entry/session.h"
 #include "game.h"
+#include "wide_window.h"
+
+#include <cmath>
 #include <lucent/log.h> // `cullpush` push-time submission census (kanban #77)
 #include <stdio.h>
 #include <stdlib.h>
@@ -18,9 +21,8 @@ uint32_t eng_isqrt16(uint32_t);
 //       dist < ~512 (near) and if dist >= a per-state FAR limit (~0x1001..0x1C01, i.e. 4097..7169).
 //   (2) FOV CONE: depth = forward·(dx,dy,dz) [forward = 0x1f8000e8/ea/ec], den = dist*4 (=(dist*4096)>>10);
 //       object is kept iff depth/den >= a per-state threshold (the constants 848/856/868/872/880 seen in
-//       the handlers — depth/(dist*4) ≈ cos·1024, so ~848 ≈ a ±34° half-cone). That ±34° cone is FAR
-//       narrower than even the 4:3 view frustum, so edge objects pop in/out as the camera pans, and the
-//       widescreen-widened side/corner geometry (incl. static terrain/water tiles) gets dropped entirely.
+//       the handlers — depth/(dist*4) ≈ cos·1024, so ~848 ≈ a ±34° half-cone). The cone covers the 4:3
+//       frustum only, so a wide canvas widens it (wideConeThreshold).
 
 // ---- PC-native reimplementation of the guest cull body FUN_8007712c ------------------------
 // Owns the per-object visibility decision (the per-object CULL/LOD engine system) PC-native instead
@@ -45,6 +47,19 @@ uint32_t eng_isqrt16(uint32_t);
 static const uint32_t CULL_QPTR[3] = {0x1f80013cu, 0x1f800148u, 0x1f800154u};
 static const uint32_t CULL_QCNT[3] = {0x1f800144u, 0x1f800150u, 0x1f80015cu};
 static const int CULL_QCAP[3] = {24, 40, 28};
+
+int Cull::wideConeThreshold(int threshold) const {
+  const int margin = wide_window::marginColumns(core);
+  if (margin == 0) {
+    return threshold;
+  }
+  const double halfWidth = wide_window::kGuestWidth / 2.0;
+  const double halfHeight = core->game->runtime.displayHeight() / 2.0;
+  const double grow = std::hypot(halfWidth + margin, halfHeight) / std::hypot(halfWidth, halfHeight);
+  const double cosine = threshold / 1024.0;
+  const double tangent = std::sqrt(1.0 - cosine * cosine) / cosine * grow;
+  return static_cast<int>(1024.0 / std::sqrt(1.0 + tangent * tangent));
+}
 
 // Pure (read-only) cull decision — reproduces FUN_8007712c's control flow without committing writes.
 Cull::Decision Cull::decide() {
@@ -114,7 +129,7 @@ Cull::Decision Cull::decide() {
       int32_t depth = (int32_t)((uint32_t)(fx * dx) + (uint32_t)(fy * dy) + (uint32_t)(fz * dz)); // addu-wrap
       int32_t den = (int32_t)((dist * 4096u) >> 10); // = dist*4 (>0 since dist>=near>=512)
       int32_t q = depth / den;                       // signed trunc-toward-zero, matches MIPS div
-      R.kept = (q >= thr) ? 1 : 0;
+      R.kept = (q >= wideConeThreshold(thr)) ? 1 : 0;
     }
   }
   if (R.kept && c->mem_r32(0x1F800080u) == 0) {
@@ -229,13 +244,13 @@ void Cull::submitLogFlush(const SubmitLog &log) const {
 // FUN_8002B278 — standalone view-CONE cull (3.9% field hot). a0 = node. The multiply-form of the same
 // cone test as FUN_8007712C with fixed params {near=512, far=7169, thr≡856}: compute the camera-relative
 // distance dist = isqrt16(dx²+dy²+dz²) (dx = node->h[0x2C/2E/30] − cam@scratchpad 0x1F8000D2/D6/DA), reject
-// (return 0) if dist<512 or dist>=7169, else keep iff fwd·d >= dist*3424 (fwd @0x1F8000E8/EA/EC; 3424 =
-// 4*856, the no-divide form of 8007712C's depth/(dist*4) >= 856). On keep, set the visible flag node[1]=1
+// (return 0) if dist<512 or dist>=7169, else keep iff fwd·d >= dist*4*856 (fwd @0x1F8000E8/EA/EC; the
+// no-divide form of 8007712C's depth/(dist*4) >= 856, widened like it). On keep, set the visible flag node[1]=1
 // and return 1; on reject, return 0 and leave node[1] untouched. Pure leaf (only calls the owned isqrt).
 namespace {
 constexpr uint32_t kConeNear = 512;
 constexpr uint32_t kConeFar = 7169;
-constexpr uint32_t kConeDotPerDist = 3424;
+constexpr int kConeThreshold = 856;
 } // namespace
 
 int Cull::coneCullBody(int commit) {
@@ -251,7 +266,7 @@ int Cull::coneCullBody(int commit) {
     return 0;
   }
   int32_t dot = (int32_t)((uint32_t)(fx * dx) + (uint32_t)(fy * dy) + (uint32_t)(fz * dz)); // addu-wrap
-  if (dot < (int32_t)(dist * kConeDotPerDist)) {
+  if (dot < (int32_t)(dist * 4u * static_cast<uint32_t>(wideConeThreshold(kConeThreshold)))) {
     return 0;
   }
   if (commit) {
