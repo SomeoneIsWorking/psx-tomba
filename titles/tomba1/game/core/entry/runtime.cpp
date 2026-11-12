@@ -12,6 +12,7 @@
 #include "native_boot.h"
 #include "native_dispatch.h"
 #include "platform_hle.h"
+#include "sprite_parts.h"
 #include "sync_native.h"
 
 #include <cstdlib>
@@ -63,7 +64,8 @@ void Runtime::registerOverrides(Game &game) {
       install(kTaskExitEntry, "GuestTaskSlots::exitOverride", GuestTaskSlots::exitOverride) &&
       install(0x80061480u, "gpuTimeoutBeginOverride", gpuTimeoutBeginOverride) &&
       install(0x800614B4u, "gpuTimeoutExpiredOverride", gpuTimeoutExpiredOverride) &&
-      install(kDmaCallbackEntry, "dmaCallbackOverride", dmaCallbackOverride) && installMeshDraw(install);
+      install(kDmaCallbackEntry, "dmaCallbackOverride", dmaCallbackOverride) && installMeshDraw(install) &&
+      installSpriteParts(install);
   if (!installed) {
     lucent::error("tomba1-runtime", "native override registration refused");
     std::abort();
