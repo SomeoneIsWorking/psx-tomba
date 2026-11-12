@@ -16,8 +16,7 @@ public:
   inline static constexpr std::uint32_t kTaskRecordPointer = 0x1F8001D4u;
   inline static constexpr std::uint32_t kMachineOffset = 0x4Cu;
   inline static constexpr std::uint32_t kStateOffset = 0x4Eu;
-  // gameplayMainHandler 0x8001B2B4 in its ticking state.
-  inline static constexpr std::uint16_t kFieldMachine = 1;
+  // The machines a door leaves through machine 7 (0x8002D408: 1, 2 and 4..6), each ticking in state 1.
   inline static constexpr std::uint16_t kFieldRunning = 1;
   inline static constexpr std::uint16_t kTransitionMachine = 7;
   // The destination 0x8001CFCC state 3 loads: u16 area, u16 section, u16 entry.
@@ -31,6 +30,9 @@ public:
   inline static constexpr std::uint32_t kStopBgm = 0x80020C00u;
 
   static bool fieldRunning(Core &core);
+  static constexpr bool doorMachine(std::uint16_t machine) {
+    return machine == 1u || machine == 2u || (machine >= 4u && machine <= 6u);
+  }
   // Areas 0..last, from the debug area select's bound.
   static int areaCount(Core &core);
 

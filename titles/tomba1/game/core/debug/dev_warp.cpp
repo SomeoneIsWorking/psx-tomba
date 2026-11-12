@@ -8,7 +8,7 @@
 namespace tomba1 {
 bool DevWarp::fieldRunning(Core &core) {
   const std::uint32_t record = core.mem_r32(kTaskRecordPointer);
-  return record != 0u && core.mem_r16(record + kMachineOffset) == kFieldMachine &&
+  return record != 0u && doorMachine(core.mem_r16(record + kMachineOffset)) &&
          core.mem_r16(record + kStateOffset) == kFieldRunning;
 }
 
