@@ -21,7 +21,9 @@ can run several titles; a blocking call defeats it.
 `Demo::stepOpeningMovie` opens OP.STR once (`Fmv::beginPath`) and steps it one frame per turn (the boot LOGO's
 pattern), returning true when it ends so the state-7 teardown runs on that turn. The guest's whole sub-sequence
 stays owned; only the block is removed. Skip behavior is unchanged: `Fmv::step` still ends on a held Start, and
-`PSXPORT_NO_FMV` still skips the movie.
+`PSXPORT_NO_FMV` still skips the movie. While `Fmv::presenting()`, `FrameDriver::stepFrame` rotates the fence with
+`commitUnpresented`, so the movie's frames are the only presents; committing the record each turn put a black
+frame between movie frames (bug report 082705, flicker).
 
 ## Evidence
 `scratch/interp-regression/picker3` (2 panels, real speed, 3840x2160): no control-channel timeout during the

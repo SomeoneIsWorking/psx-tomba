@@ -136,7 +136,12 @@ void FrameDriver::stepFrame(Core &core, uint32_t frame) {
   // Tomba's pad-edge and per-VBlank audio work; this driver owns the one presentation fence.
   eng(&core).frameUpdate();
   game.perf.phaseBegin(GpuPerf::Phase::Present);
-  game.presentation.commit(&core, FrameCadence::kRetailVblanksPerLogicFrame);
+  // While the opening movie plays its frames are the only presents.
+  if (game.fmv.presenting()) {
+    game.presentation.commitUnpresented();
+  } else {
+    game.presentation.commit(&core, FrameCadence::kRetailVblanksPerLogicFrame);
+  }
   // Packet spans live as long as the record: the OT walked last pass is sealed by this commit.
   core.rsub.otAttr.beginLogicFrame(frame);
   game.perf.phaseEnd(GpuPerf::Phase::Present);
