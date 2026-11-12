@@ -25,11 +25,10 @@ void logStreamState(Core &core, const char *phase) {
   const psx::audio::XaStream &xa = game.xa;
   const std::uint64_t now = controller.tick_now ? controller.tick_now(controller.tick_context) : 0u;
   lucent::debug("tomba1-stream-field",
-                "{} delivered={} now={} deadline={} armed={} read={} first={} following={} bfrd={} "
+                "{} now={} deadline={} armed={} read={} first={} following={} bfrd={} "
                 "fifo={}/{} irq={} queue={}->{} lba={} xa(active/push)={}/{} xa(wr/rd/pulls/sectors)="
                 "{}/{}/{}/{} stream-dma(inflight/owed/dicr/pending)={}/{}/0x{:08X}/0x{:X}",
                 phase,
-                game.cd.stream_delivered,
                 now,
                 controller.drive_deadline_ticks,
                 controller.drive_event_armed,
