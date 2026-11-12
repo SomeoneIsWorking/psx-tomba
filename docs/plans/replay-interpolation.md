@@ -180,6 +180,11 @@ above lives there).
   (`Sop::kListDraw`; SOP's other copy of that tail, FUN_801098E8, has no code or data reference).
 - SOP's narration crawl while `Sop::fieldUpdate`'s startup delay (sm+0x60) holds the draw tail off: the crawl alone,
   `DrawSection::Variant::Narration`.
+- SOP's first fade-in tick (`Sop::fieldMode` state 1, sm+0x50 = 1, after the load state 0): `Sop::fieldUpdate` is in
+  its startup delay with sm+0x52 = 0, so FUN_801092B4's tail runs the zone setup (`0x8001D71C(0xE)`) and draws
+  nothing; the frame's only packet is the fade leaf's fill (F8F8F8 subtractive). No section runs, so the next
+  interval (the first narration frame) has no earlier sample and is shown whole; the owners report names that fill
+  (`0x8007E9C8`, GP0 0x62) Moving.
 - Not a replayable frame, `forget()`: a frame whose field frame did not draw (load, the title menu, boot cards), a switch between `0x8003F9A8` and `0x8003FA44` or between stages,
   a savestate restore (`TitleState::restored`).
 
