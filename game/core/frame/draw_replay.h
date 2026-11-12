@@ -29,6 +29,8 @@ public:
   void endFrame(const FrameCut &cut);
   // The next draw pairs with nothing (a savestate restore).
   void forget();
+  // A ScreenFade linked after this frame's section, linked again in the next interval's replays.
+  void noteTrailingFade(const DrawSection::TrailingFade &fade);
 
   [[nodiscard]] psx::present::ReplayFrame &frame() {
     return frame_;
@@ -54,7 +56,8 @@ private:
   psx::present::ReplayFrame frame_;
   std::optional<DrawSection::Selection> drawn_;
   bool drewThisFrame_ = false;
-  std::uint32_t placementsAtSample_ = 0; // FrameCut::cameraPlacements when the draw sampled
+  std::optional<DrawSection::TrailingFade> trailingFade_; // linked after this frame's section
+  std::uint32_t placementsAtSample_ = 0;                  // FrameCut::cameraPlacements when the draw sampled
 };
 
 } // namespace tomba

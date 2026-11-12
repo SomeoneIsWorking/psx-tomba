@@ -33,7 +33,15 @@ void DrawReplay::beforeDraw(Core &core, DrawSection::Selection selection) {
   frame_.beforeDraw(core);
 }
 
+void DrawReplay::noteTrailingFade(const DrawSection::TrailingFade &fade) {
+  if (drewThisFrame_ && !frame_.replaying()) {
+    trailingFade_ = fade;
+  }
+}
+
 void DrawReplay::endFrame(const FrameCut &cut) {
+  section_.trail(trailingFade_);
+  trailingFade_.reset();
   // A camera re-placed before the draw sampled is already in that sample; a scene change may not be.
   const bool staleSample = cut.sceneChanged() || cut.endedPassPlacements() > placementsAtSample_;
   if (!drewThisFrame_ || staleSample) {

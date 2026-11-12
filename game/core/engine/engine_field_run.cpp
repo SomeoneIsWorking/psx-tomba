@@ -218,7 +218,10 @@ void Engine::fieldRun() {
     sm = c->mem_r32(0x1f800138u);
     uint32_t u = ((uint32_t)c->mem_r8(sm + 0x6e) * (uint32_t)-8) & 0xff;
     lucent::debug("fadesites", "[fadesite] fieldRun-case10 u={:02x} sm6e={}", u, c->mem_r8(sm + 0x6e));
-    fade(c).applyLeafCall((u << 16) | (u << 8) | u, ScreenFade::kSubtractive, 0);
+    const uint32_t color = (u << 16) | (u << 8) | u;
+    fade(c).applyLeafCall(color, ScreenFade::kSubtractive, 0);
+    // Linked after the field draw, so the in-betweens would not hold it.
+    sessionOf(c).drawReplay.noteTrailingFade({.color = color, .blend = ScreenFade::kSubtractive});
     uint8_t nv = (uint8_t)(c->mem_r8(sm + 0x6e) - 1);
     c->mem_w8(sm + 0x6e, nv);
     if (nv == 0) {

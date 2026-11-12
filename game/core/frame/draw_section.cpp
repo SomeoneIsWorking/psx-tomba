@@ -7,6 +7,7 @@
 #include "ordering_table.h"
 #include "render/guest_ordering_table.h"
 #include "render/render.h"
+#include "render/screen_fade.h"
 #include "render/tile_grid_layer.h"
 #include "scene/demo.h"
 #include "scene/narration_scroller.h"
@@ -67,6 +68,12 @@ bool DrawSection::drawSteps(Core &core, psx::present::GuestRedraw &redraw) const
 std::optional<std::uint32_t> DrawSection::draw(Core &core, psx::present::GuestRedraw &redraw) const {
   if (!drawSteps(core, redraw)) {
     return std::nullopt;
+  }
+  if (trailingFade_) {
+    const std::array fade{trailingFade_->color, trailingFade_->blend, trailingFade_->slot};
+    if (!redraw.dispatch(ScreenFade::kLeaf, fade)) {
+      return std::nullopt;
+    }
   }
   return core.mem_r32(render::OrderingTable::kBasePointer) + kOtHeadOffset;
 }

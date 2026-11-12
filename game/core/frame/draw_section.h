@@ -43,6 +43,16 @@ public:
   void select(Selection selection) {
     selection_ = selection;
   }
+  // A ScreenFade (FUN_8007E9C8) the last frame linked after its section; each replay links it after the steps.
+  struct TrailingFade {
+    std::uint32_t color = 0;
+    std::uint32_t blend = 0;
+    std::uint32_t slot = 0;
+    bool operator==(const TrailingFade &) const = default;
+  };
+  void trail(std::optional<TrailingFade> fade) {
+    trailingFade_ = fade;
+  }
 
   // No preamble: the env, its OT and the packet pool are already the frame's.
   [[nodiscard]] std::optional<std::uint32_t> draw(Core &core, psx::present::GuestRedraw &redraw) const override;
@@ -53,6 +63,7 @@ private:
   [[nodiscard]] bool drawSteps(Core &core, psx::present::GuestRedraw &redraw) const;
 
   Selection selection_;
+  std::optional<TrailingFade> trailingFade_;
 };
 
 } // namespace tomba
