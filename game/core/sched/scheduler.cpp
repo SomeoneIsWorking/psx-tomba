@@ -35,6 +35,38 @@ Scheduler::Scheduler(Game &game, EngineCd &cd) : game_(game), core_(game.core), 
 
 Scheduler::~Scheduler() = default;
 
+int Scheduler::slotOnFiber() const {
+  for (int slot = 0; slot < static_cast<int>(coro_.size()); ++slot) {
+    if (coro_[slot] != nullptr && !coro_[slot]->done()) {
+      return slot;
+    }
+  }
+  return -1;
+}
+
+Scheduler::SlotStates Scheduler::slotStates() const {
+  SlotStates states;
+  for (std::size_t slot = 0; slot < states.size(); ++slot) {
+    states[slot] = {.started = taskStarted_[slot],
+                    .demoNative = demoNative_[slot],
+                    .gameNative = gameNative_[slot],
+                    .gameCoop = gameCoop_[slot],
+                    .context = taskCtx_[slot]};
+  }
+  return states;
+}
+
+void Scheduler::adoptSlotStates(const SlotStates &states) {
+  for (std::size_t slot = 0; slot < states.size(); ++slot) {
+    dropCoroutine(static_cast<int>(slot));
+    taskStarted_[slot] = states[slot].started;
+    demoNative_[slot] = states[slot].demoNative;
+    gameNative_[slot] = states[slot].gameNative;
+    gameCoop_[slot] = states[slot].gameCoop;
+    taskCtx_[slot] = states[slot].context;
+  }
+}
+
 Scheduler &taskScheduler(Core &core) {
   return sessionOf(&core).scheduler;
 }

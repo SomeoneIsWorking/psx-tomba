@@ -206,6 +206,28 @@ void NativeOverrideCatalog::retireOverlay(Core &core, std::optional<psx::cpu::Im
   }
 }
 
+void NativeOverrideCatalog::adoptRestoredOverlay(Core &core,
+                                                 std::optional<psx::cpu::ImageIdentity> &active,
+                                                 std::uint32_t slotBase) const {
+  const std::optional<psx::cpu::ImageIdentity> restored = core.imageCatalog().resolve(slotBase);
+  std::optional<psx::cpu::ImageDescription> description;
+  if (restored) {
+    description = core.imageCatalog().describe(*restored);
+  }
+  const bool slotImage = description && !description->ranges.empty() && description->ranges.front().begin == slotBase;
+  if (active && (!slotImage || *active != *restored)) {
+    for (const Declaration &entry : declarations_) {
+      core.nativeDispatcher().remove({*active, entry.address});
+    }
+  }
+  active.reset();
+  if (!slotImage) {
+    return;
+  }
+  bindOverlay(core, *restored, description->name, {slotBase, description->ranges.back().end});
+  active = restored;
+}
+
 psx::cpu::ImageIdentity NativeOverrideCatalog::activateOverlay(Core &core,
                                                                std::optional<psx::cpu::ImageIdentity> &active,
                                                                std::string_view imageName,
@@ -242,7 +264,6 @@ std::string overlayNameForArea(std::uint32_t area) {
 psx::cpu::ImageIdentity NativeOverrideCatalog::activateModeOverlay(Core &core,
                                                                    std::optional<psx::cpu::ImageIdentity> &active,
                                                                    std::uint32_t fileIndex) const {
-  constexpr std::uint32_t kModeSlot = 0x00108F9Cu;
   constexpr std::uint32_t kFileTable = 0x800BE118u;
   if (fileIndex < 2u || fileIndex > 24u) {
     lucent::error("tomba-native", "file index {} is outside the SOP/A00..A0L MODE image set", fileIndex);
@@ -259,7 +280,6 @@ psx::cpu::ImageIdentity NativeOverrideCatalog::activateModeOverlay(Core &core,
 
 namespace {
 
-inline constexpr std::uint32_t kAreaSlot = 0x0018A000u;
 inline constexpr std::uint32_t kAreaFileTable = 0x800BE118u; // indexed file table, stride 8 {lba, size}
 
 // The {lba, size} descriptor of AREA-slot file `fileIndex`, refusing anything but OPN/CRD or a size

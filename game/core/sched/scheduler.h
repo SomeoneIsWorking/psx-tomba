@@ -69,15 +69,20 @@ public:
   // FUN_80044BD4's tail for a wait whose task already ran: flag != 1 stamps the task with the RNG.
   SyncWaitCompletion completeSyncWait(std::uint32_t taskBase, std::uint32_t flag);
 
-  bool hasLiveCoroutine(int slot) const {
-    return coro_[slot] != nullptr;
-  }
-  bool taskStarted(int slot) const {
-    return taskStarted_[slot];
-  }
-  const R3000 &savedContext(int slot) const {
-    return taskCtx_[slot];
-  }
+  // The host half of a task slot: which stanza owns it and the register file it resumes with.
+  struct SlotState {
+    bool started = false;
+    bool demoNative = false;
+    bool gameNative = false;
+    bool gameCoop = false;
+    R3000 context{};
+  };
+  using SlotStates = std::array<SlotState, 3>;
+  // Between frames: the first slot whose guest body is parked on a fiber, or -1.
+  int slotOnFiber() const;
+  SlotStates slotStates() const;
+  // Drops every fiber; an adopted slot resumes from its context, never from a host stack.
+  void adoptSlotStates(const SlotStates &states);
 
 private:
   enum class Stanza : std::uint8_t { NotMine, Handled };

@@ -12,6 +12,10 @@ class Core;
 
 namespace tomba::native {
 
+// Physical bases of the MODE (SOP, A00..A0L) and AREA (OPN, CRD) code slots.
+inline constexpr std::uint32_t kModeSlot = 0x00108F9Cu;
+inline constexpr std::uint32_t kAreaSlot = 0x0018A000u;
+
 // The title's native implementations, declared once per Game and bound to each image the Core loads.
 // Declarations key on address, or on image name plus address where overlays reuse a slot.
 class NativeOverrideCatalog {
@@ -37,6 +41,10 @@ public:
 
   // Retire a loaded code image before its slot is reused or returns to resident code.
   void retireOverlay(Core &core, std::optional<psx::cpu::ImageIdentity> &active) const;
+
+  // After a state restore adopted its images: unbinds `active`, then binds and holds the image activated at
+  // `slotBase`, or none.
+  void adoptRestoredOverlay(Core &core, std::optional<psx::cpu::ImageIdentity> &active, std::uint32_t slotBase) const;
 
   // Publishes an already-loaded image in the MODE slot. File index 2 is SOP; 3..24 are A00..A0L.
   psx::cpu::ImageIdentity

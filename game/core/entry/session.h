@@ -50,8 +50,8 @@ public:
   std::unique_ptr<Render> render;
   render::GroundClipTally groundClip;
   EngineCd cd;
-  TitleState titleState{cd, drawReplay};
   sched::Scheduler scheduler; // after `cd`, which it holds slot 2 for
+  TitleState titleState{cd, scheduler, drawReplay};
   Audio audio;
   native::NativeOverrideCatalog nativeOverrides;
 };
