@@ -11,6 +11,7 @@
 #include "mesh_draw.h"
 #include "native_boot.h"
 #include "native_dispatch.h"
+#include "overlay_sprite_groups.h"
 #include "platform_hle.h"
 #include "sprite_parts.h"
 #include "sync_native.h"
@@ -28,6 +29,18 @@ constexpr psx::game::Crt0Image kCrt0{.entry = 0x8006B58Cu};
 // Where the load-list walker 0x80021D70 places a type-0xF0 entry: the code module resident code
 // calls into (jal 0x800E7D5C from 0x80019A7C and 0x80019A94).
 constexpr std::uint32_t kCodeModuleBase = 0x800E7388u;
+
+// Binds a native function at an address under the image that owns it now.
+InstallOverride installerFor(Core &core) {
+  return [&core](std::uint32_t address, std::string_view name, psx::cpu::NativeFunction function) {
+    const auto identity = core.imageCatalog().resolve(address);
+    if (!identity) {
+      lucent::error("tomba1-runtime", "cannot bind '{}' at ambiguous guest address 0x{:08X}", name, address);
+      return false;
+    }
+    return core.nativeDispatcher().install({{*identity, address}, name, function});
+  };
+}
 
 } // namespace
 
@@ -49,14 +62,7 @@ void Runtime::registerOverrides(Game &game) {
   libcd_.bind(game);
   libgte_.bind(game);
   bindTitleLibraryOwners(game);
-  const auto install = [&game](std::uint32_t address, std::string_view name, psx::cpu::NativeFunction function) {
-    const auto identity = game.core.imageCatalog().resolve(address);
-    if (!identity) {
-      lucent::error("tomba1-runtime", "cannot bind '{}' at ambiguous guest address 0x{:08X}", name, address);
-      return false;
-    }
-    return game.core.nativeDispatcher().install({{*identity, address}, name, function});
-  };
+  const InstallOverride install = installerFor(game.core);
   const bool installed =
       install(kTaskStartEntry, "GuestTaskSlots::startOverride", GuestTaskSlots::startOverride) &&
       install(kTaskYieldEntry, "GuestTaskSlots::yieldOverride", GuestTaskSlots::yieldOverride) &&
@@ -81,8 +87,13 @@ void Runtime::deliverPad(Core &core, const psx::input::PadDelivery &delivery) {
 }
 
 void Runtime::stockCdReadLanded(Core &core, const psx::cd::StockReadLanding &landing) {
-  if (landing.destination == kCodeModuleBase) {
-    psx::code_module::publishStockReadLanding(core, landing);
+  if (landing.destination != kCodeModuleBase) {
+    return;
+  }
+  const auto content = psx::code_module::publishStockReadLanding(core, landing);
+  if (content && !installOverlaySpriteGroups(installerFor(core), content->identity)) {
+    lucent::error("tomba1-runtime", "overlay override registration refused for SHA-256 {}", content->hex);
+    std::abort();
   }
 }
 
