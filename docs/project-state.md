@@ -123,7 +123,7 @@ Gap: FMV/CD owners exist with pre-migration coverage; unobserved on the Lightrec
 
 ### S017 — Tomba! 2 area and scene transitions work throughout the game
 
-Gap: Title-to-gameplay transition recorded; representative transitions unverified (card `kanban-108`).
+Gap: Title-to-gameplay transition recorded; representative transitions unverified.
 
 ### S018 — Both titles removed their offline guest-source product paths
 
