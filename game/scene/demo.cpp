@@ -67,7 +67,7 @@ void Demo::s1() {
 // s1's opening movie, one frame per turn (the boot LOGO's pattern); true once it has ended.
 bool Demo::stepOpeningMovie() {
   Game &game = *core->game;
-  if (sessionOf(core).settings.skipMovies) {
+  if (!sessionOf(core).playsMovies(game)) {
     openingMovie_ = OpeningMovie::Done;
     return true;
   }

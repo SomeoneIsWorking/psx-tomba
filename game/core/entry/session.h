@@ -35,6 +35,10 @@ public:
   explicit Session(Core &core);
 
   const Settings settings = Settings::fromCVars();
+  // The movies play unless PSXPORT_NO_FMV, or a selector preview, ends each at its own end.
+  bool playsMovies(const Game &game) const {
+    return !settings.skipMovies && !game.session.preview();
+  }
   Engine engine;
   DrawReplay drawReplay{engine.graphicsBind.records}; // gameplay in-betweens, the field draw replayed
   VerificationCounters verification;
