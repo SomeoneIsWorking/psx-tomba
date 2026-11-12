@@ -14,8 +14,8 @@ namespace tomba::native {
 class NativeOverrideCatalog;
 } // namespace tomba::native
 
-namespace tomba::wide_window {
-struct Window;
+namespace psx::present {
+struct CullWindow;
 }
 
 namespace tomba {
@@ -36,7 +36,7 @@ public:
   void applyLeafCall(uint32_t color, uint32_t blend, uint32_t otSlot);
 
   // FUN_8007E9C8 with the guest's register arguments; the fill spans `window`'s columns.
-  static void draw(Core &core, const tomba::wide_window::Window &window);
+  static void draw(Core &core, const psx::present::CullWindow &window);
   static void registerOverrides(native::NativeOverrideCatalog &natives);
 };
 

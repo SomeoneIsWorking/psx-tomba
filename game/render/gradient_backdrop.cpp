@@ -50,7 +50,7 @@ std::array<Band, kBandCount> bandsAt(std::int32_t origin) {
 void emitBands(Core *c, const OrderingTable &ot, const PacketPool &pool, const psx::present::EmitMemory &memory) {
   const std::int32_t origin = (-(c->mem_r16s(kCameraPitch) * kPitchToScreenY)) >> 12;
   // Retail spans columns [0, 320); the record canvas widens that to its margins.
-  const wide_window::Window window = wide_window::drawWindow(c);
+  const psx::present::CullWindow window = wide_window::drawWindow(c);
 
   const std::uint32_t first = pool.cursor();
   std::uint32_t packet = first;

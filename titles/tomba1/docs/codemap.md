@@ -22,11 +22,13 @@ Frame loop: owned. `tomba1::FrameDriver` runs the guest task pass and delivers t
 | `tomba1::DebugMenu` | `titles/tomba1/game/core/debug/debug_menu.h` | The title debug menu (psxport `TitleDebugMenu`): the warp catalogue `warp <area>/<section>` |
 | `tomba1::DevWarp` | `titles/tomba1/game/core/debug/dev_warp.h` | The warp arrival: armed by `DebugMenu`, applied by `FrameDriver::stepFrame` before the tasks run, through the door's own transition (machine 7) |
 | `GuestTaskSlots` | `titles/tomba1/game/core/task/guest_task_slots.h` | The three-record task table, the guest's start/yield/restart leaves, the bounded resume of a budget exit across fields |
+| `MeshChunk`, `installMeshDraw` | `titles/tomba1/game/render/mesh_chunk.h`, `mesh_draw.h` | The world-mesh submitters as native overrides: the twelve chunk kinds (`0x80024CFC`..`0x800263F0`) and the drawers `0x80026694`, `0x80026E48`, `0x80027600`, `0x800279E8`; each culls through `psx::present::ScreenCull` over the record canvas's columns at 224 rows |
+| `PacketPool` | `titles/tomba1/game/render/packet_pool.h` | The two 0xC000-byte packet passes from `0x800B3188` behind the cursor `0x1F800164`; a native packet that would pass its pass's end aborts |
 | build | `titles/tomba1/cmake/runtime.cmake` | The `tomba1_runtime` library linked into `tomba2_port` |
 
 ## Where new work goes
 
 - A Tomba! 1 guest address, boot, frame, CD or DMA rule → the smallest owner under `titles/tomba1/game/core/`.
-- Visibility or 2D layout for widescreen → a new `titles/tomba1/game/render/` owner.
+- Visibility or 2D layout for widescreen → `titles/tomba1/game/render/`.
 - Per-Game title state → `Context`.
 - Tomba! 1 is native 60 fps: no producers, interpolation or 60 fps option.

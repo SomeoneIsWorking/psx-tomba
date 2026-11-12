@@ -571,7 +571,7 @@ void Render::billboardEmit() {
 
     // 2) Off-screen cull: X over the draw window, Y under 240, unsigned 16-bit as the guest.
     const std::uint32_t xs[4] = {c->mem_r16(BUF + 8), c->mem_r16(BUF + 16), c->mem_r16(BUF + 24), c->mem_r16(BUF + 32)};
-    bool onX = tomba::horizontal_cull::forDrawWindow(c).keepsX(xs, 4, tomba::horizontal_cull::Domain::Packed16);
+    bool onX = tomba::horizontal_cull::forDrawWindow(c).keepsX(xs, 4, psx::present::CornerDomain::Packed16);
     if (!onX) {
       continue;
     }

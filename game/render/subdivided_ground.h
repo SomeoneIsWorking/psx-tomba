@@ -20,8 +20,8 @@ namespace tomba::native {
 class NativeOverrideCatalog;
 } // namespace tomba::native
 
-namespace tomba::horizontal_cull {
-class Visibility;
+namespace psx::present {
+class ScreenCull;
 }
 
 namespace tomba::render {
@@ -47,7 +47,7 @@ public:
   static void draw(Core *c);
   // The body over any memory; returns the address past the list.
   static std::uint32_t
-  emit(const psx::present::EmitMemory &memory, const ListCall &call, const horizontal_cull::Visibility &visible);
+  emit(const psx::present::EmitMemory &memory, const ListCall &call, const psx::present::ScreenCull &visible);
 
   static void registerOverrides(native::NativeOverrideCatalog &natives);
 };

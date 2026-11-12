@@ -28,7 +28,7 @@ void OptionsPage::pushBackdrop(Core *c) {
   // Take a packet off the pool and bump it, exactly as the guest allocator does.
   const uint32_t packet = tomba::render::PacketPool(*c).allocate(kPacketBytes);
   // Retail spans columns [0, 320); the record canvas widens that to its margins.
-  const wide_window::Window window = wide_window::drawWindow(c);
+  const psx::present::CullWindow window = wide_window::drawWindow(c);
   const auto left = static_cast<uint16_t>(window.left);
   const auto right = static_cast<uint16_t>(window.right);
 

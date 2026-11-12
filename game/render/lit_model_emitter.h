@@ -12,7 +12,6 @@
 // (horizontal_visibility_cull.h), so at 4:3 the packets and the scratchpad are the guest's.
 #pragma once
 
-
 #include "model_packet.h"
 
 #include <cstdint>
@@ -23,8 +22,8 @@ namespace tomba::native {
 class NativeOverrideCatalog;
 } // namespace tomba::native
 
-namespace tomba::horizontal_cull {
-class Visibility;
+namespace psx::present {
+class ScreenCull;
 }
 
 namespace tomba::render {
@@ -43,12 +42,12 @@ public:
 
   // Guest register arguments in, v0 = past the list out; the guest's stack frame and scratchpad
   // staging are reproduced.
-  static void gt3(Core &core, const horizontal_cull::Visibility &visible, FlagBits flags);
-  static void gt4(Core &core, const horizontal_cull::Visibility &visible, FlagBits flags);
+  static void gt3(Core &core, const psx::present::ScreenCull &visible, FlagBits flags);
+  static void gt4(Core &core, const psx::present::ScreenCull &visible, FlagBits flags);
   // The body over any memory; `call.sp` is the sp inside the guest frame. Returns the address past the list.
   static std::uint32_t emit(const psx::present::EmitMemory &memory,
                             const ListCall &call,
-                            const horizontal_cull::Visibility &visible,
+                            const psx::present::ScreenCull &visible,
                             FlagBits flags,
                             bool quad);
   static void registerOverrides(native::NativeOverrideCatalog &natives);

@@ -39,8 +39,8 @@ namespace tomba::native {
 class NativeOverrideCatalog;
 } // namespace tomba::native
 
-namespace tomba::horizontal_cull {
-class Visibility;
+namespace psx::present {
+class ScreenCull;
 }
 
 namespace tomba::render {
@@ -333,12 +333,12 @@ public:
                                 1u};
 
   // The guest call: the registers in, the end of the list in v0, and the call saved under the open object.
-  static void gt3(Core &core, const horizontal_cull::Visibility &visible, const Variant &variant);
-  static void gt4(Core &core, const horizontal_cull::Visibility &visible, const Variant &variant);
+  static void gt3(Core &core, const psx::present::ScreenCull &visible, const Variant &variant);
+  static void gt4(Core &core, const psx::present::ScreenCull &visible, const Variant &variant);
   // The body over any memory; returns the address past the list.
   static std::uint32_t emit(const psx::present::EmitMemory &memory,
                             const ListCall &call,
-                            const horizontal_cull::Visibility &visible,
+                            const psx::present::ScreenCull &visible,
                             const Variant &variant,
                             bool quad);
   static void registerOverrides(native::NativeOverrideCatalog &natives);

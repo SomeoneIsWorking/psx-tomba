@@ -23,7 +23,7 @@
 namespace tomba::render {
 namespace {
 
-using horizontal_cull::Visibility;
+using psx::present::ScreenCull;
 
 constexpr std::uint32_t kEntry = 0x80110290u;
 constexpr std::uint32_t kSplitCount = 0x8011C0E0u; // u32, quads split on screen this frame
@@ -122,7 +122,7 @@ struct Quad {
   const OrderingTable &ot;
   bool exact; // no GTE error projecting the record's corners
   ClipBudget &budget;
-  wide_window::Window window; // the columns the picture shows
+  psx::present::CullWindow window; // the columns the picture shows
 
   // The picture shows columns past the guest's 320; at 4:3 every path is the guest's.
   [[nodiscard]] bool widened() const {
@@ -166,7 +166,7 @@ private:
 
 // 0x8010F1A0's leaf: RotTransPers4 of the corners, culled and linked at the farthest corner's bucket.
 std::uint32_t projectSubdivided(const Quad &quad,
-                                const Visibility &visible,
+                                const ScreenCull &visible,
                                 std::uint32_t packet,
                                 const std::array<ModelPoint, 4> &c) {
   const psx::present::EmitMemory &memory = quad.memory;
@@ -221,7 +221,7 @@ std::uint32_t projectSubdivided(const Quad &quad,
 
 // 0x8010F1A0: halves the model quad `levels` times; the centre is taken between the 0-2 and 2-3 edge midpoints.
 std::uint32_t subdivide(
-    const Quad &quad, const Visibility &visible, std::uint32_t packet, int levels, const std::array<ModelPoint, 4> &c) {
+    const Quad &quad, const ScreenCull &visible, std::uint32_t packet, int levels, const std::array<ModelPoint, 4> &c) {
   if (levels == 0) {
     return projectSubdivided(quad, visible, packet, c);
   }
@@ -558,7 +558,7 @@ culledMargins(const Quad &quad, std::uint32_t packet, const Path &path, const st
 
 std::uint32_t emitRecord(const psx::present::EmitMemory &memory,
                          const OrderingTable &ot,
-                         const Visibility &visible,
+                         const ScreenCull &visible,
                          const ModelPacket &model,
                          ClipBudget &budget) {
   psx::cpu::Gte &gte = memory.core().gte();
@@ -616,7 +616,7 @@ std::uint32_t emitRecord(const psx::present::EmitMemory &memory,
 } // namespace
 
 std::uint32_t
-SubdividedGround::emit(const psx::present::EmitMemory &memory, const ListCall &call, const Visibility &visible) {
+SubdividedGround::emit(const psx::present::EmitMemory &memory, const ListCall &call, const ScreenCull &visible) {
   const OrderingTable ot(memory, call.ot);
   ClipBudget budget;
   const std::uint32_t end = emitModelList(memory, call, kModelGt4, kOverlayStage, [&](const ModelPacket &model) {

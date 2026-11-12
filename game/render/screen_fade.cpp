@@ -42,7 +42,7 @@ void ScreenFade::applyLeafCall(uint32_t color, uint32_t blend, uint32_t otSlot) 
   psx::cpu::callGuestNow(*core, __func__, kLeaf, color, blend, otSlot);
 }
 
-void ScreenFade::draw(Core &core, const tomba::wide_window::Window &window) {
+void ScreenFade::draw(Core &core, const psx::present::CullWindow &window) {
   GuestFrame<kFrameBytes, 3> frame(&core, kSpills);
   const std::uint32_t color = core.r[4];
   const std::uint32_t blend = core.r[5] & 0xFFu;

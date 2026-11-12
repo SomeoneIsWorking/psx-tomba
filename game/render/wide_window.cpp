@@ -5,9 +5,8 @@
 
 namespace tomba::wide_window {
 
-Window drawWindow(Core *core) {
-  const int margin = marginColumns(core);
-  return {-margin, kGuestWidth + margin};
+psx::present::CullWindow drawWindow(Core *core) {
+  return psx::present::recordCanvasColumns(core->game->guestDisplay.plan(), kGuestWidth);
 }
 
 int marginColumns(Core *core) {

@@ -169,10 +169,10 @@ uint32_t OverlayGroundGt3Gt4::emitGt3(const psx::present::EmitMemory &memory,
     // established that no guest owner derives one); at 4:3 this is the literal 320/240 it replaced,
     // bit for bit. The vertical half of the bound is a constant because widening OFX at unchanged OFY
     // and H leaves the vertical field of view alone.
-    const tomba::horizontal_cull::Visibility visible = tomba::horizontal_cull::forDrawWindow(c);
+    const psx::present::ScreenCull visible = tomba::horizontal_cull::forDrawWindow(c);
     const std::uint32_t sx[3] = {memory.mem_r16(pool + 8), memory.mem_r16(pool + 20), memory.mem_r16(pool + 32)};
     const std::uint32_t sy[3] = {memory.mem_r16(pool + 10), memory.mem_r16(pool + 22), memory.mem_r16(pool + 34)};
-    if (!visible.keeps(sx, sy, 3, tomba::horizontal_cull::Domain::Packed16)) {
+    if (!visible.keeps(sx, sy, 3, psx::present::CornerDomain::Packed16)) {
       continue;
     }
 
@@ -319,12 +319,12 @@ uint32_t OverlayGroundGt3Gt4::emitGt4(const psx::present::EmitMemory &memory,
     // The same recovered predicate in its quad form: four corners, OR over corners per axis, the axes
     // AND-ed, compares unsigned. Bound from the draw window, not a literal — see the triangle site
     // above and horizontal_visibility_cull.h for why that is the same decision at 4:3.
-    const tomba::horizontal_cull::Visibility visible = tomba::horizontal_cull::forDrawWindow(c);
+    const psx::present::ScreenCull visible = tomba::horizontal_cull::forDrawWindow(c);
     const std::uint32_t sx[4] = {
         memory.mem_r16(pool + 8), memory.mem_r16(pool + 20), memory.mem_r16(pool + 32), memory.mem_r16(pool + 44)};
     const std::uint32_t sy[4] = {
         memory.mem_r16(pool + 10), memory.mem_r16(pool + 22), memory.mem_r16(pool + 34), memory.mem_r16(pool + 46)};
-    if (!visible.keeps(sx, sy, 4, tomba::horizontal_cull::Domain::Packed16)) {
+    if (!visible.keeps(sx, sy, 4, psx::present::CornerDomain::Packed16)) {
       continue;
     }
 

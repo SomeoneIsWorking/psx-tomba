@@ -20,8 +20,8 @@
 #include <cstdint>
 #include <type_traits>
 
-namespace tomba::horizontal_cull {
-class Visibility;
+namespace psx::present {
+class ScreenCull;
 }
 
 namespace tomba::render {
@@ -129,16 +129,16 @@ public:
   std::uint32_t flags() const;
 
   // GT3: RTPT, flag, back face (none when `twoSided`), cull; the packet's colours (`colourMask`), UVs and SXYs.
-  bool projectGt3(std::uint32_t colourMask, const horizontal_cull::Visibility &visible, bool twoSided = false) const;
+  bool projectGt3(std::uint32_t colourMask, const psx::present::ScreenCull &visible, bool twoSided = false) const;
   struct ProjectGt4Args {
     std::uint32_t firstColourMask;
     std::uint32_t colourMask;
-    const horizontal_cull::Visibility &visible;
+    const psx::present::ScreenCull &visible;
   };
   // GT4 with corners 0..2 by RTPT then corner 3 by RTPS.
   bool projectGt4(const ProjectGt4Args &args) const;
   // GT4 with corner 3 by RTPS first (the resident emitter).
-  bool projectGt4CornerThreeFirst(std::uint32_t colourMask, const horizontal_cull::Visibility &visible) const;
+  bool projectGt4CornerThreeFirst(std::uint32_t colourMask, const psx::present::ScreenCull &visible) const;
 
   // The record's SZ values, one word per corner from `address`.
   void stageDepths(std::uint32_t address) const;
@@ -191,7 +191,7 @@ public:
   // Corner 3 into the GTE for RTPS.
   void loadCornerThree() const;
   // The screen cull over the packet's corners.
-  bool onScreen(const horizontal_cull::Visibility &visible) const;
+  bool onScreen(const psx::present::ScreenCull &visible) const;
 
 private:
   bool transformFailed() const;

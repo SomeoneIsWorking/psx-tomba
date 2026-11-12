@@ -120,7 +120,7 @@ void drawPoints(const psx::present::EmitMemory &memory, Variant variant, const L
   points.advance();
   const std::int32_t count = snow ? memory.mem_r16s(node + kSnowCount) + 1 : static_cast<std::int32_t>(kDustCount);
 
-  const horizontal_cull::Visibility visible = horizontal_cull::forDrawWindow(&memory.core());
+  const psx::present::ScreenCull visible = horizontal_cull::forDrawWindow(&memory.core());
   const OrderingTable ot(memory, call.ot);
   psx::cpu::Gte &gte = memory.core().gte();
   const PacketPool pool(memory);
@@ -141,7 +141,7 @@ void drawPoints(const psx::present::EmitMemory &memory, Variant variant, const L
     memory.mem_w32(packet + 8u, gte.projected(2).word());
     memory.mem_w32(kScratchDepth, gte.readData(psx::gte::kSz3));
     const std::uint32_t screenX = memory.mem_r16(packet + 8u);
-    if (!visible.keepsX(&screenX, 1, horizontal_cull::Domain::Packed16)) {
+    if (!visible.keepsX(&screenX, 1, psx::present::CornerDomain::Packed16)) {
       continue;
     }
     const bool near = static_cast<std::int32_t>(memory.mem_r32(kScratchDepth)) < kNearDepth;

@@ -18,8 +18,8 @@
 namespace tomba::render {
 namespace {
 
-using horizontal_cull::Domain;
-using horizontal_cull::Visibility;
+using psx::present::CornerDomain;
+using psx::present::ScreenCull;
 
 constexpr std::uint32_t kEntry = 0x80110CA4u;
 constexpr GuestFrameSpill kSpills[] = {
@@ -87,7 +87,7 @@ constexpr std::array<std::uint32_t, 4> kUv = {0x0Cu, 0x18u, 0x24u, 0x30u};
 
 class Grids {
 public:
-  Grids(const psx::present::EmitMemory &memory, const OrderingTable &ot, const Visibility &visible)
+  Grids(const psx::present::EmitMemory &memory, const OrderingTable &ot, const ScreenCull &visible)
       : mMemory(memory), mOt(ot), mVisible(visible), mPool(memory), mPacket(mPool.cursor()) {
     const std::uint32_t frame = (mMemory.mem_r16(kClock) >> 1) & 0xFFFFu;
     mU = static_cast<std::uint8_t>((frame & 3u) << 6);
@@ -208,12 +208,12 @@ private:
       xs[corner] = mMemory.mem_r16(mPacket + kScreen[corner]);
       ys[corner] = mMemory.mem_r16(mPacket + kScreen[corner] + 2u);
     }
-    if (!mVisible.keepsX(xs.data(), horizontal_cull::kQuadCorners, Domain::Packed16)) {
+    if (!mVisible.keepsX(xs.data(), horizontal_cull::kQuadCorners, CornerDomain::Packed16)) {
       return false;
     }
     bool keptY = false;
     for (const std::uint32_t y : ys) {
-      keptY = keptY || horizontal_cull::insideAxis(y, Domain::Packed16, kKeptHeight);
+      keptY = keptY || psx::present::insideAxis(y, CornerDomain::Packed16, kKeptHeight);
     }
     if (!keptY) {
       return false;
@@ -236,7 +236,7 @@ private:
 
   const psx::present::EmitMemory &mMemory;
   const OrderingTable &mOt;
-  const Visibility &mVisible;
+  const ScreenCull &mVisible;
   PacketPool mPool;
   std::uint32_t mPacket;
   std::uint8_t mU = 0;
@@ -245,14 +245,14 @@ private:
 };
 
 // The guest cull keeps x <= right edge, one column past the draw window.
-Visibility visibilityOf(Core &core) {
-  const wide_window::Window window = wide_window::drawWindow(&core);
-  return Visibility({window.left, window.right + kKeptPastEdge});
+ScreenCull visibilityOf(Core &core) {
+  const psx::present::CullWindow window = wide_window::drawWindow(&core);
+  return ScreenCull({window.left, window.right + kKeptPastEdge}, horizontal_cull::kGuestFrameHeight);
 }
 
 void drawGrids(const psx::present::EmitMemory &memory, const ListCall &call, Core &core) {
   const OrderingTable ot(memory, call.ot);
-  const Visibility visible = visibilityOf(core);
+  const ScreenCull visible = visibilityOf(core);
   Grids(memory, ot, visible).draw();
 }
 

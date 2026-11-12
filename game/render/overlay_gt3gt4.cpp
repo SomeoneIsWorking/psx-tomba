@@ -151,7 +151,7 @@ void OverlayGt3Gt4::submitBlock(Core *c) {
 uint32_t OverlayGt3Gt4::emitGt3(const psx::present::EmitMemory &memory,
                                 const tomba::render::ListCall &call,
                                 uint32_t uvScroll,
-                                const tomba::horizontal_cull::Visibility &visible) {
+                                const psx::present::ScreenCull &visible) {
   Core *const c = &memory.core();
   uint32_t rec = call.list, count = call.count;
   if (count == 0) {
@@ -209,7 +209,7 @@ uint32_t OverlayGt3Gt4::emitGt3(const psx::present::EmitMemory &memory,
     const std::uint32_t xs[3] = {static_cast<std::uint32_t>(sxy0) << 16,
                                  static_cast<std::uint32_t>(sxy1) << 16,
                                  static_cast<std::uint32_t>(sxy2) << 16};
-    if (!visible.keepsX(xs, 3, tomba::horizontal_cull::Domain::Fixed16_16)) {
+    if (!visible.keepsX(xs, 3, psx::present::CornerDomain::Fixed16_16)) {
       continue;
     }
 
@@ -365,7 +365,7 @@ OverlayGt3Gt4::emitGt4(const psx::present::EmitMemory &memory, const tomba::rend
   return rec;
 }
 
-void OverlayGt3Gt4::gt3(Core &core, uint32_t uvScroll, const tomba::horizontal_cull::Visibility &visible) {
+void OverlayGt3Gt4::gt3(Core &core, uint32_t uvScroll, const psx::present::ScreenCull &visible) {
   core.r[2] = emitGt3(core, tomba::render::ListCall::fromRegisters(core), uvScroll, visible);
 }
 

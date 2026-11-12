@@ -15,7 +15,7 @@
 namespace tomba::render {
 namespace {
 
-using horizontal_cull::Visibility;
+using psx::present::ScreenCull;
 
 ModelDepth depthOf(const UnlitModelEmitter::DepthRule &rule, std::uint32_t flags) {
   switch (rule.code) {
@@ -179,7 +179,7 @@ constexpr Copy kCopies[] = {
 
 std::uint32_t UnlitModelEmitter::emit(const psx::present::EmitMemory &memory,
                                       const ListCall &call,
-                                      const Visibility &visible,
+                                      const ScreenCull &visible,
                                       const Variant &variant,
                                       bool quad) {
   const ModelShape &shape = quad ? kModelGt4 : kModelGt3;
@@ -238,11 +238,11 @@ std::uint32_t UnlitModelEmitter::emit(const psx::present::EmitMemory &memory,
   });
 }
 
-void UnlitModelEmitter::gt3(Core &core, const Visibility &visible, const Variant &variant) {
+void UnlitModelEmitter::gt3(Core &core, const ScreenCull &visible, const Variant &variant) {
   core.r[2] = emit(core, ListCall::fromRegisters(core), visible, variant, false);
 }
 
-void UnlitModelEmitter::gt4(Core &core, const Visibility &visible, const Variant &variant) {
+void UnlitModelEmitter::gt4(Core &core, const ScreenCull &visible, const Variant &variant) {
   core.r[2] = emit(core, ListCall::fromRegisters(core), visible, variant, true);
 }
 

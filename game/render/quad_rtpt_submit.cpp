@@ -105,7 +105,7 @@ void submitForGuest(Core *core) {
 
 void QuadRtptSubmit::submit(const psx::present::EmitMemory &memory,
                             const ListCall &call,
-                            const horizontal_cull::Visibility &visible) {
+                            const psx::present::ScreenCull &visible) {
   psx::cpu::Gte &gte = memory.core().gte();
   const std::uint32_t frame = call.sp - kFrameBytes;
   std::array<psx::gte::ProjectedVertex, 4> corners{};
@@ -158,8 +158,8 @@ void QuadRtptSubmit::submit(const psx::present::EmitMemory &memory,
     xs[corner] = memory.mem_r16(call.list + kScreen[corner]);
     ys[corner] = memory.mem_r16(call.list + kScreen[corner] + 2u);
   }
-  if (!visible.keepsX(xs.data(), 4, horizontal_cull::Domain::Packed16) ||
-      !visible.keepsY(ys.data(), 4, horizontal_cull::Domain::Packed16)) {
+  if (!visible.keepsX(xs.data(), 4, psx::present::CornerDomain::Packed16) ||
+      !visible.keepsY(ys.data(), 4, psx::present::CornerDomain::Packed16)) {
     return;
   }
   const render::PacketPool pool(memory);

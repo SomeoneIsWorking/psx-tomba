@@ -16,7 +16,7 @@
 namespace tomba::render {
 namespace {
 
-using horizontal_cull::Visibility;
+using psx::present::ScreenCull;
 
 constexpr GuestFrameSpill kSpills[] = {{23, 0x34},
                                        {22, 0x30},
@@ -95,12 +95,12 @@ bool finish(const psx::present::EmitMemory &memory,
 }
 
 // The guest call inside its frame.
-void runGuest(Core &core, const Visibility &visible, LitModelEmitter::FlagBits bits, bool quad) {
+void runGuest(Core &core, const ScreenCull &visible, LitModelEmitter::FlagBits bits, bool quad) {
   core.r[2] = LitModelEmitter::emit(core, ListCall::fromRegisters(core), visible, bits, quad);
 }
 
 template <std::uint32_t Entry, bool Quad, LitModelEmitter::FlagBits Bits> void emitAt(Core *core) {
-  const Visibility visible = horizontal_cull::forDrawWindow(core);
+  const ScreenCull visible = horizontal_cull::forDrawWindow(core);
   if constexpr (Quad) {
     LitModelEmitter::gt4(*core, visible, Bits);
   } else {
@@ -131,7 +131,7 @@ constexpr Copy kCopies[] = {
 } // namespace
 
 std::uint32_t LitModelEmitter::emit(
-    const psx::present::EmitMemory &memory, const ListCall &call, const Visibility &visible, FlagBits bits, bool quad) {
+    const psx::present::EmitMemory &memory, const ListCall &call, const ScreenCull &visible, FlagBits bits, bool quad) {
   const std::uint32_t sp = call.sp;
   const ModelShape &shape = quad ? kModelGt4 : kModelGt3;
   memory.mem_w32(sp + kOtArgument, call.ot);
@@ -149,12 +149,12 @@ std::uint32_t LitModelEmitter::emit(
   });
 }
 
-void LitModelEmitter::gt3(Core &core, const Visibility &visible, FlagBits flags) {
+void LitModelEmitter::gt3(Core &core, const ScreenCull &visible, FlagBits flags) {
   GuestFrame<kFrameBytes, 10> frame(&core, kSpills);
   runGuest(core, visible, flags, false);
 }
 
-void LitModelEmitter::gt4(Core &core, const Visibility &visible, FlagBits flags) {
+void LitModelEmitter::gt4(Core &core, const ScreenCull &visible, FlagBits flags) {
   GuestFrame<kFrameBytes, 10> frame(&core, kSpills);
   runGuest(core, visible, flags, true);
 }

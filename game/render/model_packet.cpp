@@ -11,7 +11,7 @@
 namespace tomba::render {
 namespace {
 
-using horizontal_cull::Domain;
+using psx::present::CornerDomain;
 
 constexpr std::int32_t kBucketCap = 0x800;
 constexpr std::uint32_t kRcos = 0x80083F50u;
@@ -63,20 +63,18 @@ void ModelPacket::loadCornerThree() const {
   mMemory.core().gte().writeData(psx::gte::kVz0, mMemory.mem_r32(mRecord + 0x24u) >> 16);
 }
 
-bool ModelPacket::onScreen(const horizontal_cull::Visibility &visible) const {
+bool ModelPacket::onScreen(const psx::present::ScreenCull &visible) const {
   std::array<std::uint32_t, 4> xs{};
   std::array<std::uint32_t, 4> ys{};
   for (int corner = 0; corner < mShape.cornerCount; ++corner) {
     xs[corner] = mMemory.mem_r16(mPacket + kScreen[corner]);
     ys[corner] = mMemory.mem_r16(mPacket + kScreen[corner] + 2u);
   }
-  return visible.keepsX(xs.data(), mShape.cornerCount, Domain::Packed16) &&
-         visible.keepsY(ys.data(), mShape.cornerCount, Domain::Packed16);
+  return visible.keepsX(xs.data(), mShape.cornerCount, CornerDomain::Packed16) &&
+         visible.keepsY(ys.data(), mShape.cornerCount, CornerDomain::Packed16);
 }
 
-bool ModelPacket::projectGt3(std::uint32_t colourMask,
-                             const horizontal_cull::Visibility &visible,
-                             bool twoSided) const {
+bool ModelPacket::projectGt3(std::uint32_t colourMask, const psx::present::ScreenCull &visible, bool twoSided) const {
   loadTriangle();
   mMemory.mem_w32(mPacket + 4u, mMemory.mem_r32(mRecord));
   mMemory.core().gte().execute(psx::gte::kRtpt);
@@ -130,8 +128,7 @@ bool ModelPacket::projectGt4(const ProjectGt4Args &args) const {
   return onScreen(visible);
 }
 
-bool ModelPacket::projectGt4CornerThreeFirst(std::uint32_t colourMask,
-                                             const horizontal_cull::Visibility &visible) const {
+bool ModelPacket::projectGt4CornerThreeFirst(std::uint32_t colourMask, const psx::present::ScreenCull &visible) const {
   loadCornerThree();
   const std::uint32_t colour23 = mMemory.mem_r32(mRecord + 4u);
   mMemory.mem_w32(mPacket + 0x1Cu, colour23 & colourMask);

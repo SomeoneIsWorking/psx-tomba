@@ -15,7 +15,6 @@
 // The screen cull goes through horizontal_visibility_cull.h, so at 4:3 the packets are the guest's.
 #pragma once
 
-
 #include "emit_memory.h"
 #include "list_job.h"
 
@@ -27,8 +26,8 @@ namespace tomba::native {
 class NativeOverrideCatalog;
 } // namespace tomba::native
 
-namespace tomba::horizontal_cull {
-class Visibility;
+namespace psx::present {
+class ScreenCull;
 }
 
 namespace tomba::render {
@@ -40,14 +39,14 @@ public:
   static constexpr std::uint32_t kSwayPhase = 0x80139004u;
 
   // The guest calls: the frame, the registers in, the end of the list in v0.
-  static void swayGt3(Core &core, const horizontal_cull::Visibility &visible);
-  static void scrollGt4(Core &core, const horizontal_cull::Visibility &visible);
-  static void cueGt3(Core &core, const horizontal_cull::Visibility &visible);
-  static void cueGt4(Core &core, const horizontal_cull::Visibility &visible);
+  static void swayGt3(Core &core, const psx::present::ScreenCull &visible);
+  static void scrollGt4(Core &core, const psx::present::ScreenCull &visible);
+  static void cueGt3(Core &core, const psx::present::ScreenCull &visible);
+  static void cueGt4(Core &core, const psx::present::ScreenCull &visible);
   // The body over any memory; `call.sp` is the sp inside the guest frame. Returns the address past the list.
   static std::uint32_t emit(const psx::present::EmitMemory &memory,
                             const ListCall &call,
-                            const horizontal_cull::Visibility &visible,
+                            const psx::present::ScreenCull &visible,
                             Kind kind);
   static void registerOverrides(native::NativeOverrideCatalog &natives);
 };

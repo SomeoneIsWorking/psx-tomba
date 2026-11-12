@@ -352,7 +352,7 @@ void TileGridLayer::emitGrid(const psx::present::EmitMemory &memory, const EmitG
   // The guest walks columns [0, 320 + 32) of the screen; the walk spans the draw window, and the map
   // column wraps modulo W as the guest's does, so at 4:3 the packets are the guest's.
   const int cx = 160, cy = 120, slack = 32;
-  const tomba::wide_window::Window window = tomba::wide_window::drawWindow(&memory.core());
+  const psx::present::CullWindow window = tomba::wide_window::drawWindow(&memory.core());
   const int firstColumn = scrollX - cx + window.left;
   int rowtile = ((scrollY - cy) >> 4) - rowLead;
   if (!clampRows) {

@@ -129,8 +129,7 @@ void textLabelBody(Core *c) {
         };
         // X over the draw window: [0, 320) at 4:3.
         const std::uint32_t xs[4] = {sx(8), sx(16), sx(24), sx(32)};
-        const bool xok =
-            tomba::horizontal_cull::forDrawWindow(c).keepsX(xs, 4, tomba::horizontal_cull::Domain::Packed16);
+        const bool xok = tomba::horizontal_cull::forDrawWindow(c).keepsX(xs, 4, psx::present::CornerDomain::Packed16);
         const bool yok = sx(10) < 240u || sx(18) < 240u || sx(26) < 240u || sx(34) < 240u;
         if (xok && yok) {
           c->mem_w8(pk + 7u, 45u);                                            // code 0x2D (textured raw)

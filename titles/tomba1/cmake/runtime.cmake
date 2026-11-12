@@ -29,7 +29,10 @@ add_library(
   "${TOMBA1_ROOT}/game/core/frame/stream_field_turn.cpp"
   "${TOMBA1_ROOT}/game/core/boot/sync_native.cpp"
   "${TOMBA1_ROOT}/game/core/entry/runtime.cpp"
-  "${TOMBA1_ROOT}/game/core/entry/identity.cpp")
+  "${TOMBA1_ROOT}/game/core/entry/identity.cpp"
+  "${TOMBA1_ROOT}/game/render/mesh_chunk.cpp"
+  "${TOMBA1_ROOT}/game/render/mesh_draw.cpp"
+  "${TOMBA1_ROOT}/game/render/packet_pool.cpp")
 set_target_properties(tomba1_runtime PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON)
 # The catalog includes only tomba1/game/core/entry/ (tomba1::Runtime, the identity) through titles/;
 # every other concept directory is private to the library and to Tomba! 1's own tests.
@@ -38,7 +41,8 @@ set(TOMBA1_PRIVATE_INCLUDE_DIRS
     "${TOMBA1_ROOT}/game/core/debug"
     "${TOMBA1_ROOT}/game/core/frame"
     "${TOMBA1_ROOT}/game/core/boot"
-    "${TOMBA1_ROOT}/game/core/task")
+    "${TOMBA1_ROOT}/game/core/task"
+    "${TOMBA1_ROOT}/game/render")
 target_include_directories(tomba1_runtime PUBLIC "${TOMBA1_ROOT}/.."
                                           PRIVATE ${TOMBA1_PRIVATE_INCLUDE_DIRS})
 target_link_libraries(tomba1_runtime PUBLIC psxport)

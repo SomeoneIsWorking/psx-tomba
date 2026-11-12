@@ -16,8 +16,8 @@ namespace tomba::native {
 class NativeOverrideCatalog;
 } // namespace tomba::native
 
-namespace tomba::horizontal_cull {
-class Visibility;
+namespace psx::present {
+class ScreenCull;
 }
 
 namespace tomba {
@@ -34,9 +34,8 @@ public:
   // RTPS), `call.count` the bucket bias, `call.sp` the guest stack it scratches 16 bytes below. The template takes the
   // projected SXYs; AVSZ4 plus the bias, compressed, is the bucket; the quad drops on a GTE overflow, an out-of-range
   // bucket or when no corner lies in the draw window.
-  static void submit(const psx::present::EmitMemory &memory,
-                     const render::ListCall &call,
-                     const horizontal_cull::Visibility &visible);
+  static void
+  submit(const psx::present::EmitMemory &memory, const render::ListCall &call, const psx::present::ScreenCull &visible);
 
   static void registerOverrides(native::NativeOverrideCatalog &natives);
 };

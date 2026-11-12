@@ -14,7 +14,7 @@
 namespace tomba::render {
 namespace {
 
-using horizontal_cull::Visibility;
+using psx::present::ScreenCull;
 
 constexpr std::uint32_t kSwayGt3 = 0x80130838u;
 constexpr std::uint32_t kScrollGt4 = 0x80130D9Cu;
@@ -154,7 +154,7 @@ bool cue(const psx::present::EmitMemory &memory,
 bool place(const psx::present::EmitMemory &memory,
            const ModelShape &shape,
            const ModelPacket &packet,
-           const Visibility &visible,
+           const ScreenCull &visible,
            bool hides) {
   const bool projected =
       shape.list == ModelList::Gt4
@@ -180,7 +180,7 @@ bool place(const psx::present::EmitMemory &memory,
   return true;
 }
 
-std::uint32_t swayGt3Body(const psx::present::EmitMemory &memory, const ListCall &call, const Visibility &visible) {
+std::uint32_t swayGt3Body(const psx::present::EmitMemory &memory, const ListCall &call, const ScreenCull &visible) {
   const std::uint32_t sp = call.sp;
   memory.mem_w32(sp + kSwayGt3OtArgument, call.ot);
   return emitModelList(memory, call, kModelGt3, kOverlayStage, [&](const ModelPacket &packet) {
@@ -199,7 +199,7 @@ std::uint32_t swayGt3Body(const psx::present::EmitMemory &memory, const ListCall
   });
 }
 
-std::uint32_t scrollGt4Body(const psx::present::EmitMemory &memory, const ListCall &call, const Visibility &visible) {
+std::uint32_t scrollGt4Body(const psx::present::EmitMemory &memory, const ListCall &call, const ScreenCull &visible) {
   return emitModelList(memory, call, kModelGt4, kOverlayStage, [&](const ModelPacket &packet) {
     if (!place(memory, kModelGt4, packet, visible, true)) {
       return false;
@@ -212,7 +212,7 @@ std::uint32_t scrollGt4Body(const psx::present::EmitMemory &memory, const ListCa
   });
 }
 
-std::uint32_t cueGt3Body(const psx::present::EmitMemory &memory, const ListCall &call, const Visibility &visible) {
+std::uint32_t cueGt3Body(const psx::present::EmitMemory &memory, const ListCall &call, const ScreenCull &visible) {
   const std::uint32_t sp = call.sp;
   memory.mem_w32(sp + kCueGt3OtArgument, call.ot);
   if (call.count != 0u) {
@@ -237,7 +237,7 @@ std::uint32_t cueGt3Body(const psx::present::EmitMemory &memory, const ListCall 
   });
 }
 
-std::uint32_t cueGt4Body(const psx::present::EmitMemory &memory, const ListCall &call, const Visibility &visible) {
+std::uint32_t cueGt4Body(const psx::present::EmitMemory &memory, const ListCall &call, const ScreenCull &visible) {
   memory.core().gte().writeData(psx::gte::kRgbc, kCueGt4Rgbc);
   return emitModelList(memory, call, kModelGt4, kOverlayStage, [&](const ModelPacket &packet) {
     if (!place(memory, kModelGt4, packet, visible, false)) {
@@ -264,7 +264,7 @@ std::uint32_t cueGt4Body(const psx::present::EmitMemory &memory, const ListCall 
 }
 
 // The guest call inside its frame.
-void runGuest(Core &core, SwayModelEmitter::Kind kind, const Visibility &visible) {
+void runGuest(Core &core, SwayModelEmitter::Kind kind, const ScreenCull &visible) {
   core.r[2] = SwayModelEmitter::emit(core, ListCall::fromRegisters(core), visible, kind);
 }
 
@@ -272,7 +272,7 @@ void runGuest(Core &core, SwayModelEmitter::Kind kind, const Visibility &visible
 
 std::uint32_t SwayModelEmitter::emit(const psx::present::EmitMemory &memory,
                                      const ListCall &call,
-                                     const Visibility &visible,
+                                     const ScreenCull &visible,
                                      Kind kind) {
   switch (kind) {
   case Kind::SwayGt3:
@@ -287,29 +287,29 @@ std::uint32_t SwayModelEmitter::emit(const psx::present::EmitMemory &memory,
   return cueGt4Body(memory, call, visible);
 }
 
-void SwayModelEmitter::swayGt3(Core &core, const Visibility &visible) {
+void SwayModelEmitter::swayGt3(Core &core, const ScreenCull &visible) {
   GuestFrame<kSwayGt3Frame, 10> frame(&core, kSwayGt3Spills);
   runGuest(core, Kind::SwayGt3, visible);
 }
 
-void SwayModelEmitter::scrollGt4(Core &core, const Visibility &visible) {
+void SwayModelEmitter::scrollGt4(Core &core, const ScreenCull &visible) {
   GuestFrame<kScrollGt4Frame, 5> frame(&core, kScrollGt4Spills);
   runGuest(core, Kind::ScrollGt4, visible);
 }
 
-void SwayModelEmitter::cueGt3(Core &core, const Visibility &visible) {
+void SwayModelEmitter::cueGt3(Core &core, const ScreenCull &visible) {
   GuestFrame<kCueGt3Frame, 10> frame(&core, kCueGt3Spills);
   runGuest(core, Kind::CueGt3, visible);
 }
 
-void SwayModelEmitter::cueGt4(Core &core, const Visibility &visible) {
+void SwayModelEmitter::cueGt4(Core &core, const ScreenCull &visible) {
   GuestFrame<kCueGt4Frame, 8> frame(&core, kCueGt4Spills);
   runGuest(core, Kind::CueGt4, visible);
 }
 
 namespace {
 
-template <std::uint32_t Entry, void (*Body)(Core &, const Visibility &)> void emitAt(Core *core) {
+template <std::uint32_t Entry, void (*Body)(Core &, const ScreenCull &)> void emitAt(Core *core) {
   Body(*core, horizontal_cull::forDrawWindow(core));
 }
 

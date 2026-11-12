@@ -15,7 +15,7 @@
 namespace tomba::render {
 namespace {
 
-using horizontal_cull::Visibility;
+using psx::present::ScreenCull;
 
 constexpr std::uint32_t kGt3 = 0x8013F418u;
 constexpr std::uint32_t kGt4 = 0x8013F6E4u;
@@ -110,7 +110,7 @@ void storeFogged(const psx::present::EmitMemory &memory, const ModelPacket &pack
 
 bool emitGt3(const psx::present::EmitMemory &memory,
              const ModelPacket &packet,
-             const Visibility &visible,
+             const ScreenCull &visible,
              std::uint32_t ot) {
   psx::cpu::Gte &gte = memory.core().gte();
   const std::uint32_t record = packet.record();
@@ -145,7 +145,7 @@ bool emitGt3(const psx::present::EmitMemory &memory,
 
 bool emitGt4(const psx::present::EmitMemory &memory,
              const ModelPacket &packet,
-             const Visibility &visible,
+             const ScreenCull &visible,
              std::uint32_t ot) {
   psx::cpu::Gte &gte = memory.core().gte();
   const std::uint32_t record = packet.record();
@@ -195,7 +195,7 @@ template <std::uint32_t Entry, bool Quad> void emitAt(Core *core) {
 
 std::uint32_t FogModelEmitter::emit(const psx::present::EmitMemory &memory,
                                     const ListCall &call,
-                                    const Visibility &visible,
+                                    const ScreenCull &visible,
                                     bool quad) {
   const ModelShape &shape = quad ? kModelGt4 : kModelGt3;
   return emitModelList(memory, call, shape, kOverlayStage, [&](const ModelPacket &packet) {

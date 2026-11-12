@@ -19,8 +19,8 @@ namespace tomba::native {
 class NativeOverrideCatalog;
 } // namespace tomba::native
 
-namespace tomba::horizontal_cull {
-class Visibility;
+namespace psx::present {
+class ScreenCull;
 }
 
 namespace tomba {
@@ -38,13 +38,13 @@ public:
   static void submitBlock(Core *c);
 
   // (rec=a0, ot_base=a1, count=a2) -> advanced rec ptr in v0. `uvScroll` names the overlay's scroll word.
-  static void gt3(Core &c, std::uint32_t uvScroll, const tomba::horizontal_cull::Visibility &visible);
+  static void gt3(Core &c, std::uint32_t uvScroll, const psx::present::ScreenCull &visible);
   static void gt4(Core &c, std::uint32_t uvScroll);
   // The leaf bodies over any memory; each returns the address past its list.
   static std::uint32_t emitGt3(const psx::present::EmitMemory &memory,
                                const tomba::render::ListCall &call,
                                std::uint32_t uvScroll,
-                               const tomba::horizontal_cull::Visibility &visible);
+                               const psx::present::ScreenCull &visible);
   static std::uint32_t
   emitGt4(const psx::present::EmitMemory &memory, const tomba::render::ListCall &call, std::uint32_t uvScroll);
 
