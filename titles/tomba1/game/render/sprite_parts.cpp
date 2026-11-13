@@ -3,9 +3,11 @@
 #include "core.h"
 #include "emit_memory.h"
 #include "gte_registers.h"
+#include "guest_signed.h"
 #include "mesh_chunk.h"
 #include "packet_pool.h"
 #include "r3000.h"
+#include "sprite_frame.h"
 
 #include <array>
 #include <cstdlib>
@@ -136,10 +138,6 @@ struct PartRect {
 };
 
 // The part's own offset and size bytes, unscaled (0x80048914).
-std::uint32_t sext8(std::uint8_t value) {
-  return (std::uint32_t{value} ^ 0x80u) - 0x80u;
-}
-
 PartRect plainRect(Core &core, std::uint32_t part) {
   return {.dx = sext8(core.mem_r8(part + 0x0Eu)),
           .dy = sext8(core.mem_r8(part + 0x0Fu)),
@@ -201,8 +199,8 @@ void writeAlignedCorners(Core &core, std::uint32_t packet, bool flip, std::uint3
 constexpr std::uint32_t kAngleX = 0x8007DB88u;
 constexpr std::uint32_t kAngleY = 0x8007D988u;
 
-std::int32_t sext16(std::uint32_t value) {
-  return static_cast<std::int16_t>(value);
+std::int32_t signed16(std::uint32_t value) {
+  return static_cast<std::int32_t>(sext16(value));
 }
 
 // One side of a rotated part: its offset along the part's width, the angle it is turned by, and its packet corners.
@@ -219,11 +217,11 @@ void writeRotatedCorners(
     Core &core, std::uint32_t packet, bool flip, std::uint32_t anchor, const PartRect &rect, std::uint32_t turn) {
   const std::uint32_t near = turn & 0xFFu;
   const std::uint32_t far = (turn + 0x80u) & 0xFFu;
-  const std::int32_t dx = sext16(rect.dx);
-  const std::int32_t dy = sext16(rect.dy);
-  const std::int32_t width = sext16(rect.width);
-  const std::int32_t height = sext16(rect.height);
-  const std::int32_t reach = sext16(static_cast<std::uint32_t>(-(dx + width)));
+  const std::int32_t dx = signed16(rect.dx);
+  const std::int32_t dy = signed16(rect.dy);
+  const std::int32_t width = signed16(rect.width);
+  const std::int32_t height = signed16(rect.height);
+  const std::int32_t reach = signed16(static_cast<std::uint32_t>(-(dx + width)));
   const RotatedSide farSide = flip ? RotatedSide{-dx, far, 0x08u, 0x18u} : RotatedSide{-reach, far, 0x10u, 0x20u};
   const RotatedSide nearSide =
       flip ? RotatedSide{dx + width, near, 0x10u, 0x20u} : RotatedSide{reach + width, near, 0x08u, 0x18u};
@@ -412,6 +410,25 @@ void drawScreenParts(Core *core) {
             });
 }
 
+// A screen sprite entity links 0xC90 past the ordering table, at its layer: the halfword e+0xE for kind 2, else
+// the byte e+0xF.
+constexpr std::uint32_t kScreenSpriteSlots = 0xC90u;
+constexpr std::uint8_t kHalfwordLayerKind = 2u;
+
+// 0x8004DFA0 (entity): the frame's raw sprites at the entity's own (x, y), already in screen space.
+void drawScreenSprites(Core *core) {
+  Core &c = *core;
+  const std::uint32_t entity = c.r[kA0];
+  const std::uint32_t layer = c.mem_r8(entity + 0x0Bu) == kHalfwordLayerKind ? sext16(c.mem_r16(entity + 0x0Eu))
+                                                                             : sext8(c.mem_r8(entity + 0x0Fu));
+  const std::uint32_t link = c.mem_r32(kOrderingTable) + layer * 4u + kScreenSpriteSlots;
+  SpriteFrame::draw(
+      c,
+      entity,
+      {.slot = 0u, .x = c.mem_r16(entity + 0x12u), .y = c.mem_r16(entity + 0x16u), .raise = 0u, .link = link},
+      SpriteFrame::cullFor(c));
+}
+
 // The model quad's view: the camera matrix 0x1F8000F8 copied to kQuadView, whose translation becomes the entity's
 // position turned by the scratch matrix plus that matrix's translation.
 constexpr std::uint32_t kCameraMatrix = 0x1F8000F8u;
@@ -487,7 +504,8 @@ bool installSpriteParts(const InstallOverride &install) {
          install(0x80049134u, "SpriteParts::rotated", drawRotatedParts) &&
          install(0x80049994u, "SpriteParts::rotatedScaled", drawRotatedScaledParts) &&
          install(0x8004AA70u, "SpriteParts::modelQuad", drawModelQuad) &&
-         install(0x8004BAF0u, "SpriteParts::screen", drawScreenParts);
+         install(0x8004BAF0u, "SpriteParts::screen", drawScreenParts) &&
+         install(0x8004DFA0u, "SpriteParts::screenSprites", drawScreenSprites);
 }
 
 } // namespace tomba1
