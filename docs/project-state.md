@@ -55,7 +55,7 @@ and 2D layout.
 | S024 | Tomba! 1 loads complete without loading-only waits or presentation | missing | — | G005 |
 | S025 | Tomba! 2 files in-app bug reports (B key) with a replayable reproduction | partial | — | — |
 | S026 | Tomba runs through psxport's multi-title host and in-window picker | partial | — | — |
-| S027 | Tomba! 2 pit void-out mod: death-floor falls void out like water (setting, default off) | partial | — | — |
+| S027 | Tomba! 2 pit void-out mod: death-floor falls void out like water (setting, default off) | verified | — | — |
 
 ### S001 — Tomba! 2 reaches representative gameplay as a native/Lightrec product
 
@@ -173,5 +173,6 @@ with 3 vitality (`scratch/m0062/pit_sheet.png`); at 1 vitality it reaches 0 and 
 game-over route, which shows the game over screen (issue 0066, fixed). Off, vitality 4 → 0 and the game-over
 route, unchanged. Area 4 (`spot 4 1 2 5440 -6080 12672`, sector 2's death floor): off, substate 5 and vitality 0;
 on, substate 4, vitality 4 → 3 and respawn at area 4 entry 1.
-Gap: areas 11, 12 and 15 hold Tomba in their arrival event on any warp in (issue 0068), so their death floors are
-not reached.
+Areas 11, 12 and 15 (the Evil Ice, Ghost and Last Evil Pig battles), through `spot` over each death floor with
+the boss intro advanced by circle: off, substate 5 and vitality 0; on, substate 4, vitality 4 → 3 and respawn in
+the same area.

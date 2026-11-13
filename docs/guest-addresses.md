@@ -237,7 +237,7 @@ calls it. A row whose handler is file-local names the file that declares the ove
 | 0x8005950C | LIVE | `ActorTomba::frameTick` | game/player/actor_tomba.cpp |  |  |
 | 0x80059D28 | LIVE | `Engine::frameStartTick` | game/core/engine/engine_frame_ticks.cpp |  | Engine::frameStartTick — per-frame prologue at guest 0x80059D28 (FIRST… |
 | 0x80059ED8 | LIVE | `beh_camera_target_follow` | game/ai/beh_camera_target_follow.cpp | 0x800312D4 0x800489E4 0x8010B238 0x8010BC10 0x8010C5A8 0x8011332C … |  |
-| 0x8005A910 | LIVE | `ActorTomba::mode0ActionGate` | game/player/actor_tomba.cpp |  |  |
+| 0x8005A910 | LIVE | `ActorTomba::idleColdGate` | game/player/actor_tomba.cpp |  |  |
 | 0x80067DA8 | LIVE | `Engine::uploadModeSprites` | game/ai/beh_sop_intro_pilot.cpp | 0x80081218 | Engine::uploadModeSprites — native ownership of FUN_80067DA8 (Ghidra d… |
 | 0x8006C80C | LIVE | `CutsceneCamera::yFloor` | game/camera/cutscene_camera.cpp |  | yFloor (camera-Y floor clamp, per render mode) |
 | 0x8006C988 | LIVE | `CutsceneCamera::shakeTail` | game/camera/cutscene_camera.cpp |  | post-mode TAIL (0x8006C988) — the camera SHAKE state machine |

@@ -456,20 +456,20 @@ void ActorTomba::velocityIntegrate(bool suppressY) {
   }
 }
 
-void ActorTomba::mode0ActionGate() {
+void ActorTomba::idleColdGate() {
   Core *c = core;
   const uint32_t G = G_ADDR;
   constexpr GuestFrameSpill kSpills[] = {{31, 16}};
   GuestFrame<24, 1> frame(c, kSpills);
-  bool pathA = c->mem_r8(0x800BF816u) != 0                // water mode on
-               || c->mem_r8(G + 0x17Cu) == 0              // action-enable byte clear
-               || (c->mem_r16(G + 0x17Eu) & 0x640u) != 0; // a suppress bit set
-  if (pathA) {
+  const bool warm = c->mem_r8(0x800BF816u) != 0
+                    || c->mem_r8(G + 0x17Cu) == 0              // cold ground flag, set by A04
+                    || (c->mem_r16(G + 0x17Eu) & 0x640u) != 0; // Squirrel, item 0x6C or Flame robe worn
+  if (warm) {
     tomba::guest::dispatchJalToReturn(
         *c, {.target = 0x8005A970u, .returnAddress = 0x8005A950u}); // normal handler (direct same-shard in gen)
   } else {
     tomba::guest::dispatchJalToReturn(
-        *c, {.target = 0x80112B50u, .returnAddress = 0x8005A960u}); // swim/water-interaction handler
+        *c, {.target = 0x80112B50u, .returnAddress = 0x8005A960u}); // A04 cold idle: freezes after 0x6E still frames
   }
 }
 
@@ -536,8 +536,8 @@ void ActorTomba::gov_assetReady(Core *c) {
   ov_assetReady(c);
 }
 
-void ActorTomba::gov_mode0ActionGate(Core *c) {
-  eng(c).actorTomba.mode0ActionGate();
+void ActorTomba::gov_idleColdGate(Core *c) {
+  eng(c).actorTomba.idleColdGate();
 }
 
 void ActorTomba::registerOverrides(native::NativeOverrideCatalog &natives) {
@@ -554,7 +554,7 @@ void ActorTomba::registerOverrides(native::NativeOverrideCatalog &natives) {
   natives.declare(0x80053E50u, "gov_outerTransitionGate", gov_outerTransitionGate);
   natives.declare(0x80053FDCu, "gov_outerTransitionCommit", gov_outerTransitionCommit);
   natives.declare(0x80045580u, "gov_assetReady", gov_assetReady);
-  natives.declare(0x8005A910u, "gov_mode0ActionGate", gov_mode0ActionGate);
+  natives.declare(0x8005A910u, "gov_idleColdGate", gov_idleColdGate);
 }
 
 // turnBiasCompute — guest FUN_80055C9C. See actor_tomba.h for the full RE writeup. Frameless leaf

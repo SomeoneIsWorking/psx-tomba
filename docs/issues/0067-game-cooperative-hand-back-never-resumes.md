@@ -13,4 +13,7 @@ handler's first state never ran.
 
 ## Cause
 Not traced. `game/core/sched/scheduler.cpp:Scheduler::runGameStanza` sets `gameCoop_[slot]` when `Engine::frame`
-returns 0, and nothing but the save state reads it.
+returns 0, and `game/core/sched/guest_task_stanzas.cpp:Scheduler::runDispatchStanza` re-enters the guest loop top
+from it; after that first entry task 0 makes no further step. Owning sub-mode 3 natively in `Engine::frame` would
+leave the hand-back unreachable and deletable; its one guest callee not yet located is the overlay call
+`0x80112660(0/1)`.

@@ -130,7 +130,7 @@ private:
   static void gov_outerTransitionGate(Core *c);
   static void gov_outerTransitionCommit(Core *c);
   static void gov_assetReady(Core *c);
-  static void gov_mode0ActionGate(Core *c);
+  static void gov_idleColdGate(Core *c);
 
   ActorInteraction interaction_{*this}; // what touching an item means; the walks dispatch into it
 
@@ -251,7 +251,7 @@ private:
   //   (authenticated executable/overlay evidence, ground truth — matches Ghidra 1:1).
   static void resetLoadGate(Core *c);
 
-  void mode0ActionGate(); // FUN_8005A910 — selects the normal or swim guest handler.
+  void idleColdGate(); // FUN_8005A910 — idle: the cold idle unless a suit with 0x640 is worn.
 };
 
 } // namespace tomba::player

@@ -42,15 +42,15 @@ cases 6/7 grow and shrink, 0xC the reset that turns 0x200 back to none) is the o
 follows: a gate testing bit b of `G+0x17E` also passes when the inventory (`0x800BFAB4`) owns the item whose word
 carries b, read from this table, never written into the word (it is saved).
 
-Item names: the text table at `0x800A2B68` (12-byte entries {name, description, kind}) is indexed by item id + 11
-(`scratch/m0063/drive/item_table.py`), which agrees with the bits above (0x0F carries the flight bit 0x40, 0x11 the
-swim bit 0x100): 0x0E Bird Clothes, 0x0F Squirrel Clothes, 0x10 Pig Suit, 0x11 Swimming Pig Suit, 0x12..0x16 the
-Evil Flame, Ice, Ghost, Earth and Water Pig Robes. Cold protection in the item text is not a suit: Cold Powder
-(item 0x21, "Protects against ice damage", count byte `0x800BFAD5`), beside Hot Powder 0x22 and Mermaid Scale 0x23.
+Item names: `g_ItemText` (`0x800A2BE8`, 29 code sites) holds 12-byte {kind, name, description} entries per item id:
+0x0E Bird Clothes, 0x0F Squirrel Clothes, 0x10 Pig Suit, 0x11 Swimming Pig Suit, 0x12..0x16 the Evil Flame, Ice,
+Ghost, Earth and Water Pig Robes, matching the bits above (0x0F carries 0x40, 0x11 the swim bit 0x100).
 
-Cold gate: A0B's ice contact `FUN_8010A93C` (area 11; A04 reads the powder at `0x8010B9B0`, `0x80111990`,
-`0x801119B8`, `0x80112E94`, unread). After 60 frames of contact it sends Tomba to hazard substate 6 unless the
-suit word has 0x400 (the Evil Flame Pig Robe); Cold Powder only cancels that hit's damage (`FUN_80022D08`). So the
-user's cold suit is the Evil Flame Pig Robe, and owning it is what the mod's 0x400 rule grants.
+Cold: the idle state `ActorTomba_idleColdGate` (`0x8005A910`, native `ActorTomba::idleColdGate`) runs the A04
+cold idle `TombaIdle_cold` (`0x80112B50`) instead of the normal idle `0x8005A970` when the cold ground flag
+`G+0x17C` is set (only A04 code writes it) and `G+0x17E & 0x640` is clear. Standing still there, Tomba shivers
+at 0x5A frames and is frozen at 0x6E, losing vitality unless Cold Powder (`0x800BFAD5`) is held. Bits 0x40
+(Squirrel Clothes), 0x200 (item 0x6C) and 0x400 (Evil Flame Pig Robe) skip it, so owning any of those grants
+cold immunity under the mod, matching the user's report that the Squirrel suit protects from cold.
 
 Next: list every gate site per bit with its enclosing function and own each test; read the A04 powder sites.
