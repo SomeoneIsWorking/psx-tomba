@@ -17,6 +17,8 @@ public:
 
   // The packet at the cursor; aborts when `bytes` from it would pass the end of the pass it is in.
   static std::uint32_t reserve(Core &core, std::uint32_t bytes);
+  // How far the cursor is into the pass it is in.
+  static std::uint32_t passBytes(Core &core);
 };
 
 } // namespace tomba1

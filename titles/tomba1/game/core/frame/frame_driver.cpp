@@ -7,6 +7,7 @@
 #include "game.h"
 #include "guest_call.h"
 #include "logic_frame.h"
+#include "packet_pool.h"
 #include "stream_field_turn.h"
 
 #include <cstdlib>
@@ -74,6 +75,11 @@ void FrameDriver::stepFrame(Core &core, std::uint32_t frame) {
   context(core).warp.applyArmed(core, frame);
   context(core).bootSkip.beforeTasks(core);
   context(core).tasks.runScheduledTasks(core);
+  lucent::debug("tomba1-packet-pool",
+                "frame {} pass holds {} of {} bytes",
+                frame,
+                PacketPool::passBytes(core),
+                PacketPool::kPassBytes);
 
   const std::uint32_t fields = core.mem_r16(kRequestedFields);
   if (fields == 0u || fields > 4u) {

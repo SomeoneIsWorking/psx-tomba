@@ -7,6 +7,10 @@
 
 namespace tomba1 {
 
+std::uint32_t PacketPool::passBytes(Core &core) {
+  return ((core.mem_r32(kCursor) & 0x00FFFFFFu) - kBase) % kPassBytes;
+}
+
 std::uint32_t PacketPool::reserve(Core &core, std::uint32_t bytes) {
   const std::uint32_t cursor = core.mem_r32(kCursor);
   const std::uint32_t offset = (cursor & 0x00FFFFFFu) - kBase;
