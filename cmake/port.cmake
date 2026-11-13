@@ -175,6 +175,7 @@ set(GAME_SRC
   game/player/run_speed.cpp
   game/player/cold_field.cpp
   game/player/freeze_touch.cpp
+  game/player/snow_field_tick.cpp
   game/player/action_modes.cpp
   game/player/water_entry.cpp
   game/player/water_area_ticks.cpp

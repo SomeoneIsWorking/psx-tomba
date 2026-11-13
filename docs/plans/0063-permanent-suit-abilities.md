@@ -157,6 +157,13 @@ Still on the suit word, by the scan of every `lh/lhu 0x17E` + `andi` (MAIN and t
   setting on, the touch knocks Tomba back (mode 0x34) as with the Squirrel worn; off or with no suit he freezes at
   f66, and under `PSXPORT_OVERRIDE_DIFF` 200 of 200 calls match the guest (`f4n_*`, `f4g_*`, `freeze4_sheet.png`).
   `0x80110A30` repeats case 0x28 and, like `0x80111398` and `0x80115EF0`, has no reference in any overlay, MAIN or
-  area 4's RAM, so those stay guest code. `0x8010F75C`'s kind 1 test needs `G+0x16A == 8` and stays open.
+  area 4's RAM, so those stay guest code. `0x8010F75C`'s kind 1 test needs `G+0x16A == 8`, set only on a floor no
+  area has, so it stays guest code.
+
+- area 4's floor tick (`SnowFieldTick::tick`, A04 FUN_8010B024, 0x60 asked as AirControl): off the slope, in
+  collision sector 0x27 or above, a winged suit arms the 4-frame angle-wrap countdown `0x800BF819`. From
+  `spot 4 1 43 4736 -7200 8000` with the Squirrel owned and `SQUIRREL_AIR_CONTROL` on it is armed, as with the
+  Squirrel worn; off or with no suit it stays 0, and 152 of 152 differential calls match the guest (`b819n_*`,
+  `b819g_*`).
 - overlays: 0x40 in A01 `0x8010D9FC`, A04 `0x80113414`, `0x80115F6C`, A0B `0x8010A9C8`; 0x20 A01 `0x8010C8CC`;
   0x30, 0x60, 0x180, 0x400, 0x7C00 in A04, A07, A08, A0B.
