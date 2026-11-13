@@ -4,6 +4,7 @@
 #include "core.h"
 #include "core/overrides/native_override_catalog.h"
 #include "guest_abi.h"
+#include "render/crop_layers.h"
 #include "render/guest_ordering_table.h"
 #include "render/libgpu_draw_mode.h"
 
@@ -131,8 +132,8 @@ void DialogGlyphs::prompt(Core *c) {
 }
 
 void DialogGlyphs::registerOverrides(native::NativeOverrideCatalog &natives) {
-  natives.declare(kEmit, "DialogGlyphs::emit", &DialogGlyphs::emit);
-  natives.declare(kPrompt, "DialogGlyphs::prompt", &DialogGlyphs::prompt);
+  natives.declare(kEmit, "DialogGlyphs::emit", render::uiDraw<&DialogGlyphs::emit>);
+  natives.declare(kPrompt, "DialogGlyphs::prompt", render::uiDraw<&DialogGlyphs::prompt>);
 }
 
 } // namespace tomba

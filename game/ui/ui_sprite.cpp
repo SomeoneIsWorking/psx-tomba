@@ -33,6 +33,7 @@
 #include "blend.h"
 #include "guest_redraw.h"
 #include "projected_vertex.h"
+#include "render/crop_layers.h"
 
 #include <array>
 
@@ -182,8 +183,8 @@ template <std::uint32_t Entry, void (*Body)(Core *)> void notedEntry(Core *c) {
 void UiSprite::registerOverrides(native::NativeOverrideCatalog &natives) {
   natives.declare(kQuads, "UiSprite::quads", notedEntry<kQuads, &UiSprite::quads>);
   natives.declare(kCompose, "UiSprite::compose", notedEntry<kCompose, &UiSprite::compose>);
-  natives.declare(0x8007E8DCu, "UiSprite::drawFromTable", &UiSprite::drawFromTable);
-  natives.declare(0x8007E998u, "UiSprite::drawFixedDef152", &UiSprite::drawFixedDef152);
+  natives.declare(0x8007E8DCu, "UiSprite::drawFromTable", render::uiDraw<&UiSprite::drawFromTable>);
+  natives.declare(0x8007E998u, "UiSprite::drawFixedDef152", render::uiDraw<&UiSprite::drawFixedDef152>);
 }
 
 } // namespace tomba

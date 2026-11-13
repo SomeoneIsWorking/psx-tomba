@@ -2,6 +2,7 @@
 #include "options_page.h"
 #include "core.h"
 #include "core/overrides/native_override_catalog.h"
+#include "render/crop_layers.h"
 #include "render/guest_ordering_table.h"
 #include "render/wide_window.h"
 
@@ -70,7 +71,7 @@ void backdropEmit(Core *c) {
 } // namespace
 
 void OptionsPage::install(native::NativeOverrideCatalog &natives) {
-  natives.declare(0x8007FC24u, "OptionsPage::backdrop", backdropEmit);
+  natives.declare(0x8007FC24u, "OptionsPage::backdrop", render::uiDraw<backdropEmit>);
 }
 
 } // namespace tomba

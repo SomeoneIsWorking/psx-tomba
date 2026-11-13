@@ -7,6 +7,7 @@
 #include "guest_ordering_table.h"
 #include "libgpu_draw_mode.h"
 #include "list_job.h"
+#include "render/crop_layers.h"
 
 namespace tomba::render {
 namespace {
@@ -130,8 +131,8 @@ void AreaMap::emit(const psx::present::EmitMemory &memory, const ListCall &call,
 }
 
 void AreaMap::registerOverrides(native::NativeOverrideCatalog &natives) {
-  natives.declareOverlay("A02", kLayouts[0].emitter, "AreaMap::emit", &emitForGuest<0>);
-  natives.declareOverlay("A07", kLayouts[1].emitter, "AreaMap::emit", &emitForGuest<1>);
+  natives.declareOverlay("A02", kLayouts[0].emitter, "AreaMap::emit", render::uiDraw<&emitForGuest<0>>);
+  natives.declareOverlay("A07", kLayouts[1].emitter, "AreaMap::emit", render::uiDraw<&emitForGuest<1>>);
 }
 
 } // namespace tomba::render

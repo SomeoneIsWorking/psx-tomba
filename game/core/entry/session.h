@@ -21,6 +21,7 @@
 #include "math/rng.h"
 #include "math/trig.h"
 #include "render.h"
+#include "render/crop_layers.h"
 #include "render/screen_fade.h"
 #include "render/subdivided_ground.h"
 #include "ui/save_menu.h"
@@ -41,6 +42,7 @@ public:
   }
   Engine engine;
   DrawReplay drawReplay{engine.graphicsBind.records}; // gameplay in-betweens, the field draw replayed
+  render::CropLayers cropLayers;
   VerificationCounters verification;
   ScreenFade screenFade;
   Rng rng;

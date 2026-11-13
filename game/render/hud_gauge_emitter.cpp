@@ -9,6 +9,7 @@
 #include "guest_abi.h"
 #include "guest_call.h"
 #include "guest_ordering_table.h"
+#include "render/crop_layers.h"
 #include <cstdint>
 
 namespace tomba {
@@ -261,8 +262,8 @@ void HudGaugeEmitter::emitItem(Core *c) {
 }
 
 void HudGaugeEmitter::registerOverrides(native::NativeOverrideCatalog &natives) {
-  natives.declare(kEmitter, "&HudGaugeEmitter::emitFrame", &HudGaugeEmitter::emitFrame);
-  natives.declare(0x8004FB4Cu, "&HudGaugeEmitter::emitItem", &HudGaugeEmitter::emitItem);
+  natives.declare(kEmitter, "&HudGaugeEmitter::emitFrame", render::uiDraw<&HudGaugeEmitter::emitFrame>);
+  natives.declare(0x8004FB4Cu, "&HudGaugeEmitter::emitItem", render::uiDraw<&HudGaugeEmitter::emitItem>);
 }
 
 } // namespace tomba

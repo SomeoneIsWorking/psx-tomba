@@ -28,6 +28,9 @@ calls it. A row whose handler is file-local names the file that declares the ove
 | 0x8002423C | LIVE | `CollisionResolve::landOnObjectTop` | game/world/collision_resolve.cpp |  |  |
 | 0x80024794 | LIVE | `interact_scan` | game/player/interact_scan.cpp |  | (player) -> 1 if something was activated this call, else 0. |
 | 0x80025588 | LIVE | `Engine::sceneEventFifo` | game/core/engine/engine_task_machine.cpp |  | Native FUN_80025588 — the field EVENT/COMMAND-QUEUE state machine (str… |
+| 0x80025744 | LIVE | `GuestUiDraws::lifeGauge` | game/ui/guest_ui_draws.cpp | 0x80025744 0x8007E1B8 | HUD life gauge at (32,200); guest body, crop UI scope. |
+| 0x80025934 | LIVE | `GuestUiDraws::pieceTally` | game/ui/guest_ui_draws.cpp | 0x80025934 0x8007E1B8 0x8007E6DC | HUD piece tally (0x800E7FEE of 0x800BF87D); guest body, crop UI scope. |
+| 0x80025B78 | LIVE | `GuestUiDraws::itemStrip` | game/ui/guest_ui_draws.cpp | 0x80025B78 0x80081CF8 0x8007E938 | HUD item strip at y 0xD4 between two DR_AREA clips; guest body, crop UI scope. |
 | 0x800263E8 | LIVE | `Pool::seedAreaObjects` | game/world/pool.cpp |  | area object-record seeding. Selects a per-area byte sequence (table 0x… |
 | 0x80026470 | LIVE | `BgSceneTransitionSm::midTransitionGate` | game/scene/bg_scene_transition_sm.cpp |  | Common guard shared by FUN_80026470/80026510/800264BC — three inline a… |
 | 0x80026470 | LIVE | `BgSceneTransitionSm::audioStub26470` | game/scene/bg_scene_transition_sm.cpp |  |  |
@@ -389,6 +392,7 @@ calls it. A row whose handler is file-local names the file that declares the ove
 | 0x8007E998 | LIVE | `UiSprite::drawFixedDef152` | game/ui/ui_sprite.cpp | 0x8007E8DC | (x r4, y r5, attr r6) — drawFromTable with the definition index pinned… |
 | 0x8007E9C8 | LIVE | `ScreenFade::draw` | game/render/screen_fade.cpp | 0x80083DE0 | The fade leaf: a fill across the draw window and a DR_MODE in the caller's OT slot. |
 | 0x8007E9C8 | LIVE | `BgSceneTransitionSm::fadeRect` | game/scene/bg_scene_transition_sm.cpp | 0x8007E9C8 | Guest FUN_8007E9C8(color, P[3], 4). |
+| 0x8007EAE4 | LIVE | `GuestUiDraws::pauseMainPage` | game/ui/guest_ui_draws.cpp | 0x8007EAE4 0x80079374 0x8007E998 0x8007E1B8 | Pause menu main page: item rows, cursor, nine frame sprites; guest body, crop UI scope. |
 | 0x8007FC24 | LIVE | `OptionsPage::pushBackdrop` | game/ui/options_page.cpp |  | ORACLE: guest 0x8007FC24 |
 | 0x8007FC24 | LIVE | `OptionsPage::install` | game/ui/options_page.cpp |  |  |
 | 0x8007FCC8 | LIVE | `Panel::pushDialogBackdrop` | game/ui/dialog_backdrop.cpp |  | ORACLE: guest 0x8007FCC8 |

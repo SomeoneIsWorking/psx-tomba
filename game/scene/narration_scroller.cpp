@@ -7,6 +7,7 @@
 #include "core/overrides/native_override_catalog.h"
 #include "entry/session.h"
 #include "guest_abi.h"
+#include "render/crop_layers.h"
 #include "ui/font.h"
 
 namespace tomba {
@@ -112,7 +113,7 @@ void NarrationScroller::run(Core *c) {
 }
 
 void NarrationScroller::registerOverrides(native::NativeOverrideCatalog &natives) {
-  natives.declareOverlay("SOP", kEntry, "&NarrationScroller::run", &NarrationScroller::run);
+  natives.declareOverlay("SOP", kEntry, "&NarrationScroller::run", render::uiDraw<&NarrationScroller::run>);
 }
 
 } // namespace tomba

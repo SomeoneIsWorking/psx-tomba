@@ -32,6 +32,7 @@
 #include "core.h"
 #include "core/overrides/native_override_catalog.h"
 #include "game.h"
+#include "render/crop_layers.h"
 #include "render/guest_ordering_table.h"
 #include "ui/panel.h"
 
@@ -89,7 +90,7 @@ static void ov_push_dialog_backdrop(Core *c) {
 }
 
 void dialog_backdrop_install(native::NativeOverrideCatalog &natives) {
-  natives.declare(0x8007FCC8u, "Panel::pushDialogBackdrop", ov_push_dialog_backdrop);
+  natives.declare(0x8007FCC8u, "Panel::pushDialogBackdrop", render::uiDraw<ov_push_dialog_backdrop>);
 }
 
 } // namespace tomba

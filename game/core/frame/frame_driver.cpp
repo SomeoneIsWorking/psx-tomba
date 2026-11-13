@@ -142,6 +142,7 @@ void FrameDriver::stepFrame(Core &core, uint32_t frame) {
   } else {
     game.presentation.commit(&core, FrameCadence::kRetailVblanksPerLogicFrame);
   }
+  session.cropLayers.beginPass();
   // Packet spans live as long as the record: the OT walked last pass is sealed by this commit.
   core.rsub.otAttr.beginLogicFrame(frame);
   game.perf.phaseEnd(GpuPerf::Phase::Present);

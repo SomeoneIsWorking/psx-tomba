@@ -31,6 +31,7 @@ void DrawReplay::beforeDraw(Core &core, DrawSection::Selection selection) {
   drawn_ = selection;
   section_.select(selection);
   frame_.beforeDraw(core);
+  sessionOf(&core).cropLayers.endReplays();
 }
 
 void DrawReplay::noteTrailingFade(const DrawSection::TrailingFade &fade) {

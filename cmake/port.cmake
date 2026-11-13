@@ -56,6 +56,7 @@ set(GAME_SRC
   game/math/rng.cpp
   game/math/mtx.cpp
   game/math/trig.cpp
+  game/render/crop_layers.cpp
   game/render/cull.cpp
   game/render/horizontal_visibility_cull.cpp
   game/player/collision.cpp
@@ -193,6 +194,7 @@ set(GAME_SRC
   game/ui/font.cpp
   game/ui/panel.cpp
   game/ui/options_page.cpp
+  game/ui/guest_ui_draws.cpp
   game/scene/level_load.cpp
   game/scene/start_bin_stage.cpp
   game/object/behavior_dispatch.cpp

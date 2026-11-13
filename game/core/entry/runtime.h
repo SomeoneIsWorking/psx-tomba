@@ -40,6 +40,7 @@ public:
   psx::present::ReplayFrame *replayFrame(Core &core) override;
   int displayHeight() const override;
   const psx::present::GuestWidescreenProjection *guestWidescreenProjection() const override;
+  const psx::present::CropUiLayers *cropUiLayers(Core &core) const override;
   const psx::game::TitleDebugMenu &debugMenu() const override {
     return debugMenu_;
   }

@@ -162,6 +162,10 @@ const psx::present::GuestWidescreenProjection *Runtime::guestWidescreenProjectio
   return &aspectPolicy_;
 }
 
+const psx::present::CropUiLayers *Runtime::cropUiLayers(Core &core) const {
+  return &sessionOf(&core).cropLayers;
+}
+
 void Runtime::bootInit(Core &core) {
   Core *c = &core;
   lucent::info("native_boot", "FUN_80050b08: running init prefix");

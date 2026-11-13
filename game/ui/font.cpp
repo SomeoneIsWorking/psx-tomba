@@ -27,6 +27,7 @@
 #include "guest_abi.h"
 #include "guest_call.h"
 #include "projected_vertex.h"
+#include "render/crop_layers.h"
 #include "render/guest_ordering_table.h"
 #include <format>
 #include <lucent/log.h>
@@ -908,11 +909,11 @@ void Font::iconGlyphEmit(Core *c) {
 }
 
 void Font::registerOverrides(native::NativeOverrideCatalog &natives) {
-  natives.declare(kDrawText, "ov_drawText", ov_drawText);
-  natives.declare(0x80079324u, "ov_drawTextSmall", ov_drawTextSmall); // 8x8 sibling of drawText
+  natives.declare(kDrawText, "ov_drawText", render::uiDraw<ov_drawText>);
+  natives.declare(0x80079324u, "ov_drawTextSmall", render::uiDraw<ov_drawTextSmall>); // 8x8 sibling of drawText
   // A text draw is the object of its string (a3); each glyph names its byte offset in it.
-  natives.declare(kGlyphEmit, "Font::glyphEmit", Font::glyphEmit);
-  natives.declare(0x80078988u, "Font::iconGlyphEmit", Font::iconGlyphEmit); // icon/SJIS glyph strings
+  natives.declare(kGlyphEmit, "Font::glyphEmit", render::uiDraw<Font::glyphEmit>);
+  natives.declare(0x80078988u, "Font::iconGlyphEmit", render::uiDraw<Font::iconGlyphEmit>); // icon/SJIS glyph strings
 }
 
 } // namespace tomba

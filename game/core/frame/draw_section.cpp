@@ -1,6 +1,7 @@
 #include "frame/draw_section.h"
 
 #include "core.h"
+#include "entry/session.h"
 #include "frame/frame_driver.h"
 #include "frame/image_residency.h"
 #include "guest_redraw.h"
@@ -66,6 +67,7 @@ bool DrawSection::drawSteps(Core &core, psx::present::GuestRedraw &redraw) const
 }
 
 std::optional<std::uint32_t> DrawSection::draw(Core &core, psx::present::GuestRedraw &redraw) const {
+  sessionOf(&core).cropLayers.beginReplay();
   if (!drawSteps(core, redraw)) {
     return std::nullopt;
   }
