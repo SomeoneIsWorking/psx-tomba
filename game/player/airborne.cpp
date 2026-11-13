@@ -20,10 +20,15 @@ constexpr std::uint32_t kDropFrameSize = 0x18u;
 constexpr std::uint32_t kLandingTarget = 0x10u; // sp offset of the landing position vector
 
 constexpr std::uint32_t kFun8005749C = 0x8005749Cu;
-constexpr std::uint32_t kFun80055F48 = 0x80055F48u;
+constexpr std::uint32_t kLaunch = 0x80055F48u;
+constexpr std::uint32_t kAirActions = 0x80057C08u;
+constexpr std::uint32_t kFun80057A68 = 0x80057A68u;
+constexpr std::uint32_t kFun80055634 = 0x80055634u; // (Tomba, 0): nonzero on the attack button
+constexpr std::uint32_t kFun800532A0 = 0x800532A0u; // (Tomba): nonzero keeps him off the landing
+constexpr std::uint32_t kFun80054E80 = 0x80054E80u;
+constexpr std::uint8_t kStompMode = 0x1Cu;
 constexpr std::uint32_t kFun800541F4 = 0x800541F4u;
 constexpr std::uint32_t kFun800543C0 = 0x800543C0u;
-constexpr std::uint32_t kFun80056E08 = 0x80056E08u;
 constexpr std::uint32_t kFun80056F3C = 0x80056F3Cu;
 constexpr std::uint32_t kFun80056EC8 = 0x80056EC8u;
 constexpr std::uint32_t kFun800538E0 = 0x800538E0u;
@@ -35,6 +40,13 @@ constexpr std::uint32_t kApproach = 0x800776F8u;    // (target, value, step) -> 
 constexpr std::uint32_t kRejump = 0x800BF848u;
 constexpr std::uint32_t kGameOverLatch = 0x800BF80Du;
 constexpr std::uint32_t kPadHeld = 0x800E7E68u;
+constexpr std::uint32_t kPadHeldNow = 0x800ECF54u;
+constexpr std::uint32_t kLaunchSpeeds = 0x800A457Cu;    // u16 by G+0x6D
+constexpr std::uint32_t kBoostedLaunch = 0x800A4582u;   // with G+0x174 & 0x30
+constexpr std::uint32_t kReleaseBrake = 0x800A4588u;    // u16[11] by frames held
+constexpr std::uint32_t kPigReleaseBrake = 0x800A45A0u; // u16[11] with the Pig suits
+constexpr std::uint16_t kPigLaunchDamping = 0x1940u;
+constexpr std::uint32_t kJumpHeldFrames = 0x167u;
 constexpr std::uint32_t kJumpButton = 0x1F800172u;
 
 constexpr std::uint16_t kBirdFlutter = 0x20u;
@@ -122,6 +134,7 @@ private:
   void fall();
   std::uint32_t fallWithGlide();
   std::uint32_t fallCap();
+  void jumpRelease();
   void restartTakeOff();
   void land();
 };
@@ -143,7 +156,7 @@ void Step::takeOff() {
   if ((mode_ & 1u) != 0u) {
     return;
   }
-  call(kFun80055F48, tomba_, 1u);
+  call(kLaunch, tomba_, 1u);
   if (u8(0x165u) != 0u) {
     accelerate(static_cast<std::uint16_t>(-0x580));
   }
@@ -169,7 +182,7 @@ void Step::rise() {
     moveByVelocity();
   }
   if ((mode_ & 1u) == 0u) {
-    call(kFun80056E08, tomba_);
+    jumpRelease();
   }
   if ((core_.mem_r8(kRejump) & 3u) == 0u) {
     return;
@@ -350,6 +363,25 @@ std::uint32_t Step::fallCap() {
   return kFallCap;
 }
 
+// FUN_80056E08: a jump let go within 10 frames is braked by the frames it was held; the Pig suits brake less.
+void Step::jumpRelease() {
+  if ((core_.mem_r16(kPadHeldNow) & core_.mem_r16(kJumpButton)) != 0u) {
+    const auto held = static_cast<std::uint8_t>(u8(kJumpHeldFrames) + 1u);
+    setU8(kJumpHeldFrames, held == 0xFFu ? 0xFEu : held);
+    return;
+  }
+  const std::uint8_t held = u8(kJumpHeldFrames);
+  if (held >= 0xBu) {
+    return;
+  }
+  const std::uint32_t brake = has(kPigSuits) ? kPigReleaseBrake : kReleaseBrake;
+  setU16(kVelocityY, u16(kVelocityY) + core_.mem_r16(brake + held * 2u));
+  setU8(kJumpHeldFrames, 0x10u);
+  if (s16(kVelocityY) > 0) {
+    setU16(kVelocityY, 0);
+  }
+}
+
 // A held jump while hovering starts a new take-off.
 void Step::restartTakeOff() {
   setU8(kPhase, 0);
@@ -382,6 +414,79 @@ void Step::land() {
 
 // FUN_80056C00 (a0 Tomba, a1 nonzero keeps him grounded): unsupported and not airborne, he sinks at a growing drop
 // speed; past kDropFallStart the drop becomes the airborne fall, its speed a quarter with the glide.
+// FUN_80055F48 (a0 Tomba, a1 nonzero for a jump): the take-off speed; the Pig suits' jump starts slower.
+class Launch : public TombaStep {
+public:
+  explicit Launch(Core &core) : TombaStep(core, "Airborne::launch"), jump_(core.r[5]) {}
+
+  void run() {
+    if ((u8(0x174u) & 0x30u) != 0u) {
+      setU16(kVelocityY, core_.mem_r16(kBoostedLaunch));
+    } else {
+      setU16(kVelocityY, core_.mem_r16(kLaunchSpeeds + u8(0x6Du) * 2u));
+    }
+    if (jump_ != 0u && has(kPigSuits)) {
+      setU16(kVelocityY, u16(kVelocityY) + kPigLaunchDamping);
+    }
+  }
+
+private:
+  std::uint32_t jump_;
+};
+
+// FUN_80057C08 (a0 Tomba, a1 mode): the moves a jump can turn into, and the landing. With the Pig suits a jump press
+// in the air is the stomp (mode 0x1C, pose 0xE5); circle is the air attack (mode 6, or 5 on the ground).
+class AirActions : public TombaStep {
+public:
+  explicit AirActions(Core &core) : TombaStep(core, "Airborne::airActions"), mode_(core.r[5]) {}
+
+  void run() {
+    if (result(kFun80057A68, tomba_, mode_) != 0u || mode_ == 2u) {
+      return;
+    }
+    const bool free = mode_ == 0u && u8(0x16Au) == 0u;
+    if (u8(kLanded) == 0u && has(kPigSuits) && free && result(tomba_call::kJumpPressed) != 0u) {
+      setU16(kGroundSpeed, 0);
+      setU8(tomba_field::kMode, kStompMode);
+      if (u8(kAirState) == 2u) {
+        setU8(tomba_field::kSubstate, 1);
+        call(kWalkStart, tomba_, kFastFallPose, 4u);
+      } else {
+        setU8(tomba_field::kSubstate, 0);
+      }
+      return;
+    }
+    if (free && result(kFun80055634, tomba_, 0u) != 0u) {
+      setU8(tomba_field::kSubstate, 0);
+      setU8(kFloor, (u8(kFloor) & 0xEu) | u8(kSide));
+      if (u8(kLanded) != 0u) {
+        setU8(tomba_field::kMode, 5);
+        setU8(kPhase, 0);
+      } else {
+        setU8(tomba_field::kMode, 6);
+      }
+      return;
+    }
+    if (u8(kLanded) == 0u || result(kFun800532A0, tomba_) != 0u) {
+      return;
+    }
+    setU8(kPhase, 0);
+    setU8(kFloor, (u8(kFloor) & 0xEu) | u8(kSide));
+    if ((u8(0x149u) & 2u) != 0u) {
+      setU8(tomba_field::kMode, 2);
+      setU8(tomba_field::kSubstate, 2);
+      call(kWalkStart, tomba_, 0x17u, 1u);
+    } else {
+      setU8(tomba_field::kMode, 1);
+      setU8(tomba_field::kSubstate, 0);
+      call(kFun80054E80, tomba_, 1u);
+    }
+  }
+
+private:
+  std::uint32_t mode_;
+};
+
 class Drop : public TombaStep {
 public:
   explicit Drop(Core &core) : TombaStep(core, "Airborne::drop"), grounded_(core.r[5]) {}
@@ -428,6 +533,16 @@ void Airborne::step(Core *core) {
   Step(*core).run();
 }
 
+void Airborne::launch(Core *core) {
+  Launch(*core).run();
+}
+
+void Airborne::airActions(Core *core) {
+  psx::cpu::PreservedReturnAddress returnAddress(*core);
+  psx::cpu::GuestFrameScope frame(*core, core->r[psx::cpu::kSp] - 0x20u);
+  AirActions(*core).run();
+}
+
 void Airborne::drop(Core *core) {
   psx::cpu::PreservedReturnAddress returnAddress(*core);
   psx::cpu::GuestFrameScope frame(*core, core->r[psx::cpu::kSp] - kDropFrameSize);
@@ -437,6 +552,8 @@ void Airborne::drop(Core *core) {
 void Airborne::registerOverrides(native::NativeOverrideCatalog &natives) {
   natives.declare(kStep, "Airborne::step", &Airborne::step);
   natives.declare(tomba_call::kDropStep, "Airborne::drop", &Airborne::drop);
+  natives.declare(kLaunch, "Airborne::launch", &Airborne::launch);
+  natives.declare(kAirActions, "Airborne::airActions", &Airborne::airActions);
 }
 
 } // namespace tomba

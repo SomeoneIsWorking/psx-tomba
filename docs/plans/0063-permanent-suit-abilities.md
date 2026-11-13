@@ -76,12 +76,21 @@ suit ids 0x0E..0x16 (Clear Fruit's 0x200 stays worn-only). Owned gates:
   water (sector 22, 14700 -400 10600) with the Swimming Pig Suit owned and not worn, Tomba swims (mode 0x1D); off,
   the water fall (`swim1`, `swim0`, `swim_sheet.png`). The landing (callers `Tomba_hazardHit` 0x8006670C,
   0x80066DE8: a hit onto water) is not reached yet.
+- the Pig Suit's 0x180 (`Airborne::launch` FUN_80055F48, the jump release FUN_80056E08 inside `Airborne::step`,
+  `Airborne::airActions` FUN_80057C08): with the Pig Suit owned and not worn, a held jump in area 1 starts 0x1940
+  faster and peaks at Y 0xE627 instead of 0xE664, and a second jump press in the air stomps (mode 0x1C, pose 0xE5);
+  off, neither (`pig1`, `pig0`).
+
+Left worn-only by design: the 0x20 sites `0x8003B588` and `0x800597AC` copy `G+9` to `G+8` with the Bird suit, the
+worn suit's look, which step 2 keeps. Open design choice: the robes' 0x7C00 magic (`0x800552EC`) indexes its cost table
+`0x800A4550` by the worn suit's low nibble, so with several robes owned the mod has no single robe to pick; it stays
+worn-only until that is decided (other low-nibble readers: `0x8005800C`, `0x8005F778`, `0x80061B58`, `0x80062630`).
 
 Every native gate logs its decision on the `suits` debug channel (`TombaStep::has`).
 
 Still on the suit word, by the scan of every `lh/lhu 0x17E` + `andi` (MAIN and the area overlays):
-- MAIN 0x20 `0x8003B588`, `0x800597AC`; 0x30 `0x800532A0`, `0x80055FBC`; 0x60 `0x80055FBC`, `0x80062A30` (no
-  code reference); 0x180 `0x80055F48`, `0x80056E08`, `0x80057C08`; 0x7C00 `0x800552EC`;
+- MAIN 0x30 `0x800532A0`, `0x80055FBC`; 0x60 `0x80055FBC`, `0x80062A30` (no
+  code reference); 0x7C00 `0x800552EC`;
 - overlays: 0x100 in A06 `0x8010B410`, A08 six sites, A0E
   `0x80109790`; 0x40 in A01 `0x8010D9FC`, A04 `0x80113414`, `0x80115F6C`, A0B `0x8010A9C8`; 0x20 A01 `0x8010C8CC`;
   0x640 A05 three sites; 0x30, 0x60, 0x180, 0x400, 0x7C00 in A04, A07, A08, A0B.

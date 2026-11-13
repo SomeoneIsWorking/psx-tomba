@@ -21,6 +21,10 @@ public:
   static void step(Core *core);
   // FUN_80056C00 (a0 Tomba, a1 keep grounded): the drop off a ledge before the fall, the Squirrel's softened start.
   static void drop(Core *core);
+  // FUN_80055F48 (a0 Tomba, a1 a jump): the take-off speed, the Pig suits' (0x180) slower start.
+  static void launch(Core *core);
+  // FUN_80057C08 (a0 Tomba, a1 mode): the air moves (the Pig suits' stomp, the air attack) and the landing.
+  static void airActions(Core *core);
 
   static void registerOverrides(native::NativeOverrideCatalog &natives);
 };
