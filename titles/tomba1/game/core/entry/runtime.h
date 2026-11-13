@@ -1,12 +1,12 @@
 #pragma once
 
 #include "game_runtime.h"
-#include "guest_widescreen_projection.h"
 #include "stock_libcd.h"
 #include "stock_libgte.h"
 #include "stock_pad_buffers.h"
 #include "stock_vsync.h"
 #include "tomba1/game/core/debug/debug_menu.h"
+#include "tomba1/game/render/painted_room.h"
 
 #include <cstdint>
 #include <memory>
@@ -34,7 +34,7 @@ private:
   psx::cd::StockLibcd libcd_;
   psx::hle::StockLibgte libgte_;
   psx::input::StockPadBuffers pad_;
-  psx::present::GuestWidescreenProjection widescreenPolicy_;
+  PaintedRoomProjection widescreenPolicy_;
 };
 
 } // namespace tomba1

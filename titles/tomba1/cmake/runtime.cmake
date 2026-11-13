@@ -35,6 +35,7 @@ add_library(
   "${TOMBA1_ROOT}/game/render/mesh_draw.cpp"
   "${TOMBA1_ROOT}/game/render/overlay_sprite_groups.cpp"
   "${TOMBA1_ROOT}/game/render/packet_pool.cpp"
+  "${TOMBA1_ROOT}/game/render/painted_room.cpp"
   "${TOMBA1_ROOT}/game/render/sprite_parts.cpp")
 set_target_properties(tomba1_runtime PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON)
 # The catalog includes only tomba1/game/core/entry/ (tomba1::Runtime, the identity) through titles/;
