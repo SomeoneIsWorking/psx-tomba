@@ -18,6 +18,7 @@
 #include "resident_natives.h"
 #include "sched/scheduler.h"
 #include "sched/task_slot_layout.h"
+#include "ui/text_fonts.h"
 
 #include <array>
 #include <cstdio>
@@ -164,6 +165,14 @@ const psx::present::GuestWidescreenProjection *Runtime::guestWidescreenProjectio
 }
 
 const psx::present::CropUiLayers *Runtime::cropUiLayers(Core &core) const {
+  return &sessionOf(&core).cropLayers;
+}
+
+std::span<const psx::present::OutlineFont> Runtime::outlineFonts() const {
+  return text_fonts::kFonts;
+}
+
+const psx::present::OutlineGlyphs *Runtime::outlineGlyphs(Core &core) const {
   return &sessionOf(&core).cropLayers;
 }
 

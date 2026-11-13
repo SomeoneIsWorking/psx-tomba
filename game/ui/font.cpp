@@ -29,6 +29,7 @@
 #include "projected_vertex.h"
 #include "render/crop_layers.h"
 #include "render/guest_ordering_table.h"
+#include "ui/text_fonts.h"
 #include <format>
 #include <lucent/log.h>
 #include <stdint.h>
@@ -345,6 +346,15 @@ void reportTextEmit(Core *c, const char *producer, int x, int y) {
                 bytes);
 }
 
+// A glyph sprite of glyphEmit: its height picks drawText's 8x16 font or drawTextSmall's 8x8 one.
+void nameGlyph(Core *c, uint32_t packet, uint16_t height) {
+  if (height == text_fonts::kTextGrid.cellHeight) {
+    sessionOf(c).cropLayers.glyph(packet, text_fonts::kText);
+  } else if (height == text_fonts::kSmallGrid.cellHeight) {
+    sessionOf(c).cropLayers.glyph(packet, text_fonts::kSmall);
+  }
+}
+
 } // namespace
 
 void Font::glyphEmit(Core *c) {
@@ -588,6 +598,7 @@ L_80078F04: {
   c->r[5] = glyphOt.slot(c->r[19]);
   c->r[3] = 4u << 24;
   c->r[2] = glyphOt.link({.packet = c->r[4], .words = 4u, .bucket = c->r[19]});
+  nameGlyph(c, c->r[4], c->mem_r16(c->r[18] + 18u));
   c->r[4] = c->r[4] + 4u;
   c->r[2] = command[0];
   c->r[16] = c->r[16] + 1u;
@@ -751,6 +762,7 @@ void emitGuestIconSprite(Core *c, uint32_t bucket) {
   const tomba::render::PacketPool packets(*c);
   const uint32_t packet = packets.reserve((kSpritePacketWords + 1u) * 4u);
   tomba::render::OrderingTable::active(*c).link({.packet = packet, .words = kSpritePacketWords, .bucket = bucket});
+  sessionOf(c).cropLayers.glyph(packet, text_fonts::kSmall);
   c->mem_w32(packet + 4u, c->mem_r32(kIconScratch + 4u));
   c->mem_w32(packet + 8u, c->mem_r32(kIconScratch + 8u));
   c->mem_w32(packet + 12u, c->mem_r32(kIconScratch + 12u));

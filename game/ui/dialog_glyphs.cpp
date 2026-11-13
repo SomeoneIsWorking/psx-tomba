@@ -3,10 +3,12 @@
 
 #include "core.h"
 #include "core/overrides/native_override_catalog.h"
+#include "entry/session.h"
 #include "guest_abi.h"
 #include "render/crop_layers.h"
 #include "render/guest_ordering_table.h"
 #include "render/libgpu_draw_mode.h"
+#include "ui/text_fonts.h"
 
 #include <iterator>
 
@@ -95,6 +97,7 @@ void DialogGlyphs::emit(Core *c) {
     c->mem_w16(packet + 0x10u, (character & kWide) != 0 ? static_cast<std::uint16_t>(width << 1) : width);
     c->mem_w16(packet + 0x12u, c->mem_r16(kTemplateHeight));
     render::OrderingTable::active(*c).link({.packet = packet, .words = kSpriteWords, .bucket = kBucket});
+    sessionOf(c).cropLayers.glyph(packet, (character & kWide) != 0 ? text_fonts::kIcons : text_fonts::kText);
     packet += kSpriteBytes;
   }
 
@@ -123,6 +126,7 @@ void DialogGlyphs::prompt(Core *c) {
   c->mem_w16(packet + 0x10u, kPromptSize);
   c->mem_w16(packet + 0x12u, kPromptSize);
   render::OrderingTable::active(*c).link({.packet = packet, .words = kSpriteWords, .bucket = kBucket});
+  sessionOf(c).cropLayers.glyph(packet, text_fonts::kIcons);
 
   const std::uint32_t mode = packet + kSpriteBytes;
   pool.setCursor(mode + kModeBytes);

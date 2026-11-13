@@ -18,12 +18,12 @@ std::uint32_t poolOffset(Core &core) {
 } // namespace
 
 void CropLayers::beginPass() {
-  pass_.clear();
+  pass_ = {};
 }
 
 void CropLayers::beginReplay() {
   replaying_ = true;
-  replay_.clear();
+  replay_ = {};
 }
 
 void CropLayers::endReplays() {
@@ -32,8 +32,8 @@ void CropLayers::endReplays() {
 
 bool CropLayers::uiPacket(std::uint32_t packet) const {
   const std::uint32_t offset = psx::gpu::mainRamOffsetOf(packet);
-  const auto holds = [offset](const std::vector<Range> &ranges) {
-    return std::ranges::any_of(ranges, [offset](const Range &range) {
+  const auto holds = [offset](const Named &named) {
+    return std::ranges::any_of(named.ui, [offset](const Range &range) {
       return offset >= range.begin && offset < range.end;
     });
   };
@@ -41,11 +41,33 @@ bool CropLayers::uiPacket(std::uint32_t packet) const {
   return holds(pass_) || (replaying_ && holds(replay_));
 }
 
+void CropLayers::glyph(std::uint32_t packet, std::uint8_t font) {
+  auto &glyphs = naming().glyphs;
+  const std::uint32_t offset = psx::gpu::mainRamOffsetOf(packet);
+  glyphs.emplace(
+      std::ranges::upper_bound(glyphs, offset, {}, &std::pair<std::uint32_t, std::uint8_t>::first), offset, font);
+}
+
+std::optional<std::uint8_t> CropLayers::glyphFont(std::uint32_t packet) const {
+  const std::uint32_t offset = psx::gpu::mainRamOffsetOf(packet);
+  const auto fontIn = [offset](const Named &named) -> std::optional<std::uint8_t> {
+    const auto glyph =
+        std::ranges::lower_bound(named.glyphs, offset, {}, &std::pair<std::uint32_t, std::uint8_t>::first);
+    return glyph != named.glyphs.end() && glyph->first == offset ? std::optional(glyph->second) : std::nullopt;
+  };
+  if (replaying_) {
+    if (const std::optional<std::uint8_t> font = fontIn(replay_)) {
+      return font;
+    }
+  }
+  return fontIn(pass_);
+}
+
 void CropLayers::name(std::uint32_t begin, std::uint32_t end) {
   if (end <= begin) {
     return;
   }
-  std::vector<Range> &ranges = replaying_ ? replay_ : pass_;
+  std::vector<Range> &ranges = naming().ui;
   if (!ranges.empty() && ranges.back().end == begin) {
     ranges.back().end = end;
     return;

@@ -41,6 +41,9 @@ public:
   int displayHeight() const override;
   const psx::present::GuestWidescreenProjection *guestWidescreenProjection() const override;
   const psx::present::CropUiLayers *cropUiLayers(Core &core) const override;
+  // The text fonts (ui/text_fonts.h), named by the text drawers' glyph packets.
+  std::span<const psx::present::OutlineFont> outlineFonts() const override;
+  const psx::present::OutlineGlyphs *outlineGlyphs(Core &core) const override;
   const psx::game::TitleDebugMenu &debugMenu() const override {
     return debugMenu_;
   }
