@@ -39,7 +39,7 @@ and 2D layout.
 | S008 | Tomba! 1 selected executable and disc provenance established | verified | — | G003 |
 | S009 | Tomba! 1 identity, isolation and independent startup evidence exist | verified | — | G003 |
 | S010 | Tomba! 1 reaches representative gameplay as a native/Lightrec product | blocked | — | G003 |
-| S011 | Tomba! 1 true widescreen works in the actual product | missing | S010 | G004 |
+| S011 | Tomba! 1 true widescreen works in the actual product | partial | — | G004 |
 | S012 | Tomba! 1 and Tomba! 2 game-engine implementations are isolated | verified | — | G003 |
 | S013 | Tomba! 1 exposes widescreen only, no unrelated enhancement modes | verified | — | G004 |
 | S014 | Tomba! 2 sound effects and music work throughout the game | partial | — | G001 |
@@ -98,7 +98,7 @@ Gap: Start at the title reaches the first field and the dev `warp` enters other 
 
 ### S011 — Tomba! 1 true widescreen works in the actual product
 
-Missing capability: `titles/tomba1/game/render/widescreen_projection.cpp` exists; no product run yet (depends on S010).
+Owned by `titles/tomba1/docs/project-state.md` S005, which holds its evidence and gaps.
 
 ### S012 — Tomba! 1 and Tomba! 2 game-engine implementations are isolated
 
