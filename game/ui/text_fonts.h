@@ -5,9 +5,10 @@
 // 32 cells a row, cell = ASCII - 0x20 (Font::glyphEmit through drawText and drawTextSmall; DialogGlyphs::emit, whose
 // codes are ASCII - 0x20; Font::iconGlyphEmit's full-width codes on the 8x8 font). Each starts its fourth row with
 // the circle, cross, triangle and square buttons. The 16x16 icons from v 120, 16 a row, start with the same four
-// (DialogGlyphs::emit's wide codes 0x60 on, DialogGlyphs::prompt). Glyphs are CLUT index 1 with index 5 at their
-// edges, over a shadow in index 6 one texel right and below; a cell the tables leave out draws its bitmap. The letters
-// are serifed (I, 1, l), so the face keeps its own proportions at each glyph's height.
+// (DialogGlyphs::emit's wide codes 0x60 on, DialogGlyphs::prompt). The buttons are ringed in several colours, so under
+// a PlayStation pad they keep their bitmaps. Glyphs are CLUT index 1 with index 5 at their edges, over a shadow in
+// index 6 one texel right and below; a cell the tables leave out draws its bitmap. The letters are serifed (I, 1, l),
+// so the face keeps its own proportions at each glyph's height.
 #pragma once
 
 #include "host_input.h"
@@ -56,7 +57,7 @@ constexpr std::array<OutlineGlyph, kLetters + kButtons.size()> letterGlyphs(cons
     glyphs[at++] = grid.glyph(static_cast<int>(ascii) - 0x20, ascii == U'\\' ? U'¥' : ascii);
   }
   for (std::size_t b = 0; b < kButtons.size(); b++) {
-    glyphs[at++] = grid.button(kLetterButtons + static_cast<int>(b), kButtons[b]);
+    glyphs[at++] = grid.button(kLetterButtons + static_cast<int>(b), kButtons[b], true);
   }
   return glyphs;
 }
@@ -64,7 +65,7 @@ constexpr std::array<OutlineGlyph, kLetters + kButtons.size()> letterGlyphs(cons
 constexpr std::array<OutlineGlyph, kButtons.size()> iconGlyphs() {
   std::array<OutlineGlyph, kButtons.size()> glyphs{};
   for (std::size_t b = 0; b < kButtons.size(); b++) {
-    glyphs[b] = kIconGrid.button(kIconButtons + static_cast<int>(b), kButtons[b]);
+    glyphs[b] = kIconGrid.button(kIconButtons + static_cast<int>(b), kButtons[b], true);
   }
   return glyphs;
 }
