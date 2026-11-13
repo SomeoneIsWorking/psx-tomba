@@ -112,8 +112,9 @@ Contributing state: S023, S024.
 ## G006 — Better water
 
 User, 2026-11-13: "Better water would be a separate mod replacing all the water with better one". It is
-its own mod, separate from the sea-and-sky mod (plan 0061, which extends the game's existing water), and
-replaces every water surface the game draws.
+its own setting, separate from the sea-and-sky mod (plan 0061), and replaces every water surface the game
+draws. Both go through one water owner: sea and sky decides where water is (the game's own water extended
+to cover the backdrop), better water decides how it is drawn, so with both on the sea is the better water.
 
 Draw Tomba! 2's water (rivers, lakes, waterfalls, splashes) with more detail than the original:
 finer surface geometry, smooth animation and clean transparency at high internal resolution.
