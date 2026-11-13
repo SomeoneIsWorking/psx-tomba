@@ -4,13 +4,19 @@
 #include "guest_abi.h"
 #include "guest_call.h"
 #include "overrides/native_override_catalog.h"
-#include "player/suit_abilities.h"
+#include "player/tomba_step.h"
 
 namespace tomba {
 namespace {
 
-constexpr std::uint32_t kStep = 0x800574E0u;
+using namespace tomba_field;
+using tomba_call::kGroundCheck;
+using tomba_call::kSfxTrigger;
+constexpr std::uint32_t kWalkStart = tomba_call::kSetAnimation;
+
+constexpr std::uint32_t kStep = tomba_call::kAirborneStep;
 constexpr std::uint32_t kFrameSize = 0x30u;
+constexpr std::uint32_t kDropFrameSize = 0x18u;
 constexpr std::uint32_t kLandingTarget = 0x10u; // sp offset of the landing position vector
 
 constexpr std::uint32_t kFun8005749C = 0x8005749Cu;
@@ -20,16 +26,14 @@ constexpr std::uint32_t kFun800543C0 = 0x800543C0u;
 constexpr std::uint32_t kFun80056E08 = 0x80056E08u;
 constexpr std::uint32_t kFun80056F3C = 0x80056F3Cu;
 constexpr std::uint32_t kFun80056EC8 = 0x80056EC8u;
-constexpr std::uint32_t kFun80049280 = 0x80049280u;
-constexpr std::uint32_t kGroundCheck = 0x8005444Cu; // Tomba_groundCheck
 constexpr std::uint32_t kFun800538E0 = 0x800538E0u;
-constexpr std::uint32_t kFun8005314C = 0x8005314Cu;
-constexpr std::uint32_t kWalkStart = 0x80054D14u; // Engine_walkStart (actor, animation, blend): sets the animation
-constexpr std::uint32_t kSfxTrigger = 0x80074590u; // Sfx_trigger
-constexpr std::uint32_t kApproach = 0x800776F8u; // (target, value, step) -> value moved toward target
+constexpr std::uint32_t kFun8005314C = 0x8005314Cu; // the landing impact
+constexpr std::uint32_t kFun80056D44 = 0x80056D44u; // (Tomba, 0): starts the fall
+constexpr std::uint32_t kApproach = 0x800776F8u;    // (target, value, step) -> value moved toward target
 
 // 0x800BF848: nonzero, a held jump restarts the take-off in the air (bits 0..1 during the rise).
 constexpr std::uint32_t kRejump = 0x800BF848u;
+constexpr std::uint32_t kGameOverLatch = 0x800BF80Du;
 constexpr std::uint32_t kPadHeld = 0x800E7E68u;
 constexpr std::uint32_t kJumpButton = 0x1F800172u;
 
@@ -55,60 +59,31 @@ constexpr std::uint32_t kSlopeCap = 0x1A00u;
 constexpr std::uint32_t kLandingMode = 2u;
 constexpr std::uint32_t kStillMode = 8u;
 
-// Tomba's fields (G block).
-constexpr std::uint32_t kPhase = 7u;
-constexpr std::uint32_t kLanded = 0x29u;
-constexpr std::uint32_t kX = 0x2Cu;
-constexpr std::uint32_t kY = 0x30u;
-constexpr std::uint32_t kZ = 0x34u;
-constexpr std::uint32_t kAnimationData = 0x38u;
-constexpr std::uint32_t kAnimation = 0x46u;
-constexpr std::uint32_t kFacingX = 0x48u;
-constexpr std::uint32_t kVelocityY = 0x4Au;
-constexpr std::uint32_t kFacingZ = 0x4Cu;
-constexpr std::uint32_t kGroundSpeed = 0x58u;
-constexpr std::uint32_t kLean = 0x62u;
-constexpr std::uint32_t kApexLatch = 0x144u;
-constexpr std::uint32_t kAirState = 0x145u;
-constexpr std::uint32_t kAirFrames = 0x178u;
-constexpr std::uint32_t kFloor = 0x14Au;
+constexpr std::uint16_t kDropGravity = 0x800u;
+constexpr std::int16_t kDropFallStart = 0x1E00;
+constexpr std::int16_t kHardLanding = 0x1400;
 
-class Step {
+constexpr std::uint32_t kFacingX = 0x48u;
+constexpr std::uint32_t kFacingZ = 0x4Cu;
+
+class Step : public TombaStep {
 public:
   // The guest call's arguments: a0 Tomba, a1 the mode.
-  explicit Step(Core &core) : core_(core), tomba_(core.r[4]), mode_(core.r[5]) {}
+  explicit Step(Core &core) : TombaStep(core, "Airborne::step"), mode_(core.r[5]) {}
 
   void run();
 
 private:
-  std::uint8_t u8(std::uint32_t field) const {
-    return core_.mem_r8(tomba_ + field);
-  }
-  void setU8(std::uint32_t field, std::uint32_t value) {
-    core_.mem_w8(tomba_ + field, static_cast<std::uint8_t>(value));
-  }
-  std::int16_t s16(std::uint32_t field) const {
-    return static_cast<std::int16_t>(core_.mem_r16(tomba_ + field));
-  }
-  bool has(std::uint16_t bits) const {
-    return SuitAbilities::has(core_, bits);
-  }
   bool jumpHeld() const {
     return (core_.mem_r16(kPadHeld) & core_.mem_r16(kJumpButton)) != 0u;
   }
   bool airControl() const {
     return (mode_ & 0x10u) == 0u && core_.mem_r8(kRejump) == 0u && u8(0x61u) == 0u;
   }
-  template <typename... Args> void call(std::uint32_t address, Args... args) {
-    psx::cpu::callGuestNow(core_, "Airborne::step", address, args...);
-  }
-  template <typename... Args> std::uint32_t result(std::uint32_t address, Args... args) {
-    return psx::cpu::callGuestNowResult(core_, "Airborne::step", address, args...);
-  }
   // Velocity += gravity as the u16 the guest keeps; returns the new value.
   std::int16_t accelerate(std::uint16_t gravity) {
-    const auto velocity = static_cast<std::uint16_t>(core_.mem_r16(tomba_ + kVelocityY) + gravity);
-    core_.mem_w16(tomba_ + kVelocityY, velocity);
+    const auto velocity = static_cast<std::uint16_t>(u16(kVelocityY) + gravity);
+    setU16(kVelocityY, velocity);
     return static_cast<std::int16_t>(velocity);
   }
   void moveByVelocity() {
@@ -118,12 +93,12 @@ private:
   void approachGroundSpeed(std::uint32_t target, std::uint32_t rate) {
     const std::uint32_t speed =
         result(kApproach, target, static_cast<std::uint32_t>(static_cast<std::int32_t>(s16(kGroundSpeed))), rate);
-    core_.mem_w16(tomba_ + kGroundSpeed, static_cast<std::uint16_t>(speed));
+    setU16(kGroundSpeed, speed);
   }
   std::uint32_t landingProbe() {
     const auto lean = static_cast<std::uint32_t>(static_cast<std::int32_t>(s16(kLean)));
     const std::int32_t slope = static_cast<std::int32_t>(lean << 17) >> 16;
-    const std::uint32_t landed = result(kFun80049280, tomba_, 0u, slope);
+    const std::uint32_t landed = result(tomba_call::kFloorProbe, tomba_, 0u, slope);
     setU8(kLanded, landed);
     return landed & 0xFFu;
   }
@@ -139,6 +114,8 @@ private:
     }
   }
 
+  std::uint32_t mode_;
+
   void takeOff();
   void rise();
   void riseWithWings();
@@ -147,10 +124,6 @@ private:
   std::uint32_t fallCap();
   void restartTakeOff();
   void land();
-
-  Core &core_;
-  std::uint32_t tomba_;
-  std::uint32_t mode_;
 };
 
 void Step::run() {
@@ -263,7 +236,7 @@ void Step::fall() {
     }
     const bool fast = (mode_ & 1u) == 0u && u8(kAnimation) == kFastFallPose;
     if (accelerate(fast ? kFastFallGravity : kGravity) > kTerminalVelocity) {
-      core_.mem_w16(tomba_ + kVelocityY, static_cast<std::uint16_t>(kTerminalVelocity));
+      setU16(kVelocityY, kTerminalVelocity);
     }
     moveByVelocity();
     if (mode_ == kLandingMode) {
@@ -315,7 +288,7 @@ std::uint32_t Step::fallWithGlide() {
   }
   const std::int16_t velocity = accelerate(kGravity);
   if (static_cast<std::int32_t>(cap << 16) < static_cast<std::int32_t>(static_cast<std::uint32_t>(velocity) << 16)) {
-    core_.mem_w16(tomba_ + kVelocityY, static_cast<std::uint16_t>(cap));
+    setU16(kVelocityY, cap);
   }
   moveByVelocity();
   if (mode_ == kLandingMode) {
@@ -407,6 +380,46 @@ void Step::land() {
   call(kFun8005314C, tomba_);
 }
 
+// FUN_80056C00 (a0 Tomba, a1 nonzero keeps him grounded): unsupported and not airborne, he sinks at a growing drop
+// speed; past kDropFallStart the drop becomes the airborne fall, its speed a quarter with the glide.
+class Drop : public TombaStep {
+public:
+  explicit Drop(Core &core) : TombaStep(core, "Airborne::drop"), grounded_(core.r[5]) {}
+
+  void run() {
+    if ((u8(kLanded) | u8(kAirState)) != 0u) {
+      if (s16(kDropVelocity) > kHardLanding) {
+        call(kFun8005314C, tomba_, grounded_);
+      }
+      setU16(kDropVelocity, 0);
+      setU8(0x148u, 0);
+      return;
+    }
+    if (core_.mem_r8(kGameOverLatch) == 0u && core_.mem_r8(kRejump) != 0u) {
+      call(kFun80056D44, tomba_, 0u);
+      return;
+    }
+    setU16(kDropVelocity, u16(kDropVelocity) + kDropGravity);
+    if (s16(kDropVelocity) > kTerminalVelocity) {
+      setU16(kDropVelocity, kTerminalVelocity);
+    }
+    if (s16(kDropVelocity) >= kDropFallStart) {
+      setU8(0x148u, 1);
+      if (grounded_ == 0u && u8(0x146u) != 4u) {
+        call(kFun80056D44, tomba_, 0u);
+        const std::int16_t speed = s16(kDropVelocity);
+        setU16(kVelocityY, has(kGlide) ? static_cast<std::uint16_t>(speed / 4) : static_cast<std::uint16_t>(speed));
+        setU16(kDropVelocity, 0);
+      }
+    }
+    const auto offset = static_cast<std::uint32_t>(static_cast<std::int32_t>(s16(kDropVelocity)) * 0x100);
+    core_.mem_w32(tomba_ + kY, core_.mem_r32(tomba_ + kY) + offset);
+  }
+
+private:
+  std::uint32_t grounded_;
+};
+
 } // namespace
 
 void Airborne::step(Core *core) {
@@ -415,8 +428,15 @@ void Airborne::step(Core *core) {
   Step(*core).run();
 }
 
+void Airborne::drop(Core *core) {
+  psx::cpu::PreservedReturnAddress returnAddress(*core);
+  psx::cpu::GuestFrameScope frame(*core, core->r[psx::cpu::kSp] - kDropFrameSize);
+  Drop(*core).run();
+}
+
 void Airborne::registerOverrides(native::NativeOverrideCatalog &natives) {
   natives.declare(kStep, "Airborne::step", &Airborne::step);
+  natives.declare(tomba_call::kDropStep, "Airborne::drop", &Airborne::drop);
 }
 
 } // namespace tomba

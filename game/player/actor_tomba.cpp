@@ -247,7 +247,7 @@ void ActorTomba::postFrameWaterCheck() {
   constexpr uint32_t WATER_LEVEL_S16 = 0x800BF812u; // water surface Y (s16)
   constexpr uint32_t WATER_STATE_BYTE = 0x800BF817u;
   constexpr uint32_t PAUSE_FLAG_SPAD = 0x1F800137u;
-  constexpr uint32_t LEAF_DRY_TICK = 0x8010E408u;     // per-frame Tomba tick when not in water
+  constexpr uint32_t LEAF_DRY_TICK = 0x8010E408u;     // WaterEntry::seasideTick, the A00 floor tick
   constexpr uint32_t LEAF_WATER_SPLASH = 0x80022C78u; // Y-snap tail (particle spawn?)
 
   const int16_t waterLevel = (int16_t)c->mem_r16(WATER_LEVEL_S16);

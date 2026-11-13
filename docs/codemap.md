@@ -46,7 +46,10 @@ Frame loop: owned. `tomba::FrameDriver` runs one pass of `0x80050B08` (update `0
 | `Behaviors`, `tomba::ai::*` | `game/ai/` | Per-object and per-area behaviours, one `beh_*` file per handler; `zoned_attacker_abi.h` |
 | `Actor`, `BehaviorDispatch`, `ObjectList`, `Animation` | `game/object/` | The guest object lens, behaviour dispatch, entity-list walks, animation VM, rewards, cube text |
 | `ActorTomba`, `ActorInteraction`, `Collision`, `ActorTargeting` | `game/player/` | Tomba's actor (G block), item interaction, collision grid, targeting |
-| `SuitAbilities`, `Airborne` | `game/player/suit_abilities.h`, `game/player/airborne.h` | The suit word's ability bits and the permanent-suits mod (`ModSettings::permanentSuits`); the airborne step FUN_800574E0 and its suit gates (the Squirrel glide) |
+| `SuitAbilities`, `TombaStep` | `game/player/suit_abilities.h`, `game/player/tomba_step.h` | The suit word's ability bits and the permanent-suits mod (`ModSettings::permanentSuits`); the shared frame of a native Tomba step (his fields, guest calls, the logged suit gate, channel `suits`) |
+| `Airborne` | `game/player/airborne.h` | The airborne step FUN_800574E0 and the ledge drop FUN_80056C00, with their suit gates (the Squirrel glide) |
+| `ActionModes` | `game/player/action_modes.h` | Tomba's action modes 3, 6 and 0x10 (FUN_8005B63C, FUN_8005D16C, FUN_8005C26C) and their glide gates |
+| `WaterEntry` | `game/player/water_entry.h` | The water landing FUN_800665F4 and A00's floor tick FUN_8010E408: swim with bit 0x100, else the hazard fall |
 | `HazardFall` | `game/player/hazard_fall.h` | Tomba's death-floor substate FUN_800678E8; under `ModSettings::pitVoidOut` it hands the fall to the water fall FUN_8006762C (`external/tomba2-decomp/docs/notes/hazard-falls.md`) |
 | `Spawn`, `Pool`, `AreaSlots`, `ObjectTable`, `Placement`, `CollisionResolve`, `GraphicsBind`, `AreaEntries` | `game/world/` | Field object population, placement, collision resolve, render binding and the per-area entry records with their map-screen names |
 | `RenderRecordPool` | `game/world/render_record_pool.h` | The render-record free stack FUN_8007AAE8; the record run's `MotionLiveness` |

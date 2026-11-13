@@ -63,5 +63,25 @@ suit ids 0x0E..0x16 (Clear Fruit's 0x200 stays worn-only). Owned gates:
   0x20/0x40/0x60/0x180 test. A held jump in area 1 with the Squirrel owned glides and lands about 25 frames later
   than with the mod off (`scratch/m0063/glide1_sheet.png`, `glide0_sheet.png`).
 
-Next, one function at a time: the remaining 0x40 sites (0x80056C00 landing, 0x8005B63C, 0x8005C26C, 0x8005D16C),
-then the swim bit 0x100 (`Tomba_waterLanding` 0x800665F4, A00 `0x8010E408`).
+- the ledge drop FUN_80056C00 (`Airborne::drop`, 0x40): walking off area 1 entry 1's ledge with the Squirrel owned
+  quarters the fall's start and glides onto the ledge below (Y 0xE89E at f165); off, he drops to 0xEA34
+  (`scratch/m0063/drop1`, `drop0`);
+- mode 6, the air attack FUN_8005D16C (`ActionModes::mode6`, 0x40): with weapon 1 or 2 (`G+0x6C` from `0x800BF88C`)
+  and circle held, the Squirrel arms the glide (`G+0x178 = 0xC`); a jump plus held circle in area 1 lands at f181
+  instead of f167 (`m6_1`, `m6_0`);
+- modes 3 and 0x10 (`ActionModes::mode3`, `mode16`, FUN_8005B63C, FUN_8005C26C, 0x40): native; a grab of the
+  enemy at area 1 sector 10 runs mode 3 substates 8, 9, 3, 4, 5, 7 (`grab10x`). Their 0x40 site is substate 1, entered
+  only for a target whose kind (`0x8005B5E4`) is 0; no such target is found yet, so that gate is unproven;
+- swimming (`WaterEntry`, 0x100): A00's floor tick FUN_8010E408 and the water landing FUN_800665F4. Spotted over area 0
+  water (sector 22, 14700 -400 10600) with the Swimming Pig Suit owned and not worn, Tomba swims (mode 0x1D); off,
+  the water fall (`swim1`, `swim0`, `swim_sheet.png`). The landing (callers `Tomba_hazardHit` 0x8006670C,
+  0x80066DE8: a hit onto water) is not reached yet.
+
+Every native gate logs its decision on the `suits` debug channel (`TombaStep::has`).
+
+Still on the suit word, by the scan of every `lh/lhu 0x17E` + `andi` (MAIN and the area overlays):
+- MAIN 0x20 `0x8003B588`, `0x800597AC`; 0x30 `0x800532A0`, `0x80055FBC`; 0x60 `0x80055FBC`, `0x80062A30` (no
+  code reference); 0x180 `0x80055F48`, `0x80056E08`, `0x80057C08`; 0x7C00 `0x800552EC`;
+- overlays: 0x100 in A06 `0x8010B410`, A08 six sites, A0E
+  `0x80109790`; 0x40 in A01 `0x8010D9FC`, A04 `0x80113414`, `0x80115F6C`, A0B `0x8010A9C8`; 0x20 A01 `0x8010C8CC`;
+  0x640 A05 three sites; 0x30, 0x60, 0x180, 0x400, 0x7C00 in A04, A07, A08, A0B.

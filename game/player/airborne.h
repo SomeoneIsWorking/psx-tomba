@@ -1,4 +1,4 @@
-// game/player/airborne.h — Tomba's airborne step FUN_800574E0 and the suit gates in it.
+// game/player/airborne.h — Tomba's airborne step FUN_800574E0, his ledge drop FUN_80056C00 and their suit gates.
 #pragma once
 
 #include <cstdint>
@@ -19,6 +19,8 @@ class Airborne {
 public:
   // FUN_800574E0 (a0 Tomba, a1 mode): one airborne frame.
   static void step(Core *core);
+  // FUN_80056C00 (a0 Tomba, a1 keep grounded): the drop off a ledge before the fall, the Squirrel's softened start.
+  static void drop(Core *core);
 
   static void registerOverrides(native::NativeOverrideCatalog &natives);
 };

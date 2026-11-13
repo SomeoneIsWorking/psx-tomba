@@ -12,8 +12,10 @@
 #include "mtx.h" // class Mtx — libgte matrix leaves (MR_init identity, 0x80051794)
 #include "overrides/native_override_catalog.h"
 #include "placed_prop_sm.h"       // class PlacedPropSm — placed scene-prop behaviour (0x80040558)
-#include "player/airborne.h"       // class Airborne — the airborne step and its suit gates
+#include "player/action_modes.h"   // class ActionModes — Tomba action modes 3, 6, 0x10 and their glide gates
+#include "player/airborne.h"       // class Airborne — the airborne step, the ledge drop and their suit gates
 #include "player/hazard_fall.h"   // class HazardFall — the death floor substate and the pit void-out mod (0x800678E8)
+#include "player/water_entry.h"    // class WaterEntry — water landing and the area 0 floor tick, the swim gates
 #include "rope_swing.h"           // class RopeSwing — hanging rope swing + segment bend (0x801281B8)
 #include "sway_schedule.h"        // class SwaySchedule — rocking-rate schedule + sway tick (0x8012D27C)
 #include "tilt_follower.h"        // class TiltFollower — half-tilt follower leaf (0x80125FE0)
@@ -160,7 +162,9 @@ void register_engine_overrides(Game &game, native::NativeOverrideCatalog &native
   PlacedPropSm::registerOverrides(natives);       // placed scene-prop behaviour handler (0x80040558)
   ActorTargeting::registerOverrides(natives);     // acquire a target: reach, band, arc (0x8001FAE0)
   HazardFall::registerOverrides(natives);         // death floor substate; pit void-out mod (0x800678E8)
-  Airborne::registerOverrides(natives);           // airborne step; suit gates, the Squirrel glide (0x800574E0)
+  Airborne::registerOverrides(natives);           // airborne step and ledge drop; suit gates (0x800574E0, 0x80056C00)
+  ActionModes::registerOverrides(natives);        // action modes 3, 6, 0x10; glide gates
+  WaterEntry::registerOverrides(natives);         // water landing, A00 floor tick; swim gates
   ActorBump::registerOverrides(natives);          // actor bump: interact / push apart / recoil (0x8010EA80)
   ActorObjectContact::registerOverrides(natives); // actor-vs-object hit / proximity contact (0x8010E258)
   RopeSwing::registerOverrides(natives);          // hanging rope: spring swing + per-segment bend (0x801281B8)
