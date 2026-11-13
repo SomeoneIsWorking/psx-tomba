@@ -173,6 +173,7 @@ set(GAME_SRC
   game/player/suit_abilities.cpp
   game/player/airborne.cpp
   game/player/run_speed.cpp
+  game/player/cold_field.cpp
   game/player/action_modes.cpp
   game/player/water_entry.cpp
   game/scene/area_fade_sequencer.cpp

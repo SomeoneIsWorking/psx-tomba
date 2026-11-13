@@ -119,6 +119,12 @@ owns):
 `0x800532A0` keeps its 0x30 test in guest code: it sends those suits to mode 0x35 on a type 0x500 floor with bits
 12..15 = 4, and no area's grid has one.
 
+- area 5's cold field (`ColdField`, A05 FUN_8010A854 the area tick and FUN_8012E454 the ice crust, 0x640): with the
+  Squirrel owned and `SQUIRREL_COLD` on, Tomba walks right from area 5 entry 0 to Z 0x22C5 untouched, as with the
+  Squirrel worn; off, or with no suit, he freezes and loses a point at f227, f347 and f443 and the game-over substate
+  starts at f547, the native's frames identical to the guest's (`cold_n_on`, `cold_n_off`, `cold_n_none`,
+  `cold_g_none`, `cold_g_worn`, `cold_sheet.png`).
+
 Left worn-only by design: the 0x20 sites `0x8003B588` and `0x800597AC` copy `G+9` to `G+8` with the Bird suit, the
 worn suit's look, which step 2 keeps. Open design choice: the robes' 0x7C00 magic (`0x800552EC`) indexes its cost table
 `0x800A4550` by the worn suit's low nibble, so with several robes owned the mod has no single robe to pick; it stays
@@ -130,4 +136,4 @@ Still on the suit word, by the scan of every `lh/lhu 0x17E` + `andi` (MAIN and t
 - MAIN 0x60 `0x80062A30` (no code reference); 0x7C00 `0x800552EC`;
 - overlays: 0x100 in A06 `0x8010B410`, A08 six sites, A0E
   `0x80109790`; 0x40 in A01 `0x8010D9FC`, A04 `0x80113414`, `0x80115F6C`, A0B `0x8010A9C8`; 0x20 A01 `0x8010C8CC`;
-  0x640 A05 three sites; 0x30, 0x60, 0x180, 0x400, 0x7C00 in A04, A07, A08, A0B.
+  0x30, 0x60, 0x180, 0x400, 0x7C00 in A04, A07, A08, A0B.
