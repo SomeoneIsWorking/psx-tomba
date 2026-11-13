@@ -130,6 +130,12 @@ owns):
   owned and `SWIMMING_PIG_SWIM` on, Tomba swims (mode 0x1D); off, the water fall and a point, as the guest
   (`sw6_on`, `sw6_off`, `sw6_g`, `sw6_sheet.png`).
 
+- areas 8 and 14's floor ticks (`WaterEntry::area8Tick` A08 FUN_8010B328, `WaterEntry::area14Tick` A0E
+  FUN_8010967C, 0x100): spotted over water (`spot 8 1 1 8064 -3900 7808`; `spot 14 0 5 10240 -3070 11840` with
+  `0x800BFA1A & 0x10` set to pass the Water Pig Bag scene) with the Swimming Pig owned and `SWIMMING_PIG_SWIM` on,
+  Tomba swims at f18 with his 4 points, as with the suit worn; off or with no suit, the water fall and a point, frame
+  for frame the guest's (`w_n_a8*`, `w_n_a14*`, `w_g_a8*`, `w_g_a14*`).
+
 Left worn-only by design: the 0x20 sites `0x8003B588` and `0x800597AC` copy `G+9` to `G+8` with the Bird suit, the
 worn suit's look, which step 2 keeps. Open design choice: the robes' 0x7C00 magic (`0x800552EC`) indexes its cost table
 `0x800A4550` by the worn suit's low nibble, so with several robes owned the mod has no single robe to pick; it stays
@@ -139,6 +145,5 @@ Every native gate logs its decision on the `suits` debug channel (`TombaStep::ha
 
 Still on the suit word, by the scan of every `lh/lhu 0x17E` + `andi` (MAIN and the area overlays):
 - MAIN 0x60 `0x80062A30` (no code reference); 0x7C00 `0x800552EC`;
-- overlays: 0x100 in A08 six sites, A0E
-  `0x80109790`; 0x40 in A01 `0x8010D9FC`, A04 `0x80113414`, `0x80115F6C`, A0B `0x8010A9C8`; 0x20 A01 `0x8010C8CC`;
+- overlays: 0x100 in A08 FUN_8010D334 (five sites, water-object contact); 0x40 in A01 `0x8010D9FC`, A04 `0x80113414`, `0x80115F6C`, A0B `0x8010A9C8`; 0x20 A01 `0x8010C8CC`;
   0x30, 0x60, 0x180, 0x400, 0x7C00 in A04, A07, A08, A0B.

@@ -21,6 +21,10 @@ public:
   static void seasideTick(Core *core);
   // A06 FUN_8010B334 (a0 Tomba): area 6's floor tick; its water swims only once the area flag 0x800BFE56 & 0x40 is set.
   static void area6Tick(Core *core);
+  // A08 FUN_8010B328 (a0 Tomba): area 8's floor tick; a swim start keeps a hang (mode 0x2A) or a held mode 3 in place.
+  static void area8Tick(Core *core);
+  // A0E FUN_8010967C (a0 Tomba): area 14's floor tick, after holding Tomba against the actor he rides.
+  static void area14Tick(Core *core);
 
   static void registerOverrides(native::NativeOverrideCatalog &natives);
 
