@@ -19,8 +19,14 @@ public:
   // A00 TombaTick_hazardFloor 0x8010E408 (a0 Tomba): area 0's floor tick, its water floors and the sea edges of
   // entries 0x1D and 0x1F.
   static void seasideTick(Core *core);
+  // A06 FUN_8010B334 (a0 Tomba): area 6's floor tick; its water swims only once the area flag 0x800BFE56 & 0x40 is set.
+  static void area6Tick(Core *core);
 
   static void registerOverrides(native::NativeOverrideCatalog &natives);
+
+private:
+  // water_area_ticks.cpp: the overlay areas' floor ticks.
+  static void registerAreaTicks(native::NativeOverrideCatalog &natives);
 };
 
 } // namespace tomba

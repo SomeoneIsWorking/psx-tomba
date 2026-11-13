@@ -176,6 +176,7 @@ set(GAME_SRC
   game/player/cold_field.cpp
   game/player/action_modes.cpp
   game/player/water_entry.cpp
+  game/player/water_area_ticks.cpp
   game/scene/area_fade_sequencer.cpp
   game/scene/bg_scene_transition_sm.cpp
   game/scene/parallax_bg.cpp

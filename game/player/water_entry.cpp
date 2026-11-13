@@ -263,6 +263,7 @@ void WaterEntry::seasideTick(Core *core) {
 void WaterEntry::registerOverrides(native::NativeOverrideCatalog &natives) {
   natives.declare(kLanding, "WaterEntry::landing", &WaterEntry::landing);
   natives.declareOverlay("A00", kSeasideTick, "WaterEntry::seasideTick", &WaterEntry::seasideTick);
+  registerAreaTicks(natives);
 }
 
 } // namespace tomba
