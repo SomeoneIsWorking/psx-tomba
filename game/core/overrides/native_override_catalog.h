@@ -20,14 +20,18 @@ inline constexpr std::uint32_t kAreaSlot = 0x0018A000u;
 // Declarations key on address, or on image name plus address where overlays reuse a slot.
 class NativeOverrideCatalog {
 public:
-  void declare(std::uint32_t address, std::string_view name, psx::cpu::NativeFunction function);
+  void declare(std::uint32_t address,
+               std::string_view name,
+               psx::cpu::NativeFunction function,
+               psx::cpu::NativeReturn returns = psx::cpu::NativeReturn::Value);
 
   // Overlay declarations may share an address with resident or other-overlay ones; the image name is
   // part of the key and is checked again when the image is bound.
   void declareOverlay(std::string_view imageName,
                       std::uint32_t address,
                       std::string_view name,
-                      psx::cpu::NativeFunction function);
+                      psx::cpu::NativeFunction function,
+                      psx::cpu::NativeReturn returns = psx::cpu::NativeReturn::Value);
 
   // Installs resident declarations only where the supplied image still owns the address. Idempotent.
   void bindResident(Core &core, psx::cpu::ImageIdentity resident, GuestAddressRange residentText) const;
@@ -64,6 +68,7 @@ private:
     std::uint32_t address = 0;
     std::string name;
     psx::cpu::NativeFunction function = nullptr;
+    psx::cpu::NativeReturn returns = psx::cpu::NativeReturn::Value;
   };
 
   void bindOverlay(Core &core,

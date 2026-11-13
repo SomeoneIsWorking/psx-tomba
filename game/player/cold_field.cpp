@@ -302,8 +302,8 @@ void ColdField::iceCrust(Core *core) {
 }
 
 void ColdField::registerOverrides(native::NativeOverrideCatalog &natives) {
-  natives.declareOverlay("A05", kTick, "ColdField::tick", &ColdField::tick);
-  natives.declareOverlay("A05", kIceCrust, "ColdField::iceCrust", &ColdField::iceCrust);
+  natives.declareOverlay("A05", kTick, "ColdField::tick", &ColdField::tick, psx::cpu::NativeReturn::Void);
+  natives.declareOverlay("A05", kIceCrust, "ColdField::iceCrust", &ColdField::iceCrust, psx::cpu::NativeReturn::Void);
 }
 
 } // namespace tomba

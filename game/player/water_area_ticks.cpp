@@ -505,10 +505,17 @@ void WaterEntry::waterfallContact(Core *core) {
 }
 
 void WaterEntry::registerAreaTicks(native::NativeOverrideCatalog &natives) {
-  natives.declareOverlay("A06", kArea6Tick, "WaterEntry::area6Tick", &WaterEntry::area6Tick);
-  natives.declareOverlay("A08", kArea8Tick, "WaterEntry::area8Tick", &WaterEntry::area8Tick);
-  natives.declareOverlay("A08", kWaterfallContact, "WaterEntry::waterfallContact", &WaterEntry::waterfallContact);
-  natives.declareOverlay("A0E", kArea14Tick, "WaterEntry::area14Tick", &WaterEntry::area14Tick);
+  natives.declareOverlay(
+      "A06", kArea6Tick, "WaterEntry::area6Tick", &WaterEntry::area6Tick, psx::cpu::NativeReturn::Void);
+  natives.declareOverlay(
+      "A08", kArea8Tick, "WaterEntry::area8Tick", &WaterEntry::area8Tick, psx::cpu::NativeReturn::Void);
+  natives.declareOverlay("A08",
+                         kWaterfallContact,
+                         "WaterEntry::waterfallContact",
+                         &WaterEntry::waterfallContact,
+                         psx::cpu::NativeReturn::Void);
+  natives.declareOverlay(
+      "A0E", kArea14Tick, "WaterEntry::area14Tick", &WaterEntry::area14Tick, psx::cpu::NativeReturn::Void);
 }
 
 } // namespace tomba

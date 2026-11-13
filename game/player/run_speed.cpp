@@ -263,7 +263,7 @@ void RunSpeed::step(Core *core) {
 }
 
 void RunSpeed::registerOverrides(native::NativeOverrideCatalog &natives) {
-  natives.declare(kRunSpeedStep, "RunSpeed::step", &RunSpeed::step);
+  natives.declare(kRunSpeedStep, "RunSpeed::step", &RunSpeed::step, psx::cpu::NativeReturn::Void);
 }
 
 } // namespace tomba
