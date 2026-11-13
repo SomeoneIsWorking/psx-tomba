@@ -9,6 +9,7 @@
 #include "game.h"
 #include "guest_code_module.h"
 #include "guest_task_slots.h"
+#include "hud_anchor.h"
 #include "mesh_draw.h"
 #include "native_boot.h"
 #include "native_dispatch.h"
@@ -72,7 +73,7 @@ void Runtime::registerOverrides(Game &game) {
       install(0x80061480u, "gpuTimeoutBeginOverride", gpuTimeoutBeginOverride) &&
       install(0x800614B4u, "gpuTimeoutExpiredOverride", gpuTimeoutExpiredOverride) &&
       install(kDmaCallbackEntry, "dmaCallbackOverride", dmaCallbackOverride) && installMeshDraw(install) &&
-      installSpriteParts(install);
+      installSpriteParts(install) && installHudAnchor(install);
   if (!installed) {
     lucent::error("tomba1-runtime", "native override registration refused");
     std::abort();
