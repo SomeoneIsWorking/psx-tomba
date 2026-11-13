@@ -46,7 +46,7 @@ Frame loop: owned. `tomba::FrameDriver` runs one pass of `0x80050B08` (update `0
 | `Behaviors`, `tomba::ai::*` | `game/ai/` | Per-object and per-area behaviours, one `beh_*` file per handler; `zoned_attacker_abi.h` |
 | `Actor`, `BehaviorDispatch`, `ObjectList`, `Animation` | `game/object/` | The guest object lens, behaviour dispatch, entity-list walks, animation VM, rewards, cube text |
 | `ActorTomba`, `ActorInteraction`, `Collision`, `ActorTargeting` | `game/player/` | Tomba's actor (G block), item interaction, collision grid, targeting |
-| `SuitAbilities`, `TombaStep` | `game/player/suit_abilities.h`, `game/player/tomba_step.h` | The suit word's ability bits and the owned-suit effect settings (`ModSettings::suitEffect`): a gate asks its `SuitAbility`, the snow handicap `slipsOnSnow`; the shared frame of a native Tomba step (his fields, guest calls, the logged suit gate, channel `suits`) |
+| `SuitAbilities`, `TombaStep` | `game/player/suit_abilities.h`, `game/player/tomba_step.h` | The suit word's ability bits and the owned-suit effect settings (`ModSettings::suitEffect`): a gate asks its `SuitAbility`, the light-clothes handicaps `lightlyDressed`; the shared frame of a native Tomba step (his fields, guest calls, the logged suit gate, channel `suits`) |
 | `Airborne` | `game/player/airborne.h` | The airborne step FUN_800574E0, the ledge drop FUN_80056C00, the launch FUN_80055F48 and air actions FUN_80057C08, with their suit gates (Squirrel glide, Pig jump and stomp) |
 | `RunSpeed` | `game/player/run_speed.h` | Tomba's x speed step FUN_80055FBC: the winged air steer (0x60) and the no-suit snow slide (0x30) gates |
 | `ColdField` | `game/player/cold_field.h` | Area 5's cold field: the A05 Tomba tick FUN_8010A854 and the ice crust actor FUN_8012E454, their cold-immunity gate (0x640) |
@@ -54,6 +54,9 @@ Frame loop: owned. `tomba::FrameDriver` runs one pass of `0x80050B08` (update `0
 | `WaterEntry` | `game/player/water_entry.h`, `water_area_ticks.cpp` | The water landing FUN_800665F4, A00's floor tick FUN_8010E408 and the overlay areas' floor ticks (A06 FUN_8010B334, A08 FUN_8010B328, A0E FUN_8010967C) and A08's waterfall contact FUN_8010D334: swim with bit 0x100, else the hazard fall |
 | `FreezeTouch` | `game/player/freeze_touch.h` | A04's Tomba contact loop FUN_8010F1CC; the ice monster's freeze in light clothes, lifted by an owned heavier suit (`FREEZE_GUARD`) |
 | `SnowFieldTick` | `game/player/snow_field_tick.h` | A04's Tomba tick FUN_8010B024: entry 7's exit floor, the death floor, the winged-suit angle-wrap countdown |
+| `UpdraftContact` | `game/player/updraft_contact.h` | A01's steam vents FUN_8010D90C and A0B's updraft FUN_8010A93C: the lift, the Squirrel's longer reach (`SQUIRREL_UPDRAFT`), A0B's freeze and the robe's immunity (`FLAME_ROBE_FREEZE`) |
+| `PipeAreaTick` | `game/player/pipe_area_tick.h` | A01's Tomba tick FUN_8010C7BC: the exits, the death floor, the fluttering Bird's sink in one column |
+| `ClimbStep` | `game/player/climb_step.h` | Tomba's climb step FUN_80062A30: his place along a climbable, the jump off its top and the winged boost (0x60) off a moving one |
 | `HazardFall` | `game/player/hazard_fall.h` | Tomba's death-floor substate FUN_800678E8; under `ModSettings::pitVoidOut` it hands the fall to the water fall FUN_8006762C (`external/tomba2-decomp/docs/notes/hazard-falls.md`) |
 | `Spawn`, `Pool`, `AreaSlots`, `ObjectTable`, `Placement`, `CollisionResolve`, `GraphicsBind`, `AreaEntries` | `game/world/` | Field object population, placement, collision resolve, render binding and the per-area entry records with their map-screen names |
 | `RenderRecordPool` | `game/world/render_record_pool.h` | The render-record free stack FUN_8007AAE8; the record run's `MotionLiveness` |

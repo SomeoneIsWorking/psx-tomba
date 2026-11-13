@@ -14,13 +14,15 @@ namespace tomba {
 // tests a mask of those bits; an ability names that gate. A worn suit passes as in retail; an owned one passes only
 // for the effect its own setting (ModSettings::suitEffect) turns on. The word is never written.
 enum class SuitAbility : std::uint8_t {
-  Flutter,      // 0x20: the Bird's fall flutter
-  AirControl,   // 0x60: the winged rise and air steer (Bird, Squirrel)
-  Glide,        // 0x40: the Squirrel's glide
-  ColdImmunity, // 0x640: the cold idle skipped (Squirrel, Clear Fruit, Evil Flame Pig Robe)
-  PigJump,      // 0x180: the Pig suits' launch, rise and release brake
-  Stomp,        // 0x180: the Pig suits' air stomp
-  Swim,         // 0x100: the Swimming Pig Suit's swim
+  Flutter,        // 0x20: the Bird's fall flutter
+  AirControl,     // 0x60: the winged rise and air steer (Bird, Squirrel)
+  Glide,          // 0x40: the Squirrel's glide
+  ColdImmunity,   // 0x640: the cold idle skipped (Squirrel, Clear Fruit, Evil Flame Pig Robe)
+  PigJump,        // 0x180: the Pig suits' launch, rise and release brake
+  Stomp,          // 0x180: the Pig suits' air stomp
+  Swim,           // 0x100: the Swimming Pig Suit's swim
+  Updraft,        // 0x40: the Squirrel's longer reach into updrafts
+  FreezeImmunity, // 0x400: A0B's updraft never freezes the Evil Flame Pig Robe
 };
 
 class SuitAbilities {

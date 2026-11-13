@@ -23,8 +23,6 @@ constexpr std::uint32_t kFun8005376C = 0x8005376Cu;
 constexpr std::uint32_t kFun800537B8 = 0x800537B8u;
 constexpr std::uint32_t kFun80053BF8 = 0x80053BF8u;
 constexpr std::uint32_t kFun80053D0C = 0x80053D0Cu;
-constexpr std::uint32_t kFun80054198 = 0x80054198u;
-constexpr std::uint32_t kFun800541F4 = 0x800541F4u;
 constexpr std::uint32_t kSettleStep = 0x80054650u; // ActorTomba_settleStep
 constexpr std::uint32_t kFun8005490C = 0x8005490Cu;
 constexpr std::uint32_t kFun800551C4 = 0x800551C4u;
@@ -213,7 +211,7 @@ public:
       call(kFun8005B20C, tomba_, 0u);
       return;
     case 5:
-      call(kFun800541F4, tomba_, 0u);
+      call(tomba_call::kFloorStep, tomba_, 0u);
       setPose(throwFrames() == 6u ? 0x24u : 0x22u, 0u);
       speedCurveStart();
       call(kFun8005B20C, tomba_, 1u);
@@ -561,7 +559,7 @@ private:
     call(kFun80053BF8, tomba_, 0u);
     setU8(0x146u, 0);
     setU16(0x44u, 0);
-    call(kFun80054198, tomba_);
+    call(tomba_call::kStopFacing, tomba_);
     setU16(kVelocityY, 0);
     const std::uint8_t hold = u8(kHold);
     if (hold == 4u || hold == 7u) {

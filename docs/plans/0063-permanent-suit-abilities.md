@@ -70,6 +70,9 @@ suits and effects that may pass it; Clear Fruit's 0x200 stays worn-only. The set
 | `PIG_STOMP`, `SWIMMING_PIG_STOMP` | Pig, Swimming Pig | air stomp (0x180) |
 | `SWIMMING_PIG_SWIM` | Swimming Pig | swim (0x100) |
 | `SNOW_GRIP` | any owned suit but the Bird | lifts the snow slide (0x30 handicap) |
+| `FREEZE_GUARD` | any owned suit but the Bird | area 4's ice monster does not freeze him (0x30 handicap) |
+| `SQUIRREL_UPDRAFT` | Squirrel | longer reach into updrafts (0x40) |
+| `FLAME_ROBE_FREEZE` | Evil Flame Pig Robe | the ice pig battle's updraft does not freeze him (0x400) |
 
 Robe magic has no settings yet. `0x800552EC` lets a robe cast (button 0x40) while the worn word has a 0x7C00 bit and
 magic `0x800BF87E` covers `0x800A4550[word & 0xF] >> 1`; the cast then follows the worn word's low nibble
@@ -150,7 +153,7 @@ worn-only until that is decided (other low-nibble readers: `0x8005800C`, `0x8005
 Every native gate logs its decision on the `suits` debug channel (`TombaStep::has`).
 
 Still on the suit word, by the scan of every `lh/lhu 0x17E` + `andi` (MAIN and the area overlays):
-- MAIN 0x60 `0x80062A30` (no code reference); 0x7C00 `0x800552EC`;
+- MAIN 0x60 `0x80062A30` (the climb step, below); 0x7C00 `0x800552EC`;
 - area 4's ice monster (`FreezeTouch::contacts`, A04 FUN_8010F1CC, the contact loop; kind 0x28 tests 0x30): in
   light clothes its touch freezes Tomba (mode 0 substate 4). Its own effect, `FREEZE_GUARD`, beside `SNOW_GRIP`,
   both through `SuitAbilities::lightlyDressed`. From `spot 4 1 23 3392 -10500 10600` with the Squirrel owned and the
@@ -165,5 +168,29 @@ Still on the suit word, by the scan of every `lh/lhu 0x17E` + `andi` (MAIN and t
   `spot 4 1 43 4736 -7200 8000` with the Squirrel owned and `SQUIRREL_AIR_CONTROL` on it is armed, as with the
   Squirrel worn; off or with no suit it stays 0, and 152 of 152 differential calls match the guest (`b819n_*`,
   `b819g_*`).
-- overlays: 0x40 in A01 `0x8010D9FC`, A04 `0x80113414`, `0x80115F6C`, A0B `0x8010A9C8`; 0x20 A01 `0x8010C8CC`;
-  0x30, 0x60, 0x180, 0x400, 0x7C00 in A04, A07, A08, A0B.
+- area 1's steam vents (`UpdraftContact::steamVent`, A01 FUN_8010D90C, 0x40 asked as `Updraft`): the Squirrel grows a
+  vent's lift box by 400 instead of 200, so it floats higher. New effect `SQUIRREL_UPDRAFT`. Standing on vent 0
+  (`spot 1 1 2 10496 -7700 9040`, `0x800BF9F4 = 0xFF`) with the Squirrel owned and the setting on, Tomba floats at
+  y -9028..-8896, the same as with the Squirrel worn; off or with no suit he floats at -8828..-8696. The
+  differential matched the guest on 1782 of 1782 calls, both worn and off (`s_vent_*`, `s_dvent_*`).
+- area 1's floor tick (`PipeAreaTick::tick`, A01 FUN_8010C7BC, 0x20 asked as `Flutter`): a fluttering Bird in
+  x 0x28B5..0x2D69 below y -0x1A8F sinks 0x20 a frame. With the Bird owned and `BIRD_FLUTTER` on, from
+  `spot 1 1 3 11000 -6300 9050` with jump held, the flutter (`G+0x179`) sinks him 0x20 a frame faster than with no
+  suit. The differential matched the guest on every call (198 and 108 calls, worn and off: `s_flut_*`, `s_dflut_*`).
+- A0B, the Evil Ice Pig battle (`UpdraftContact::area11Updraft`, FUN_8010A93C): the same lift (0x40), and after 60
+  frames of touches a freeze unless the Evil Flame Pig Robe is worn (0x400, `FreezeImmunity`). New effect
+  `FLAME_ROBE_FREEZE`. It shares its lift code with the vents, but no run has reached it yet: warp 11/1 opens with
+  dialogue, and Tomba falls before any kind 0x55 touch. The frost actor `0x80114608` tests 0x400 only while
+  `G+0x177 & 2` is set, and only the frozen states set that bit, so it stays guest code.
+- the climb step (`ClimbStep::step`, FUN_80062A30, 0x60 asked as `AirControl`): a winged suit leaving the top of a
+  moving climbable (kind 0x17) rises `(velocity & 0x1F00) >> 5` further. Climbing area 1's chain
+  (`spot 1 1 2 8500 -6300 9021` and `9728 -8400`, up held), the differential matched the guest on 457 of 457 calls.
+  No run has climbed off the top yet, so the boost itself is unproven.
+- costume checks stay worn-only. They react to what Tomba is wearing, so an owned suit does not trip them. A07's
+  0x180 predicates `0x80130CF8`, `0x80130D44`, `0x80130D80`, `0x80130DD8` choose the Circus Village people's lines
+  (`0x80042354`) when Tomba wears a Pig suit. A07 `0x80121C64`/`0x80125BAC` (event steps at `0x80134158`,
+  `0x801349F0`) dress him in the Pig Suit when he is not in one, and A08 `0x80132564` and `0x801219A0` (0x2210) take
+  the suit off.
+- robe magic (0x7C00): A07 `0x8010BC9C` makes its actor a target (`0x1F800184`, `0x800BF840 = 0x4B`) only while a
+  robe is worn. It belongs to the robe cast, `0x800552EC`, and stays worn-only along with it (see the open choice
+  above).

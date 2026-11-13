@@ -41,6 +41,9 @@ namespace tomba_call {
 inline constexpr std::uint32_t kAirborneStep = 0x800574E0u;  // Tomba_airborneStep (Tomba, mode)
 inline constexpr std::uint32_t kDropStep = 0x80056C00u;      // Tomba_dropStep (Tomba, stay grounded)
 inline constexpr std::uint32_t kGroundCheck = 0x8005444Cu;   // Tomba_groundCheck
+inline constexpr std::uint32_t kFloorStep = 0x800541F4u;     // (Tomba, a1): nonzero when the floor stops him
+inline constexpr std::uint32_t kStartFall = 0x80056D44u;     // (Tomba, 0): starts the fall
+inline constexpr std::uint32_t kStopFacing = 0x80054198u;    // (Tomba): stops him, posed for side G+0x147
 inline constexpr std::uint32_t kSetAnimation = 0x80054D14u;  // Engine_walkStart (actor, animation, blend)
 inline constexpr std::uint32_t kAnimationStep = 0x80076D68u; // Animation_stepFramed: 1 on the last frame
 inline constexpr std::uint32_t kVelocityIntegrate = 0x80056B48u;

@@ -42,9 +42,11 @@ constexpr std::array<Grant, 2> kCold{
 constexpr std::array<Grant, 2> kPigJump{{{kPig, SuitEffect::PigJump}, {kSwimmingPig, SuitEffect::SwimmingPigJump}}};
 constexpr std::array<Grant, 2> kStomp{{{kPig, SuitEffect::PigStomp}, {kSwimmingPig, SuitEffect::SwimmingPigStomp}}};
 constexpr std::array<Grant, 1> kSwim{{{kSwimmingPig, SuitEffect::SwimmingPigSwim}}};
+constexpr std::array<Grant, 1> kUpdraft{{{kSquirrel, SuitEffect::SquirrelUpdraft}}};
+constexpr std::array<Grant, 1> kFreeze{{{kFlameRobe, SuitEffect::FlameRobeFreezeImmunity}}};
 
 // In SuitAbility order.
-constexpr std::array<Gate, 7> kGates{{
+constexpr std::array<Gate, 9> kGates{{
     {0x20u, kFlutter},
     {0x60u, kAirControl},
     {0x40u, kGlide},
@@ -52,6 +54,8 @@ constexpr std::array<Gate, 7> kGates{{
     {0x180u, kPigJump},
     {0x180u, kStomp},
     {0x100u, kSwim},
+    {0x40u, kUpdraft},
+    {0x400u, kFreeze},
 }};
 
 const Gate &gate(SuitAbility ability) {

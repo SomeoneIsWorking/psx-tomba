@@ -176,6 +176,9 @@ set(GAME_SRC
   game/player/cold_field.cpp
   game/player/freeze_touch.cpp
   game/player/snow_field_tick.cpp
+  game/player/updraft_contact.cpp
+  game/player/pipe_area_tick.cpp
+  game/player/climb_step.cpp
   game/player/action_modes.cpp
   game/player/water_entry.cpp
   game/player/water_area_ticks.cpp

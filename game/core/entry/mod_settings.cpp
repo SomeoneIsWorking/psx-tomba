@@ -23,6 +23,8 @@ psx::config::Var<long> cvSwimmingPigStomp("PSXPORT_TOMBA2_SUIT_SWIMMING_PIG_STOM
 psx::config::Var<long> cvFlameRobeCold("PSXPORT_TOMBA2_SUIT_FLAME_ROBE_COLD", 0, psx::config::kSaved);
 psx::config::Var<long> cvSnowGrip("PSXPORT_TOMBA2_SUIT_SNOW_GRIP", 0, psx::config::kSaved);
 psx::config::Var<long> cvFreezeGuard("PSXPORT_TOMBA2_SUIT_FREEZE_GUARD", 0, psx::config::kSaved);
+psx::config::Var<long> cvSquirrelUpdraft("PSXPORT_TOMBA2_SUIT_SQUIRREL_UPDRAFT", 0, psx::config::kSaved);
+psx::config::Var<long> cvFlameRobeFreeze("PSXPORT_TOMBA2_SUIT_FLAME_ROBE_FREEZE", 0, psx::config::kSaved);
 const psx::config::Registration kRegistration{cvPitVoidOut,
                                               cvBirdFlutter,
                                               cvBirdAirControl,
@@ -36,10 +38,12 @@ const psx::config::Registration kRegistration{cvPitVoidOut,
                                               cvSwimmingPigStomp,
                                               cvFlameRobeCold,
                                               cvSnowGrip,
-                                              cvFreezeGuard};
+                                              cvFreezeGuard,
+                                              cvSquirrelUpdraft,
+                                              cvFlameRobeFreeze};
 
 // In SuitEffect order.
-const std::array<psx::config::Var<long> *, 13> kSuitEffects{
+const std::array<psx::config::Var<long> *, 15> kSuitEffects{
     &cvBirdFlutter,
     &cvBirdAirControl,
     &cvSquirrelGlide,
@@ -53,10 +57,12 @@ const std::array<psx::config::Var<long> *, 13> kSuitEffects{
     &cvFlameRobeCold,
     &cvSnowGrip,
     &cvFreezeGuard,
+    &cvSquirrelUpdraft,
+    &cvFlameRobeFreeze,
 };
 
 const std::array<const char *, 2> kOffOn{"Off", "On"};
-const std::array<psx::game::TitleIntSetting, 14> kTitleIntSettings{{
+const std::array<psx::game::TitleIntSetting, 16> kTitleIntSettings{{
     {.id = "pit_void_out",
      .label = "Pits void out like water",
      .unit = "",
@@ -139,6 +145,18 @@ const std::array<psx::game::TitleIntSetting, 14> kTitleIntSettings{{
      .label = "Owned suits resist the ice monster's freeze",
      .unit = "",
      .var = &cvFreezeGuard,
+     .range = {.min = 0, .max = 1, .step = 1},
+     .labels = kOffOn},
+    {.id = "suit_squirrel_updraft",
+     .label = "Owned Squirrel Clothes: updraft reach",
+     .unit = "",
+     .var = &cvSquirrelUpdraft,
+     .range = {.min = 0, .max = 1, .step = 1},
+     .labels = kOffOn},
+    {.id = "suit_flame_robe_freeze",
+     .label = "Owned Evil Flame Pig Robe: freeze immunity",
+     .unit = "",
+     .var = &cvFlameRobeFreeze,
      .range = {.min = 0, .max = 1, .step = 1},
      .labels = kOffOn},
 }};

@@ -27,13 +27,11 @@ constexpr std::uint32_t kFun80055634 = 0x80055634u; // (Tomba, 0): nonzero on th
 constexpr std::uint32_t kFun800532A0 = 0x800532A0u; // (Tomba): nonzero keeps him off the landing
 constexpr std::uint32_t kFun80054E80 = 0x80054E80u;
 constexpr std::uint8_t kStompMode = 0x1Cu;
-constexpr std::uint32_t kFun800541F4 = 0x800541F4u;
 constexpr std::uint32_t kFun800543C0 = 0x800543C0u;
 constexpr std::uint32_t kFun80056F3C = 0x80056F3Cu;
 constexpr std::uint32_t kFun80056EC8 = 0x80056EC8u;
 constexpr std::uint32_t kFun800538E0 = 0x800538E0u;
 constexpr std::uint32_t kFun8005314C = 0x8005314Cu; // the landing impact
-constexpr std::uint32_t kFun80056D44 = 0x80056D44u; // (Tomba, 0): starts the fall
 constexpr std::uint32_t kApproach = 0x800776F8u;    // (target, value, step) -> value moved toward target
 
 // 0x800BF848: nonzero, a held jump restarts the take-off in the air (bits 0..1 during the rise).
@@ -161,7 +159,7 @@ void Step::takeOff() {
 }
 
 void Step::rise() {
-  call(kFun800541F4, tomba_, 0u);
+  call(tomba_call::kFloorStep, tomba_, 0u);
   call(kFun800543C0, tomba_);
   if (airControl() && has(SuitAbility::AirControl)) {
     riseWithWings();
@@ -222,7 +220,7 @@ void Step::fall() {
       return;
     }
   } else {
-    call(kFun800541F4, tomba_, 0u);
+    call(tomba_call::kFloorStep, tomba_, 0u);
     if (u8(kLanded) != 0u) {
       land();
       return;
@@ -277,7 +275,7 @@ void Step::fall() {
 
 // FUN_800572EC: the fall under fallCap; nonzero is the landing result in the landing mode.
 std::uint32_t Step::fallWithGlide() {
-  call(kFun800541F4, tomba_, 0u);
+  call(tomba_call::kFloorStep, tomba_, 0u);
   if (u8(kLanded) != 0u) {
     return 0;
   }
@@ -496,7 +494,7 @@ public:
       return;
     }
     if (core_.mem_r8(kGameOverLatch) == 0u && core_.mem_r8(kRejump) != 0u) {
-      call(kFun80056D44, tomba_, 0u);
+      call(tomba_call::kStartFall, tomba_, 0u);
       return;
     }
     setU16(kDropVelocity, u16(kDropVelocity) + kDropGravity);
@@ -506,7 +504,7 @@ public:
     if (s16(kDropVelocity) >= kDropFallStart) {
       setU8(0x148u, 1);
       if (grounded_ == 0u && u8(0x146u) != 4u) {
-        call(kFun80056D44, tomba_, 0u);
+        call(tomba_call::kStartFall, tomba_, 0u);
         const std::int16_t speed = s16(kDropVelocity);
         setU16(kVelocityY,
                has(SuitAbility::Glide) ? static_cast<std::uint16_t>(speed / 4) : static_cast<std::uint16_t>(speed));
