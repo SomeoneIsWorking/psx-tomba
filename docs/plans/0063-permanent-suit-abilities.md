@@ -31,5 +31,16 @@ mask (MAIN, `lh/lhu 0x17E` then `andi`): 0x100 once, the swim branch of the wate
 the water fall); 0x40 seven times (`0x80056CE8`, `0x800570A8`, `0x80057170`, `0x80057334`, `0x8005B780`,
 `0x8005C354`, `0x8005D358`; the community Squirrel Suit flight codes patch `0x8005709A`/`0x8005721C` beside
 the second); 0x20 at `0x8003B6BC`, `0x800597E4`; 0x30, 0x60, 0x180, 0x640, 0x7C00 composites. Equipping is not
-in item use `0x80034CE0`; it is the pause menu's, unread. Next: equip each suit through the game (owned via
-`item`) and read `G+0x17E` to name each bit, find the cold gate, then the gates' owners.
+in item use `0x80034CE0`.
+
+The word is derived from the worn item `G+0x6F` by `Tomba_suitWord` (`0x80067EF4`, decomp symbol map), which also
+stores `0x800BF89E`: the low nibble is the suit's index and one ability bit per suit; grown (0x8000) is kept for
+none and 0x15 and forced by `G+0x174 & 4`. Worn item → word: none 0x10, 0x0E 0x22, 0x0F 0x41, 0x10 0x83,
+0x11 0x10A, 0x12 0x404, 0x13 0x805, 0x14 0x1006, 0x15 0x2007, 0x16 0x4008, 0x6C 0x209. So swimming (0x100) is
+item 0x11 and the 0x40 gates (beside the Squirrel flight codes) are item 0x0F. `Tomba_suitEvent` (`0x80058304`,
+cases 6/7 grow and shrink, 0xC the reset that turns 0x200 back to none) is the other writer. The mod's rule
+follows: a gate testing bit b of `G+0x17E` also passes when the inventory (`0x800BFAB4`) owns the item whose word
+carries b, read from this table, never written into the word (it is saved).
+
+Next: name the items 0x0E..0x16 and 0x6C from the item text table, find the cold gate's bit, and list every gate
+site per bit with its enclosing function (`--function-at`) to own.
