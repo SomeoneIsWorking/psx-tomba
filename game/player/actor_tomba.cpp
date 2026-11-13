@@ -462,9 +462,8 @@ void ActorTomba::idleColdGate() {
   const uint32_t G = G_ADDR;
   constexpr GuestFrameSpill kSpills[] = {{31, 16}};
   GuestFrame<24, 1> frame(c, kSpills);
-  const bool warm = c->mem_r8(0x800BF816u) != 0
-                    || c->mem_r8(G + 0x17Cu) == 0              // cold ground flag, set by A04
-                    || SuitAbilities::has(*c, 0x640u);         // Squirrel, Clear Fruit or Flame robe
+  const bool warm = c->mem_r8(0x800BF816u) != 0 || c->mem_r8(G + 0x17Cu) == 0 // cold ground flag, set by A04
+                    || SuitAbilities::has(*c, SuitAbility::ColdImmunity);
   if (warm) {
     tomba::guest::dispatchJalToReturn(
         *c, {.target = 0x8005A970u, .returnAddress = 0x8005A950u}); // normal handler (direct same-shard in gen)

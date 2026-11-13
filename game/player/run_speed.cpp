@@ -26,8 +26,6 @@ constexpr std::uint32_t kSlowWalk = 0x14Bu;
 constexpr std::uint32_t kCap = 0x15Eu;
 constexpr std::uint32_t kCarrying = 0x165u;
 
-constexpr std::uint16_t kWingedSuits = 0x60u;
-constexpr std::uint16_t kSlipperySuits = 0x30u; // no suit (0x10) or the Bird Clothes
 constexpr std::uint16_t kSnowFloor = 0x500u;
 constexpr std::int32_t kWallPush = 0xD00;
 constexpr std::int16_t kSlowCap = 0xC0F;
@@ -58,7 +56,7 @@ public:
     brake_ = row16(row, 3);
     brakeDivisor_ = brake_;
     hardBrake_ = trunc16(brake_ - kBrakeMargin);
-    slip_ = burdened(kSlipperySuits) && (u16(tomba_field::kFloorAttribute) & 0xF00u) == kSnowFloor;
+    slip_ = slipsOnSnow() && (u16(tomba_field::kFloorAttribute) & 0xF00u) == kSnowFloor;
     applyCap(row);
     if (slip_) {
       accel_ = trunc16(divToZero(accel_, 3));
@@ -67,7 +65,7 @@ public:
     }
     airborne_ = u8(kAirState) != 0u;
     if (airborne_) {
-      step_ = trunc16(static_cast<std::uint16_t>(step_) << (has(kWingedSuits) ? 4 : 1));
+      step_ = trunc16(static_cast<std::uint16_t>(step_) << (has(SuitAbility::AirControl) ? 4 : 1));
     }
     switch (direction_ & 3u) {
     case 0:
@@ -222,13 +220,13 @@ private:
 
   // Standing or moving the other way: accelerate by the brake step, or in the air by a winged suit's steer.
   void start(std::int32_t sign) {
-    add(sign * (airborne_ && has(kWingedSuits) ? step_ : brake_));
+    add(sign * (airborne_ && has(SuitAbility::AirControl) ? step_ : brake_));
   }
 
   // No direction: brake toward zero; 8 with a winged suit in the air brakes harder.
   void coast(std::uint32_t row) {
     std::int32_t brake = brake_;
-    if ((direction_ & 8u) != 0u && has(kWingedSuits) && airborne_) {
+    if ((direction_ & 8u) != 0u && has(SuitAbility::AirControl) && airborne_) {
       brake = static_cast<std::int32_t>(core_.mem_r16(row + 6u)) + kAirBrakeExtra;
     } else if ((u8(kWall) & 3u) != (direction_ & 3u) && airborne_) {
       brake = hardBrake_;

@@ -53,7 +53,6 @@ constexpr std::uint32_t kCircleJumpHeld = 0x1F800252u;
 constexpr std::uint32_t kFloorAttributeOut = 0x1F8001A6u;
 constexpr std::uint32_t kSpeedCurve = 0x800A4694u; // u16[11]
 
-constexpr std::uint16_t kGlide = 0x40u;
 constexpr std::uint32_t kHoldSound = 0x20u;
 constexpr std::uint32_t kThrowSound = 0x21u;
 constexpr std::uint8_t kHoldPose = 0x26u;
@@ -101,7 +100,7 @@ protected:
     call(kAirborneStep, tomba_, mode);
   }
   void glideKeepsApexClear() {
-    if (has(kGlide)) {
+    if (has(SuitAbility::Glide)) {
       setU8(kApexLatch, 0);
     }
   }
@@ -731,7 +730,7 @@ private:
     if (!carrying()) {
       airborne(0u);
     } else if (core_.mem_r8(kCircleJumpHeld) != 0u) {
-      if (has(kGlide)) {
+      if (has(SuitAbility::Glide)) {
         setU8(kAirFrames, kGlideArmed);
       }
       airborne(0u);

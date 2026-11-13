@@ -4,16 +4,20 @@ User, 2026-11-12: once a suit is obtained its ability stays. With the swimming s
 without wearing it; with the cold-protection suit (the user recalls a squirrel suit) owned, cold areas no
 longer need it worn.
 
+User, 2026-11-13: "I think we should be able to toggle suit effects for owned suits, that's the simplest, and if a
+suit has more than one effect then all of them should be toggle-able individually".
+
 ## Steps
 
 1. **RE the suits.** Find the worn-suit state, each suit's item id in the inventory (`0x800BFAB4`, one count
    byte per id), and every site that tests the worn suit to gate an ability: swimming/diving in water,
    cold damage or the cold block, and any other suit-gated ability. Name which suit protects from cold from
    the item table, not from memory. Record the addresses in the decomp symbol map (`external/tomba2-decomp/config/symbols/`).
-2. **Mod.** Under the setting, each ability gate asks "worn, or owned" instead of "worn", at the gate's own
-   test. The worn suit, its look and its other abilities are unchanged, so wearing another suit keeps that
-   suit's own powers. Inventory and save data are never written.
-3. **Setting.** A saved setting in the config owner, default off, off under oracle comparison. Off is the
+2. **Mod.** Each ability gate asks for its own ability (`SuitAbility`), not the suit bit: the worn suit passes as
+   in retail, an owned one only for the effect its setting turns on. The worn suit, its look and its other
+   abilities are unchanged. Inventory and save data are never written.
+3. **Settings.** One saved setting per owned-suit effect in the config owner (`ModSettings::suitEffect`,
+   `PSXPORT_TOMBA2_SUIT_*`, a settings-menu row each), default off, off under oracle comparison. All off is the
    retail path unchanged.
 
 ## Proof
@@ -51,11 +55,34 @@ cold idle `TombaIdle_cold` (`0x80112B50`) instead of the normal idle `0x8005A970
 `G+0x17C` is set (only A04 code writes it) and `G+0x17E & 0x640` is clear. Standing still there, Tomba shivers
 at 0x5A frames and is frozen at 0x6E, losing vitality unless Cold Powder (`0x800BFAD5`) is held. Bits 0x40
 (Squirrel Clothes), 0x200 (item 0x6C) and 0x400 (Evil Flame Pig Robe) skip it, so owning any of those grants
-cold immunity under the mod, matching the user's report that the Squirrel suit protects from cold.
+cold immunity under their settings, matching the user's report that the Squirrel suit protects from cold.
 
-Built (2026-11-13): `PSXPORT_TOMBA2_PERMANENT_SUITS` (`ModSettings::permanentSuits`) and `SuitAbilities`
-(`game/player/suit_abilities.h`), which owns the item-to-bit table and answers "worn, or owned under the mod" for
-suit ids 0x0E..0x16 (Clear Fruit's 0x200 stays worn-only). Owned gates:
+Built (2026-11-13): `SuitAbilities` (`game/player/suit_abilities.h`) maps each guest gate (its mask) to the owned
+suits and effects that may pass it; Clear Fruit's 0x200 stays worn-only. The settings, one per effect:
+
+| setting `PSXPORT_TOMBA2_SUIT_` | suit | ability (mask) |
+|---|---|---|
+| `BIRD_FLUTTER` | Bird Clothes 0x0E | fall flutter (0x20) |
+| `BIRD_AIR_CONTROL`, `SQUIRREL_AIR_CONTROL` | Bird, Squirrel Clothes 0x0F | winged rise and air steer (0x60) |
+| `SQUIRREL_GLIDE` | Squirrel | glide (0x40) |
+| `SQUIRREL_COLD`, `FLAME_ROBE_COLD` | Squirrel, Evil Flame Pig Robe 0x12 | cold immunity (0x640) |
+| `PIG_JUMP`, `SWIMMING_PIG_JUMP` | Pig Suit 0x10, Swimming Pig Suit 0x11 | launch, rise and release brake (0x180) |
+| `PIG_STOMP`, `SWIMMING_PIG_STOMP` | Pig, Swimming Pig | air stomp (0x180) |
+| `SWIMMING_PIG_SWIM` | Swimming Pig | swim (0x100) |
+| `SNOW_GRIP` | any owned suit but the Bird | lifts the snow slide (0x30 handicap) |
+
+Robe magic has no settings yet. `0x800552EC` lets a robe cast (button 0x40) while the worn word has a 0x7C00 bit and
+magic `0x800BF87E` covers `0x800A4550[word & 0xF] >> 1`; the cast then follows the worn word's low nibble
+(`0x8005800C`, `0x8005F778`, `0x80061B58`, `0x80062630`). The game keeps only the current word (saved `0x800BF89E`),
+no history of robes worn, so with several robes owned and none worn nothing in it picks one. A robe's setting is
+faithful only while it is the one robe effect on; that rule and the four nibble readers come with the robe gates.
+
+Per-effect independence: with the Pig Suit owned and not worn in area 1, `PIG_JUMP` on and `PIG_STOMP` off jumps
+to Y 0xE627 and a second jump press in the air does nothing; `PIG_JUMP` off and `PIG_STOMP` on jumps to the retail
+0xE664 and the press stomps (mode 0x1C) (`scratch/m0063/pig_jumpOnly`, `pig_stompOnly`).
+
+Owned gates (the proofs below predate the per-effect settings, each run turning on the effects of the suit it
+owns):
 - the idle cold gate (`ActorTomba::idleColdGate`, 0x640): with the Squirrel Clothes owned and not worn (word 0x10),
   Tomba stands in area 4 without freezing for 480 frames; off, he freezes and loses a point (`scratch/m0063/own_on`,
   `own_off`);
@@ -84,7 +111,7 @@ suit ids 0x0E..0x16 (Clear Fruit's 0x200 stays worn-only). Owned gates:
   instead of 2: with the Bird owned, a mid-air reversal in area 1 steps 0x600 a frame and reaches -0x1B00 before
   landing; off, 0xC0 a frame (`steer1`, `steer0`). Its 0x30 test is a handicap, not an ability: with no suit (word
   0x10) or the Bird, snow (floor type 0x500, areas 4 and 5) cuts the start to an eighth and the brake to half, so
-  under the mod any owned suit without 0x30 lifts it (`SuitAbilities::burdened`). With the Swimming Pig Suit owned
+  `SNOW_GRIP` lets any owned suit without 0x30 lift it (`SuitAbilities::slipsOnSnow`). With the Swimming Pig Suit owned
   and not worn, the landing slide on area 4's snow brakes 0x280 a frame and stops in 11; off, 0x140 and 22
   (`snow1`, `snow0`). With the mod off the native's G+0x44 stores match the guest's one for one on ground turns,
   skids and the snow slide (`vx_g5`/`vx_n5`, `vx_g6`/`vx_n6`).

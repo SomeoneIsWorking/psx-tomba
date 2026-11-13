@@ -10,7 +10,7 @@ class NativeOverrideCatalog;
 namespace tomba {
 
 // A water floor (attribute bit 0x8000, type 0x100 or 0x200) or an area's water edge is a swim only with the Swimming
-// Pig Suit's bit 0x100, asked through SuitAbilities so an owned suit swims under the permanent-suits mod. Without
+// Pig Suit's bit 0x100, asked as SuitAbility::Swim, so an owned suit swims when its setting is on. Without
 // it the water is the hazard fall (decomp docs/notes/hazard-falls.md).
 class WaterEntry {
 public:

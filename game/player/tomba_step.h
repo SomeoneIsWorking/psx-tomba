@@ -75,29 +75,29 @@ protected:
   void stepSubstate() {
     setU8(tomba_field::kSubstate, u8(tomba_field::kSubstate) + 1u);
   }
-  bool has(std::uint16_t bits) const {
-    const bool granted = SuitAbilities::has(core_, bits);
+  bool has(SuitAbility ability) const {
+    const bool granted = SuitAbilities::has(core_, ability);
     lucent::debug("suits",
-                  "{} asks {:04X}: {} (worn {:04X}, mode {:02X}/{:02X})",
+                  "{} asks {:04X}#{}: {} (worn {:04X}, mode {:02X}/{:02X})",
                   owner_,
-                  bits,
+                  SuitAbilities::mask(ability),
+                  static_cast<int>(ability),
                   granted,
                   u16(0x17Eu),
                   u8(tomba_field::kMode),
                   u8(tomba_field::kSubstate));
     return granted;
   }
-  bool burdened(std::uint16_t bits) const {
-    const bool burdened = SuitAbilities::burdened(core_, bits);
+  bool slipsOnSnow() const {
+    const bool slips = SuitAbilities::slipsOnSnow(core_);
     lucent::debug("suits",
-                  "{} burdened {:04X}: {} (worn {:04X}, mode {:02X}/{:02X})",
+                  "{} slips on snow: {} (worn {:04X}, mode {:02X}/{:02X})",
                   owner_,
-                  bits,
-                  burdened,
+                  slips,
                   u16(0x17Eu),
                   u8(tomba_field::kMode),
                   u8(tomba_field::kSubstate));
-    return burdened;
+    return slips;
   }
   template <typename... Args> void call(std::uint32_t address, Args... args) {
     psx::cpu::callGuestNow(core_, owner_, address, args...);

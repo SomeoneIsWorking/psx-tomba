@@ -1,4 +1,4 @@
-// game/player/suit_abilities.h — the ability bits of Tomba's suit word G+0x17E and the permanent-suits mod.
+// game/player/suit_abilities.h — the ability gates on Tomba's suit word G+0x17E and the owned-suit effect settings.
 #pragma once
 
 #include <cstdint>
@@ -8,17 +8,28 @@ class Core;
 namespace tomba {
 
 // Tomba_suitWord (0x80067EF4) derives G+0x17E from the worn item G+0x6F: its suit index in the low nibble and one
-// ability bit per suit (0x40 the Squirrel Clothes' glide and cold immunity, 0x100 the Swimming Pig Suit's swim).
-// Under ModSettings::permanentSuits a gate also passes on a suit the inventory holds; the word is never written.
+// bit per suit (0x10 none, 0x20 Bird, 0x40 Squirrel, 0x80 Pig, 0x100 Swimming Pig, 0x400.. the robes). Each guest gate
+// tests a mask of those bits; an ability names that gate. A worn suit passes as in retail; an owned one passes only
+// for the effect its own setting (ModSettings::suitEffect) turns on. The word is never written.
+enum class SuitAbility : std::uint8_t {
+  Flutter,      // 0x20: the Bird's fall flutter
+  AirControl,   // 0x60: the winged rise and air steer (Bird, Squirrel)
+  Glide,        // 0x40: the Squirrel's glide
+  ColdImmunity, // 0x640: the cold idle skipped (Squirrel, Clear Fruit, Evil Flame Pig Robe)
+  PigJump,      // 0x180: the Pig suits' launch, rise and release brake
+  Stomp,        // 0x180: the Pig suits' air stomp
+  Swim,         // 0x100: the Swimming Pig Suit's swim
+};
+
 class SuitAbilities {
 public:
-  // The ability bits the worn item gives; 0 for an item that is not a suit.
-  static std::uint16_t abilityBits(std::uint8_t item);
-  // True when the worn suit, or under the mod an owned one, carries any of `bits`.
-  static bool has(Core &core, std::uint16_t bits);
-  // True when the worn word carries any of `bits` and, under the mod, no owned suit is free of them: a handicap
-  // gate (0x30, no suit or the Bird Clothes slipping on snow) that any owned suit without it lifts.
-  static bool burdened(Core &core, std::uint16_t bits);
+  // True when the worn suit, or an owned one whose effect setting is on, gives `ability`.
+  static bool has(Core &core, SuitAbility ability);
+  // The snow handicap (0x30: no suit or the Bird): true when worn, unless the snow-grip setting is on and the
+  // inventory holds a suit other than the Bird.
+  static bool slipsOnSnow(Core &core);
+  // The guest mask a gate tests, for its log line.
+  static std::uint16_t mask(SuitAbility ability);
 };
 
 } // namespace tomba

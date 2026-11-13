@@ -17,8 +17,6 @@ constexpr std::uint32_t kSeasideTick = 0x8010E408u;
 constexpr std::uint32_t kLandingFrameSize = 0x18u;
 constexpr std::uint32_t kSeasideFrameSize = 0x30u;
 
-constexpr std::uint16_t kSwim = 0x100u;
-
 constexpr std::uint32_t kArea = 0x800BF870u;
 constexpr std::uint32_t kAreaEventFlags = 0x800BFE56u;
 constexpr std::uint32_t kWaterSound = 0x800BF81Eu;
@@ -63,7 +61,7 @@ public:
     if ((attribute & 0x8000u) == 0u || !waterFloor(attribute)) {
       return 0;
     }
-    if (!has(kSwim)) {
+    if (!has(SuitAbility::Swim)) {
       setU8(kMode, 4);
       setU8(kSubstate, 0xB);
       return 1;
@@ -130,7 +128,7 @@ private:
     if (!waterFloor(attribute) || u8(kGroup) >= 2u) {
       return;
     }
-    if (has(kSwim)) {
+    if (has(SuitAbility::Swim)) {
       if (u8(0x181u) != 0u || (u8(0x146u) == 4u && core_.mem_r8(kStandOnObject) != 0u)) {
         return;
       }
@@ -221,7 +219,7 @@ private:
       setU16(kZ + 2u, 0x2802u);
     }
     core_.mem_w8(kWaterSound, 0);
-    if (has(kSwim)) {
+    if (has(SuitAbility::Swim)) {
       setU16(kFloorAttribute, 0);
       if (u8(kMode) == 6u) {
         swimFromMode6();

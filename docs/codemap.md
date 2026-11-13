@@ -46,7 +46,7 @@ Frame loop: owned. `tomba::FrameDriver` runs one pass of `0x80050B08` (update `0
 | `Behaviors`, `tomba::ai::*` | `game/ai/` | Per-object and per-area behaviours, one `beh_*` file per handler; `zoned_attacker_abi.h` |
 | `Actor`, `BehaviorDispatch`, `ObjectList`, `Animation` | `game/object/` | The guest object lens, behaviour dispatch, entity-list walks, animation VM, rewards, cube text |
 | `ActorTomba`, `ActorInteraction`, `Collision`, `ActorTargeting` | `game/player/` | Tomba's actor (G block), item interaction, collision grid, targeting |
-| `SuitAbilities`, `TombaStep` | `game/player/suit_abilities.h`, `game/player/tomba_step.h` | The suit word's ability bits and the permanent-suits mod (`ModSettings::permanentSuits`): ability gates (`has`) and handicap gates (`burdened`); the shared frame of a native Tomba step (his fields, guest calls, the logged suit gate, channel `suits`) |
+| `SuitAbilities`, `TombaStep` | `game/player/suit_abilities.h`, `game/player/tomba_step.h` | The suit word's ability bits and the owned-suit effect settings (`ModSettings::suitEffect`): a gate asks its `SuitAbility`, the snow handicap `slipsOnSnow`; the shared frame of a native Tomba step (his fields, guest calls, the logged suit gate, channel `suits`) |
 | `Airborne` | `game/player/airborne.h` | The airborne step FUN_800574E0, the ledge drop FUN_80056C00, the launch FUN_80055F48 and air actions FUN_80057C08, with their suit gates (Squirrel glide, Pig jump and stomp) |
 | `RunSpeed` | `game/player/run_speed.h` | Tomba's x speed step FUN_80055FBC: the winged air steer (0x60) and the no-suit snow slide (0x30) gates |
 | `ActionModes` | `game/player/action_modes.h` | Tomba's action modes 3, 6 and 0x10 (FUN_8005B63C, FUN_8005D16C, FUN_8005C26C) and their glide gates |

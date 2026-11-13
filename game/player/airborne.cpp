@@ -49,11 +49,6 @@ constexpr std::uint16_t kPigLaunchDamping = 0x1940u;
 constexpr std::uint32_t kJumpHeldFrames = 0x167u;
 constexpr std::uint32_t kJumpButton = 0x1F800172u;
 
-constexpr std::uint16_t kBirdFlutter = 0x20u;
-constexpr std::uint16_t kGlide = 0x40u;
-constexpr std::uint16_t kWingedSuits = 0x60u;
-constexpr std::uint16_t kPigSuits = 0x180u;
-
 constexpr std::uint8_t kJumpPose = 0x14u;
 constexpr std::uint8_t kGlideReady = 0xCAu;
 constexpr std::uint8_t kGliding = 0xCBu;
@@ -168,10 +163,10 @@ void Step::takeOff() {
 void Step::rise() {
   call(kFun800541F4, tomba_, 0u);
   call(kFun800543C0, tomba_);
-  if (airControl() && has(kWingedSuits)) {
+  if (airControl() && has(SuitAbility::AirControl)) {
     riseWithWings();
   } else {
-    const bool pig = (mode_ & 1u) == 0u && has(kPigSuits);
+    const bool pig = (mode_ & 1u) == 0u && has(SuitAbility::PigJump);
     if (accelerate(pig ? kPigRiseGravity : kGravity) >= 0) {
       setU8(kAirState, 2);
       setU8(kPhase, u8(kPhase) + 1u);
@@ -205,7 +200,7 @@ void Step::riseWithWings() {
     moveByVelocity();
     return;
   }
-  if (has(kGlide)) {
+  if (has(SuitAbility::Glide)) {
     glideReadyFromFallPose();
   } else {
     setU8(kAirFrames, 0);
@@ -219,10 +214,10 @@ void Step::riseWithWings() {
 }
 
 void Step::fall() {
-  if (has(kBirdFlutter)) {
+  if (has(SuitAbility::Flutter)) {
     call(kFun80056F3C, tomba_);
   }
-  if (airControl() && (has(kGlide) || u8(0x179u) == 1u)) {
+  if (airControl() && (has(SuitAbility::Glide) || u8(0x179u) == 1u)) {
     if (fallWithGlide() != 0u) {
       return;
     }
@@ -232,11 +227,11 @@ void Step::fall() {
       land();
       return;
     }
-    if (has(kWingedSuits)) {
+    if (has(SuitAbility::AirControl)) {
       if (mode_ != kStillMode) {
         approachGroundSpeed(0u, 0x40u);
       }
-      if (has(kBirdFlutter)) {
+      if (has(SuitAbility::Flutter)) {
         if ((u8(kFloor) & 8u) != 0u) {
           setU8(kAirFrames, u8(kAirFrames) + 1u);
         }
@@ -287,7 +282,7 @@ std::uint32_t Step::fallWithGlide() {
     return 0;
   }
   std::uint32_t cap = fallCap();
-  if (has(kGlide)) {
+  if (has(SuitAbility::Glide)) {
     glideReadyFromFallPose();
   } else if ((u8(kFloor) & 8u) != 0u) {
     setU8(kAirFrames, u8(kAirFrames) + 1u);
@@ -317,7 +312,7 @@ std::uint32_t Step::fallWithGlide() {
 
 // FUN_80057150: the fall speed cap.
 std::uint32_t Step::fallCap() {
-  if (has(kGlide)) {
+  if (has(SuitAbility::Glide)) {
     const std::uint8_t animation = u8(kAnimation);
     bool gliding = false;
     if (animation == kGliding) {
@@ -374,7 +369,7 @@ void Step::jumpRelease() {
   if (held >= 0xBu) {
     return;
   }
-  const std::uint32_t brake = has(kPigSuits) ? kPigReleaseBrake : kReleaseBrake;
+  const std::uint32_t brake = has(SuitAbility::PigJump) ? kPigReleaseBrake : kReleaseBrake;
   setU16(kVelocityY, u16(kVelocityY) + core_.mem_r16(brake + held * 2u));
   setU8(kJumpHeldFrames, 0x10u);
   if (s16(kVelocityY) > 0) {
@@ -425,7 +420,7 @@ public:
     } else {
       setU16(kVelocityY, core_.mem_r16(kLaunchSpeeds + u8(0x6Du) * 2u));
     }
-    if (jump_ != 0u && has(kPigSuits)) {
+    if (jump_ != 0u && has(SuitAbility::PigJump)) {
       setU16(kVelocityY, u16(kVelocityY) + kPigLaunchDamping);
     }
   }
@@ -445,7 +440,7 @@ public:
       return;
     }
     const bool free = mode_ == 0u && u8(0x16Au) == 0u;
-    if (u8(kLanded) == 0u && has(kPigSuits) && free && result(tomba_call::kJumpPressed) != 0u) {
+    if (u8(kLanded) == 0u && has(SuitAbility::Stomp) && free && result(tomba_call::kJumpPressed) != 0u) {
       setU16(kGroundSpeed, 0);
       setU8(tomba_field::kMode, kStompMode);
       if (u8(kAirState) == 2u) {
@@ -513,7 +508,8 @@ public:
       if (grounded_ == 0u && u8(0x146u) != 4u) {
         call(kFun80056D44, tomba_, 0u);
         const std::int16_t speed = s16(kDropVelocity);
-        setU16(kVelocityY, has(kGlide) ? static_cast<std::uint16_t>(speed / 4) : static_cast<std::uint16_t>(speed));
+        setU16(kVelocityY,
+               has(SuitAbility::Glide) ? static_cast<std::uint16_t>(speed / 4) : static_cast<std::uint16_t>(speed));
         setU16(kDropVelocity, 0);
       }
     }
