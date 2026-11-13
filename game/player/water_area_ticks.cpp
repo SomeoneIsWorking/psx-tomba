@@ -1,4 +1,4 @@
-// The overlay areas' floor ticks: each area's own test of a water floor against the swim bit.
+// The overlay areas' water against the swim bit: their floor ticks and A08's waterfall contact.
 #include "guest_abi.h"
 #include "overrides/native_override_catalog.h"
 #include "player/tomba_step.h"
@@ -17,6 +17,8 @@ constexpr std::uint32_t kArea8Tick = 0x8010B328u;
 constexpr std::uint32_t kArea8FrameSize = 0x30u;
 constexpr std::uint32_t kArea14Tick = 0x8010967Cu;
 constexpr std::uint32_t kArea14FrameSize = 0x18u;
+constexpr std::uint32_t kWaterfallContact = 0x8010D334u;
+constexpr std::uint32_t kWaterfallContactFrameSize = 0x28u;
 
 constexpr std::uint32_t kGameOverLatch = 0x800BF80Du;
 constexpr std::uint32_t kWaterSound = 0x800BF81Eu;
@@ -285,6 +287,197 @@ private:
   }
 };
 
+// A08 FUN_8010D334 (a0 Tomba, a1 the waterfall): the contact by the waterfall's shape (byte 3). A swimmer is lifted
+// up the falling water; anyone else is pushed out of it and knocked back (hazard substate 2).
+class WaterfallContact : public TombaStep {
+public:
+  explicit WaterfallContact(Core &core)
+      : TombaStep(core, "WaterEntry::waterfallContact"), fall_(core.r[psx::cpu::kA1]) {}
+
+  void run() {
+    const bool locked = core_.mem_r8(kEventLock) != 0u;
+    switch (core_.mem_r8(fall_ + 3u)) {
+    case 0:
+    case 5:
+      if (locked) {
+        call(kEventContact, tomba_, fall_);
+      }
+      return;
+    case 1:
+      if (!locked) {
+        cylinder();
+      }
+      return;
+    case 2:
+      if (!locked && u8(0x181u) == 0u && result(kBoxContact, tomba_, fall_) != 0u) {
+        heading();
+      }
+      return;
+    case 3:
+      if (!locked && u8(0x181u) == 0u && result(kSpanContact, tomba_, fall_) != 0u) {
+        span();
+      }
+      return;
+    case 4:
+      if (!locked && u8(0x181u) == 0u && result(kBoxContact, tomba_, fall_) != 0u) {
+        box();
+      }
+      return;
+    default:
+      return;
+    }
+  }
+
+private:
+  static constexpr std::uint32_t kEventContact = 0x8001EC3Cu; // (Tomba, actor)
+  static constexpr std::uint32_t kBoxContact = 0x80022F04u;   // (Tomba, actor): nonzero on contact
+  static constexpr std::uint32_t kSpanContact = 0x8001F830u;  // (Tomba, actor): nonzero on contact
+  static constexpr std::uint32_t kSqrt = 0x80084080u;         // Math_sqrtLzc
+  static constexpr std::uint32_t kAtan2 = 0x80085690u;        // Trig_ratan2 (y, x)
+  static constexpr std::uint32_t kCos = 0x80083F50u;          // Trig_rcos
+  static constexpr std::uint32_t kSin = 0x80083E80u;          // Trig_rsin
+  static constexpr std::uint32_t kContactAngle = 0x1F80009Cu;
+  static constexpr std::uint8_t kKnockBackSubstate = 2u;
+
+  std::uint16_t fallU16(std::uint32_t field) const {
+    return core_.mem_r16(fall_ + field);
+  }
+  std::int32_t fallS16(std::uint32_t field) const {
+    return static_cast<std::int16_t>(core_.mem_r16(fall_ + field));
+  }
+  std::int32_t reach() const {
+    return s16(0x80u) + fallS16(0x80u);
+  }
+  std::int32_t trig(std::uint32_t function, std::int32_t angle) {
+    return static_cast<std::int32_t>(result(function, static_cast<std::uint32_t>(angle)));
+  }
+  // Tomba's feet over the fall's top, with the fall's own height when `withFallHeight`.
+  std::uint32_t top(bool withFallHeight) const {
+    std::uint32_t y = fallU16(0x32u) + (u16(0x86u) - u16(0x84u));
+    if (withFallHeight) {
+      y += fallU16(0x86u) - fallU16(0x84u);
+    }
+    return y;
+  }
+
+  // Shape 1: a cylinder of the summed radii around the fall.
+  void cylinder() {
+    const std::uint32_t dx = u16(0x2Eu) - fallU16(0x2Eu);
+    const std::uint32_t dz = u16(0x36u) - fallU16(0x36u);
+    const std::int32_t sdx = static_cast<std::int16_t>(dx);
+    const std::int32_t sdz = static_cast<std::int16_t>(dz);
+    const std::uint32_t squared = static_cast<std::uint32_t>(sdx * sdx) + static_cast<std::uint32_t>(sdz * sdz);
+    if (reach() < static_cast<std::int32_t>(result(kSqrt, squared) & 0xFFFFu)) {
+      return;
+    }
+    const bool swims = has(SuitAbility::Swim);
+    const std::uint32_t height = (u16(0x32u) - fallU16(0x32u) + u16(0x84u) + fallU16(0x84u)) & 0xFFFFu;
+    if (s16(0x86u) + fallS16(swims ? 0x84u : 0x86u) < static_cast<std::int32_t>(height)) {
+      return;
+    }
+    const std::int32_t angle = trig(kAtan2, -sdz, sdx);
+    core_.mem_w32(kContactAngle, static_cast<std::uint32_t>(angle));
+    if (swims) {
+      if (u8(0x164u) == 0u) {
+        halveSpeed();
+        rise<6>(top(false), true);
+      }
+      return;
+    }
+    if ((u8(0) & 4u) == 0u) {
+      pushOut(angle);
+    }
+    knockBack();
+  }
+
+  // Shape 2: a box; Tomba is first set at the summed radii along his own heading.
+  void heading() {
+    setU8(0x5Fu, 2);
+    const std::int32_t along = s16(0x140u) + 0x800;
+    setU16(0x2Eu, fallU16(0x2Eu) + static_cast<std::uint32_t>((trig(kCos, along) * reach()) >> 12));
+    const std::int32_t across = s16(0x140u) + 0x800;
+    setU16(0x36u, fallU16(0x36u) - static_cast<std::uint32_t>((trig(kSin, across) * reach()) >> 12));
+    if (has(SuitAbility::Swim)) {
+      rise<0x10>(top(true), false);
+      return;
+    }
+    knockBack();
+  }
+
+  // Shape 3: a span along the path.
+  void span() {
+    if (!has(SuitAbility::Swim)) {
+      knockBack();
+      return;
+    }
+    if (u8(0x164u) == 0u) {
+      halveSpeed();
+      rise<0x10>(top(true), false);
+    }
+  }
+
+  // Shape 4: a box; Tomba is pushed out along the last contact angle.
+  void box() {
+    if (has(SuitAbility::Swim)) {
+      if (u8(0x164u) == 0u) {
+        halveSpeed();
+        rise<6>(top(true), true);
+      }
+      return;
+    }
+    if ((u8(0) & 4u) == 0u) {
+      pushOut(static_cast<std::int32_t>(core_.mem_r32(kContactAngle)));
+    }
+    knockBack();
+  }
+
+  std::int32_t trig(std::uint32_t function, std::int32_t y, std::int32_t x) {
+    return static_cast<std::int32_t>(result(function, static_cast<std::uint32_t>(y), static_cast<std::uint32_t>(x)));
+  }
+
+  void halveSpeed() {
+    setU16(0x44u, static_cast<std::uint32_t>(s16(0x44u) >> 1));
+  }
+
+  // Up toward `target` by at most `step` a frame; in the air his fall is slowed (`slow`) or stopped.
+  template <std::int32_t kStep> void rise(std::uint32_t target, bool slow) {
+    const std::uint16_t y = u16(0x32u);
+    if (static_cast<std::int16_t>(target) <= s16(0x32u)) {
+      return;
+    }
+    std::int32_t climb = static_cast<std::int16_t>(target - y);
+    if (climb > kStep) {
+      climb = kStep;
+    }
+    setU16(0x32u, y + static_cast<std::uint32_t>(climb));
+    core_.mem_w8(kForcedFloor, 4);
+    if (u8(kAirState) != 1u) {
+      return;
+    }
+    setU16(kVelocityY, slow ? u16(kVelocityY) + 0x200u : 0u);
+  }
+
+  void pushOut(std::int32_t angle) {
+    setU16(0x2Eu, fallU16(0x2Eu) + static_cast<std::uint32_t>((trig(kCos, angle) * reach()) >> 12));
+    const auto again = static_cast<std::int32_t>(core_.mem_r32(kContactAngle));
+    setU16(0x36u, fallU16(0x36u) - static_cast<std::uint32_t>((trig(kSin, again) * reach()) >> 12));
+  }
+
+  void knockBack() {
+    if (core_.mem_r8(kAirLock) != 0u || (u8(0) & 6u) != 0u) {
+      return;
+    }
+    setU8(kGroup, kHazardGroup);
+    setU8(kMode, kKnockBackSubstate);
+    setU8(0, 3);
+    setU8(kSubstate, 0);
+    setU16(0x172u, 0x78u);
+    setU8(0x2Bu, static_cast<std::uint32_t>(static_cast<std::int32_t>(core_.mem_r32(kContactAngle)) >> 4));
+  }
+
+  std::uint32_t fall_;
+};
+
 } // namespace
 
 void WaterEntry::area6Tick(Core *core) {
@@ -305,9 +498,16 @@ void WaterEntry::area14Tick(Core *core) {
   Area14Tick(*core).run();
 }
 
+void WaterEntry::waterfallContact(Core *core) {
+  psx::cpu::PreservedReturnAddress returnAddress(*core);
+  psx::cpu::GuestFrameScope frame(*core, core->r[psx::cpu::kSp] - kWaterfallContactFrameSize);
+  WaterfallContact(*core).run();
+}
+
 void WaterEntry::registerAreaTicks(native::NativeOverrideCatalog &natives) {
   natives.declareOverlay("A06", kArea6Tick, "WaterEntry::area6Tick", &WaterEntry::area6Tick);
   natives.declareOverlay("A08", kArea8Tick, "WaterEntry::area8Tick", &WaterEntry::area8Tick);
+  natives.declareOverlay("A08", kWaterfallContact, "WaterEntry::waterfallContact", &WaterEntry::waterfallContact);
   natives.declareOverlay("A0E", kArea14Tick, "WaterEntry::area14Tick", &WaterEntry::area14Tick);
 }
 

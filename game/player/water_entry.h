@@ -25,6 +25,8 @@ public:
   static void area8Tick(Core *core);
   // A0E FUN_8010967C (a0 Tomba): area 14's floor tick, after holding Tomba against the actor he rides.
   static void area14Tick(Core *core);
+  // A08 FUN_8010D334 (a0 Tomba, a1 the waterfall): a swimmer rises up the falling water, anyone else is knocked out.
+  static void waterfallContact(Core *core);
 
   static void registerOverrides(native::NativeOverrideCatalog &natives);
 
