@@ -407,23 +407,13 @@ void Engine::submitPage810c() {
 // (fieldTransition + workers moved to FieldTransition — game/scene/field_transition.{h,cpp} —
 // eng(c).fieldTransition.step())
 
-// sm[0x48]==2 RUNNING, per-frame variant: dispatch sm[0x4a] handler. handler[0]
-// = the GAME->SOP bridge 0x8010882c (owned native, ov_game_submode0); the
-// others stay typed runtime address dispatch leaves (synchronous; a not-yet-sync leaf that yields
-// is contained by the scheduler setjmp = frame-done). GUEST FRAME MIRROR
+// sm[0x48]==2 RUNNING, per-frame variant: dispatch the sm[0x4a] handler, every one native
+// (0x8010882C, 0x801088D8, 0x80106478, 0x80106A24, 0x801089C4, 0x80108A60). GUEST FRAME MIRROR
 // (abi_extract --contract 0x80108784: single epilogue label at L_8010881C,
 // spill precedes the sm[0x4a]<6 check -> GuestFrame RAII is safe): sp-24,
 // ra@+16.
 void Engine::stageRunning() {
   Core *c = core;
-  constexpr uint32_t handler[6] = {
-      0x8010882cu,
-      0x801088d8u,
-      0x80106478u,
-      0x80106a24u,
-      0x801089c4u,
-      0x80108a60u,
-  };
   constexpr uint32_t jal_ra[6] = {
       // 80108784's per-case jal sites
       0x801087CCu,
@@ -453,12 +443,12 @@ void Engine::stageRunning() {
     else if (s4a == 2) {
       eng(c).areaLoadState();
     } // native FUN_80106478
-    else if (s4a == 4) {
+    else if (s4a == 3) {
+      eng(c).ending.step(*c);
+    } // native FUN_80106A24
+    else {
       eng(c).leaveGame();
     } // native FUN_801089C4
-    else {
-      psx::cpu::callGuestNow(*c, __func__, handler[s4a]);
-    }
   }
 }
 

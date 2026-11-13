@@ -53,4 +53,15 @@ at 0x5A frames and is frozen at 0x6E, losing vitality unless Cold Powder (`0x800
 (Squirrel Clothes), 0x200 (item 0x6C) and 0x400 (Evil Flame Pig Robe) skip it, so owning any of those grants
 cold immunity under the mod, matching the user's report that the Squirrel suit protects from cold.
 
-Next: list every gate site per bit with its enclosing function and own each test; read the A04 powder sites.
+Built (2026-11-13): `PSXPORT_TOMBA2_PERMANENT_SUITS` (`ModSettings::permanentSuits`) and `SuitAbilities`
+(`game/player/suit_abilities.h`), which owns the item-to-bit table and answers "worn, or owned under the mod" for
+suit ids 0x0E..0x16 (Clear Fruit's 0x200 stays worn-only). Owned gates:
+- the idle cold gate (`ActorTomba::idleColdGate`, 0x640): with the Squirrel Clothes owned and not worn (word 0x10),
+  Tomba stands in area 4 without freezing for 480 frames; off, he freezes and loses a point (`scratch/m0063/own_on`,
+  `own_off`);
+- the airborne step FUN_800574E0 (`Airborne::step`, with 0x8005706C, 0x800572EC and 0x80057150 inside it): every
+  0x20/0x40/0x60/0x180 test. A held jump in area 1 with the Squirrel owned glides and lands about 25 frames later
+  than with the mod off (`scratch/m0063/glide1_sheet.png`, `glide0_sheet.png`).
+
+Next, one function at a time: the remaining 0x40 sites (0x80056C00 landing, 0x8005B63C, 0x8005C26C, 0x8005D16C),
+then the swim bit 0x100 (`Tomba_waterLanding` 0x800665F4, A00 `0x8010E408`).

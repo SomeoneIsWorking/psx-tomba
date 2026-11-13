@@ -14,7 +14,6 @@
 #include "core/engine/engine.h"
 #include "core/engine/task_sm.h"         // TaskSm — the typed lens over the task record, owned in one header
 #include "core/overrides/guest_jal.h"    // tomba::guest::dispatchJalToReturn — the guest call convention
-#include "core/overrides/guest_resume.h" // requestGuestContinuation
 #include "entry/session.h"
 #include "game.h" // Game — the per-Core product the Engine drives
 #include "guest_call.h"
@@ -28,30 +27,20 @@
 #include "scene/start_bin_stage.h"   // class StartBinStage — the task-0 file-table builder
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 
 // One native loop iteration of the guest body 0x801063F4: dispatch the sm[0x48] handler, bump the frame counter.
-// Returns 0 for a state not owned here, which hands task 0 to the cooperative guest loop.
 namespace tomba {
 
-int Engine::frame() {
+void Engine::frame() {
   Core *c = core;
   uint32_t sm = c->mem_r32(0x1f800138u);
   uint16_t s48 = c->mem_r16(sm + 0x48);
   if (s48 == 2) {
-    uint16_t s4a = c->mem_r16(sm + 0x4a);
-    // OWNED running sub-modes: 0 = SOP-intro (SOP overlay must be loaded); 1 =
-    // field area machine (0x801088d8, the walkable field — its load is sync via
-    // native_transition_area_load, its running states are yield-free); 2 = the game over
-    // and pause-quit screen (areaLoadState); 4 = its Quit exit (leaveGame); 5 = the
-    // area-change transition (FieldTransition::step). Sub-mode 3 isn't owned yet.
-    if (s4a == 0) {
-      if (c->mem_r32(0x80109450u) != 0x3C021F80u) {
-        lucent::debug("gframe", "ret0 s48=2 s4a=0 SOP-not-loaded ov={:08X} sm@{:08X}", c->mem_r32(0x80109450u), sm);
-        return 0;
-      } // SOP not loaded -> cooperative
-    } else if (s4a == 3) {
-      lucent::debug("gframe", "ret0 s48=2 s4a={} unowned-submode sm@{:08X}", s4a, sm);
-      return 0; // unowned running sub-mode
+    // Sub-mode 0 runs the SOP overlay's field; the guest enters it only with SOP in the MODE slot.
+    if (c->mem_r16(sm + 0x4a) == 0 && c->mem_r32(0x80109450u) != 0x3C021F80u) {
+      lucent::error("gframe", "sub-mode 0 without SOP loaded (0x80109450 = {:08X})", c->mem_r32(0x80109450u));
+      std::abort();
     }
     c->r[31] = 0x8010645Cu; // guest loop jal site (L_80106454)
     eng(c).stageRunning();
@@ -62,34 +51,16 @@ int Engine::frame() {
     c->r[31] = 0x8010644Cu; // guest loop jal site (L_80106444)
     eng(c).stageResumeInit();
   } else {
-    lucent::debug("gframe", "ret0 unknown s48={} sm@{:08X}", s48, sm);
-    return 0; // unknown top state -> cooperative
+    // The guest loop runs no handler for any other state and spins without one.
+    lucent::error("gframe", "GAME top state sm[0x48] = {} has no handler", s48);
+    std::abort();
   }
   c->mem_w16(0x1f800198u,
              (uint16_t)(c->mem_r16(0x1f800198u) + 1)); // loop tail 0x8010645c
-  return 1;
 }
 
-// GAME stage TOP-LEVEL ENTRY 0x8010637C — task-0's stage driver: a one-time
-// PROLOGUE then an infinite per-frame loop {dispatch sm[0x48] handler; bump
-// frame counter DAT_1f800198; yield FUN_80051f80(1)}. The engine OWNS the
-// prologue PC-native here: it is pure register/memory init of the stage state
-// machine (no yield, no jal), so it is safe to reimplement and hand to the
-// guest loop body IN-CONTEXT via the coro- redirect handshake — exactly like
-// the sub-handlers. This is the entry point for owning the loop itself; the
-// loop body (0x801063F4) + its handler dispatch (all 3 handlers already native)
-// + the FUN_80051f80 yield still run via the resumed task-0 coroutine, so deep
-// yields/resumes are unchanged. Registered AUTO (it lives in GAME.BIN, flushed
-// on overlay unload). Faithful to 0x8010637C prologue (regs the loop body reads
-// MUST be set: s0=s1=0x1f800000, s2=1, sp=sp-0x20, ra saved at 0x1c(sp)):
-//   sp-=0x20; sw s1,0x14; s1=0x1f800000; sw s2,0x18; s2=1; sw s0,0x10;
-//   s0=0x1f800000; (saves INCOMING regs) 0x1f800206=0; 0x1f800236=0;
-//   0x1f800234=0; 0x1f80019a=2; v1=mem[0x1f800138]; a0=mem_r8(0x1f800134); sw
-//   ra,0x1c; 0x1f800198=0; 0x800be0e4=0; sm[0x48]=a0;
-//   sm[0x4a]=sm[0x4c]=sm[0x4e]=sm[0x50]=0.
-// Non-static: called directly from the native scheduler (native_boot.cpp) — the
-// ONE remaining native task entry after the override system was removed
-// (2026-06-22).
+// GAME stage entry 0x8010637C's prologue: the registers the loop body reads (s0=s1=0x1F800000, s2=1), the
+// 0x20 frame with the incoming s0..s2 and ra, and the stage machine's reset. The loop itself is Engine::frame.
 void Engine::stagePrologue() {
   Core *c = core;
   uint32_t ra = c->r[31], sp = c->r[29];
@@ -117,16 +88,6 @@ void Engine::stagePrologue() {
   c->mem_w16(task + 0x4e, 0);
   c->mem_w16(task + 0x50, 0);
   lucent::debug("stage", "ov_game_stage_prologue run, sm[0x48]={}", init48);
-}
-
-// OLD guest-loop entry (prologue + guest-continuation into the guest loop
-// 0x801063F4). SUPERSEDED by the native per-frame path (game_native in
-// Scheduler::step calls eng(c).stagePrologue + eng(c).frame). Retained as a
-// reference / fallback; not on the live path.
-void Engine::stageMain() {
-  Core *c = core;
-  stagePrologue();
-  tomba::requestGuestContinuation(*c, 0x801063F4u);
 }
 
 void Engine::areaModeDispatch() {

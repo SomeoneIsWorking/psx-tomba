@@ -62,6 +62,7 @@ std::string DevWarp::arm(Core &core, Destination destination) {
   entry_ = entry;
   armed_ = true;
   fade_ = false;
+  ending_ = false;
   spot_.reset();
   return lucent::format("ok: warp armed for area {} entry {}", area_, entry_);
 }
@@ -81,6 +82,14 @@ std::string DevWarp::armAt(Core &core, Destination destination, Spot spot) {
   return reply;
 }
 
+std::string DevWarp::armEnding() {
+  armed_ = true;
+  fade_ = false;
+  ending_ = true;
+  spot_.reset();
+  return "ok: ending armed";
+}
+
 void DevWarp::applyArmed(Core &core, uint32_t frame) {
   if (!armed_) {
     return;
@@ -89,6 +98,15 @@ void DevWarp::applyArmed(Core &core, uint32_t frame) {
   const Phase now = phase(core);
   if (now == Phase::Unavailable) {
     lucent::error("warp", "area {} entry {} dropped at f{}: the field is no longer running", area_, entry_, frame);
+    return;
+  }
+  if (ending_) {
+    if (now != Phase::Running || TaskSm(&core).stage4c() != kFieldRunMachine) {
+      lucent::error("warp", "ending dropped at f{}: the field run is not the running machine", frame);
+      return;
+    }
+    core.mem_w8(kPendingTransition, kEndingRequest);
+    lucent::info("warp", "ending requested at f{}", frame);
     return;
   }
   if (now == Phase::Opening) {

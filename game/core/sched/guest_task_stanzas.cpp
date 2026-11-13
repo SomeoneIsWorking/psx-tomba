@@ -59,7 +59,8 @@ void Scheduler::runGuestTask(const RunGuestTaskArgs &args) {
   }
 }
 
-Scheduler::Stanza Scheduler::runCoroutineStanza(int slot, std::uint32_t base, std::uint32_t state, const R3000 &loop) {
+Scheduler::Stanza Scheduler::runCoroutineStanza(const StanzaTask &task, const R3000 &loop) {
+  const auto [slot, base, state] = task;
   if (isNativeEntry(core_.mem_r32(base + kTaskEntry))) {
     return Stanza::NotMine;
   }
@@ -71,7 +72,6 @@ Scheduler::Stanza Scheduler::runCoroutineStanza(int slot, std::uint32_t base, st
     taskStarted_[slot] = true;
     demoNative_[slot] = false;
     gameNative_[slot] = false;
-    gameCoop_[slot] = false;
     coro_[slot] = std::make_unique<Coro>(game_.perf.clock());
     coro_[slot]->start([this, slot, base, entry] {
       runGuestTask({.slot = slot, .base = base, .entry = entry});
@@ -103,10 +103,9 @@ Scheduler::Stanza Scheduler::runCoroutineStanza(int slot, std::uint32_t base, st
   return Stanza::Handled;
 }
 
-// A native stage entry the stage stanzas did not take. A fresh GAME runs stageMain and continues in
-// the guest at its redirect; a fresh START runs startBinStage and ends the tick. GAME's cooperative
-// fallback re-enters the loop top with its callee-saved registers and sp at the 0x20 prologue frame.
-void Scheduler::runDispatchStanza(int slot, std::uint32_t base, std::uint32_t state, const R3000 &loop) {
+// A native stage entry the stage stanzas did not take: a fresh START runs startBinStage and ends the tick.
+void Scheduler::runDispatchStanza(const StanzaTask &task, const R3000 &loop) {
+  const auto [slot, base, state] = task;
   std::uint32_t resumePc = 0;
   bool isFresh = false;
   if (fresh(slot, state)) {
@@ -115,16 +114,7 @@ void Scheduler::runDispatchStanza(int slot, std::uint32_t base, std::uint32_t st
     startFresh(slot, base, loop);
     taskStarted_[slot] = true;
     demoNative_[slot] = false;
-  } else if (state == static_cast<std::uint32_t>(TaskState::Runnable) && gameCoop_[slot] &&
-             core_.mem_r32(base + kTaskEntry) == kStageGameEntry) {
-    resumePc = kGameLoopTop;
-    taskCtx_[slot].r[16] = kScratchpadBase;
-    taskCtx_[slot].r[17] = kScratchpadBase;
-    taskCtx_[slot].r[18] = 1;
-    taskCtx_[slot].r[31] = kGameLoopTop;
-    taskCtx_[slot].r[29] = core_.mem_r32(base + kTaskStack) - 0x20u;
   } else if (state == static_cast<std::uint32_t>(TaskState::Runnable)) {
-    gameCoop_[slot] = false;
     resumePc = taskCtx_[slot].r[31];
   } else {
     return; // sleeping this frame
@@ -142,9 +132,7 @@ void Scheduler::runDispatchStanza(int slot, std::uint32_t base, std::uint32_t st
     std::uint32_t start = resumePc;
     if (isFresh) {
       core_.pending_guest_redirect = 0;
-      if (resumePc == kStageGameEntry) {
-        eng(&core_).stageMain(); // leaves the guest redirect at the loop top
-      } else if (resumePc == kStageStartEntry) {
+      if (resumePc == kStageStartEntry) {
         eng(&core_).startBinStage();
         taskCtx_[slot] = static_cast<R3000 &>(core_);
         core_.mem_w16(base + kTaskState, static_cast<std::uint16_t>(TaskState::Runnable));

@@ -3,6 +3,8 @@
 // Owns the substate machine (which of sm[0x48] runs and its field writes); the per-substate system work stays
 // dispatched. Reached as `eng(c).demo.stageMain()` / `.frame()`; implementations in demo.cpp.
 #pragma once
+#include "scene/str_movie.h"
+
 #include <cstdint>
 class Core;
 class Game;
@@ -20,6 +22,7 @@ public:
   inline static constexpr std::uint32_t kTitleItems = 0x80106824u;
 
   Core *core = nullptr;
+  StrMovie openingMovie; // s1's MOVIE/OP.STR
 
   // Wire s3SubMachine (0x80106AC4) into the override registry
   // (tomba::native::declareOverride) — called from Runtime::registerOverrides through
@@ -32,9 +35,6 @@ public:
   // Called by Scheduler's DEMO stanza.
   void stageMain(); // one-time prologue + s0 (formerly ov_demo_stage_main)
   void frame();     // one per-frame substate dispatch + tail (formerly ov_demo_frame)
-
-  // s1's opening-movie sub-sequence: open OP.STR and step it one frame per turn; true once it ends.
-  bool stepOpeningMovie();
 
   // Substate handlers (called by frame() based on the current sm[0x48]
   // substate).
@@ -67,10 +67,6 @@ public:
 
 private:
   void s0Body(); // shared s0 case-0 body (see s0Native/s0Faithful above)
-
-  // The opening movie's progress across turns; s0 resets it (the guest clears its skip flag there).
-  enum class OpeningMovie : std::uint8_t { Pending, Playing, Done };
-  OpeningMovie openingMovie_ = OpeningMovie::Pending;
 };
 
 } // namespace tomba

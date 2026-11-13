@@ -170,6 +170,8 @@ set(GAME_SRC
   game/player/actor_tomba.cpp
   game/player/actor_interaction.cpp
   game/player/hazard_fall.cpp
+  game/player/suit_abilities.cpp
+  game/player/airborne.cpp
   game/scene/area_fade_sequencer.cpp
   game/scene/bg_scene_transition_sm.cpp
   game/scene/parallax_bg.cpp
@@ -214,6 +216,8 @@ set(GAME_SRC
   game/scene/sop.cpp
   game/scene/narration_scroller.cpp
   game/scene/demo.cpp
+  game/scene/str_movie.cpp
+  game/scene/ending.cpp
   game/scene/card_load_machine.cpp
   game/camera/cutscene_camera.cpp
   game/camera/camera_look_builder.cpp

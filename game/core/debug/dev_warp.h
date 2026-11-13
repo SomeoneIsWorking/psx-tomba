@@ -25,6 +25,8 @@ public:
   inline static constexpr uint32_t kDestination = 0x800bf83au;
   inline static constexpr uint8_t kDoorRequest = 1;
   inline static constexpr uint8_t kHandlerExitRequest = 3;
+  // The field run (machine 2) enters GAME sub-mode 3, the ending, on 8.
+  inline static constexpr uint8_t kEndingRequest = 8;
   // 0x800BF89C: 2 while the scripted opening runs, 4 in ordinary play.
   inline static constexpr uint32_t kLoadMode = 0x800bf89cu;
   inline static constexpr uint8_t kScriptedOpening = 2;
@@ -63,12 +65,15 @@ public:
   // As arm, with Tomba spawned at `spot` through the spawn's saved-position branch, the way a card load
   // resumes at a save point.
   std::string armAt(Core &core, Destination destination, Spot spot);
+  // Arms the ending request, which only the field run (machine 2) consumes.
+  std::string armEnding();
   // Writes the armed request at a frame boundary.
   void applyArmed(Core &core, uint32_t frame);
 
 private:
   bool armed_ = false;
   bool fade_ = false;
+  bool ending_ = false;
   std::optional<Spot> spot_;
   uint32_t area_ = 0;
   uint32_t entry_ = 0;

@@ -64,31 +64,6 @@ void Demo::s1() {
   tomba::requestGuestContinuation(*c, TAIL_NONE);
 }
 
-// s1's opening movie, one frame per turn (the boot LOGO's pattern); true once it has ended.
-bool Demo::stepOpeningMovie() {
-  Game &game = *core->game;
-  if (!sessionOf(core).playsMovies(game)) {
-    openingMovie_ = OpeningMovie::Done;
-    return true;
-  }
-  if (openingMovie_ == OpeningMovie::Pending) {
-    openingMovie_ = OpeningMovie::Playing;
-    if (!game.fmv.beginPath("MOVIE/OP.STR")) {
-      openingMovie_ = OpeningMovie::Done; // unresolved: the guest's player would not have played it either
-      return true;
-    }
-  }
-  if (openingMovie_ == OpeningMovie::Done || game.fmv.finished()) {
-    openingMovie_ = OpeningMovie::Done;
-    return true;
-  }
-  game.fmv.step(); // presents its own frames and skips on a held Start
-  if (game.fmv.finished()) {
-    openingMovie_ = OpeningMovie::Done;
-  }
-  return openingMovie_ == OpeningMovie::Done;
-}
-
 // s2 0x80106464 — sub-machine v0 = 0x8010696c(). Outcome 1 -> go to s7 (sm[0x48]=7, reset 0x4a/0x4c).
 // Outcome 2 -> two-phase cursor trick on sm[0x68]: first pass (==0) -> s3 (sm[0x48]=3, sm[0x68]=2);
 // second pass (!=0) -> s4 (sm[0x48]=4, sm[0x50]=0, sm[0x6b]=0, engine-update 0x8001cf2c,
@@ -608,22 +583,7 @@ static uint32_t demo_menu_machine(Core *c) {
   // streaming our no-IRQ runtime can't complete. Own the whole sub-sequence natively: step OP.STR and
   // replicate state 7's teardown, returning nonzero so s1 advances to s2 (the front-end/title proper).
   if (s4a >= 4) {
-    if (!eng(c).demo.stepOpeningMovie()) {
-      return 0; // the movie is still playing; stay in this sub-sequence
-    }
-    // state 7 (0x80107280) teardown, faithful — the CdControlB(CdlPause) busy-loop becomes a native no-op
-    // (no async CD read is running in our model). The other callees are synchronous libgs/SPU/cleanup.
-    c->r[4] = 0;
-    psx::cpu::callGuestNow(*c, __func__, 0x8001cf00u); // SPU CD->mix off
-    c->r[4] = 0;
-    psx::cpu::callGuestNow(*c, __func__, 0x8009c820u); // libgs reset
-    c->r[4] = 0;
-    psx::cpu::callGuestNow(*c, __func__, 0x8009c8bcu); // libgs reset
-    psx::cpu::callGuestNow(*c, __func__, 0x8008cd40u); // CD-event cleanup
-    psx::cpu::callGuestNow(*c, __func__, 0x8008cce0u); // alloc/dispatch cleanup (= ov_8008CCE0)
-    c->mem_w8(0x1f80019cu, 0);
-    c->mem_w8(0x1f80019du, 0);
-    return 1; // nonzero ⇒ s1 advances sm[0x48] 1->2 (s2)
+    return eng(c).demo.openingMovie.step(*c, "MOVIE/OP.STR") ? 1u : 0u; // nonzero ⇒ s1 advances sm[0x48] 1->2
   }
   c->r[4] = 0;                                       // a0 = 0 (s1 calls 0x80106F80(0))
   psx::cpu::callGuestNow(*c, __func__, 0x80106f80u); // states 1..3: run the real function (jr ra), advances sm[0x4a]
@@ -666,7 +626,6 @@ void Demo::s0Body() {
   s0PostYield();
 }
 void Demo::s0Native() {
-  openingMovie_ = OpeningMovie::Pending;
   s0Body();
 }
 

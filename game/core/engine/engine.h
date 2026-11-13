@@ -41,6 +41,7 @@
 #include "player/actor_tomba.h"     // Engine owns Tomba's per-frame logic + growth/movement
 #include "player/collision.h"       // Engine owns the Collision grid-family subsystem
 #include "render/cull.h"            // Engine owns the Cull visibility subsystem
+#include "scene/ending.h"           // Engine owns the Ending, GAME sub-mode 3
 #include "scene/field_transition.h" // Engine owns the FieldTransition sub-scene/door/area FADE machine
 #include "scene/mode_state_arm.h"   // Engine owns the ModeStateArm arm-primitive pair
 #include "scene/scene_events.h"     // Engine owns the SceneEvents arm subsystem (FUN_80040B48)
@@ -145,6 +146,7 @@ public:
   Array8Dispatch array8Dispatch;           // 8-slot fixed array dispatcher   (guest FUN_80026368)
   ObjectTable objectTable;                 // 40-slot fixed object table       (guest FUN_80026C88)
   Demo demo;                               // front-end DEMO / MENU stage machine (docs/engine_re.md)
+  Ending ending;                           // GAME sub-mode 3: the ending movies (guest FUN_80106A24)
   Sop sop;                                 // SOP intro-cutscene FIELD stage machine (guest 0x80109450)
   FieldTransition fieldTransition;         // sm[0x4a]==5 sub-scene/door/area FADE transition
                                            // machine (guest FUN_80108A60 + workers)
@@ -196,15 +198,8 @@ public:
   // when the GAME task enters — task-slot setup, first
   //   field-mode load, etc. (was `ov_game_stage_prologue`).
   // frame: one frame of the GAME stage — the sm[0x48] dispatcher + tail.
-  // Returns 0 if the current
-  //   sm[0x48] state isn't owned natively yet (scheduler falls back to
-  //   substrate); non-zero if handled here (was `ov_game_frame`).
   void stagePrologue();
-  int frame();
-  // stageMain: OLD guest-loop entry (prologue + guest-continuation into 0x801063F4).
-  // Kept as reference / fallback (native per-frame path calls stagePrologue +
-  // frame directly). Was ov_game_stage_main.
-  void stageMain();
+  void frame();
 
   // submode0 / submode1: the two sm[0x4a] state handlers under the GAME running
   // sub-mode (sm[0x48]==2). submode0 = SOP intro; submode1 = the walkable field

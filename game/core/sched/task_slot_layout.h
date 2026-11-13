@@ -37,7 +37,6 @@ enum class TaskState : std::uint8_t {
 inline constexpr std::uint32_t kStageStartEntry = 0x8010649Cu; // START.BIN stage 0
 inline constexpr std::uint32_t kStageDemoEntry = 0x801062E4u;  // DEMO / front-end menu
 inline constexpr std::uint32_t kStageGameEntry = 0x8010637Cu;  // GAME
-inline constexpr std::uint32_t kGameLoopTop = 0x801063F4u;     // GAME's cooperative loop head
 inline constexpr std::uint32_t kSopAreaLoadEntry = 0x80109164u;
 
 constexpr std::uint32_t taskSlotBase(int slot) {

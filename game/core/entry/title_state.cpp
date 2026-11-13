@@ -53,7 +53,6 @@ bool TitleState::save(psx::platform::BlobWriter &out, std::string &error) const 
     out.boolean(slot.started);
     out.boolean(slot.demoNative);
     out.boolean(slot.gameNative);
-    out.boolean(slot.gameCoop);
     writeContext(out, slot.context);
   }
   return true;
@@ -75,7 +74,6 @@ bool TitleState::load(psx::platform::BlobReader &in, std::string &error) {
     slot.started = in.boolean();
     slot.demoNative = in.boolean();
     slot.gameNative = in.boolean();
-    slot.gameCoop = in.boolean();
     slot.context = readContext(in);
   }
   if (!in.ok()) {

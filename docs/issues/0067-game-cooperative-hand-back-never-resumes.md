@@ -1,6 +1,6 @@
 # 0067 — GAME's cooperative hand-back never resumes task 0
 
-Status: open (2026-11-13).
+Status: fixed (2026-11-13).
 
 ## Reproduction
 Before 0066's fix: `spot 1 0 24 8576 -2600 14400` with `PSXPORT_DEBUG=sched,stage,gframe`
@@ -12,8 +12,16 @@ Before 0066's fix: `spot 1 0 24 8576 -2600 14400` with `PSXPORT_DEBUG=sched,stag
 handler's first state never ran.
 
 ## Cause
-Not traced. `game/core/sched/scheduler.cpp:Scheduler::runGameStanza` sets `gameCoop_[slot]` when `Engine::frame`
-returns 0, and `game/core/sched/guest_task_stanzas.cpp:Scheduler::runDispatchStanza` re-enters the guest loop top
-from it; after that first entry task 0 makes no further step. Owning sub-mode 3 natively in `Engine::frame` would
-leave the hand-back unreachable and deletable; its one guest callee not yet located is the overlay call
-`0x80112660(0/1)`.
+`game/core/engine/engine_state_dispatch.cpp:Engine::frame` returned 0 for sub-mode 3 (GAME `0x80106A24`, the
+ending), and `Scheduler::runGameStanza` then handed task 0 to the cooperative guest loop, which
+`Scheduler::runDispatchStanza` entered once and never stepped again.
+
+## Fix
+Sub-mode 3 is `tomba::Ending` (`game/scene/ending.cpp`): END.STR, then LOGO.STR, then the Quit exit (sub-mode 4).
+A0L's player `0x80112660` is `tomba::StrMovie`, shared with DEMO's opening movie. `Engine::frame` now owns every
+state and fails fast on one the guest has no handler for; the hand-back, `gameCoop_`, `Engine::stageMain` and the
+loop-top resume are gone (`tomba2.cd` v4).
+
+## Proof
+`warp 1/1`, then the `ending` debug verb (the field's own pending transition 8), `scratch/m0067/end1`: sub-mode 3,
+END.STR plays its 1200 frames, LOGO.STR its 255, sub-mode 4 leaves to the title, OP.STR and the attract demo follow.

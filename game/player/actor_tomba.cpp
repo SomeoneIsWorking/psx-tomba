@@ -14,6 +14,7 @@
 #include "game.h"
 #include "guest_abi.h"
 #include "guest_call.h"
+#include "player/suit_abilities.h"
 #include "player/tomba_state.h"
 
 #include <cstdint>
@@ -463,7 +464,7 @@ void ActorTomba::idleColdGate() {
   GuestFrame<24, 1> frame(c, kSpills);
   const bool warm = c->mem_r8(0x800BF816u) != 0
                     || c->mem_r8(G + 0x17Cu) == 0              // cold ground flag, set by A04
-                    || (c->mem_r16(G + 0x17Eu) & 0x640u) != 0; // Squirrel, item 0x6C or Flame robe worn
+                    || SuitAbilities::has(*c, 0x640u);         // Squirrel, Clear Fruit or Flame robe
   if (warm) {
     tomba::guest::dispatchJalToReturn(
         *c, {.target = 0x8005A970u, .returnAddress = 0x8005A950u}); // normal handler (direct same-shard in gen)

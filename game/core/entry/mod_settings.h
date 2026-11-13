@@ -12,6 +12,8 @@ class ModSettings {
 public:
   // PSXPORT_TOMBA2_PIT_VOID_OUT: a fall onto a death floor voids out as a water fall does.
   static bool pitVoidOut();
+  // PSXPORT_TOMBA2_PERMANENT_SUITS: every suit in the inventory lends its ability, worn or not.
+  static bool permanentSuits();
 
   static std::span<const psx::game::TitleIntSetting> titleIntSettings();
 };

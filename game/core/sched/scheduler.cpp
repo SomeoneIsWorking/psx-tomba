@@ -50,7 +50,6 @@ Scheduler::SlotStates Scheduler::slotStates() const {
     states[slot] = {.started = taskStarted_[slot],
                     .demoNative = demoNative_[slot],
                     .gameNative = gameNative_[slot],
-                    .gameCoop = gameCoop_[slot],
                     .context = taskCtx_[slot]};
   }
   return states;
@@ -62,7 +61,6 @@ void Scheduler::adoptSlotStates(const SlotStates &states) {
     taskStarted_[slot] = states[slot].started;
     demoNative_[slot] = states[slot].demoNative;
     gameNative_[slot] = states[slot].gameNative;
-    gameCoop_[slot] = states[slot].gameCoop;
     taskCtx_[slot] = states[slot].context;
   }
 }
@@ -241,7 +239,8 @@ void Scheduler::spawn(const SpawnArgs &args) {
 }
 
 // DEMO: fresh runs stageMain then frame(); resume runs frame(). An entry rewrite drops ownership.
-Scheduler::Stanza Scheduler::runDemoStanza(int slot, std::uint32_t base, std::uint32_t state, const R3000 &loop) {
+Scheduler::Stanza Scheduler::runDemoStanza(const StanzaTask &task, const R3000 &loop) {
+  const auto [slot, base, state] = task;
   const bool demoFresh = fresh(slot, state) && core_.mem_r32(base + kTaskEntry) == kStageDemoEntry;
   if (!demoFresh &&
       !(demoNative_[slot] && state == static_cast<std::uint32_t>(TaskState::Runnable) && taskStarted_[slot])) {
@@ -277,7 +276,8 @@ Scheduler::Stanza Scheduler::runDemoStanza(int slot, std::uint32_t base, std::ui
 
 // SOP area-load: fresh only; every leaf is a synchronous CD read, so it ends in one call.
 Scheduler::Stanza
-Scheduler::runSopAreaLoadStanza(int slot, std::uint32_t base, std::uint32_t state, const R3000 &loop) {
+Scheduler::runSopAreaLoadStanza(const StanzaTask &task, const R3000 &loop) {
+  const auto [slot, base, state] = task;
   if (!fresh(slot, state) || core_.mem_r32(base + kTaskEntry) != kSopAreaLoadEntry) {
     return Stanza::NotMine;
   }
@@ -295,9 +295,9 @@ Scheduler::runSopAreaLoadStanza(int slot, std::uint32_t base, std::uint32_t stat
   return Stanza::Handled;
 }
 
-// GAME: fresh runs stagePrologue + frame(); resume runs frame(). frame() returning 0 hands the task to
-// the guest loop top, which the dispatch stanza re-enters each frame.
-Scheduler::Stanza Scheduler::runGameStanza(int slot, std::uint32_t base, std::uint32_t state, const R3000 &loop) {
+// GAME: fresh runs stagePrologue + frame(); resume runs frame().
+Scheduler::Stanza Scheduler::runGameStanza(const StanzaTask &task, const R3000 &loop) {
+  const auto [slot, base, state] = task;
   const bool gameFresh = fresh(slot, state) && core_.mem_r32(base + kTaskEntry) == kStageGameEntry;
   if (!gameFresh &&
       !(gameNative_[slot] && state == static_cast<std::uint32_t>(TaskState::Runnable) && taskStarted_[slot])) {
@@ -310,13 +310,12 @@ Scheduler::Stanza Scheduler::runGameStanza(int slot, std::uint32_t base, std::ui
   }
   enterTask({.slot = slot, .base = base});
   inStage_ = true;
-  int handled = 1;
   if (setjmp(yieldJmp_) == 0) {
     Engine &engine = eng(&core_);
     if (gameFresh) {
       engine.stagePrologue();
     }
-    handled = engine.frame();
+    engine.frame();
   } else if (!warnedGameYield_) {
     warnedGameYield_ = true;
     lucent::debug("sched", "caught a GAME substate yield");
@@ -325,18 +324,6 @@ Scheduler::Stanza Scheduler::runGameStanza(int slot, std::uint32_t base, std::ui
   if (core_.mem_r32(base + kTaskEntry) != kStageGameEntry) {
     gameNative_[slot] = false;
     taskStarted_[slot] = false;
-    return Stanza::Handled;
-  }
-  if (!handled) {
-    core_.r[16] = kScratchpadBase;
-    core_.r[17] = kScratchpadBase;
-    core_.r[18] = 1;
-    core_.r[31] = kGameLoopTop;
-    taskCtx_[slot] = static_cast<R3000 &>(core_);
-    gameNative_[slot] = false;
-    gameCoop_[slot] = true;
-    core_.mem_w16(base + kTaskState, static_cast<std::uint16_t>(TaskState::Runnable));
-    lucent::debug("sched", "GAME -> cooperative guest loop");
     return Stanza::Handled;
   }
   taskCtx_[slot] = static_cast<R3000 &>(core_);
@@ -363,19 +350,19 @@ void Scheduler::stepSlot(int slot, const R3000 &loop) {
     demoNative_[slot] = false;
     return;
   }
-  if (runDemoStanza(slot, base, state, loop) == Stanza::Handled) {
+  if (runDemoStanza({.slot = slot, .base = base, .state = state}, loop) == Stanza::Handled) {
     return;
   }
-  if (runSopAreaLoadStanza(slot, base, state, loop) == Stanza::Handled) {
+  if (runSopAreaLoadStanza({.slot = slot, .base = base, .state = state}, loop) == Stanza::Handled) {
     return;
   }
-  if (runGameStanza(slot, base, state, loop) == Stanza::Handled) {
+  if (runGameStanza({.slot = slot, .base = base, .state = state}, loop) == Stanza::Handled) {
     return;
   }
-  if (runCoroutineStanza(slot, base, state, loop) == Stanza::Handled) {
+  if (runCoroutineStanza({.slot = slot, .base = base, .state = state}, loop) == Stanza::Handled) {
     return;
   }
-  runDispatchStanza(slot, base, state, loop);
+  runDispatchStanza({.slot = slot, .base = base, .state = state}, loop);
 }
 
 void Scheduler::step() {

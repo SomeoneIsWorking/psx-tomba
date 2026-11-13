@@ -135,6 +135,16 @@ DebugMenu::DebugMenu() {
       .refusal = fieldRefusal,
   });
   verb({
+      .name = "ending",
+      .summary = "Request the ending from the running field, as the game's own pending transition 8",
+      .run =
+          [](const DebugCall &call) {
+            call.reply = devControl(call.core).warp().armEnding();
+          },
+      .refusal = fieldRefusal,
+      .inMenu = false,
+  });
+  verb({
       .name = "spot",
       .summary = "Warp to an entry with Tomba spawned at a grid sector and x y z (the saved-position spawn)",
       .params = {DebugParam::integer("area", 0, AreaEntries::kAreaCount - 1),

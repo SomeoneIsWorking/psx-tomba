@@ -21,7 +21,7 @@ public:
     return "tomba2.cd";
   }
   [[nodiscard]] std::uint32_t version() const override {
-    return 3;
+    return 4;
   }
   // Refuses while a guest task is parked on a fiber (its host stack cannot be saved) or the LOGO movie plays.
   bool save(psx::platform::BlobWriter &out, std::string &error) const override;

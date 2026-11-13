@@ -74,7 +74,6 @@ public:
     bool started = false;
     bool demoNative = false;
     bool gameNative = false;
-    bool gameCoop = false;
     R3000 context{};
   };
   using SlotStates = std::array<SlotState, 3>;
@@ -96,11 +95,17 @@ private:
   void enterTask(const EnterTaskArgs &args);
   void startFresh(int slot, std::uint32_t base, const R3000 &loop);
   void dropCoroutine(int slot);
-  Stanza runDemoStanza(int slot, std::uint32_t base, std::uint32_t state, const R3000 &loop);
-  Stanza runSopAreaLoadStanza(int slot, std::uint32_t base, std::uint32_t state, const R3000 &loop);
-  Stanza runGameStanza(int slot, std::uint32_t base, std::uint32_t state, const R3000 &loop);
-  Stanza runCoroutineStanza(int slot, std::uint32_t base, std::uint32_t state, const R3000 &loop);
-  void runDispatchStanza(int slot, std::uint32_t base, std::uint32_t state, const R3000 &loop);
+  // The slot a stanza is offered, its record base and its state word.
+  struct StanzaTask {
+    int slot;
+    std::uint32_t base;
+    std::uint32_t state;
+  };
+  Stanza runDemoStanza(const StanzaTask &task, const R3000 &loop);
+  Stanza runSopAreaLoadStanza(const StanzaTask &task, const R3000 &loop);
+  Stanza runGameStanza(const StanzaTask &task, const R3000 &loop);
+  Stanza runCoroutineStanza(const StanzaTask &task, const R3000 &loop);
+  void runDispatchStanza(const StanzaTask &task, const R3000 &loop);
   struct RunGuestTaskArgs {
     int slot;
     std::uint32_t base;
@@ -119,7 +124,6 @@ private:
   std::array<bool, 3> demoNative_{};
   std::array<bool, 3> gameNative_{};
   // GAME re-enters its guest loop top each frame while a state is not native.
-  std::array<bool, 3> gameCoop_{};
   bool inStage_ = false;
   bool curIsCoro_ = false;
   int curSlot_ = 0;
