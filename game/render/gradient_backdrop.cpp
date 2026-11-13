@@ -52,7 +52,7 @@ void emitBands(Core *c, const OrderingTable &ot, const PacketPool &pool, const p
   // Retail spans columns [0, 320); the record canvas widens that to its margins.
   const psx::present::CullWindow window = wide_window::drawWindow(c);
 
-  const std::uint32_t first = pool.cursor();
+  const std::uint32_t first = pool.reserve(kBandCount * kBandBytes + kDrawModeBytes);
   std::uint32_t packet = first;
   for (const Band &band : bandsAt(origin)) {
     memory.mem_w32(packet + 0x04u, band.topColour | (std::uint32_t{kPolyG4} << 24));

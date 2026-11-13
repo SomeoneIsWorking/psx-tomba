@@ -163,7 +163,7 @@ void QuadRtptSubmit::submit(const psx::present::EmitMemory &memory,
     return;
   }
   const render::PacketPool pool(memory);
-  const std::uint32_t packet = pool.cursor();
+  const std::uint32_t packet = pool.reserve(kTemplateBytes);
   OrderingTable(memory, memory.mem_r32(OrderingTable::kBasePointer))
       .link({.packet = packet, .words = kTemplateWords - 1u, .bucket = static_cast<std::uint32_t>(bucket)});
   for (std::uint32_t word = 1; word < kTemplateWords; ++word) {

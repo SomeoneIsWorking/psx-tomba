@@ -166,7 +166,7 @@ void UiSprite::quads(Core *c) {
 
     const std::uint32_t bucket = core.mem_r8(attrs + 1u);
     const render::PacketPool packets(core);
-    const std::uint32_t packet = packets.cursor();
+    const std::uint32_t packet = packets.reserve(kPacketBytes);
     render::OrderingTable::active(core).link({.packet = packet, .words = kPacketWords, .bucket = bucket});
     std::uint32_t command[kPacketWords];
     for (std::uint32_t word = 0; word < kPacketWords; ++word) {

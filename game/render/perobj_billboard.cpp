@@ -135,8 +135,15 @@ constexpr uint32_t kInstancePlace = 0x8004A828u;
 constexpr uint32_t kInstanceTurn = 0x8004B374u;
 constexpr GuestFrameSpill kInstanceSpills[6] = {{16, 16}, {18, 24}, {19, 28}, {31 /*ra*/, 36}, {20, 32}, {17, 20}};
 
-NodeCase nodeCaseOf(Core &c, uint32_t node, uint32_t target) {
-  switch (target) {
+// A command-list node and the leaf its dispatch reached.
+struct NodeLeaf {
+  uint32_t node = 0;
+  uint32_t target = 0;
+};
+
+NodeCase nodeCaseOf(Core &c, const NodeLeaf &leaf) {
+  const uint32_t node = leaf.node;
+  switch (leaf.target) {
   case 0x8003CD00u:
     return {{}, 0x8003CD08u, 0};
   case 0x8003CD10u:
@@ -192,7 +199,7 @@ void Render::perObjRenderDispatch() {
   constexpr uint32_t TABLE = 0x80014EC8u;
   const uint32_t target = c->mem_r32(TABLE + sel * 4u);
   // Each case publishes its own jal-site ra before cmdListDispatch and before its effect leaf.
-  const NodeCase nodeCase = nodeCaseOf(*c, node, target);
+  const NodeCase nodeCase = nodeCaseOf(*c, {.node = node, .target = target});
   if (nodeCase.dispatchReturn == 0) {
     if (target != kNoDrawCase) {
       psx::cpu::callGuestNow(*c, __func__, target);
@@ -212,7 +219,7 @@ void Render::perObjRenderDispatch() {
   }
   const uint32_t post = tomba::render::PacketPool(*c).cursor();
   // The leaf reads the node after the emission; the effect the emitters saved was read before it.
-  if (nodeCaseOf(*c, node, target).effect != nodeCase.effect) {
+  if (nodeCaseOf(*c, {.node = node, .target = target}).effect != nodeCase.effect) {
     lucent::error("render", "node 0x{:08X}: its effect changed while cmdListDispatch emitted it", node);
     std::abort();
   }
@@ -641,7 +648,7 @@ void Render::billboardEmit() {
 
     // 5) Emit the 10-word packet (tag + 9 data words) at the pool tail, prepended into the OT bucket.
     const tomba::render::PacketPool packets(*c);
-    uint32_t tail = packets.cursor();
+    uint32_t tail = packets.reserve((9u + 1u) * 4u);
     const uint32_t bucket = c->mem_r32(FR(56));
     tomba::render::OrderingTable::active(*c).link({.packet = tail, .words = 9u, .bucket = bucket});
     tail += 4;

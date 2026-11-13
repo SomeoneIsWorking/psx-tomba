@@ -112,7 +112,7 @@ void AreaMap::emit(const psx::present::EmitMemory &memory, const ListCall &call,
   const std::int32_t mapDown = (memory.mem_r16s(layout.down) - layout.downOrigin) / kWorldPerPixel;
   const bool blink = (memory.mem_r16(kClock) & kBlinkBit) != 0;
 
-  const std::uint32_t marker = pool.cursor();
+  const std::uint32_t marker = pool.reserve(2u * kSpriteBytes + kModeBytes);
   memory.mem_w8(marker + 4u, blink ? 0x80 : 0xFF);
   memory.mem_w8(marker + 5u, blink ? 0x40 : 0x20);
   memory.mem_w8(marker + 6u, blink ? 0x40 : 0x20);

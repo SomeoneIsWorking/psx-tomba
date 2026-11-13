@@ -123,10 +123,12 @@ uint32_t OverlayGroundGt3Gt4::emitGt3(const psx::present::EmitMemory &memory,
     return rec;
   }
 
-  uint32_t pool = tomba::render::PacketPool(memory).cursor();
+  const tomba::render::PacketPool packets(memory);
+  uint32_t pool = packets.cursor();
   const uint32_t sp = call.sp; // the real frame below it is 6 scratch words, no spills
 
   for (; count != 0; count--, rec += 36) {
+    packets.reserve(pool, tomba::render::kModelGt3.packetBytes);
     c->gte().writeData(0, memory.mem_r32(rec + 16)); // VXY0
     uint32_t vz01 = memory.mem_r32(rec + 20);
     c->gte().writeData(2, memory.mem_r32(rec + 24)); // VXY1
@@ -222,7 +224,7 @@ uint32_t OverlayGroundGt3Gt4::emitGt3(const psx::present::EmitMemory &memory,
     pool += 40;
   }
 
-  tomba::render::PacketPool(memory).setCursor(pool);
+  packets.setCursor(pool);
   return rec;
 }
 
@@ -262,10 +264,12 @@ uint32_t OverlayGroundGt3Gt4::emitGt4(const psx::present::EmitMemory &memory,
     return rec;
   }
 
-  uint32_t pool = tomba::render::PacketPool(memory).cursor();
+  const tomba::render::PacketPool packets(memory);
+  uint32_t pool = packets.cursor();
   const uint32_t sp = call.sp; // the real frame below it is 8 scratch words, no spills
 
   for (; count != 0; count--, rec += 44) {
+    packets.reserve(pool, tomba::render::kModelGt4.packetBytes);
     c->gte().writeData(0, memory.mem_r32(rec + 20)); // VXY0
     uint32_t vz01 = memory.mem_r32(rec + 24);
     c->gte().writeData(2, memory.mem_r32(rec + 28)); // VXY1
@@ -372,7 +376,7 @@ uint32_t OverlayGroundGt3Gt4::emitGt4(const psx::present::EmitMemory &memory,
     pool += 52;
   }
 
-  tomba::render::PacketPool(memory).setCursor(pool);
+  packets.setCursor(pool);
   return rec;
 }
 

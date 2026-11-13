@@ -4,6 +4,9 @@
 #include "core.h"
 #include "core/frame/frame_driver.h"
 
+#include <cstdlib>
+#include <lucent/log.h>
+
 namespace tomba::render {
 
 OrderingTable OrderingTable::active(const psx::present::EmitMemory &memory) {
@@ -45,8 +48,26 @@ void PacketPool::setCursor(std::uint32_t address) const {
   mMemory.mem_w32(kCursor, address);
 }
 
+std::uint32_t PacketPool::reserve(std::uint32_t packet, std::uint32_t bytes) const {
+  if ((packet & 0xFFFFFFu) + bytes > (kEnd & 0xFFFFFFu)) {
+    lucent::error("tomba-packet-pool",
+                  "a {}-byte packet at {:08X} would pass the pool end {:08X} ({} bytes from {:08X})",
+                  bytes,
+                  packet,
+                  kEnd,
+                  kEnd - kBase,
+                  kBase);
+    std::abort();
+  }
+  return packet;
+}
+
+std::uint32_t PacketPool::reserve(std::uint32_t bytes) const {
+  return reserve(cursor(), bytes);
+}
+
 std::uint32_t PacketPool::allocate(std::uint32_t bytes) const {
-  const std::uint32_t packet = cursor();
+  const std::uint32_t packet = reserve(bytes);
   setCursor(packet + bytes);
   return packet;
 }

@@ -66,7 +66,7 @@ void ScreenFade::draw(Core &core, const psx::present::CullWindow &window) {
   core.mem_w16(fill + 12u, static_cast<std::uint16_t>(window.right - window.left));
   core.mem_w16(fill + 14u, static_cast<std::uint16_t>(kGuestHeight));
 
-  const std::uint32_t mode = pool.cursor();
+  const std::uint32_t mode = pool.reserve(kModeBytes);
   core.r[16] = mode;
   core.r[17] = slot;
   core.mem_w32(sp + kDrawModeTw, 0u);

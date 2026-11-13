@@ -200,6 +200,7 @@ void PackedMesh::emit(const psx::present::EmitMemory &memory, Variant variant, c
   std::uint32_t record = call.list;
   for (std::uint32_t index = 0;; ++index, record += kRecordBytes) {
     const auto last = static_cast<std::int32_t>(memory.mem_r32(record + 4u)) <= 0;
+    pool.reserve(packet, kPacketBytes);
     if (mesh.write({.record = record, .packet = packet})) {
       packet += kPacketBytes;
     }
@@ -219,6 +220,7 @@ void PackedMesh::emitScreen(const psx::present::EmitMemory &memory, const Screen
   const auto bucket = static_cast<std::uint32_t>(memory.mem_r32(fxpublish::kOtKey));
   std::uint32_t packet = pool.cursor();
   for (std::uint32_t record = call.list;; record += kRecordBytes, packet += kPacketBytes) {
+    pool.reserve(packet, kPacketBytes);
     for (std::uint32_t corner = 0; corner < 4u; ++corner) {
       memory.storeVertex(packet + PackedRecord::kPacketScreen[corner],
                          publish.scaledCorner({.anchor = anchor,

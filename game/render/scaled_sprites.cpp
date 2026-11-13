@@ -62,6 +62,7 @@ std::uint32_t ScaledSprites::stamp(const psx::present::EmitMemory &memory, const
   std::uint32_t record = stamp.records;
   std::uint32_t flags = 0;
   do {
+    pool.reserve(packet, kPacketBytes);
     const std::uint32_t texel = memory.mem_r32(record + 4u);
     flags = texel >> 16;
     const Edges u = edgesOf(texel, (flags & kFlipU) != 0u, kFlippedFarU);

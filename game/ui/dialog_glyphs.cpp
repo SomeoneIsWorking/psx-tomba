@@ -84,6 +84,7 @@ void DialogGlyphs::emit(Core *c) {
       row = charRow;
       c->mem_w16(kTemplateClut, static_cast<std::uint16_t>(((row + kClutRowBase) << 6) | 0x3Fu));
     }
+    pool.reserve(packet, kSpriteBytes);
     c->mem_w8(packet + 7u, c->mem_r8(kTemplateCode));
     c->mem_w16(packet + 0xEu, c->mem_r16(kTemplateClut));
     c->mem_w16(packet + 8u, c->mem_r16(glyph));
@@ -97,7 +98,7 @@ void DialogGlyphs::emit(Core *c) {
     packet += kSpriteBytes;
   }
 
-  pool.setCursor(packet + kModeBytes);
+  pool.setCursor(pool.reserve(packet, kModeBytes) + kModeBytes);
   c->mem_w32(c->r[29] + kWindowArg, 0);
   c->r[2] = render::setDrawMode(
       *c, {.packet = packet, .drawOnDisplay = 0, .dither = 0, .texturePage = kTexturePage, .window = 0});
@@ -109,7 +110,7 @@ void DialogGlyphs::prompt(Core *c) {
   ::GuestFrame<kPromptFrameBytes, 3> frame(c, kPromptSpills);
 
   const render::PacketPool pool(*c);
-  const std::uint32_t packet = pool.cursor();
+  const std::uint32_t packet = pool.reserve(kSpriteBytes + kModeBytes);
   c->mem_w8(packet + 7u, kSprite);
   c->mem_w16(packet + 0xEu, kPromptClut);
   c->mem_w16(packet + 8u, static_cast<std::uint16_t>(c->mem_r16(rect) + c->mem_r16(rect + 4u) - kPromptSize));

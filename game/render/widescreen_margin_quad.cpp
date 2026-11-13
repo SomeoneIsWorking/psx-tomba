@@ -280,6 +280,7 @@ void WidescreenMarginQuad::emit(Core *c) {
     c->gte().writeData(5, c->mem_r32(sp + kVtxScratch_Z2)); // VZ2
     c->gte().execute(0x4A280030u);                          // RTPT
 
+    tomba::render::PacketPool(*c).reserve((uint32_t)pool, (kPktWords + 1u) * 4u);
     // rgb0|code: colorCode0Src masked to 24 bits, re-tagged with the fixed code byte.
     c->mem_w32(poolBase - 44, (rec.colorCode0Src() & 0x00FFFFFFu) | kColorCodeTag);
     // uv0|clut: record's base word plus the node's clut bias.

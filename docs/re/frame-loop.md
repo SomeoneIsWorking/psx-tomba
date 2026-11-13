@@ -32,4 +32,4 @@ other's packets. `finishPass` draws the OT before the next pass top, so no packe
 gives every pass both pools from `0x800BFE68`. The widened 16:9 cull outgrows one pool: in the opening's letterboxed
 village shot after A00 binds the second time (logic frame ~5760) passes use 0x133E4..0x14204 bytes, and a parity-1
 pass ran past 0x800E7E68 into the pad edge mask and the render-record free-stack cursor `0x800E7E74` (issue 0058).
-The same opening at 4:3 never aborts. A pass that ends past `PacketPool::kEnd` aborts at the next pass top.
+The same opening at 4:3 never aborts. At 21:9 the opening (new game, OPN and A00, 6,880 passes) peaks at 90,708 of 163,840 bytes, 156 of its passes past one parity pool (`scratch/pool-open/a21`, `tomba-packet-pool` debug channel, one line per pass). Every native writer reserves its packet bytes through `PacketPool::reserve` before writing them and aborts naming the packet; guest code writes past the end are still caught only when the pass that ends past `PacketPool::kEnd` reaches the next pass top.

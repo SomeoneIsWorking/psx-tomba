@@ -106,7 +106,11 @@ public:
 
   std::uint32_t cursor() const;
   void setCursor(std::uint32_t address) const;
-  // Bumps the cursor past `bytes` and returns the packet it pointed at.
+  // `packet`; aborts first when `bytes` written from it would pass kEnd.
+  std::uint32_t reserve(std::uint32_t packet, std::uint32_t bytes) const;
+  // The packet at the cursor, reserved for `bytes`.
+  std::uint32_t reserve(std::uint32_t bytes) const;
+  // Reserves `bytes` at the cursor, bumps the cursor past them and returns the packet it pointed at.
   std::uint32_t allocate(std::uint32_t bytes) const;
   // The room A04's snow FUN_8013AD90 leaves before the pool end for the draws after it.
   static constexpr std::uint32_t kReserve = 0x8000u;

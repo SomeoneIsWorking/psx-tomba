@@ -215,6 +215,8 @@ constexpr uint32_t kLoadImage = 0x80081218u;
 constexpr uint32_t kLoadImageReturn = 0x8010C624u;
 
 constexpr uint32_t kHeaderBytes = 12u;
+// One SPRT: tag, colour and code, xy, uv and clut.
+constexpr uint32_t kTileBytes = 16u;
 
 } // namespace
 
@@ -393,7 +395,7 @@ void TileGridLayer::emitGrid(const psx::present::EmitMemory &memory, const EmitG
       // so its literal encodings 19/20/23/24/28/30(a2) are +3/+4/+7/+8/+12/+14 off the tile base —
       // the canonical SPRT layout: [tag][color|code][xy][uv|clut]. A first draft copied the a2-based
       // literals as base-relative and shifted every field +16 (SBS f117 packet_pool divergence).
-      const uint32_t thisAddr = pool;
+      const uint32_t thisAddr = packets.reserve(pool, kTileBytes);
       memory.mem_w32(thisAddr + 4u, 0x7D808080u);
       memory.mem_w8(thisAddr + 7u, 0x7Cu);
       memory.mem_w8(thisAddr + 3u, 3u);
@@ -405,7 +407,7 @@ void TileGridLayer::emitGrid(const psx::present::EmitMemory &memory, const EmitG
       }
       memory.mem_w16(thisAddr + 12u, (uint16_t)((u & 0xFF) | ((v & 0xFF) << 8)));
       memory.mem_w16(thisAddr + 14u, (uint16_t)(clutBase + ((tile & 0xF00u) >> 2)));
-      pool += 16u;
+      pool += kTileBytes;
       memory.mem_w32(thisAddr + 0u, pool | 0x03000000u);
       last = thisAddr;
 
@@ -433,7 +435,7 @@ void TileGridLayer::emitGrid(const psx::present::EmitMemory &memory, const EmitG
   ot.chainToHead({.lastPacket = last, .bucket = kOtBucketBg});
 
   // The draw mode packet that sets the sprites' texture page leads the chain.
-  const uint32_t header = pool;
+  const uint32_t header = packets.reserve(pool, kHeaderBytes);
   tomba::render::setDrawMode(memory,
                              {.packet = header, .drawOnDisplay = 0u, .dither = 0u, .texturePage = tpage, .window = 0u});
   memory.mem_w32(header + 0u, first | 0x02000000u);

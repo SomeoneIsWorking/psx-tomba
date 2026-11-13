@@ -175,6 +175,7 @@ void LineStrip::emit(const psx::present::EmitMemory &memory, const ListCall &cal
       continue;
     }
     const auto at = static_cast<std::uint32_t>(bucket);
+    pool.reserve(packet, 2u * (kLineBytes + kModeBytes));
     packet =
         drawLine(memory, {.packet = packet, .colour = colour, .bucket = at, .texturePage = kFirstTexturePage}, 0, ot);
     packet = drawLine(memory,

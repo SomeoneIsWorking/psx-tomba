@@ -99,7 +99,7 @@ public:
     for (std::int32_t row = kTopRow; row <= kBottomRow; row += kCellHeight) {
       bool odd = false;
       for (std::int32_t x = kLeftEdge; x < -kLeftEdge; x += kCellWidth, odd = !odd) {
-        planeCell(row, x, odd);
+        planeCell({.row = row, .x = x, .odd = odd});
       }
     }
     bool odd = false;
@@ -116,8 +116,14 @@ private:
     return {left, right, left, right};
   }
 
+  struct Cell {
+    std::int32_t row = 0;
+    std::int32_t x = 0;
+    bool odd = false;
+  };
   // A plane cell whose bottom edge is model y `row`; below y 0 the texture is mirrored and darkened.
-  void planeCell(std::int32_t row, std::int32_t x, bool odd) {
+  void planeCell(const Cell &cell) {
+    const auto [row, x, odd] = cell;
     const auto left = static_cast<std::int16_t>(x);
     const auto right = static_cast<std::int16_t>(x + kCellWidth);
     const auto top = static_cast<std::int16_t>(row - kCellHeight);
@@ -180,6 +186,7 @@ private:
 
   // RTPT corners 0-2, RTPS corner 3, the screen gate, then AVSZ4 into OTZ.
   bool project(const Quad &quad) const {
+    mPool.reserve(mPacket, kQuadBytes);
     auto &gte = mMemory.core().gte();
     gte.writeData(psx::gte::kVxy0, xy(quad.corners[0]));
     gte.writeData(psx::gte::kVz0, static_cast<std::uint16_t>(quad.corners[0].z));

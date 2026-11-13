@@ -584,7 +584,7 @@ L_80078F04: {
   const uint32_t command[4] = {
       c->mem_r32(c->r[18] + 4u), c->mem_r32(c->r[18] + 8u), c->mem_r32(c->r[18] + 12u), c->mem_r32(c->r[18] + 16u)};
   c->r[6] = tomba::render::PacketPool::kCursor;
-  c->r[4] = glyphPackets.cursor();
+  c->r[4] = glyphPackets.reserve((4u + 1u) * 4u);
   c->r[5] = glyphOt.slot(c->r[19]);
   c->r[3] = 4u << 24;
   c->r[2] = glyphOt.link({.packet = c->r[4], .words = 4u, .bucket = c->r[19]});
@@ -628,7 +628,7 @@ L_80078F88:
   c->r[6] = c->r[5] + c->r[0];
   const tomba::render::PacketPool tailPackets(*c);
   c->r[17] = tomba::render::PacketPool::kCursor;
-  c->r[16] = tailPackets.cursor();
+  c->r[16] = tailPackets.reserve((2u + 1u) * 4u);
   c->r[7] = c->r[0] + 31u;
   c->mem_w32(c->r[29] + 16u, c->r[0]);
   c->r[31] = 0x80078FA8u;
@@ -749,7 +749,7 @@ struct IconScratch {
 
 void emitGuestIconSprite(Core *c, uint32_t bucket) {
   const tomba::render::PacketPool packets(*c);
-  const uint32_t packet = packets.cursor();
+  const uint32_t packet = packets.reserve((kSpritePacketWords + 1u) * 4u);
   tomba::render::OrderingTable::active(*c).link({.packet = packet, .words = kSpritePacketWords, .bucket = bucket});
   c->mem_w32(packet + 4u, c->mem_r32(kIconScratch + 4u));
   c->mem_w32(packet + 8u, c->mem_r32(kIconScratch + 8u));
@@ -878,7 +878,7 @@ void Font::iconGlyphEmit(Core *c) {
   }
 
   const tomba::render::PacketPool packets(*c);
-  const uint32_t drawModePacket = packets.cursor();
+  const uint32_t drawModePacket = packets.reserve((kDrawModePacketWords + 1u) * 4u);
   tokenEntry = drawModePacket;
   cursor = tomba::render::PacketPool::kCursorPage;
   c->mem_w32(c->r[29] + 16u, 0u);

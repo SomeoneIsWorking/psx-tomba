@@ -66,7 +66,7 @@ Frame loop: owned. `tomba::FrameDriver` runs one pass of `0x80050B08` (update `0
 | `Math`, `Mtx`, `Trig`, `Rng`, `Bit` | `game/math/` | The GTE transform cluster, libgte matrix and trig leaves, the LFSR, flag bits |
 | `Font`, `Panel`, `DialogGlyphs`, `UiSprite`, `OptionsPage`, `SaveMenu`, `DialogTextStream` | `game/ui/` | Guest-time UI ports: glyphs, panels (`panel_build.cpp` the 9-slice build, `panel_fill.cpp` its quads), dialog-box glyphs, 2D sprite writers, options, save menu, dialog stream |
 | `Render` | `game/render/render.h`, `game/render/render_frame.cpp` | The per-Core render umbrella and the guest render orchestrators, overridden so every guest caller (GAME's submode frames, DEMO's attract frame) reaches `Render::frame`/`frameX`, GAME's page step G:8010810C, `Render::pageStep`, and A03's cart-ride draw 0x8010B328, `Render::ride`, and the door fade frames' draw M:8003FA1C, `Render::frameLists` |
-| `OrderingTable`, `PacketPool` | `game/render/guest_ordering_table.h` | The guest OT and packet pool: link, allocate, depth-to-bucket, `extremeDepth` |
+| `OrderingTable`, `PacketPool` | `game/render/guest_ordering_table.h` | The guest OT and packet pool: link, reserve (the one overflow check before a native write), allocate, depth-to-bucket, `extremeDepth` |
 | `ModelPacket`, `UnlitModelEmitter`, `LitModelEmitter`, `SwayModelEmitter` | `game/render/*model*` | The GT3/GT4 model list emitters and their shared steps |
 | `OverlayGt3Gt4`, `OverlayGroundGt3Gt4` | `game/render/overlay_*gt3gt4.*` | The overlay scenery GT3/GT4 emitters |
 | `PackedMesh`, `DropShadow` | `game/render/packed_mesh.h`, `game/render/drop_shadow.h` | The packed-mesh writer FUN_80027768 and the drop shadow FUN_8002AB5C |

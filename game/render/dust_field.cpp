@@ -138,6 +138,7 @@ void drawPoints(const psx::present::EmitMemory &memory, Variant variant, const L
     if (static_cast<std::int32_t>(memory.mem_r32(kScratchDepth)) < 0) {
       continue;
     }
+    pool.reserve(packet, kRectBytes);
     memory.mem_w32(packet + 8u, gte.projected(2).word());
     memory.mem_w32(kScratchDepth, gte.readData(psx::gte::kSz3));
     const std::uint32_t screenX = memory.mem_r16(packet + 8u);

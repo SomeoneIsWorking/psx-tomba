@@ -57,6 +57,10 @@ void rotatePacketPool(Core &core) {
         "tomba-frame", "the pass ended its packets at {:08X}, past the pool end {:08X}", last, PacketPool::kEnd);
     std::abort();
   }
+  lucent::debug("tomba-packet-pool",
+                "pass holds {} of {} bytes",
+                (last & 0xFFFFFFu) - (PacketPool::kBase & 0xFFFFFFu),
+                PacketPool::kEnd - PacketPool::kBase);
   core.mem_w32(PacketPool::kLastCursor, last);
   core.mem_w32(PacketPool::kCursor, PacketPool::kBase & 0xffffffu);
 }

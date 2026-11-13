@@ -101,7 +101,7 @@ void UiSprite::compose(Core *c) {
 
     // link the packet, then copy the template into it
     const tomba::render::PacketPool packets(*c);
-    const uint32_t packet = packets.cursor();
+    const uint32_t packet = packets.reserve(UiSprite::kSpriteBytes);
     tomba::render::OrderingTable::active(*c).link(
         {.packet = packet, .words = SPRITE_TAG_WORDS, .bucket = c->mem_r8(attrs + 1)});
 
@@ -118,7 +118,7 @@ void UiSprite::compose(Core *c) {
 
   // tail: one draw-mode packet carrying the definition's tpage, linked in front of the sprites
   const tomba::render::PacketPool packets(*c);
-  const uint32_t modePacket = packets.cursor();
+  const uint32_t modePacket = packets.reserve(MODE_PACKET_BYTES);
   c->r[16] = modePacket;
   c->mem_w32(frame + 16, 0); // 5th arg of the builder, passed on the stack
   c->r[4] = modePacket;

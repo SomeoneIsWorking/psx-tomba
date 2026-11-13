@@ -113,6 +113,7 @@ void RainStreaks::draw(Core *c) {
       c->mem_w32(trail, kNoTrail);
       continue;
     }
+    packets.reserve(pool, kLineBytes + kTpageBytes);
     c->mem_w32(pool + 8u, c->gte().projected(2).word());
     const std::int32_t otz = orderingIndex(static_cast<std::int32_t>(c->gte().readData(psx::gte::kSz3)));
     c->mem_w32(kScratchDepth, static_cast<std::uint32_t>(otz));

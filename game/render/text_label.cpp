@@ -48,6 +48,8 @@ constexpr GuestFrameSpill kSpills_80039F4C[7] = {
 constexpr int16_t kGlyphX[4] = {-3, 5, -3, 5};
 constexpr int16_t kGlyphY[4] = {-7, -7, 9, 9};
 constexpr int16_t kGlyphZ = -1;
+// One glyph's POLY_FT4 packet.
+constexpr uint32_t kGlyphBytes = 40u;
 
 void textLabelBody(Core *c) {
   GuestFrame<120, 7> frame(c, kSpills_80039F4C);
@@ -105,11 +107,11 @@ void textLabelBody(Core *c) {
     // glyph UV fill into the packet at the pool tail (space → v0=-1 → skip).
     c->r[4] = c->r[18];
     const tomba::render::PacketPool pool(*c);
-    c->r[5] = pool.cursor();
+    c->r[5] = pool.reserve(kGlyphBytes);
     tomba::guest::dispatchJalToReturn(*c, {.target = 0x80039E80u, .returnAddress = 0x8003A05Cu});
     if ((int32_t)c->r[2] != -1) {
       const uint32_t cmd = c->mem_r32(c->r[19] + 192u);
-      c->r[16] = pool.allocate(40u); // this glyph's packet
+      c->r[16] = pool.allocate(kGlyphBytes);
       c->r[4] = cmd + 24u;
       tomba::guest::dispatchJalToReturn(
           *c, {.target = 0x80084660u, .returnAddress = 0x8003A080u}); // SetRotMatrix(cmd+0x18)
