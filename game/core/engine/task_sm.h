@@ -69,6 +69,10 @@ public:
     c->mem_w8(base + 0x69u, v);
   }
 
+  void setF6a(uint8_t v) {
+    c->mem_w8(base + 0x6Au, v);
+  }
+
   uint8_t f6b() const {
     return c->mem_r8(base + 0x6Bu);
   }

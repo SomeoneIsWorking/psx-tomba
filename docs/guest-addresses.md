@@ -505,7 +505,7 @@ calls it. A row whose handler is file-local names the file that declares the ove
 | 0x801063F4 | ORPHAN | `Engine::stageMain` | game/core/engine/engine_state_dispatch.cpp |  | OLD guest-loop entry (prologue + guest-continuation into the guest loo… |
 | 0x8010641C | LIVE | `Demo::s1` | game/scene/demo.cpp | 0x80106F80 | s1 0x8010641C — wait/advance: v0 = inner menu input machine 0x80106f80… |
 | 0x80106464 | LIVE | `Demo::s2` | game/scene/demo.cpp | 0x8001CF2C 0x8010696C | s2 0x80106464 — sub-machine v0 = 0x8010696c(). Outcome 1 -> go to s7 (… |
-| 0x80106478 | LIVE | `Engine::areaLoadState` | game/core/engine/engine_task_machine.cpp | 0x8001CF2C 0x8004D8B0 0x80078824 0x8007E8DC 0x8007ED5C 0x8007EE74 … | Engine::areaLoadState — native ownership of FUN_80106478 (the |
+| 0x80106478 | LIVE | `Engine::areaLoadState` | game/core/engine/engine_task_machine.cpp | 0x8001CF2C 0x8004D8B0 0x80078824 0x8007E8DC 0x8007ED5C 0x8007EE74 … | sm[0x4a]==2: the game over and pause-quit screen (Save?, Continue / Load data / Quit game) |
 | 0x8010649C | LIVE | `StartBinStage::runNative` | game/scene/start_bin_stage.cpp |  | START.BIN stage 0: file tables from the host ISO9660, boot preloads inline |
 | 0x801064E8 | LIVE | `Demo::s3` | game/scene/demo.cpp | 0x800750D8 0x80106AC4 | s3 0x801064E8 — sub-machine v0 = 0x80106ac4() (mirror of 0x8010696c). … |
 | 0x80106580 | LIVE | `demo_frame_s4` | game/scene/demo.cpp |  | Substate s4 (0x80106580) — LOAD GAME. The body runs the load sub-machi… |
@@ -524,6 +524,7 @@ calls it. A row whose handler is file-local names the file that declares the ove
 | 0x80108720 | LIVE | `Engine::stageResumeInit` | game/core/engine/engine_task_machine.cpp |  | sm[0x48] == 1 — area RESUME-INIT (re-enter a running area, sub-mode 1)… |
 | 0x8010882C | LIVE | `Engine::stageRunning` | game/core/engine/engine_task_machine.cpp |  | sm[0x48]==2 RUNNING, per-frame variant: dispatch sm[0x4a] handler. han… |
 | 0x8010882C | LIVE | `Engine::submode0` | game/core/engine/engine_task_machine.cpp | 0x80109450 | GAME sub-mode-0 bridge 0x8010882c (sm[0x4c]/sm[0x4e] dispatch) — nativ… |
+| 0x801089C4 | LIVE | `Engine::leaveGame` | game/core/engine/engine_task_machine.cpp |  | sm[0x4a]==4 after Quit: settle the area audio, then FUN_80052078(1) to the title |
 | 0x80108A60 | LIVE | `FieldTransition::step` | game/scene/field_transition.cpp |  | sm[0x4a]==5 transition dispatcher on sm[0x4c]. 0/9 = done |
 | 0x80108B0C | LIVE | `Engine::devTeleportApply` | game/core/engine/engine_scene_frame.cpp |  | FIELD PER-FRAME UPDATE 0x80108b0c — native control flow (the field fra… |
 | 0x80109164 | LIVE | `Sop::areaLoad` | game/scene/sop.cpp | 0x8001DC40 | Owned synchronous area-DATA load (replaces the body of LAB_80109164 |

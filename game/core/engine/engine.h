@@ -231,11 +231,8 @@ public:
   // LOAD/TRANSITION body reached via the guest's own case-label addresses
   // (0x801064c4/106510/106580/1065b8/1066b8/106830/106930/10694c/1069b4). It is
   // a plain switch(sm[0x4c]) — Ghidra recovered it as ONE function, not 9
-  // separate ones — so calling this method fresh reaches the same case body the
-  // guest-continuation used to jump into directly (the redirect skipped only the
-  // leading areaSlots.updateTail() call and the switch dispatch itself, both
-  // idempotent / already-current here). Owns control flow + every
-  // sm/DAT_800bf84a/etc state write; the pause/save-menu text-render leaves
+  // separate ones. It is the game over and pause-quit screen: Save, Continue, Load data, Quit. Owns control flow +
+  // every sm/DAT_800bf84a/etc state write; the pause/save-menu text-render leaves
   // (FUN_8007E8DC/8007ED5C/8007EE74/8007EF60), the quit-confirm dialog
   // sub-machine (FUN_8007BF20, its own DAT_800bf84a-keyed SM), and the
   // audio-tick leaf (FUN_8001CF2C) stay substrate (font/pad-hold leaves with no
@@ -247,6 +244,8 @@ public:
   // bits at 0x800E7E68. Rules out the last un-RE'd sibling of the sm[0x4c] area
   // machine.
   void areaLoadState();
+  // leaveGame(): guest FUN_801089C4, sm[0x4a] == 4 after Quit: settle the area audio, then startStage(1).
+  void leaveGame();
 
   // fieldFrame / fieldFrameX: the FIELD per-frame update body (guest
   // 0x80108B0C) and its mid-transition twin (0x80108BE4, sm[0x4a]==5

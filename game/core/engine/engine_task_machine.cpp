@@ -131,7 +131,8 @@ void Engine::stageResumeInit() {
 // GUEST STACK" rule, not addressed here since adding the frame would be a
 // behavior change (new guest-stack bytes), not a readability one.
 void Engine::areaLoadState() {
-  Core *c = core; // FUN_80106478
+  Core *c = core;                // FUN_80106478
+  eng(c).areaSlots.updateTail(); // 0x80075A80, every frame before the switch
   TaskSm sm(c);
   switch (sm.stage4c()) {
   case 0: {
@@ -143,7 +144,7 @@ void Engine::areaLoadState() {
     sm.setIntroTimer(0x14A);
     sm.setStage4c((uint16_t)(sm.stage4c() + 1));
     eng(c).audioDispatch.dispatch3Way(0x2C,
-                                      0); // native — was FUN_800750D8(0x2c,0)
+                                      0);              // native — was FUN_800750D8(0x2c,0)
     psx::cpu::callGuestNow(*c, __func__, 0x8004D8B0u); // 128-byte zero-init (substrate; un-owned this pass)
     c->mem_w8(0x1F800206u, 0);
     break;
@@ -163,7 +164,7 @@ void Engine::areaLoadState() {
   }
   case 2:
     psx::cpu::callGuestNow(*c, __func__, 0x8001CF2Cu); // engine tick (substrate)
-    eng(c).audioDispatch.selectState(4);                                        // native — was FUN_800750A4(4)
+    eng(c).audioDispatch.selectState(4);               // native — was FUN_800750A4(4)
     sm.setS4e(1);
     sm.setF6b(0);
     sm.setStage4c((uint16_t)(sm.stage4c() + 1));
@@ -228,7 +229,7 @@ void Engine::areaLoadState() {
         sm.setSubMode(1);
         sm.setStage4c(0);
         psx::cpu::callGuestNow(*c, __func__, 0x8001CF2Cu); // engine tick (substrate; guest arg
-                                                                                    // 0x11 unused by callee)
+                                                           // 0x11 unused by callee)
       }
       // e == 2: sm[0x4c]++ (no other write) falls straight through to the
       // shared tail below.
@@ -333,6 +334,27 @@ void Engine::areaLoadState() {
   }
 }
 
+// FUN_801089C4: sm[0x4a] == 4, reached from areaLoadState state 6 (Quit).
+void Engine::leaveGame() {
+  Core *c = core;
+  TaskSm sm(c);
+  if (sm.stage4c() == 0) {
+    eng(c).audioDispatch.settleField(); // 0x80074BC4
+    sm.setStage4c((uint16_t)(sm.stage4c() + 1));
+    return;
+  }
+  if (sm.stage4c() != 1) {
+    return;
+  }
+  sm.setF69(0);
+  sm.setF6a(0);
+  sm.setF6b(0);
+  sm.setSubMode(0);
+  sm.setStage4c(0);
+  sm.setS4e(0);
+  startStage(1); // DEMO, the title front end
+}
+
 } // namespace tomba
 
 // ---- NATIVE PER-FRAME GAME LOOP (game_native path, mirrors DEMO demo_native)
@@ -369,7 +391,8 @@ void Engine::submitPage810c() {
   uint32_t task = c->mem_r32(0x1F800138u);
   if (task && c->mem_r8(task + 0x6Bu) == 1) {
     fade(c).applyLeafCall(0x808080u, ScreenFade::kSubtractive, 4);
-    psx::cpu::callGuestNow(*c, __func__, 0x801084F8u); // still guest instruction path: menu draw + cursor/page transitions
+    psx::cpu::callGuestNow(
+        *c, __func__, 0x801084F8u); // still guest instruction path: menu draw + cursor/page transitions
     return;
   }
   psx::cpu::callGuestNow(*c, __func__, 0x8010810cu);
@@ -430,6 +453,9 @@ void Engine::stageRunning() {
     else if (s4a == 2) {
       eng(c).areaLoadState();
     } // native FUN_80106478
+    else if (s4a == 4) {
+      eng(c).leaveGame();
+    } // native FUN_801089C4
     else {
       psx::cpu::callGuestNow(*c, __func__, handler[s4a]);
     }

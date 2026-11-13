@@ -29,16 +29,8 @@
 #include <cstdint>
 #include <cstdio>
 
-// One native loop iteration of the guest body 0x801063F4: dispatch sm[0x48]
-// handler, bump frame counter. Returns 1 if handled natively, 0 if the current
-// state is NOT yet owned and the task must hand back to the cooperative guest
-// loop. OWNED so far: sm[0x48] area-init (0/1) + the RUNNING SOP-intro path
-// (sm[0x48]==2, sm[0x4a]==0, SOP loaded). The transition sub-modes
-// (sm[0x4a]!=0), the area machine (sm[0x4c] 0x80106478), and the non-SOP field
-// overlays YIELD DEEP and aren't owned yet — own them (RE in
-// scratch/gameplay_start_flow_re.md) to extend native ownership and shrink the
-// cooperative fallback. Returning 0 keeps the field REACHABLE (no derail) until
-// those are owned.
+// One native loop iteration of the guest body 0x801063F4: dispatch the sm[0x48] handler, bump the frame counter.
+// Returns 0 for a state not owned here, which hands task 0 to the cooperative guest loop.
 namespace tomba {
 
 int Engine::frame() {
@@ -49,14 +41,15 @@ int Engine::frame() {
     uint16_t s4a = c->mem_r16(sm + 0x4a);
     // OWNED running sub-modes: 0 = SOP-intro (SOP overlay must be loaded); 1 =
     // field area machine (0x801088d8, the walkable field — its load is sync via
-    // native_transition_area_load, its running states are yield-free); 5 = the
-    // area-change transition (FieldTransition::step). Sub-modes 2..4 aren't owned yet.
+    // native_transition_area_load, its running states are yield-free); 2 = the game over
+    // and pause-quit screen (areaLoadState); 4 = its Quit exit (leaveGame); 5 = the
+    // area-change transition (FieldTransition::step). Sub-mode 3 isn't owned yet.
     if (s4a == 0) {
       if (c->mem_r32(0x80109450u) != 0x3C021F80u) {
         lucent::debug("gframe", "ret0 s48=2 s4a=0 SOP-not-loaded ov={:08X} sm@{:08X}", c->mem_r32(0x80109450u), sm);
         return 0;
       } // SOP not loaded -> cooperative
-    } else if (s4a != 1 && s4a != 5) {
+    } else if (s4a == 3) {
       lucent::debug("gframe", "ret0 s48=2 s4a={} unowned-submode sm@{:08X}", s4a, sm);
       return 0; // unowned running sub-mode
     }
