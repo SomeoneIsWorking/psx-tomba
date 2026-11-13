@@ -42,5 +42,15 @@ cases 6/7 grow and shrink, 0xC the reset that turns 0x200 back to none) is the o
 follows: a gate testing bit b of `G+0x17E` also passes when the inventory (`0x800BFAB4`) owns the item whose word
 carries b, read from this table, never written into the word (it is saved).
 
-Next: name the items 0x0E..0x16 and 0x6C from the item text table, find the cold gate's bit, and list every gate
-site per bit with its enclosing function (`--function-at`) to own.
+Item names: the text table at `0x800A2B68` (12-byte entries {name, description, kind}) is indexed by item id + 11
+(`scratch/m0063/drive/item_table.py`), which agrees with the bits above (0x0F carries the flight bit 0x40, 0x11 the
+swim bit 0x100): 0x0E Bird Clothes, 0x0F Squirrel Clothes, 0x10 Pig Suit, 0x11 Swimming Pig Suit, 0x12..0x16 the
+Evil Flame, Ice, Ghost, Earth and Water Pig Robes. Cold protection in the item text is not a suit: Cold Powder
+(item 0x21, "Protects against ice damage", count byte `0x800BFAD5`), beside Hot Powder 0x22 and Mermaid Scale 0x23.
+
+Cold gate: A0B's ice contact `FUN_8010A93C` (area 11; A04 reads the powder at `0x8010B9B0`, `0x80111990`,
+`0x801119B8`, `0x80112E94`, unread). After 60 frames of contact it sends Tomba to hazard substate 6 unless the
+suit word has 0x400 (the Evil Flame Pig Robe); Cold Powder only cancels that hit's damage (`FUN_80022D08`). So the
+user's cold suit is the Evil Flame Pig Robe, and owning it is what the mod's 0x400 rule grants.
+
+Next: list every gate site per bit with its enclosing function and own each test; read the A04 powder sites.

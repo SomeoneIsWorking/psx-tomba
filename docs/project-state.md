@@ -170,6 +170,8 @@ Gap: Both titles are catalogued; headless, both panels reach `demo` and hold it 
 `0x8006762C` from the same frame (the RE is in the decomp's `docs/notes/hazard-falls.md`). Measured over area 1's
 death floor through `spot`: on, vitality 4 → 3, the water fall's flounder, fade and respawn at area 1 entry 1
 with 3 vitality (`scratch/m0062/pit_sheet.png`); at 1 vitality it reaches 0 and takes the retail death floor's
-game-over route. Off, vitality 4 → 0 and the game-over route, unchanged.
-Gap: the death floors of areas 4, 11, 12 and 15 are not reached yet (the decoded spots land Tomba elsewhere), and
-the game over itself holds a black screen on every path (issue 0066).
+game-over route, which shows the game over screen (issue 0066, fixed). Off, vitality 4 → 0 and the game-over
+route, unchanged. Area 4 (`spot 4 1 2 5440 -6080 12672`, sector 2's death floor): off, substate 5 and vitality 0;
+on, substate 4, vitality 4 → 3 and respawn at area 4 entry 1.
+Gap: areas 11, 12 and 15 hold Tomba in their arrival event on any warp in (issue 0068), so their death floors are
+not reached.
