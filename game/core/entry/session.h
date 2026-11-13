@@ -10,6 +10,7 @@
 #include "core/engine/engine.h"
 #include "core/entry/settings.h"
 #include "core/entry/title_state.h"
+#include "core/frame/boot_cards.h"
 #include "core/frame/draw_replay.h"
 #include "core/overrides/native_override_catalog.h"
 #include "core/sched/scheduler.h"
@@ -57,7 +58,8 @@ public:
   render::GroundClipTally groundClip;
   EngineCd cd;
   sched::Scheduler scheduler; // after `cd`, which it holds slot 2 for
-  TitleState titleState{cd, scheduler, drawReplay};
+  BootCards bootCards;        // the publisher cards before the first game frame
+  TitleState titleState{cd, scheduler, drawReplay, bootCards};
   Audio audio;
   native::NativeOverrideCatalog nativeOverrides;
 };

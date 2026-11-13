@@ -2,7 +2,6 @@
 
 #include "debug/auto_drive.h"
 #include "debug/dev_control.h"
-#include "frame/boot_cards.h"
 #include "frame/frame_diagnostics.h"
 #include "game_runtime.h"
 
@@ -47,9 +46,7 @@ public:
   void stepFrame(Core &core, uint32_t frame) override;
 
   // The publisher cards precede the game's own first frame.
-  bool pastBootPrefix() const override {
-    return cards_.finished();
-  }
+  bool pastBootPrefix() const override;
 
   DevControl &devControl() {
     return devControl_;
@@ -57,7 +54,6 @@ public:
 
 private:
   Game *game_;
-  BootCards cards_;
   AutoDrive autoDrive_;
   DevControl devControl_;
   FrameDiagnostics diagnostics_;

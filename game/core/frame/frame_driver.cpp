@@ -87,6 +87,10 @@ void finishPass(Core &core) {
 
 FrameDriver::FrameDriver(Game &game) : game_(&game) {}
 
+bool FrameDriver::pastBootPrefix() const {
+  return sessionOf(&game_->core).bootCards.finished();
+}
+
 void FrameDriver::enterLoop(Core &core) {
   for (uint32_t buffer = 0; buffer < 2u; ++buffer) {
     const uint32_t base = kDisplayBufferBase + buffer * kDisplayBufferStride;
@@ -105,13 +109,12 @@ void FrameDriver::stepFrame(Core &core, uint32_t frame) {
     std::abort();
   }
 
-  if (!cards_.finished()) {
-    cards_.step(core);
-    return;
-  }
-
   Game &game = *game_;
   Session &session = sessionOf(&core);
+  if (!session.bootCards.finished()) {
+    session.bootCards.step(core);
+    return;
+  }
 
   autoDrive_.beforeFrame(core, frame);
   game.timing.logicFrame = frame;

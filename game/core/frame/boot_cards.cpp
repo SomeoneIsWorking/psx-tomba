@@ -100,6 +100,38 @@ void BootCards::stepMovie(Core &core) {
   }
 }
 
+bool BootCards::save(psx::platform::BlobWriter &out, std::string &error) const {
+  if (phase_ == Phase::Movie) {
+    error = "the LOGO movie is playing";
+    return false;
+  }
+  out.u8(static_cast<uint8_t>(phase_));
+  out.i32(sceaFrame_);
+  return true;
+}
+
+std::optional<BootCards::Progress> BootCards::read(psx::platform::BlobReader &in, std::string &error) {
+  const uint8_t phase = in.u8();
+  const std::int32_t sceaFrame = in.i32();
+  if (!in.ok()) {
+    error = "the boot card progress is truncated";
+    return std::nullopt;
+  }
+  const bool onScea = phase == static_cast<uint8_t>(Phase::Scea) && sceaFrame >= 0 && sceaFrame < kSceaFrames;
+  if (!onScea && phase != static_cast<uint8_t>(Phase::Done)) {
+    error = "boot card phase " + std::to_string(phase) + " frame " + std::to_string(sceaFrame) + " is not resumable";
+    return std::nullopt;
+  }
+  return Progress{.phase = static_cast<Phase>(phase), .sceaFrame = sceaFrame};
+}
+
+void BootCards::resume(const Progress &progress) {
+  phase_ = progress.phase;
+  sceaFrame_ = progress.sceaFrame;
+  movieOpen_ = false;
+  sceaImage_ = {};
+}
+
 void BootCards::finish(Core &core) {
   core.game->display.build(psx::present::PresentCompletion::Transition);
   core.game->display.show();

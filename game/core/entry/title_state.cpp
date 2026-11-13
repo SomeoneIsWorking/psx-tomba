@@ -7,6 +7,7 @@
 #include "entry/session.h"
 #include "scene/level_load.h"
 
+#include <optional>
 #include <string>
 
 namespace tomba {
@@ -39,6 +40,10 @@ bool TitleState::save(psx::platform::BlobWriter &out, std::string &error) const 
     error = "tomba2.cd: task slot " + std::to_string(slot) + " is parked on a host fiber";
     return false;
   }
+  if (!cards_.save(out, error)) {
+    error = "tomba2.cd: " + error;
+    return false;
+  }
   const EngineCd::DeferredMusic &music = cd_.deferredMusic();
   out.boolean(music.pending);
   out.u8(music.channel);
@@ -55,6 +60,11 @@ bool TitleState::save(psx::platform::BlobWriter &out, std::string &error) const 
 }
 
 bool TitleState::load(psx::platform::BlobReader &in, std::string &error) {
+  const std::optional<BootCards::Progress> cards = BootCards::read(in, error);
+  if (!cards.has_value()) {
+    error = "tomba2.cd: " + error;
+    return false;
+  }
   EngineCd::DeferredMusic music;
   music.pending = in.boolean();
   music.channel = in.u8();
@@ -73,11 +83,13 @@ bool TitleState::load(psx::platform::BlobReader &in, std::string &error) {
     return false;
   }
   cd_.deferredMusic() = music;
+  stagedCards_ = *cards;
   stagedSlots_ = slots;
   return true;
 }
 
 void TitleState::restored(Core &core) {
+  cards_.resume(stagedCards_);
   scheduler_.adoptSlotStates(stagedSlots_);
   // Overlay natives are bound to images, which the restore re-activated under new identities.
   Session &session = sessionOf(&core);

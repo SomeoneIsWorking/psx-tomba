@@ -18,7 +18,7 @@ Frame loop: owned. `tomba::FrameDriver` runs one pass of `0x80050B08` (update `0
 | `tomba::Settings` | `game/core/entry/settings.h` | `PSXPORT_NO_FMV`, `PSXPORT_AUTO_SKIP`, read once from the CVar registry |
 | `Engine`, `StepReturn` | `game/core/engine/` | The stage driver: field run, frame ticks, task machine, object leaves, state dispatch, scene frame |
 | `tomba::FrameDriver` | `game/core/frame/frame_driver.h` | One pass of the retail main loop FUN_80050B08 per frame and exactly one presentation fence (`docs/re/frame-loop.md`) |
-| `BootCards` | `game/core/frame/boot_cards.h` | The SCEA card and LOGO movie before the first game frame, one step per `stepFrame` |
+| `BootCards` | `game/core/frame/boot_cards.h` | The SCEA card and LOGO movie before the first game frame, one step per `stepFrame`; held by `Session` so `TitleState` carries its progress |
 | `decodeSceaSplash` | `game/core/frame/scea_splash.h`, `scea_asset.h` | The SCEA card's texture page and CLUT, decoded to the host picture `BootCards` shows |
 | `FrameCadence` | `game/core/frame/frame_cadence.h` | The frame-rate decision, published into the guest's quota byte |
 | `DrawReplay` | `game/core/frame/draw_replay.h` | Gameplay in-betweens, paused and attract frames included: the field or room draw replayed with its moving inputs blended (`ReplayFrame`), entered from `Render::frame`/`frameX` and, on a menu page, `Render::pageStep` |
@@ -61,7 +61,7 @@ Frame loop: owned. `tomba::FrameDriver` runs one pass of `0x80050B08` (update `0
 | `LibcdDirCache`, `LibcdNative` | `game/cd/libcd_dir_cache.h`, `game/cd/libcd_native.h` | libcd's guest directory cache from host ISO9660 sectors; the file-table build |
 | `EngineCdLoader` | `game/cd/engine_cd_loader.h` | The engine's disc loaders FUN_8008C1EC, FUN_8001DB8C, FUN_8001D940, FUN_8001DC40 |
 | `tomba::EngineCd` | `game/cd/engine_cd.h` | The CD chokepoint overrides: streaming CdControl FUN_8001CE90, voice play/stop, deferred area music, slot-2 voice clips, CdInit callbacks |
-| `tomba::TitleState` | `game/core/entry/title_state.h` | The `nativeState` port (section `tomba2.cd` v2): deferred area music and the scheduler's slot flags and contexts; refuses to save while a task is parked on a fiber; a restore rebinds the stage/MODE/AREA overlay natives to the adopted images and forgets `DrawReplay`'s sample |
+| `tomba::TitleState` | `game/core/entry/title_state.h` | The `nativeState` port (section `tomba2.cd` v3): the boot cards' phase and SCEA frame, deferred area music and the scheduler's slot flags and contexts; refuses to save while a task is parked on a fiber or the LOGO movie plays; a load resumes the saved card, so a state past the boot runs the game pass instead of the SCEA card; a restore rebinds the stage/MODE/AREA overlay natives to the adopted images and forgets `DrawReplay`'s sample |
 | `Inventory`, `ItemGrant` | `game/items/` | Item collection and the give-and-flag the debug `items` command uses |
 | `Math`, `Mtx`, `Trig`, `Rng`, `Bit` | `game/math/` | The GTE transform cluster, libgte matrix and trig leaves, the LFSR, flag bits |
 | `Font`, `Panel`, `DialogGlyphs`, `UiSprite`, `OptionsPage`, `SaveMenu`, `DialogTextStream` | `game/ui/` | Guest-time UI ports: glyphs, panels (`panel_build.cpp` the 9-slice build, `panel_fill.cpp` its quads), dialog-box glyphs, 2D sprite writers, options, save menu, dialog stream |
