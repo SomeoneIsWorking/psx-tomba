@@ -55,4 +55,19 @@ bool SuitAbilities::has(Core &core, std::uint16_t bits) {
   return false;
 }
 
+bool SuitAbilities::burdened(Core &core, std::uint16_t bits) {
+  if ((core.mem_r16(kSuitWord) & bits) == 0u) {
+    return false;
+  }
+  if (!ModSettings::permanentSuits()) {
+    return true;
+  }
+  for (std::uint8_t item = kFirstSuit; item <= kLastSuit; ++item) {
+    if (core.mem_r8(inventory_layout::kCounts + item) != 0u && (abilityBits(item) & bits) == 0u) {
+      return false;
+    }
+  }
+  return true;
+}
+
 } // namespace tomba

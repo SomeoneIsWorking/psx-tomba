@@ -38,10 +38,10 @@ inline constexpr std::uint32_t kAirFrames = 0x178u;
 
 // Guest functions the native steps call.
 namespace tomba_call {
-inline constexpr std::uint32_t kAirborneStep = 0x800574E0u; // Tomba_airborneStep (Tomba, mode)
-inline constexpr std::uint32_t kDropStep = 0x80056C00u;     // Tomba_dropStep (Tomba, stay grounded)
-inline constexpr std::uint32_t kGroundCheck = 0x8005444Cu;  // Tomba_groundCheck
-inline constexpr std::uint32_t kSetAnimation = 0x80054D14u; // Engine_walkStart (actor, animation, blend)
+inline constexpr std::uint32_t kAirborneStep = 0x800574E0u;  // Tomba_airborneStep (Tomba, mode)
+inline constexpr std::uint32_t kDropStep = 0x80056C00u;      // Tomba_dropStep (Tomba, stay grounded)
+inline constexpr std::uint32_t kGroundCheck = 0x8005444Cu;   // Tomba_groundCheck
+inline constexpr std::uint32_t kSetAnimation = 0x80054D14u;  // Engine_walkStart (actor, animation, blend)
 inline constexpr std::uint32_t kAnimationStep = 0x80076D68u; // Animation_stepFramed: 1 on the last frame
 inline constexpr std::uint32_t kVelocityIntegrate = 0x80056B48u;
 inline constexpr std::uint32_t kSfxTrigger = 0x80074590u;
@@ -86,6 +86,18 @@ protected:
                   u8(tomba_field::kMode),
                   u8(tomba_field::kSubstate));
     return granted;
+  }
+  bool burdened(std::uint16_t bits) const {
+    const bool burdened = SuitAbilities::burdened(core_, bits);
+    lucent::debug("suits",
+                  "{} burdened {:04X}: {} (worn {:04X}, mode {:02X}/{:02X})",
+                  owner_,
+                  bits,
+                  burdened,
+                  u16(0x17Eu),
+                  u8(tomba_field::kMode),
+                  u8(tomba_field::kSubstate));
+    return burdened;
   }
   template <typename... Args> void call(std::uint32_t address, Args... args) {
     psx::cpu::callGuestNow(core_, owner_, address, args...);

@@ -16,6 +16,7 @@
 #include "player/airborne.h"       // class Airborne — the airborne step, the ledge drop and their suit gates
 #include "player/hazard_fall.h"   // class HazardFall — the death floor substate and the pit void-out mod (0x800678E8)
 #include "player/water_entry.h"    // class WaterEntry — water landing and the area 0 floor tick, the swim gates
+#include "player/run_speed.h"      // class RunSpeed — the x speed step and its winged and snow-grip gates
 #include "rope_swing.h"           // class RopeSwing — hanging rope swing + segment bend (0x801281B8)
 #include "sway_schedule.h"        // class SwaySchedule — rocking-rate schedule + sway tick (0x8012D27C)
 #include "tilt_follower.h"        // class TiltFollower — half-tilt follower leaf (0x80125FE0)
@@ -165,6 +166,7 @@ void register_engine_overrides(Game &game, native::NativeOverrideCatalog &native
   Airborne::registerOverrides(natives);           // airborne step and ledge drop; suit gates (0x800574E0, 0x80056C00)
   ActionModes::registerOverrides(natives);        // action modes 3, 6, 0x10; glide gates
   WaterEntry::registerOverrides(natives);         // water landing, A00 floor tick; swim gates
+  RunSpeed::registerOverrides(natives);           // x speed step; winged steer and snow grip gates (0x80055FBC)
   ActorBump::registerOverrides(natives);          // actor bump: interact / push apart / recoil (0x8010EA80)
   ActorObjectContact::registerOverrides(natives); // actor-vs-object hit / proximity contact (0x8010E258)
   RopeSwing::registerOverrides(natives);          // hanging rope: spring swing + per-segment bend (0x801281B8)

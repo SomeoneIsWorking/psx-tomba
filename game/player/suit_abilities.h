@@ -16,6 +16,9 @@ public:
   static std::uint16_t abilityBits(std::uint8_t item);
   // True when the worn suit, or under the mod an owned one, carries any of `bits`.
   static bool has(Core &core, std::uint16_t bits);
+  // True when the worn word carries any of `bits` and, under the mod, no owned suit is free of them: a handicap
+  // gate (0x30, no suit or the Bird Clothes slipping on snow) that any owned suit without it lifts.
+  static bool burdened(Core &core, std::uint16_t bits);
 };
 
 } // namespace tomba

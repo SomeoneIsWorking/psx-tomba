@@ -80,6 +80,17 @@ suit ids 0x0E..0x16 (Clear Fruit's 0x200 stays worn-only). Owned gates:
   `Airborne::airActions` FUN_80057C08): with the Pig Suit owned and not worn, a held jump in area 1 starts 0x1940
   faster and peaks at Y 0xE627 instead of 0xE664, and a second jump press in the air stomps (mode 0x1C, pose 0xE5);
   off, neither (`pig1`, `pig0`).
+- the x speed step FUN_80055FBC (`RunSpeed::step`): the winged suits' (0x60) air steer, the table step times 16
+  instead of 2: with the Bird owned, a mid-air reversal in area 1 steps 0x600 a frame and reaches -0x1B00 before
+  landing; off, 0xC0 a frame (`steer1`, `steer0`). Its 0x30 test is a handicap, not an ability: with no suit (word
+  0x10) or the Bird, snow (floor type 0x500, areas 4 and 5) cuts the start to an eighth and the brake to half, so
+  under the mod any owned suit without 0x30 lifts it (`SuitAbilities::burdened`). With the Swimming Pig Suit owned
+  and not worn, the landing slide on area 4's snow brakes 0x280 a frame and stops in 11; off, 0x140 and 22
+  (`snow1`, `snow0`). With the mod off the native's G+0x44 stores match the guest's one for one on ground turns,
+  skids and the snow slide (`vx_g5`/`vx_n5`, `vx_g6`/`vx_n6`).
+
+`0x800532A0` keeps its 0x30 test in guest code: it sends those suits to mode 0x35 on a type 0x500 floor with bits
+12..15 = 4, and no area's grid has one.
 
 Left worn-only by design: the 0x20 sites `0x8003B588` and `0x800597AC` copy `G+9` to `G+8` with the Bird suit, the
 worn suit's look, which step 2 keeps. Open design choice: the robes' 0x7C00 magic (`0x800552EC`) indexes its cost table
@@ -89,8 +100,7 @@ worn-only until that is decided (other low-nibble readers: `0x8005800C`, `0x8005
 Every native gate logs its decision on the `suits` debug channel (`TombaStep::has`).
 
 Still on the suit word, by the scan of every `lh/lhu 0x17E` + `andi` (MAIN and the area overlays):
-- MAIN 0x30 `0x800532A0`, `0x80055FBC`; 0x60 `0x80055FBC`, `0x80062A30` (no
-  code reference); 0x7C00 `0x800552EC`;
+- MAIN 0x60 `0x80062A30` (no code reference); 0x7C00 `0x800552EC`;
 - overlays: 0x100 in A06 `0x8010B410`, A08 six sites, A0E
   `0x80109790`; 0x40 in A01 `0x8010D9FC`, A04 `0x80113414`, `0x80115F6C`, A0B `0x8010A9C8`; 0x20 A01 `0x8010C8CC`;
   0x640 A05 three sites; 0x30, 0x60, 0x180, 0x400, 0x7C00 in A04, A07, A08, A0B.
