@@ -14,7 +14,7 @@ using namespace tomba_field;
 constexpr std::uint32_t kStep = 0x80062A30u;
 constexpr std::uint32_t kStepFrameSize = 0x28u;
 
-constexpr std::uint32_t kStepTable = 0x800A4700u; // s8: down, up; +3 when G+0x165 is set
+constexpr std::uint32_t kStepTable = 0x800A4700u; // s8: up (-0x10), down; +3 when G+0x165 is set
 
 constexpr std::uint32_t kPlace = 0x156u;
 constexpr std::uint32_t kReach = 0x68u;
@@ -31,7 +31,7 @@ constexpr std::uint8_t kStillState = 2u;
 constexpr std::uint32_t kLetGoMode = 3u;
 constexpr std::uint32_t kTurnMode = 0x85u;
 constexpr std::uint8_t kTurnedAction = 0x35u;
-constexpr std::uint16_t kTopJump = 0x2Cu;
+constexpr std::uint16_t kEndDrop = 0x2Cu;
 
 class Step : public TombaStep {
 public:
@@ -48,7 +48,7 @@ public:
     }
     const std::uint16_t step = stepSize();
     if ((mode_ & 1u) == 0u) {
-      down(step);
+      up(step);
       return;
     }
     const auto place = static_cast<std::uint16_t>(u16(kPlace) + step);
@@ -56,7 +56,7 @@ public:
     if ((mode_ & 0x80u) != 0u || movingClimbable()) {
       const std::int32_t lift = s16(0x17Eu) < 0 ? 0x50 : 0;
       if (lift + height() + s16(kReach) < static_cast<std::int16_t>(place)) {
-        jumpOffTop();
+        dropOffEnd();
         return;
       }
     } else if (height() < s16(kPlace)) {
@@ -107,7 +107,7 @@ private:
     return static_cast<std::uint16_t>(static_cast<std::int8_t>(core_.mem_r8(kStepTable + index)));
   }
 
-  void down(std::uint16_t step) {
+  void up(std::uint16_t step) {
     const std::uint16_t place = u16(kPlace);
     setU16(kFloorAttribute, 0);
     const std::int16_t held = s16(kPlace);
@@ -125,7 +125,7 @@ private:
     }
   }
 
-  void jumpOffTop() {
+  void dropOffEnd() {
     setU16(kVelocityY, 0);
     setU16(kDropVelocity, 0);
     setU8(kGrip, 0);
@@ -133,13 +133,13 @@ private:
     setU8(kClimbFlags, 0);
     core_.mem_w32(tomba_ + kClimbTimer, 0);
     setU16(kSpeedX, 0);
-    setU16(kPlace, u16(kPlace) + kTopJump);
+    setU16(kPlace, u16(kPlace) + kEndDrop);
     call(tomba_call::kStartFall, tomba_, 0u);
     if (core_.mem_r8(climbable_ + 2u) != kMovingClimbable) {
       return;
     }
     setU16(kVelocityY, climbableU16(kVelocityY));
-    const auto place = static_cast<std::uint16_t>(u16(kPlace) + kTopJump);
+    const auto place = static_cast<std::uint16_t>(u16(kPlace) + kEndDrop);
     setU16(kPlace, place);
     if (has(SuitAbility::AirControl)) {
       setU16(kPlace, place + ((climbableU16(kVelocityY) & 0x1F00u) >> 5u));

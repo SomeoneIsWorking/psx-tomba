@@ -56,7 +56,7 @@ Frame loop: owned. `tomba::FrameDriver` runs one pass of `0x80050B08` (update `0
 | `SnowFieldTick` | `game/player/snow_field_tick.h` | A04's Tomba tick FUN_8010B024: entry 7's exit floor, the death floor, the winged-suit angle-wrap countdown |
 | `UpdraftContact` | `game/player/updraft_contact.h` | A01's steam vents FUN_8010D90C and A0B's updraft FUN_8010A93C: the lift, the Squirrel's longer reach (`SQUIRREL_UPDRAFT`), A0B's freeze and the robe's immunity (`FLAME_ROBE_FREEZE`) |
 | `PipeAreaTick` | `game/player/pipe_area_tick.h` | A01's Tomba tick FUN_8010C7BC: the exits, the death floor, the fluttering Bird's sink in one column |
-| `ClimbStep` | `game/player/climb_step.h` | Tomba's climb step FUN_80062A30: his place along a climbable, the jump off its top and the winged boost (0x60) off a moving one |
+| `ClimbStep` | `game/player/climb_step.h` | Tomba's climb step FUN_80062A30: his place along a climbable, the drop off a moving rope's end and the winged suits' lower start (0x60) |
 | `HazardFall` | `game/player/hazard_fall.h` | Tomba's death-floor substate FUN_800678E8; under `ModSettings::pitVoidOut` it hands the fall to the water fall FUN_8006762C (`external/tomba2-decomp/docs/notes/hazard-falls.md`) |
 | `Spawn`, `Pool`, `AreaSlots`, `ObjectTable`, `Placement`, `CollisionResolve`, `GraphicsBind`, `AreaEntries` | `game/world/` | Field object population, placement, collision resolve, render binding and the per-area entry records with their map-screen names |
 | `RenderRecordPool` | `game/world/render_record_pool.h` | The render-record free stack FUN_8007AAE8; the record run's `MotionLiveness` |

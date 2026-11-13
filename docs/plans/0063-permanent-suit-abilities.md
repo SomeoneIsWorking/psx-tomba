@@ -179,13 +179,23 @@ Still on the suit word, by the scan of every `lh/lhu 0x17E` + `andi` (MAIN and t
   suit. The differential matched the guest on every call (198 and 108 calls, worn and off: `s_flut_*`, `s_dflut_*`).
 - A0B, the Evil Ice Pig battle (`UpdraftContact::area11Updraft`, FUN_8010A93C): the same lift (0x40), and after 60
   frames of touches a freeze unless the Evil Flame Pig Robe is worn (0x400, `FreezeImmunity`). New effect
-  `FLAME_ROBE_FREEZE`. It shares its lift code with the vents, but no run has reached it yet: warp 11/1 opens with
-  dialogue, and Tomba falls before any kind 0x55 touch. The frost actor `0x80114608` tests 0x400 only while
+  `FLAME_ROBE_FREEZE`. The updraft is the boss's whirlwind (kind 0x55, `0x80117FD8`, tick `0x801179BC`), thrown only
+  in boss mode 6 (`0x8010F9D8`), which `0x8010D1F0` picks when the boss (kind 0x66, `0x800FB218`) is down to 1
+  hit point (`+0x6E`; 2 when `0x800BF870 == 0xF`). From `warp 11/0`, circle through the dialogue to f1140, then the boss
+  held at 1 point and Tomba at 4 (`w16 800FB286 1`, `w16 800E7FEE 4` every 30 frames): with no suit the whirlwind
+  lifts him and freezes him (hazard mode 6, then mode 0x1A) at f1593; with the Robe owned and `FLAME_ROBE_FREEZE` off
+  at f1348; with it on (15 asks granted) and with the Robe worn (67) he is lifted and set down unfrozen. Under
+  `PSXPORT_OVERRIDE_DIFF` the off run matched the guest on 381 of 381 calls (`ice_*`, `ice_worn2`). The frost actor `0x80114608` tests 0x400 only while
   `G+0x177 & 2` is set, and only the frozen states set that bit, so it stays guest code.
-- the climb step (`ClimbStep::step`, FUN_80062A30, 0x60 asked as `AirControl`): a winged suit leaving the top of a
-  moving climbable (kind 0x17) rises `(velocity & 0x1F00) >> 5` further. Climbing area 1's chain
-  (`spot 1 1 2 8500 -6300 9021` and `9728 -8400`, up held), the differential matched the guest on 457 of 457 calls.
-  No run has climbed off the top yet, so the boost itself is unproven.
+- the climb step (`ClimbStep::step`, FUN_80062A30, 0x60 asked as `AirControl`): G+0x156 is Tomba's place down the
+  climbable (step table `0x800A4700`: -0x10 up, +0x16 down). Climbing down past the end of a moving kind 0x17 rope he
+  drops off with its velocity, and a winged suit starts `(velocity & 0x1F00) >> 5` lower. The ropes are A01's
+  pulleys (`0x80126608` spawns two linked ropes, `+0x47` 0 and 1, and a still knot, 2; tick `0x8012A454`); a weighted
+  rope pays out at up to 0x1F00 (`0x80129C70`), so the drop is 0xF8 lower. From `spot 1 1 2 8500 -6300 9021` with
+  down held from f1, the Bird worn and the Bird owned with `BIRD_AIR_CONTROL` on both let go at place 0xD7C; off or
+  with no suit at 0xC3D, 0xBF higher at the same frame; then the pit below (`s_ropeb_*`, `s_ropew1_worn`). Under
+  `PSXPORT_OVERRIDE_DIFF` the off run matched the guest on 75 of 75 calls and the on run differed only in that one
+  call's G+0x156, 0xC84 against 0xD7C (`s_rope_*`, `s_ropebd_off`).
 - costume checks stay worn-only. They react to what Tomba is wearing, so an owned suit does not trip them. A07's
   0x180 predicates `0x80130CF8`, `0x80130D44`, `0x80130D80`, `0x80130DD8` choose the Circus Village people's lines
   (`0x80042354`) when Tomba wears a Pig suit. A07 `0x80121C64`/`0x80125BAC` (event steps at `0x80134158`,
