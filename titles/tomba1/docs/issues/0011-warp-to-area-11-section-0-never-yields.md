@@ -26,9 +26,15 @@ without pausing; the task's 33 fields pass in about 130 ms unpaced and the proce
 
 Machine-5 sections: 5/0, 5/2, 8/0, 8/2, 11/0, 15/0, 16/0, 17/0, 18/0, 19/2.
 
+The load lists stream in with the area (the table and lists at `0x80097FAC..` are rewritten per area). Area 5's
+machine-5 sections carry their own module (file `0x0241` in the 0xF0 record of 5/0 and 5/2; 5/1 and 5/3 carry
+`0x0249`); area 11's field sections carry `0x0320`; 11/0, 11/3 and 11/4 carry nothing, and no exit names them. So
+no path in the game gives 11/0 a machine-5 module: it is a section without content, and the warp offering it is
+the defect.
+
 ## Next
-Find what loads machine 5's module before 11/0 in play (the area or event that enters it; candidates are the
-other machine-5 section 0s of areas 15 to 18), then either warp through that path or refuse the section in the
-catalogue. Do not refuse by "machine 5" or "empty list" alone: 5/0 is machine 5 and works, and area 16's
-`PTR_80079150[16]` table reads all zero from area 11, so its lists are not resolvable from there. Area 16 and
-the 10 to 11 fault are still untried with the stepping script.
+Proper fix: the catalogue offers only sections whose load list has records. The lists are only resident for the
+current area, so the catalogue needs each area's list counts from the disc's area data (the file the area list
+streams from), not from RAM. Find that file and its record layout, then build the counts once when the warp
+places load. Area 16 (its section 0 is also machine 5) and the 10 to 11 fault are still untried with the stepping
+script.
