@@ -23,3 +23,14 @@ some pits are an instant game over. Make those pits void out too.
 For each listed pit, reached through `warp`: with the setting on, falling in voids out to solid ground with
 the water fall's vitality loss and fade; with it off, the original game over. A pit fall at zero
 vitality after the loss still ends the game the way a water fall at zero does.
+
+## State (2026-11-13)
+
+Step 1 started, nothing built. Vitality is the halfword `G+0x16E` (`0x800E7FEE`, G = `0x800E7E80`), its shown
+target `G+0x170`, its maximum the byte `0x800BF87D`. Static writers (`decomp_pipeline.py --refs 0x800E7FEE`,
+`scratch/m0062/decomp`) are all gains or resets: `FUN_80049E54` heal by `a1`, `FUN_80049F80` vitality-up,
+`FUN_8004A3D4` item pickup (case `0x90` refills), `FUN_80034CE0` item use, `FUN_800783DC` Tomba's spawn (vitality,
+spawn position from `0x800A54A8[0x800BF870][0x800BF871]` or the saved `0x800BF890/94/98` when `0x1F800134` is set).
+No static writer loses vitality, so the damage path stores through a G register the analyzer does not resolve.
+Next: a store watch on `0x800E7FEE` (`PSXPORT_CW`) through a water fall reached by a title warp that places Tomba
+over water, to name the damage routine and the void-out's restore, then the same for a pit.

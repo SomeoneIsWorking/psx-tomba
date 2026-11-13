@@ -12,6 +12,17 @@ Other work on Tomba! 2 (`SCUS_944.54` → `MAIN.EXE`, SHA-1 `f41c4065788e8c838cb
 | WCreve/Tomba2_Randomizer | https://github.com/WCreve/Tomba2_Randomizer | randomizer | GPL-3.0 | US disc | not checked (no addresses read) | evidence only | Item/event tables; GPL code stays out of the tree. |
 | jywjyw/tomba2-hack | https://github.com/jywjyw/tomba2-hack | Chinese translation from the Japanese disc | none | JP build | not checked (different region) | evidence only | Text/font format notes. |
 
+### Tomba! 2 cheat codes (mods plans 0061-0064)
+
+Searched 2026-11-13 for existing Tomba! 2 mods: pit void-out, permanent suit abilities, co-op, sea/sky
+replacement. None exists; only GameShark/CodeBreaker/Action Replay codes for the USA disc, which name RAM we can
+cross-check (evidence only, no code):
+
+| source | codes | what they tell us |
+|---|---|---|
+| almarsguides.com (Tomba 2 NTSC-U CodeBreaker, Action Replay, ASM codes pages); cheatcc.com; gamerevolution.com | Infinite Health `800E7FEE 0010`; items `300BFAB4`..`300BFABF`; outfits `300BFAC0`, `800BFAC2 0101`, `300BFACA`; Max AP `800BF874`/`800BF876`; magic `800BF87E`; event flags `0x800BF8A8`/`0x800BF8AA` | the inventory is one count byte per id from `0x800BFAB4` with the suits at `0x800BFAC0`..; vitality halfword `0x800E7FEE` |
+| almarsguides.com ASM codes | Squirrel Suit flight `8005721C EA60`, `8005709A 2400`; Walk On Water `800456BE 2400` (held by `D00ECF55`); Golden Power invulnerability (`80059FB8`, `80066260`, `80022C10`, `80020288`, `80022D1C` set to `FE50`/`9042`); Moon Jump `80057638`; Uncap FPS `80050CDA`/`80050CF2 2400` | code patches that name branch sites in the suit, water and damage paths; each needs our own decompilation before any use |
+
 ## Tomba! 1
 
 | project | URL | kind | license | target build | build match (addresses checked) | what we may take | notes |
