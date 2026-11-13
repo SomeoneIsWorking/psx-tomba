@@ -12,6 +12,7 @@
 #include "mtx.h" // class Mtx — libgte matrix leaves (MR_init identity, 0x80051794)
 #include "overrides/native_override_catalog.h"
 #include "placed_prop_sm.h"       // class PlacedPropSm — placed scene-prop behaviour (0x80040558)
+#include "player/hazard_fall.h"   // class HazardFall — the death floor substate and the pit void-out mod (0x800678E8)
 #include "rope_swing.h"           // class RopeSwing — hanging rope swing + segment bend (0x801281B8)
 #include "sway_schedule.h"        // class SwaySchedule — rocking-rate schedule + sway tick (0x8012D27C)
 #include "tilt_follower.h"        // class TiltFollower — half-tilt follower leaf (0x80125FE0)
@@ -157,6 +158,7 @@ void register_engine_overrides(Game &game, native::NativeOverrideCatalog &native
   id_routed_leaves_install(natives);              // id-routed state-1 common tail (0x80122BF4)
   PlacedPropSm::registerOverrides(natives);       // placed scene-prop behaviour handler (0x80040558)
   ActorTargeting::registerOverrides(natives);     // acquire a target: reach, band, arc (0x8001FAE0)
+  HazardFall::registerOverrides(natives);         // death floor substate; pit void-out mod (0x800678E8)
   ActorBump::registerOverrides(natives);          // actor bump: interact / push apart / recoil (0x8010EA80)
   ActorObjectContact::registerOverrides(natives); // actor-vs-object hit / proximity contact (0x8010E258)
   RopeSwing::registerOverrides(natives);          // hanging rope: spring swing + per-segment bend (0x801281B8)

@@ -3,6 +3,7 @@
 #include "world/area_entries.h"
 
 #include <cstdint>
+#include <optional>
 #include <string>
 
 class Core;
@@ -28,6 +29,11 @@ public:
   inline static constexpr uint32_t kLoadMode = 0x800bf89cu;
   inline static constexpr uint8_t kScriptedOpening = 2;
   inline static constexpr uint8_t kOrdinaryPlay = 4;
+  // 0x1F800134: set, Tomba's spawn FUN_800783DC places him at the saved position instead of the entry record.
+  inline static constexpr uint32_t kSpawnAtSaved = 0x1f800134u;
+  // 0x800BF890/94/98: the saved position (16.16 x, y, z) a save point writes; 0x800BFE38 its collision sector.
+  inline static constexpr uint32_t kSavedPosition = 0x800bf890u;
+  inline static constexpr uint32_t kSavedSector = 0x800bfe38u;
   // Where the field machine is, as far as a request is concerned.
   enum class Phase : uint8_t {
     Unavailable, // not in a state that consumes a request
@@ -41,18 +47,29 @@ public:
     uint32_t area = 0;
     uint32_t entry = 0;
   };
+  // A position on the area's collision grid: its sector and world coordinates.
+  struct Spot {
+    uint8_t sector = 0;
+    int16_t x = 0;
+    int16_t y = 0;
+    int16_t z = 0;
+  };
 
   // Arms the request; the returned text answers the client. The debug menu checked the area and the phase; an entry
   // past the area's records (`AreaEntries::count`) is refused.
   std::string arm(Core &core, Destination destination);
   // As arm, through FieldTransition::main's fade-out and fade-in (transition type 1), the way a door leaves.
   std::string armThroughFade(Core &core, Destination destination);
+  // As arm, with Tomba spawned at `spot` through the spawn's saved-position branch, the way a card load
+  // resumes at a save point.
+  std::string armAt(Core &core, Destination destination, Spot spot);
   // Writes the armed request at a frame boundary.
   void applyArmed(Core &core, uint32_t frame);
 
 private:
   bool armed_ = false;
   bool fade_ = false;
+  std::optional<Spot> spot_;
   uint32_t area_ = 0;
   uint32_t entry_ = 0;
 };

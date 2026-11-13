@@ -62,12 +62,22 @@ std::string DevWarp::arm(Core &core, Destination destination) {
   entry_ = entry;
   armed_ = true;
   fade_ = false;
+  spot_.reset();
   return lucent::format("ok: warp armed for area {} entry {}", area_, entry_);
 }
 
 std::string DevWarp::armThroughFade(Core &core, Destination destination) {
   std::string reply = arm(core, destination);
   fade_ = armed_;
+  return reply;
+}
+
+std::string DevWarp::armAt(Core &core, Destination destination, Spot spot) {
+  std::string reply = arm(core, destination);
+  if (armed_) {
+    spot_ = spot;
+    reply += lucent::format(" at sector {} ({}, {}, {})", spot.sector, spot.x, spot.y, spot.z);
+  }
   return reply;
 }
 
@@ -91,6 +101,16 @@ void DevWarp::applyArmed(Core &core, uint32_t frame) {
   }
   if (fade_) {
     core.mem_w8(kTransitionType, kFullTransition);
+  }
+  if (spot_) {
+    const auto fixed = [](int16_t v) {
+      return static_cast<uint32_t>(static_cast<uint16_t>(v)) << 16;
+    };
+    core.mem_w32(kSavedPosition, fixed(spot_->x));
+    core.mem_w32(kSavedPosition + 4u, fixed(spot_->y));
+    core.mem_w32(kSavedPosition + 8u, fixed(spot_->z));
+    core.mem_w8(kSavedSector, spot_->sector);
+    core.mem_w8(kSpawnAtSaved, 1);
   }
   core.mem_w16(kDestination, static_cast<uint16_t>((area_ << 8) | entry_));
   const bool exitCode = TaskSm(&core).stage4c() >= kExitCodeMachine;

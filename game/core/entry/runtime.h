@@ -47,6 +47,7 @@ public:
   psx::game::TitleAudio *audio(Core &core) const override;
   psx::state::NativeStatePort *nativeState(Core &core) const override;
   const psx::game::HostIdentity *hostIdentity() const override;
+  std::span<const psx::game::TitleIntSetting> titleIntSettings() const override;
   void reportRun(Core &core) const override;
 
 private:

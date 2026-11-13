@@ -16,6 +16,7 @@ Frame loop: owned. `tomba::FrameDriver` runs one pass of `0x80050B08` (update `0
 | `tomba::Runtime` | `game/core/entry/runtime.h` | The `GameRuntime`: CRT0 and `bootInit`, stock library bindings and overrides, session, frame driver, scheduler, pad delivery, packet pool, frame cuts, widescreen (`AspectPolicy`: 4:3 over the boot cards), commands, audio, dev warp, world readout |
 | `tomba::Session` | `game/core/entry/session.h` | Per-Game title state: `Engine`, render, CD and its save-state port, scheduler, audio, dev warp, override catalog, state producers, update-block call sites; the `eng()`/`rend()`/`fade()` accessors |
 | `tomba::Settings` | `game/core/entry/settings.h` | `PSXPORT_NO_FMV`, `PSXPORT_AUTO_SKIP`, read once from the CVar registry |
+| `tomba::ModSettings` | `game/core/entry/mod_settings.h` | The optional gameplay mods' saved settings, each off by default and off in a comparison run, and their settings-menu rows (`titleIntSettings`) |
 | `Engine`, `StepReturn` | `game/core/engine/` | The stage driver: field run, frame ticks, task machine, object leaves, state dispatch, scene frame |
 | `tomba::FrameDriver` | `game/core/frame/frame_driver.h` | One pass of the retail main loop FUN_80050B08 per frame and exactly one presentation fence (`docs/re/frame-loop.md`) |
 | `BootCards` | `game/core/frame/boot_cards.h` | The SCEA card and LOGO movie before the first game frame, one step per `stepFrame`; held by `Session` so `TitleState` carries its progress |
@@ -35,7 +36,7 @@ Frame loop: owned. `tomba::FrameDriver` runs one pass of `0x80050B08` (update `0
 | `installResidentNatives`, `Engine::frameUpdate`, `Engine::drawOTag` | `game/resident_natives.h` | Natives outside any subsystem's registration; the per-VBlank update and the OT draw |
 | guest structure types | `game/engine_types.h` | Native mirrors of the engine's in-RAM structures |
 | `tomba::DebugMenu` | `game/core/debug/debug_menu.h` | The title debug menu (psxport `TitleDebugMenu`): the warp catalogue (area, entry; sourced area names, room entries marked) and position readout, items, event flags, sound test, `tp`, and the diagnostics verbs |
-| `DevControl`, `DevWarp`, `DevItems`, `DevFlags`, `DevCameraPlace`, `DevDebris`, `DevApPopup`, `DevGate` | `game/core/debug/dev_*` | `warp` (and `door`, through the door transition's fades), `items`, `flag`, `camplace` (an area event's camera re-place, a declared cut), `debris` (the spawner M:80027144 thrown from Tomba), `ap` (the score popup M:80071B44 over Tomba) requests: armed by the debug menu, applied by the frame driver at a frame boundary |
+| `DevControl`, `DevWarp`, `DevItems`, `DevFlags`, `DevCameraPlace`, `DevDebris`, `DevApPopup`, `DevGate` | `game/core/debug/dev_*` | `warp` (and `door`, through the door transition's fades; `spot`, an entry with Tomba spawned at a grid sector and position through the spawn's saved-position branch), `items`, `flag`, `camplace` (an area event's camera re-place, a declared cut), `debris` (the spawner M:80027144 thrown from Tomba), `ap` (the score popup M:80071B44 over Tomba) requests: armed by the debug menu, applied by the frame driver at a frame boundary |
 | `tomba::diagnostics` | `game/core/debug/diagnostics.h` | Diagnostic verbs' bodies: `ents`, `node`, `geomblk`, `stage`, `seq`, `bgm`, `invtest`, ... |
 | `AutoDrive` | `game/core/debug/auto_drive.h` | `PSXPORT_AUTO_SKIP`: the front end driven into GAME free-roam at frame boundaries |
 | `VerificationCounters` | `game/core/debug/verification_counters.h` | Title verification tallies on the diagnostics channel |
@@ -45,6 +46,7 @@ Frame loop: owned. `tomba::FrameDriver` runs one pass of `0x80050B08` (update `0
 | `Behaviors`, `tomba::ai::*` | `game/ai/` | Per-object and per-area behaviours, one `beh_*` file per handler; `zoned_attacker_abi.h` |
 | `Actor`, `BehaviorDispatch`, `ObjectList`, `Animation` | `game/object/` | The guest object lens, behaviour dispatch, entity-list walks, animation VM, rewards, cube text |
 | `ActorTomba`, `ActorInteraction`, `Collision`, `ActorTargeting` | `game/player/` | Tomba's actor (G block), item interaction, collision grid, targeting |
+| `HazardFall` | `game/player/hazard_fall.h` | Tomba's death-floor substate FUN_800678E8; under `ModSettings::pitVoidOut` it hands the fall to the water fall FUN_8006762C (`external/tomba2-decomp/docs/notes/hazard-falls.md`) |
 | `Spawn`, `Pool`, `AreaSlots`, `ObjectTable`, `Placement`, `CollisionResolve`, `GraphicsBind`, `AreaEntries` | `game/world/` | Field object population, placement, collision resolve, render binding and the per-area entry records with their map-screen names |
 | `RenderRecordPool` | `game/world/render_record_pool.h` | The render-record free stack FUN_8007AAE8; the record run's `MotionLiveness` |
 | `Demo`, `Sop`, `StartBinStage` | `game/scene/demo.h`, `game/scene/sop.h`, `game/scene/start_bin_stage.h` | The DEMO front end (OP.STR), the SOP intro field, task-0's disc tables and boot preloads |

@@ -55,6 +55,7 @@ and 2D layout.
 | S024 | Tomba! 1 loads complete without loading-only waits or presentation | missing | — | G005 |
 | S025 | Tomba! 2 files in-app bug reports (B key) with a replayable reproduction | partial | — | — |
 | S026 | Tomba runs through psxport's multi-title host and in-window picker | partial | — | — |
+| S027 | Tomba! 2 pit void-out mod: death-floor falls void out like water (setting, default off) | partial | — | — |
 
 ### S001 — Tomba! 2 reaches representative gameplay as a native/Lightrec product
 
@@ -161,3 +162,14 @@ Gap: Headless REPL `bugreport` at pad frame 2400 saved the presented shot, the P
 ### S026 — Tomba runs through psxport's multi-title host and in-window picker
 
 Gap: Both titles are catalogued; headless, both panels reach `demo` and hold it to the end of the run. Tomba! 2's panel is a preview (`Game::session.preview()`): the SCEA card ends as on Start and `LOGO.STR` and `OP.STR` end as under `PSXPORT_NO_FMV` (`Session::playsMovies`), each through its own teardown, so the panel's first picture is the in-game attract demo, which loops through its fields and the title screen (`scratch/picker5/h2_sheet.png`); before, it was black for LOGO.STR's 8.5 s (the boot cards precede `pastBootPrefix`) and then showed OP.STR's 67 s. Tomba! 2's panel supplies no logo: its title screen draws the TOMBA!2 wordmark inside the one opaque 8bpp title picture on pages (640,256)/(768,256) together with its background art (`scratch/picker4/t2b/title_vram_640_256.png`, the frame's two rects and three polys in `t2b/cmd.log`), so no texture selection separates it; a cut of that picture would carry its background at a hand-placed rectangle. Tomba! 1's panel shows its intro movie; it has no title-owned boot-prefix signal yet, so its publisher card and logo count as its picture until the panel settles. The windowed picker is unrun by an agent. The boot stub `SCUS_944.54` runs under `tools/product_environment.py`'s launch environment; its stdin REPL runs `run N`, but `newgame` never returns (watchdog-free hang, 240 s). `tools/oracle_title.py` and `tools/title_prompts.py` are unverified against the framework REPL.
+
+### S027 — Tomba! 2 pit void-out mod: death-floor falls void out like water (setting, default off)
+
+`PSXPORT_TOMBA2_PIT_VOID_OUT` (Settings row "Pits void out like water", `tomba::ModSettings`): `HazardFall`
+(`game/player/hazard_fall.cpp`) owns the death-floor fall `0x800678E8`; on, it enters the water fall
+`0x8006762C` from the same frame (the RE is in the decomp's `docs/notes/hazard-falls.md`). Measured over area 1's
+death floor through `spot`: on, vitality 4 → 3, the water fall's flounder, fade and respawn at area 1 entry 1
+with 3 vitality (`scratch/m0062/pit_sheet.png`); at 1 vitality it reaches 0 and takes the retail death floor's
+game-over route. Off, vitality 4 → 0 and the game-over route, unchanged.
+Gap: the death floors of areas 4, 11, 12 and 15 are not reached yet (the decoded spots land Tomba elsewhere), and
+the game over itself holds a black screen on every path (issue 0066).

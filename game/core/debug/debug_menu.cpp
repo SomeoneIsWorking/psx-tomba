@@ -16,6 +16,8 @@
 
 #include <array>
 #include <cctype>
+#include <charconv>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -28,7 +30,7 @@ using psx::game::DebugNames;
 using psx::game::DebugParam;
 
 constexpr std::array<std::string_view, 2> kFlagOps{"get", "set"};
-constexpr std::int64_t kCameraLimit = 32767;
+constexpr std::int64_t kWorldLimit = 32767;
 
 DevControl &devControl(Core &core) {
   return core.game->frameDriverAs<FrameDriver>().devControl();
@@ -78,6 +80,24 @@ std::vector<psx::game::WarpPlace> warpAreas(Core &core) {
   return areas;
 }
 
+// Three whitespace-separated world coordinates.
+std::optional<std::array<std::int16_t, 3>> worldPosition(std::string_view text) {
+  std::array<std::int16_t, 3> position{};
+  const char *cursor = text.data();
+  const char *const end = text.data() + text.size();
+  for (std::int16_t &coordinate : position) {
+    while (cursor != end && std::isspace(static_cast<unsigned char>(*cursor)) != 0) {
+      ++cursor;
+    }
+    const auto [next, error] = std::from_chars(cursor, end, coordinate);
+    if (error != std::errc()) {
+      return std::nullopt;
+    }
+    cursor = next;
+  }
+  return position;
+}
+
 } // namespace
 
 DebugMenu::DebugMenu() {
@@ -113,6 +133,30 @@ DebugMenu::DebugMenu() {
                 call.core, {.area = call.values.u32(0), .entry = call.values.u32(1)});
           },
       .refusal = fieldRefusal,
+  });
+  verb({
+      .name = "spot",
+      .summary = "Warp to an entry with Tomba spawned at a grid sector and x y z (the saved-position spawn)",
+      .params = {DebugParam::integer("area", 0, AreaEntries::kAreaCount - 1),
+                 DebugParam::integer("entry", 0, 0xFF),
+                 DebugParam::integer("sector", 0, 0x7F),
+                 DebugParam::text("x y z")},
+      .run =
+          [](const DebugCall &call) {
+            const std::optional<std::array<std::int16_t, 3>> position = worldPosition(call.values.word(3));
+            if (!position) {
+              call.reply = "usage: spot <area> <entry> <sector> <x> <y> <z>";
+              return;
+            }
+            call.reply = devControl(call.core).warp().armAt(call.core,
+                                                            {.area = call.values.u32(0), .entry = call.values.u32(1)},
+                                                            {.sector = static_cast<std::uint8_t>(call.values.u32(2)),
+                                                             .x = (*position)[0],
+                                                             .y = (*position)[1],
+                                                             .z = (*position)[2]});
+          },
+      .refusal = fieldRefusal,
+      .inMenu = false,
   });
   section("Player");
   readout("Position", [](Core &core) {
@@ -168,9 +212,9 @@ DebugMenu::DebugMenu() {
   verb({
       .name = "tp",
       .summary = "Pin the camera at x y z; no arguments returns it to the player",
-      .params = {DebugParam::integer("x", -kCameraLimit, kCameraLimit).orAbsent(),
-                 DebugParam::integer("y", -kCameraLimit, kCameraLimit).orAbsent(),
-                 DebugParam::integer("z", -kCameraLimit, kCameraLimit).orAbsent()},
+      .params = {DebugParam::integer("x", -kWorldLimit, kWorldLimit).orAbsent(),
+                 DebugParam::integer("y", -kWorldLimit, kWorldLimit).orAbsent(),
+                 DebugParam::integer("z", -kWorldLimit, kWorldLimit).orAbsent()},
       .run =
           [](const DebugCall &call) {
             if (call.values.has(2)) {

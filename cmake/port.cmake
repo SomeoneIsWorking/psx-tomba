@@ -41,6 +41,7 @@ set(GAME_SRC
   game/core/entry/title_state.cpp
   game/core/entry/session.cpp
   game/core/entry/settings.cpp
+  game/core/entry/mod_settings.cpp
   game/core/sched/scheduler.cpp
   game/core/sched/guest_task_stanzas.cpp
   game/core/sched/synchronous_task_wait.cpp
@@ -168,6 +169,7 @@ set(GAME_SRC
   game/ai/beh_substate_edge_leaves.cpp
   game/player/actor_tomba.cpp
   game/player/actor_interaction.cpp
+  game/player/hazard_fall.cpp
   game/scene/area_fade_sequencer.cpp
   game/scene/bg_scene_transition_sm.cpp
   game/scene/parallax_bg.cpp

@@ -6,6 +6,7 @@
 #include "crt0_boot.h"
 #include "engine/engine.h"
 #include "entry/main_handoff.h"
+#include "entry/mod_settings.h"
 #include "entry/session.h"
 #include "frame/frame_driver.h"
 #include "game.h"
@@ -220,6 +221,10 @@ psx::state::NativeStatePort *Runtime::nativeState(Core &core) const {
 void Runtime::reportRun(Core &core) const {
   sessionOf(&core).groundClip.report();
   sessionOf(&core).drawReplay.updateDraws().report();
+}
+
+std::span<const psx::game::TitleIntSetting> Runtime::titleIntSettings() const {
+  return ModSettings::titleIntSettings();
 }
 
 const psx::game::HostIdentity *Runtime::hostIdentity() const {

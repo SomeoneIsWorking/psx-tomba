@@ -9,7 +9,7 @@ longer need it worn.
 1. **RE the suits.** Find the worn-suit state, each suit's item id in the inventory (`0x800BFAB4`, one count
    byte per id), and every site that tests the worn suit to gate an ability: swimming/diving in water,
    cold damage or the cold block, and any other suit-gated ability. Name which suit protects from cold from
-   the item table, not from memory. Record the addresses in `guest-addresses.md`.
+   the item table, not from memory. Record the addresses in the decomp symbol map (`external/tomba2-decomp/config/symbols/`).
 2. **Mod.** Under the setting, each ability gate asks "worn, or owned" instead of "worn", at the gate's own
    test. The worn suit, its look and its other abilities are unchanged, so wearing another suit keeps that
    suit's own powers. Inventory and save data are never written.
@@ -21,3 +21,15 @@ longer need it worn.
 Through `warp` and a card with the suits owned: with the setting on and a different suit worn, Tomba swims in
 deep water and takes no cold effect in a cold area; with it off, both behave as retail. A save made with the
 setting on loads identically with it off.
+
+## State (2026-11-13)
+
+Static only. The worn suit is Tomba's u16 `G+0x17E` (`0x800E7FFE`), saved as `0x800BF89E` and copied back by the
+spawn `0x800783DC`; bit 0x8000 is the grown form, 0x200 a state the item uses refuse in. Tests of the word by
+mask (MAIN, `lh/lhu 0x17E` then `andi`): 0x100 once, the swim branch of the water landing `Tomba_waterLanding`
+(`0x800665F4`) and of the area ticks (A00 `TombaTick_hazardFloor` `0x8010E408`: water floor without 0x100 is
+the water fall); 0x40 seven times (`0x80056CE8`, `0x800570A8`, `0x80057170`, `0x80057334`, `0x8005B780`,
+`0x8005C354`, `0x8005D358`; the community Squirrel Suit flight codes patch `0x8005709A`/`0x8005721C` beside
+the second); 0x20 at `0x8003B6BC`, `0x800597E4`; 0x30, 0x60, 0x180, 0x640, 0x7C00 composites. Equipping is not
+in item use `0x80034CE0`; it is the pause menu's, unread. Next: equip each suit through the game (owned via
+`item`) and read `G+0x17E` to name each bit, find the cold gate, then the gates' owners.
