@@ -92,6 +92,7 @@ struct FrameWalk {
 
 constexpr FrameWalk kAlignedWalk{.signedIndex = true, .countInScratch = false};
 constexpr FrameWalk kRotatedWalk{.signedIndex = false, .countInScratch = true};
+constexpr FrameWalk kScreenWalk{.signedIndex = false, .countInScratch = false};
 constexpr std::uint32_t kPartsLeft = 0x1F800078u;
 
 // A frame: `count` parts of kPartStride bytes from `first`.
@@ -100,19 +101,25 @@ struct Frame {
   std::int32_t count = 0;
 };
 
-Frame currentFrame(Core &core, std::uint32_t entity, const FrameWalk &walk) {
-  const std::uint32_t table = core.mem_r32(entity + 0x3Cu);
+// The entity's current frame entry in its table: a part count, then the first part's offset from the table.
+std::uint32_t frameEntry(Core &core, std::uint32_t entity, bool signedIndex) {
   const std::uint16_t raw = core.mem_r16(core.mem_r32(entity + 0x24u));
   const std::uint32_t index =
-      walk.signedIndex ? static_cast<std::uint32_t>(static_cast<std::int16_t>(raw)) : std::uint32_t{raw};
-  const std::uint32_t entry = table + index * 4u;
-  const Frame frame{.first = table + static_cast<std::uint32_t>(static_cast<std::int16_t>(core.mem_r16(entry + 2u))),
-                    .count = static_cast<std::int16_t>(core.mem_r16(entry))};
+      signedIndex ? static_cast<std::uint32_t>(static_cast<std::int16_t>(raw)) : std::uint32_t{raw};
+  return core.mem_r32(entity + 0x3Cu) + index * 4u;
+}
+
+std::uint32_t firstPart(Core &core, std::uint32_t entity, std::uint32_t entry) {
+  return core.mem_r32(entity + 0x3Cu) + static_cast<std::uint32_t>(static_cast<std::int16_t>(core.mem_r16(entry + 2u)));
+}
+
+Frame currentFrame(Core &core, std::uint32_t entity, const FrameWalk &walk) {
+  const std::uint32_t entry = frameEntry(core, entity, walk.signedIndex);
+  const Frame frame{.first = firstPart(core, entity, entry), .count = static_cast<std::int16_t>(core.mem_r16(entry))};
   if (frame.count <= 0) {
     lucent::error("tomba1-sprite-parts",
-                  "entity 0x{:08X} frame {} at 0x{:08X} has {} parts; the guest loop would never end",
+                  "entity 0x{:08X} frame entry 0x{:08X} has {} parts; the guest loop would never end",
                   entity,
-                  index,
                   entry,
                   frame.count);
     std::abort();
@@ -129,9 +136,13 @@ struct PartRect {
 };
 
 // The part's own offset and size bytes, unscaled (0x80048914).
+std::uint32_t sext8(std::uint8_t value) {
+  return (std::uint32_t{value} ^ 0x80u) - 0x80u;
+}
+
 PartRect plainRect(Core &core, std::uint32_t part) {
-  return {.dx = static_cast<std::uint32_t>(static_cast<std::int8_t>(core.mem_r8(part + 0x0Eu))),
-          .dy = static_cast<std::uint32_t>(static_cast<std::int8_t>(core.mem_r8(part + 0x0Fu))),
+  return {.dx = sext8(core.mem_r8(part + 0x0Eu)),
+          .dy = sext8(core.mem_r8(part + 0x0Fu)),
           .width = core.mem_r8(part + 0x0Au),
           .height = core.mem_r8(part + 0x0Bu)};
 }
@@ -139,7 +150,7 @@ PartRect plainRect(Core &core, std::uint32_t part) {
 // The same bytes times a 4.12 scale, offsets less `bias` and sizes plus it before the shift (0x80048DEC, 0x80049C00).
 PartRect scaledRect(Core &core, std::uint32_t part, std::uint32_t scale, std::uint32_t bias) {
   const auto offset = [&](std::uint32_t at) {
-    const auto value = static_cast<std::uint32_t>(static_cast<std::int8_t>(core.mem_r8(part + at)));
+    const std::uint32_t value = sext8(core.mem_r8(part + at));
     return (value * scale - bias) >> 12u;
   };
   const auto size = [&](std::uint32_t at) {
@@ -216,24 +227,34 @@ void writeRotatedCorners(
   const RotatedSide farSide = flip ? RotatedSide{-dx, far, 0x08u, 0x18u} : RotatedSide{-reach, far, 0x10u, 0x20u};
   const RotatedSide nearSide =
       flip ? RotatedSide{dx + width, near, 0x10u, 0x20u} : RotatedSide{reach + width, near, 0x08u, 0x18u};
-  const auto turned = [&](std::uint32_t table, std::int32_t offset, std::uint32_t angle) {
-    const auto factor = static_cast<std::int16_t>(core.mem_r16(table + (angle & 0xFFu) * 2u));
+  struct Turn {
+    std::uint32_t table = 0;
+    std::uint32_t angle = 0;
+  };
+  const auto turned = [&](Turn turn, std::int32_t offset) {
+    const auto factor = static_cast<std::int16_t>(core.mem_r16(turn.table + (turn.angle & 0xFFu) * 2u));
     return static_cast<std::uint32_t>(
         static_cast<std::int32_t>(static_cast<std::uint32_t>(offset) * static_cast<std::uint32_t>(factor)) >> 12);
   };
-  const auto corner = [&](const RotatedSide &side, std::uint32_t slot, std::int32_t down, std::uint32_t quarter) {
-    const std::uint32_t angle = side.angle + quarter;
-    core.mem_w16(
-        packet + slot,
-        static_cast<std::uint16_t>(anchor + turned(kAngleX, side.across, side.angle) + turned(kAngleX, down, angle)));
-    core.mem_w16(packet + slot + 2u,
-                 static_cast<std::uint16_t>((anchor >> 16u) + turned(kAngleY, side.across, side.angle) +
-                                            turned(kAngleY, down, angle)));
+  // A corner `down` along the part's height from `side`, at packet offset `slot`, its height turned a `quarter` more.
+  struct Corner {
+    std::uint32_t slot = 0;
+    std::int32_t down = 0;
+    std::uint32_t quarter = 0;
   };
-  corner(farSide, farSide.top, -dy, 0xC0u);
-  corner(nearSide, nearSide.top, -dy, 0x40u);
-  corner(farSide, farSide.bottom, dy + height, 0x40u);
-  corner(nearSide, nearSide.bottom, dy + height, 0xC0u);
+  const auto corner = [&](const RotatedSide &side, const Corner &at) {
+    const std::uint32_t angle = side.angle + at.quarter;
+    core.mem_w16(packet + at.slot,
+                 static_cast<std::uint16_t>(anchor + turned({kAngleX, side.angle}, side.across) +
+                                            turned({kAngleX, angle}, at.down)));
+    core.mem_w16(packet + at.slot + 2u,
+                 static_cast<std::uint16_t>((anchor >> 16u) + turned({kAngleY, side.angle}, side.across) +
+                                            turned({kAngleY, angle}, at.down)));
+  };
+  corner(farSide, {.slot = farSide.top, .down = -dy, .quarter = 0xC0u});
+  corner(nearSide, {.slot = nearSide.top, .down = -dy, .quarter = 0x40u});
+  corner(farSide, {.slot = farSide.bottom, .down = dy + height, .quarter = 0x40u});
+  corner(nearSide, {.slot = nearSide.bottom, .down = dy + height, .quarter = 0xC0u});
 }
 
 bool keeps(Core &core, std::uint32_t packet, const ScreenCull &cull) {
@@ -246,8 +267,26 @@ bool keeps(Core &core, std::uint32_t packet, const ScreenCull &cull) {
   return cull.keepsY(ys.data(), 4, CornerDomain::Packed16) && cull.keepsX(xs.data(), 4, CornerDomain::Packed16);
 }
 
-// 0x80048A8C: the part's texture words, the entity's semi-transparency, tpage and clut, then the link at its depth.
-void completePart(Core &core, std::uint32_t packet, std::uint32_t entity, std::uint32_t part) {
+std::int32_t entityLayer(Core &core, std::uint32_t entity) {
+  return static_cast<std::int32_t>(sext8(core.mem_r8(entity + 0x0Fu)));
+}
+
+// A projected entity's depth: its layer, plus the anchor's quartered SZ unless e+0xB is set.
+std::int32_t projectedDepth(Core &core, std::uint32_t entity) {
+  const std::int32_t layer = entityLayer(core, entity);
+  return core.mem_r8(entity + 0x0Bu) == 0u ? layer + static_cast<std::int32_t>(core.mem_r32(kAnchorDepth)) : layer;
+}
+
+// A part's packet, the entity it belongs to and the part record it is textured from.
+struct PartPacket {
+  std::uint32_t packet = 0;
+  std::uint32_t entity = 0;
+  std::uint32_t part = 0;
+};
+
+// 0x80048A8C: the part's texture words, the entity's semi-transparency, tpage and clut, then the link at `depth`.
+void completePart(Core &core, const PartPacket &placed, std::int32_t depth) {
+  const auto [packet, entity, part] = placed;
   const std::uint8_t flags = core.mem_r8(entity + 0x0Du);
   const std::uint8_t command = kRawTexturedQuad;
   core.mem_w8(packet + 7u,
@@ -261,10 +300,6 @@ void completePart(Core &core, std::uint32_t packet, std::uint32_t entity, std::u
   if ((flags & 1u) != 0u) {
     core.mem_w16(packet + 0x0Eu, core.mem_r16(entity + 8u));
   }
-  auto depth = static_cast<std::int32_t>(static_cast<std::int8_t>(core.mem_r8(entity + 0x0Fu)));
-  if (core.mem_r8(entity + 0x0Bu) == 0u) {
-    depth += static_cast<std::int32_t>(core.mem_r32(kAnchorDepth));
-  }
   const std::int32_t offset = depth * 4 < 0 ? 0 : depth * 4;
   const std::uint32_t table = core.mem_r32(kOrderingTable);
   const std::uint32_t slot = table + kFirstSlot + static_cast<std::uint32_t>(offset);
@@ -277,12 +312,17 @@ void completePart(Core &core, std::uint32_t packet, std::uint32_t entity, std::u
   core.mem_w32(PacketPool::kCursor, core.mem_r32(PacketPool::kCursor) + kPacketBytes);
 }
 
-// Every part of the entity's current frame, its corners placed by `place(packet, flip, anchor, part)`.
-template <class Place> void drawParts(Core &core, std::uint32_t entity, const FrameWalk &walk, Place place) {
-  Anchor anchor;
-  if (!projectAnchor(core, entity, anchor)) {
-    return;
-  }
+// Where a frame is drawn: its screen anchor and the depth its parts link at.
+struct FrameAt {
+  std::uint32_t anchor = 0;
+  std::int32_t depth = 0;
+};
+
+// Every part of the entity's current frame around the screen anchor, its corners placed by
+// `place(packet, flip, anchor, part)`.
+template <class Place>
+void drawFrame(Core &core, std::uint32_t entity, const FrameWalk &walk, const FrameAt &at, Place place) {
+  const auto [anchor, depth] = at;
   const ScreenCull cull = MeshChunk::cullFor(core);
   const Frame frame = currentFrame(core, entity, walk);
   const bool flip = mirrored(core, entity);
@@ -292,14 +332,22 @@ template <class Place> void drawParts(Core &core, std::uint32_t entity, const Fr
       core.mem_w32(kPartsLeft, static_cast<std::uint32_t>(left));
     }
     const std::uint32_t packet = PacketPool::reserve(core, kPacketBytes);
-    place(packet, flip, anchor.screen, part);
+    place(packet, flip, anchor, part);
     if (keeps(core, packet, cull)) {
-      completePart(core, packet, entity, part);
+      completePart(core, {.packet = packet, .entity = entity, .part = part}, depth);
     }
   }
   if (walk.countInScratch) {
     core.mem_w32(kPartsLeft, 0u);
   }
+}
+
+template <class Place> void drawParts(Core &core, std::uint32_t entity, const FrameWalk &walk, Place place) {
+  Anchor anchor;
+  if (!projectAnchor(core, entity, anchor)) {
+    return;
+  }
+  drawFrame(core, entity, walk, {.anchor = anchor.screen, .depth = projectedDepth(core, entity)}, place);
 }
 
 // 0x800487A4 (entity)
@@ -349,6 +397,82 @@ void drawRotatedScaledParts(Core *core) {
             });
 }
 
+// 0x8004BAF0 (entity): the plain parts around the entity's own (x, y) halfwords, already in screen space, linked at its
+// layer plus its z halfword.
+void drawScreenParts(Core *core) {
+  const std::uint32_t entity = core->r[kA0];
+  const std::uint32_t anchor = core->mem_r16(entity + 0x12u) | (std::uint32_t{core->mem_r16(entity + 0x16u)} << 16u);
+  const std::int32_t depth = entityLayer(*core, entity) + static_cast<std::int16_t>(core->mem_r16(entity + 0x1Au));
+  drawFrame(*core,
+            entity,
+            kScreenWalk,
+            {.anchor = anchor, .depth = depth},
+            [core](std::uint32_t packet, bool flip, std::uint32_t at, std::uint32_t part) {
+              writeAlignedCorners(*core, packet, flip, at, plainRect(*core, part));
+            });
+}
+
+// The model quad's view: the camera matrix 0x1F8000F8 copied to kQuadView, whose translation becomes the entity's
+// position turned by the scratch matrix plus that matrix's translation.
+constexpr std::uint32_t kCameraMatrix = 0x1F8000F8u;
+constexpr std::uint32_t kQuadView = 0x1F800000u;
+constexpr std::uint32_t kMatrixWords = 8u;
+constexpr std::uint32_t kMatrixTranslation = 0x14u;
+// Where the quad's SZ average is parked.
+constexpr std::uint32_t kQuadDepth = 0x1F800070u;
+// The entity's four model corners, (x, y, z, pad) halfwords each.
+constexpr std::uint32_t kQuadCorners = 0xB4u;
+constexpr std::uint32_t kCornerBytes = 8u;
+
+// 0x8004AA70 (entity): one raw-textured quad, the entity's four model corners projected at its position and textured
+// by its frame's first part, linked at its layer plus the corners' average SZ.
+void drawModelQuad(Core *core) {
+  Core &c = *core;
+  const std::uint32_t entity = c.r[kA0];
+  for (std::uint32_t word = 0; word < kMatrixWords; ++word) {
+    c.mem_w32(kQuadView + word * 4u, c.mem_r32(kCameraMatrix + word * 4u));
+  }
+  c.mem_w16(kAnchorModel, c.mem_r16(entity + 0x12u));
+  c.mem_w16(kAnchorModel + 2u, c.mem_r16(entity + 0x16u));
+  c.mem_w16(kAnchorModel + 4u, c.mem_r16(entity + 0x1Au));
+  psx::cpu::Gte &gte = c.gte();
+  for (std::uint32_t word = 0; word < psx::gte::kRotationWords; ++word) {
+    gte.writeControl(psx::gte::kRotation + word, c.mem_r32(kAnchorMatrix + word * 4u));
+  }
+  gte.writeData(psx::gte::kVxy0, c.mem_r32(kAnchorModel));
+  gte.writeData(psx::gte::kVz0, c.mem_r32(kAnchorModel + 4u));
+  gte.execute(psx::gte::kMvmvaRtV0);
+  for (std::uint32_t axis = 0; axis < psx::gte::kTranslationWords; ++axis) {
+    const std::uint32_t at = kQuadView + kMatrixTranslation + axis * 4u;
+    c.mem_w32(at, gte.readData(psx::gte::kIr1 + axis) + c.mem_r32(kAnchorMatrix + kMatrixTranslation + axis * 4u));
+    gte.writeControl(psx::gte::kTranslationX + axis, c.mem_r32(at));
+  }
+  const std::uint32_t packet = PacketPool::reserve(c, kPacketBytes);
+  const std::uint32_t corners = entity + kQuadCorners;
+  for (std::uint32_t corner = 0; corner < 3u; ++corner) {
+    gte.writeData(psx::gte::kVxy0 + corner * 2u, c.mem_r32(corners + corner * kCornerBytes));
+    gte.writeData(psx::gte::kVz0 + corner * 2u, c.mem_r32(corners + corner * kCornerBytes + 4u));
+  }
+  gte.execute(psx::gte::kRtpt);
+  const psx::present::EmitMemory memory(c);
+  for (std::uint32_t corner = 0; corner < 3u; ++corner) {
+    memory.storeVertex(packet + 0x08u + corner * 8u, gte.projected(corner));
+  }
+  gte.writeData(psx::gte::kVxy0, c.mem_r32(corners + 3u * kCornerBytes));
+  gte.writeData(psx::gte::kVz0, c.mem_r32(corners + 3u * kCornerBytes + 4u));
+  gte.execute(psx::gte::kRtps);
+  gte.execute(psx::gte::kAvsz4);
+  c.mem_w32(kQuadDepth, gte.readData(psx::gte::kOtz));
+  memory.storeVertex(packet + 0x20u, gte.projected(2));
+  if (!keeps(c, packet, MeshChunk::cullFor(c))) {
+    return;
+  }
+  const std::uint32_t part = firstPart(c, entity, frameEntry(c, entity, false));
+  completePart(c,
+               {.packet = packet, .entity = entity, .part = part},
+               entityLayer(c, entity) + static_cast<std::int32_t>(c.mem_r32(kQuadDepth)));
+}
+
 // 0x80045AF8 (packet): the four-corner test the area overlays' quad drawers call before linking a packet.
 void quadOnScreen(Core *core) {
   core->r[kV0] = keeps(*core, core->r[kA0], MeshChunk::cullFor(*core)) ? 1u : 0u;
@@ -361,7 +485,9 @@ bool installSpriteParts(const InstallOverride &install) {
          install(0x800487A4u, "SpriteParts::plain", drawPlainParts) &&
          install(0x80048BF0u, "SpriteParts::scaled", drawScaledParts) &&
          install(0x80049134u, "SpriteParts::rotated", drawRotatedParts) &&
-         install(0x80049994u, "SpriteParts::rotatedScaled", drawRotatedScaledParts);
+         install(0x80049994u, "SpriteParts::rotatedScaled", drawRotatedScaledParts) &&
+         install(0x8004AA70u, "SpriteParts::modelQuad", drawModelQuad) &&
+         install(0x8004BAF0u, "SpriteParts::screen", drawScreenParts);
 }
 
 } // namespace tomba1
