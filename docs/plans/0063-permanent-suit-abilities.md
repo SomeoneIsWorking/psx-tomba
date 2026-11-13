@@ -151,11 +151,12 @@ Every native gate logs its decision on the `suits` debug channel (`TombaStep::ha
 
 Still on the suit word, by the scan of every `lh/lhu 0x17E` + `andi` (MAIN and the area overlays):
 - MAIN 0x60 `0x80062A30` (no code reference); 0x7C00 `0x800552EC`;
-- A04's 0x30 (snow grip) sites: `0x8010F1CC` (Tomba's contact loop over `*0x1F80013C`, kind 0x28: on contact
-  with `0x80022D08(G, 0, 1, 1)` and `G+0x177 & 2` clear, mode 0 substate 4 and `G+0 |= 8`) and `0x8010F75C`, both
-  called from area 4's Tomba tick `0x80110608`; `0x80110A30` repeats case 0x28 and, like `0x80111398` and
-  `0x80115EF0`, has no reference in any overlay, MAIN, or area 4's RAM at entries 0..2, so those three stay guest
-  code. Owning a site means owning its whole contact loop; a kind 0x28 actor sits at sector 23 (3392, -10418, 10688)
-  in the entry 0 dump, but a spot there lands in a scripted group 4 state (modes 0x34, 0x21), so its reach is open.
+- area 4's ice monster (`FreezeTouch::contacts`, A04 FUN_8010F1CC, the contact loop; kind 0x28 tests 0x30): in
+  light clothes its touch freezes Tomba (mode 0 substate 4). Its own effect, `FREEZE_GUARD`, beside `SNOW_GRIP`,
+  both through `SuitAbilities::lightlyDressed`. From `spot 4 1 23 3392 -10500 10600` with the Squirrel owned and the
+  setting on, the touch knocks Tomba back (mode 0x34) as with the Squirrel worn; off or with no suit he freezes at
+  f66, and under `PSXPORT_OVERRIDE_DIFF` 200 of 200 calls match the guest (`f4n_*`, `f4g_*`, `freeze4_sheet.png`).
+  `0x80110A30` repeats case 0x28 and, like `0x80111398` and `0x80115EF0`, has no reference in any overlay, MAIN or
+  area 4's RAM, so those stay guest code. `0x8010F75C`'s kind 1 test needs `G+0x16A == 8` and stays open.
 - overlays: 0x40 in A01 `0x8010D9FC`, A04 `0x80113414`, `0x80115F6C`, A0B `0x8010A9C8`; 0x20 A01 `0x8010C8CC`;
   0x30, 0x60, 0x180, 0x400, 0x7C00 in A04, A07, A08, A0B.

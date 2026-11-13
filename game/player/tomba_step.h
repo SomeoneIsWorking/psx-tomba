@@ -88,16 +88,17 @@ protected:
                   u8(tomba_field::kSubstate));
     return granted;
   }
-  bool slipsOnSnow() const {
-    const bool slips = SuitAbilities::slipsOnSnow(core_);
+  bool lightlyDressed(SuitEffect effect) const {
+    const bool light = SuitAbilities::lightlyDressed(core_, effect);
     lucent::debug("suits",
-                  "{} slips on snow: {} (worn {:04X}, mode {:02X}/{:02X})",
+                  "{} lightly dressed for effect {}: {} (worn {:04X}, mode {:02X}/{:02X})",
                   owner_,
-                  slips,
+                  static_cast<int>(effect),
+                  light,
                   u16(0x17Eu),
                   u8(tomba_field::kMode),
                   u8(tomba_field::kSubstate));
-    return slips;
+    return light;
   }
   template <typename... Args> void call(std::uint32_t address, Args... args) {
     psx::cpu::callGuestNow(core_, owner_, address, args...);

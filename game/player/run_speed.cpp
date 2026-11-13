@@ -56,7 +56,7 @@ public:
     brake_ = row16(row, 3);
     brakeDivisor_ = brake_;
     hardBrake_ = trunc16(brake_ - kBrakeMargin);
-    slip_ = slipsOnSnow() && (u16(tomba_field::kFloorAttribute) & 0xF00u) == kSnowFloor;
+    slip_ = lightlyDressed(SuitEffect::SnowGrip) && (u16(tomba_field::kFloorAttribute) & 0xF00u) == kSnowFloor;
     applyCap(row);
     if (slip_) {
       accel_ = trunc16(divToZero(accel_, 3));

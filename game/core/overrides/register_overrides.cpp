@@ -11,17 +11,18 @@
 #include "game.h"
 #include "mtx.h" // class Mtx — libgte matrix leaves (MR_init identity, 0x80051794)
 #include "overrides/native_override_catalog.h"
-#include "placed_prop_sm.h"       // class PlacedPropSm — placed scene-prop behaviour (0x80040558)
-#include "player/action_modes.h"   // class ActionModes — Tomba action modes 3, 6, 0x10 and their glide gates
-#include "player/airborne.h"       // class Airborne — the airborne step, the ledge drop and their suit gates
-#include "player/hazard_fall.h"   // class HazardFall — the death floor substate and the pit void-out mod (0x800678E8)
-#include "player/water_entry.h"    // class WaterEntry — water landing and the area 0 floor tick, the swim gates
-#include "player/run_speed.h"      // class RunSpeed — the x speed step and its winged and snow-grip gates
-#include "player/cold_field.h"     // class ColdField — area 5's cold field tick and ice crust, their cold gates
-#include "rope_swing.h"           // class RopeSwing — hanging rope swing + segment bend (0x801281B8)
-#include "sway_schedule.h"        // class SwaySchedule — rocking-rate schedule + sway tick (0x8012D27C)
-#include "tilt_follower.h"        // class TiltFollower — half-tilt follower leaf (0x80125FE0)
-                                  //   + its per-visible-frame rig pose (0x801389C8)
+#include "placed_prop_sm.h"      // class PlacedPropSm — placed scene-prop behaviour (0x80040558)
+#include "player/action_modes.h" // class ActionModes — Tomba action modes 3, 6, 0x10 and their glide gates
+#include "player/airborne.h"     // class Airborne — the airborne step, the ledge drop and their suit gates
+#include "player/cold_field.h"   // class ColdField — area 5's cold field tick and ice crust, their cold gates
+#include "player/freeze_touch.h" // class FreezeTouch — area 4's contact loop and the ice monster's freeze gate
+#include "player/hazard_fall.h"  // class HazardFall — the death floor substate and the pit void-out mod (0x800678E8)
+#include "player/run_speed.h"    // class RunSpeed — the x speed step and its winged and snow-grip gates
+#include "player/water_entry.h"  // class WaterEntry — water landing and the area 0 floor tick, the swim gates
+#include "rope_swing.h"          // class RopeSwing — hanging rope swing + segment bend (0x801281B8)
+#include "sway_schedule.h"       // class SwaySchedule — rocking-rate schedule + sway tick (0x8012D27C)
+#include "tilt_follower.h"       // class TiltFollower — half-tilt follower leaf (0x80125FE0)
+                                 //   + its per-visible-frame rig pose (0x801389C8)
 #include "actor_melee_engage.h"   // class ActorMeleeEngage — A00-overlay melee-engage/reposition/arm leaf
 #include "actor_sm_reward.h"      // class ActorReward — reward/tally window actor SM family
 #include "actor_tomba.h"          // class ActorTomba — Tomba's postInteractWalk sub-handler leaves
@@ -169,6 +170,7 @@ void register_engine_overrides(Game &game, native::NativeOverrideCatalog &native
   WaterEntry::registerOverrides(natives);         // water landing, A00 floor tick; swim gates
   RunSpeed::registerOverrides(natives);           // x speed step; winged steer and snow grip gates (0x80055FBC)
   ColdField::registerOverrides(natives);          // A05 cold field tick and ice crust; cold gates (0x8010A854, 0x8012E454)
+  FreezeTouch::registerOverrides(natives);        // A04 contact loop; freeze gate (0x8010F1CC)
   ActorBump::registerOverrides(natives);          // actor bump: interact / push apart / recoil (0x8010EA80)
   ActorObjectContact::registerOverrides(natives); // actor-vs-object hit / proximity contact (0x8010E258)
   RopeSwing::registerOverrides(natives);          // hanging rope: spring swing + per-segment bend (0x801281B8)

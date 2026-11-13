@@ -1,6 +1,8 @@
 // game/player/suit_abilities.h — the ability gates on Tomba's suit word G+0x17E and the owned-suit effect settings.
 #pragma once
 
+#include "entry/mod_settings.h"
+
 #include <cstdint>
 
 class Core;
@@ -25,9 +27,9 @@ class SuitAbilities {
 public:
   // True when the worn suit, or an owned one whose effect setting is on, gives `ability`.
   static bool has(Core &core, SuitAbility ability);
-  // The snow handicap (0x30: no suit or the Bird): true when worn, unless the snow-grip setting is on and the
-  // inventory holds a suit other than the Bird.
-  static bool slipsOnSnow(Core &core);
+  // The light-clothes handicaps (0x30: no suit or the Bird), each its own effect: the snow slip (SnowGrip) and area
+  // 4's freezing touch (FreezeGuard). True when worn, unless `effect` is on and the inventory holds a heavier suit.
+  static bool lightlyDressed(Core &core, SuitEffect effect);
   // The guest mask a gate tests, for its log line.
   static std::uint16_t mask(SuitAbility ability);
 };

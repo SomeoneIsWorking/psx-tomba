@@ -21,7 +21,7 @@ constexpr std::uint8_t kSwimmingPig = 0x11u;
 constexpr std::uint8_t kFlameRobe = 0x12u;
 constexpr std::uint8_t kLastRobe = 0x16u; // the Evil Water Pig Robe
 
-constexpr std::uint16_t kSnowSlip = 0x30u;
+constexpr std::uint16_t kLightClothes = 0x30u;
 
 struct Grant {
   std::uint8_t item;
@@ -77,11 +77,11 @@ bool SuitAbilities::has(Core &core, SuitAbility ability) {
   return false;
 }
 
-bool SuitAbilities::slipsOnSnow(Core &core) {
-  if ((core.mem_r16(kSuitWord) & kSnowSlip) == 0u) {
+bool SuitAbilities::lightlyDressed(Core &core, SuitEffect effect) {
+  if ((core.mem_r16(kSuitWord) & kLightClothes) == 0u) {
     return false;
   }
-  if (!ModSettings::suitEffect(SuitEffect::SnowGrip)) {
+  if (!ModSettings::suitEffect(effect)) {
     return true;
   }
   for (std::uint8_t item = kSquirrel; item <= kLastRobe; ++item) {

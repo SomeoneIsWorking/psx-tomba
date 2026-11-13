@@ -22,6 +22,7 @@ enum class SuitEffect : std::uint8_t {
   SwimmingPigStomp,
   FlameRobeColdImmunity,
   SnowGrip,
+  FreezeGuard,
 };
 
 // The settings menu's mod rows. Each read goes through psx::config::enh_int, so a comparison run sees every mod off.

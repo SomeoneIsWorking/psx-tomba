@@ -22,6 +22,7 @@ psx::config::Var<long> cvSwimmingPigJump("PSXPORT_TOMBA2_SUIT_SWIMMING_PIG_JUMP"
 psx::config::Var<long> cvSwimmingPigStomp("PSXPORT_TOMBA2_SUIT_SWIMMING_PIG_STOMP", 0, psx::config::kSaved);
 psx::config::Var<long> cvFlameRobeCold("PSXPORT_TOMBA2_SUIT_FLAME_ROBE_COLD", 0, psx::config::kSaved);
 psx::config::Var<long> cvSnowGrip("PSXPORT_TOMBA2_SUIT_SNOW_GRIP", 0, psx::config::kSaved);
+psx::config::Var<long> cvFreezeGuard("PSXPORT_TOMBA2_SUIT_FREEZE_GUARD", 0, psx::config::kSaved);
 const psx::config::Registration kRegistration{cvPitVoidOut,
                                               cvBirdFlutter,
                                               cvBirdAirControl,
@@ -34,10 +35,11 @@ const psx::config::Registration kRegistration{cvPitVoidOut,
                                               cvSwimmingPigJump,
                                               cvSwimmingPigStomp,
                                               cvFlameRobeCold,
-                                              cvSnowGrip};
+                                              cvSnowGrip,
+                                              cvFreezeGuard};
 
 // In SuitEffect order.
-const std::array<psx::config::Var<long> *, 12> kSuitEffects{
+const std::array<psx::config::Var<long> *, 13> kSuitEffects{
     &cvBirdFlutter,
     &cvBirdAirControl,
     &cvSquirrelGlide,
@@ -50,10 +52,11 @@ const std::array<psx::config::Var<long> *, 12> kSuitEffects{
     &cvSwimmingPigStomp,
     &cvFlameRobeCold,
     &cvSnowGrip,
+    &cvFreezeGuard,
 };
 
 const std::array<const char *, 2> kOffOn{"Off", "On"};
-const std::array<psx::game::TitleIntSetting, 13> kTitleIntSettings{{
+const std::array<psx::game::TitleIntSetting, 14> kTitleIntSettings{{
     {.id = "pit_void_out",
      .label = "Pits void out like water",
      .unit = "",
@@ -130,6 +133,12 @@ const std::array<psx::game::TitleIntSetting, 13> kTitleIntSettings{{
      .label = "Owned suits grip on snow",
      .unit = "",
      .var = &cvSnowGrip,
+     .range = {.min = 0, .max = 1, .step = 1},
+     .labels = kOffOn},
+    {.id = "suit_freeze_guard",
+     .label = "Owned suits resist the ice monster's freeze",
+     .unit = "",
+     .var = &cvFreezeGuard,
      .range = {.min = 0, .max = 1, .step = 1},
      .labels = kOffOn},
 }};
