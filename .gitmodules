@@ -5,3 +5,6 @@
 [submodule "external/psx_tomba"]
 	path = external/psx_tomba
 	url = https://github.com/hansbonini/psx_tomba.git
+[submodule "external/tomba2-decomp"]
+	path = external/tomba2-decomp
+	url = https://github.com/SomeoneIsWorking/tomba2-decomp.git

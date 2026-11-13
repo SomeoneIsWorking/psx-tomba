@@ -104,7 +104,8 @@ publishing it under `scratch/bin/<slug>/`; a title whose disc is absent gets no 
 - [`docs/project-goals.md`](docs/project-goals.md): durable product outcomes
 - [`docs/project-state.md`](docs/project-state.md): complete capability state and current focus
 - [`docs/migration.md`](docs/migration.md): execution migration order and deletion gates
-- [`docs/re-frontier.md`](docs/re-frontier.md): Tomba! 2's ordered ground-truth chain
+- [`external/tomba2-decomp/docs/re-frontier.md`](external/tomba2-decomp/docs/re-frontier.md): Tomba! 2's ordered
+  ground-truth chain, in its decomp repository with the symbol map and RE notes
 - [`docs/codemap.md`](docs/codemap.md): subsystem ownership and placement
 - [`docs/features.md`](docs/features.md): where each title joins psxport's feature hops
 - [`docs/guest-addresses.md`](docs/guest-addresses.md): Tomba! 2 guest function to native owner
