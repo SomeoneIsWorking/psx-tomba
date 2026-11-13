@@ -9,9 +9,10 @@ This repository contains two isolated PlayStation-to-PC ports:
 
 Tomba! 2 running in this port at 16:9, captured from the product.
 
-![Interpolation comparison: the original 30 fps beside the interpolated 60 fps](docs/media/interpolation-comparison.webp)
+![Interpolation comparison at quarter speed: the original 30 fps beside the interpolated 60 fps](docs/media/interpolation-comparison.webp)
 
-The attract demo's village, the same frames at the original 30 fps (left) and interpolated to 60 fps (right).
+The attract demo's village at quarter speed: the original (left) changes every other frame; the interpolated side
+(right) changes every frame, halfway between.
 
 ![Widescreen comparison: the original 4:3 picture beside the 16:9 picture](docs/media/widescreen-comparison.png)
 
