@@ -10,6 +10,8 @@ The native GT3/GT4 model emitters and where guest code reaches them. In-betweens
 | 0x80130838 / 0x80130D9C, 0x8012F8D8 / 0x8013000C | A01 | `SwayModelEmitter` sway / scroll, cue pair | scenery walker 0x80132358 |
 | 0x80132690 / 0x801329C4 | A01 | `UnlitModelEmitter` gt3 / gt4 (`kA01Cue`) | 0x80132DC0 via 0x8003F698 |
 | 0x8013544C / 0x8013590C | A05 | `LitModelEmitter` gt3 / gt4 | 0x801362CC via 0x8003F698 |
+| 0x8013F418 / 0x8013F6E4 | A04 | `FogModelEmitter` gt3 / gt4 (`kA04`) | not traced |
+| 0x8013AC90 / 0x8013AF0C | A05 | `FogModelEmitter` gt3 / gt4 (`kA05`: fog bias 0x40, no hide bits) | scenery walker, branch 0x8013623C |
 | 0x8013C0D8 / 0x8013C5B4 | A06 | `LitModelEmitter` gt3 / gt4 (`kA06Flags`) | scenery walker 0x8013CD34; 0x8013D568 via 0x8003F698 |
 | 0x8013BA44 / 0x8013BD40 | A06 | `UnlitModelEmitter` gt3 / gt4 (`kA06`) | scenery walker 0x8013CD34 |
 | 0x8013CF00 / 0x8013D1E4 | A06 | `UnlitModelEmitter` gt3 / gt4 (`kA06Scroll`) | 0x8013D568 via 0x8003F698 |
@@ -39,7 +41,7 @@ The scenery walkers (A01, A02, A05-A08, A0L) are guest code.
 Still guest code, by census rank: SOP effect 0x8010BF54, A01 0x80132DC0
 and the GT3/GT4 emitter copies of the overlays not listed above
 whose bodies differ from the natives: A04 0x801175FC/0x801178A0 and 0x8013D0F8/0x8013D568, A05
-0x8013484C/0x80134B74 and 0x8013AC90/0x8013AF0C, A07 0x8012DBB4/0x8012DE60, A0G 0x8010C3A4/0x8010C664, A0K
+0x8013484C/0x80134B74, A07 0x8012DBB4/0x8012DE60, A0G 0x8010C3A4/0x8010C664, A0K
 0x80114F1C/0x8011562C and 0x801163E0/0x80116708.
 
 Each per-object drawer (A01 0x80132DC0, A05 0x801362CC, A06 0x8013D568, A08 0x8012A9DC) calls one GT3/GT4
