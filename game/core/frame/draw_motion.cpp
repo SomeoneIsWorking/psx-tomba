@@ -38,6 +38,17 @@ constexpr std::array kEffectNodeFields{
 };
 // 0x800597AC rebuilds Tomba's record transforms from his node inside the draw.
 constexpr std::uint32_t kTomba = 0x800E7E80u;
+// His node fields, then the animation's root offset s16 x3 at +0x88 that 0x800597AC turns by his body matrix;
+// FUN_80075F0C steps it a tick and FUN_80076904 loads it at each keyframe.
+constexpr std::array kTombaFields{
+    kNodeFields[0],
+    kNodeFields[1],
+    kNodeFields[2],
+    kNodeFields[3],
+    kNodeFields[4],
+    MotionField{.offset = 0x88, .motion = Motion::Halves},
+    MotionField{.offset = 0x8C, .motion = Motion::Low16},
+};
 // The typed node pools of FUN_800798F8, live while +1 is set.
 struct NodePool {
   std::uint32_t base = 0;
@@ -107,7 +118,7 @@ DrawMotion::DrawMotion(world::RenderRecordPool &records) {
   std::size_t at = 0;
   tracks_[at++] = {.name = "view", .address = kView, .fields = kViewFields, .rule = &view_};
   tracks_[at++] = {.name = "view angles", .address = kViewAngles, .fields = kViewAngleFields};
-  tracks_[at++] = {.name = "tomba", .address = kTomba, .fields = kNodeFields};
+  tracks_[at++] = {.name = "tomba", .address = kTomba, .fields = kTombaFields};
   tracks_[at++] = {.name = "effect nodes",
                    .address = kEffectNodes.base,
                    .fields = kEffectNodeFields,

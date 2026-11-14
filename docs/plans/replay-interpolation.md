@@ -126,10 +126,11 @@ statically; the probe's identity check answers it.
 | view rotation | `0x1F8000F8`, 5 words (9 s16 + pad) | Matrix (`gte::rotationBetween`) | single | every step, copied into GTE R | M:8003CDD8, M:8003C2D4, M:8003D23C; built by `CutsceneCamera::lookAt` (`kCamScratch + 40`) in the update |
 | view translation | `0x1F80010C..0x1F800114`, 3 x s32 | Vector | single | every step (added to each object's RT) | same; `lookAt` `applyMatrixLV(.., 0x1F80010C)` |
 | camera pitch, yaw | `0x1F8000F0`, `0x1F8000F2` (s16) | Angle12 | single | A0E `GradientBackdrop`, A06 `TileGridLayer::emitClamped` | `lookAt` (`kCamScratch + 32/34`) |
-| camera eye, target | `0x1F8000D2..0x1F8000E6` | Derived (not read by the section) | | | `lookAt` reads them in the update |
+| camera eye, target | `0x1F8000D2..0x1F8000E6` | Derived (the section reads the eye only in the cone cull and `CameraLattice`'s corner) | | | `lookAt` reads them in the update |
 | Tomba position | `0x800E7EAC/B0/B4`, s32 16.16 | Vector | single | `0x800597AC` inside step `0x8003B588` | M:800597AC (+0x2E/+0x32/+0x36), `camera_state.h kMasterX` |
 | Tomba angles | `0x800E7ED4/D6/D8` (+0x54..+0x58), s16 | Angle12 (x3) | single | `0x800597AC` | M:800597AC |
-| Tomba part angles | each command at `[0x800E7F40 + 4i]` +8..+0xD, s16 x 3 | Pose or Angle12 per part (open 2) | command address | `0x800597AC` (`0x80085480(cmd + 8)`) | M:800597AC |
+| Tomba part angles | each command at `[0x800E7F40 + 4i]` +8..+0xD, s16 x 3 | Angle12 (an absolute pose each tick) | command address | `0x800597AC` (`0x80085480(cmd + 8)`) | M:800597AC, M:80076904, M:80075F0C |
+| Tomba root offset | `0x800E7F08/0A/0C` (+0x88..+0x8C), s16 | Halves, Low16 | single | `0x800597AC`, turned by the body matrix | M:800597AC; the run bob (issue 0068) |
 | Tomba command matrices | command +0x18..+0x34 | Derived (rebuilt by `0x800597AC` in the section) | | | M:800597AC |
 | object command matrices | command +0x18..+0x29 rotation, +0x2C/+0x30/+0x34 position | Matrix + Vector as one ruled track | command address + `RenderRecordPool::object` life | `0x8003CDD8`, `0x8003F07C`, `0x8003F174` | M:8003CDD8; built in the update by `0x800597AC` from `0x80058648`, `0x8005950C`, `0x80060C60` (inferred update callers) |
 | billboard nodes (type 0x10) | node +0x2E/+0x32/+0x36, +0x5A angle; +0x38 the current frame of the sprite set at +0x3C | Vector, Angle12 (the node pools); +0x38 Step | node life | `0x8003C2D4` -> `0x8003C8F4` | M:8003C2D4, M:8003C8F4, M:8003B220: the quads are the set's static 16-byte entries |
@@ -251,14 +252,19 @@ missing; `presentseq` advances 0.5 per simulated vblank; `replay:warn` 0; no `No
 ## Open
 
 1. Whether anything links into the OT after the section during play (slots 1 and 2): the probe.
-2. Tomba's part angles (command +8..+0xD) come from the animation VM (`Animation::step`); blending them as
-   angles may cross a keyframe switch. The VM's keyframe pair and progress layout is not mapped here.
+2. Resolved: Tomba's part angles are an absolute pose each tick (M:80076904 loads a keyframe's 12-bit angles,
+   M:80075F0C adds the delta without masking), so the short-way blend crosses keyframes and animation switches; the
+   replay writes their halfway value at both (`external/tomba2-decomp/docs/notes/tomba-draw-transform.md`, issue 0068).
+   The draw also reads the root offset +0x88, now tracked, and the pan +0x14E while +0x177 bit 0 is set, which only
+   area events write (MAIN 0x80024660, A04, A05, A06, A0I) and no run has reached.
 3. Resolved: node +0x38 is not a particle pool but the current frame of the sprite set at +0x3C (M:8003C8F4 reads
    `[+0x3C] + [[+0x38]] * 4` for a quad count and offset, M:8003B220 builds each quad from the set's static entry),
    so billboards move by their node.
 4. Resolved: `0x800BF87E/F` are the vitality gauge's fill and length, not a slide (below, State).
-5. Whether the camera shake (`CutsceneCamera`, `kShakeRand` `0x8009A450`) needs a cut limit: shake moves the
-   view by up to 16 units a frame and should blend, but a re-place must not.
+5. Resolved: no limit. The shake (`CutsceneCamera::shakeTail`, FUN_8006C988) jitters the eye 0x1F8000D2/D6/DA by at
+   most 16 units around an anchor it captures and restores, and it reaches the picture through the view the update
+   builds, so it blends with the view; the camera's jumps are the re-place M:8006EA00 (a declared cut, `FrameCut`)
+   and scene changes. No shake has been reached and judged in frames.
 6. The A03 (`0x80113050`) and A0C (`0x8011AD44`) closures name call targets with no body (`0x89B3FDE0`,
    `0x8CF3A880`); likely data decoded as `jal`, not checked.
 
