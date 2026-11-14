@@ -26,3 +26,7 @@ Widening the cull by the canvas margin, as Tomba! 2's cone cull does (root S005)
 real state but runs their updates and lets weapons hit them in the margin, so logic differs between 4:3 and widescreen.
 Drawing them without listing them for logic would show objects whose updates have not run since they left the window
 (frozen or never spawned). Keeping the guest cull leaves the 21:9 pop-in. Pick one; nothing is changed until then.
+
+## State (2026-11-14)
+
+Decided: a draw-only margin pass in a nested `GuestRedraw`, as Spyro 2/3 do. A first version (`object_margin.*`) is shelved in the stash "tomba1 0012 margin object pass WIP": warps 9/0 and 10/0 gained margin objects; logic identity and 4:3 are unproven.
