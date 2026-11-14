@@ -119,6 +119,8 @@ private:
     std::size_t slot;
     std::uint16_t state;
     const R3000 &loopContext;
+    // runSlot's caller runs a budget exit again in this frame; the task pass resumes it on the next field.
+    bool resumesThisFrame = false;
   };
   // True when the slot reached its cooperative yield or exit.
   bool runTaskSlot(Core &core, const RunTaskSlotArgs &args);
@@ -134,11 +136,11 @@ private:
   void restartTask(Core &core);
   void exitTask(Core &core);
 
-  // The one budget exit path: records the resume, re-arms the slot for the next field, and either
+  // The one budget exit path: records the resume, re-arms the slot at the exit's pc, and either
   // returns (progress) or reports and stops (no progress). Kept beside `runTaskSlot` rather than
   // inline because the two decisions it makes — is this the same call, and has it gone on too long —
   // are the whole of the policy, and inlining them buries them in the dispatch sequence.
-  bool resumeAcrossField(Core &core, std::size_t slot, const psx::cpu::ExecutionResult &result);
+  bool resumeAcrossField(Core &core, const RunTaskSlotArgs &args, const psx::cpu::ExecutionResult &result);
 
   std::array<TaskSlot, kTaskSlotCount> tasks_{};
   bool restartRequested_ = false;

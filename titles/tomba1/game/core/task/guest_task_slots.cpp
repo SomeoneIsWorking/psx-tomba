@@ -106,7 +106,9 @@ void GuestTaskSlots::createTask(Core &core, std::size_t slot, std::uint32_t entr
 }
 
 bool GuestTaskSlots::runTaskSlot(Core &core, const RunTaskSlotArgs &args) {
-  auto [slot, state, loopContext] = args;
+  const std::size_t slot = args.slot;
+  std::uint16_t state = args.state;
+  const R3000 &loopContext = args.loopContext;
   const std::uint32_t record = taskRecordAddress(slot);
   TaskSlot &task = tasks_[slot];
   for (int restartBudget = 0; restartBudget < 4; ++restartBudget) {
@@ -153,7 +155,7 @@ bool GuestTaskSlots::runTaskSlot(Core &core, const RunTaskSlotArgs &args) {
       return true;
     }
     if (result.reason == psx::cpu::ExecutionExitReason::BudgetExhausted) {
-      if (resumeAcrossField(core, slot, result)) {
+      if (resumeAcrossField(core, args, result)) {
         return false;
       }
       std::abort();
@@ -198,7 +200,10 @@ bool GuestTaskSlots::runTaskSlot(Core &core, const RunTaskSlotArgs &args) {
 // true during the dispatch above. Writing 2 is the same encoding `createTask` uses, and the two are
 // told apart by `contextReady`, not by the record — which is why nothing here has to invent a fourth
 // task state the guest's own table has no room for.
-bool GuestTaskSlots::resumeAcrossField(Core &core, std::size_t slot, const psx::cpu::ExecutionResult &result) {
+bool GuestTaskSlots::resumeAcrossField(Core &core,
+                                       const RunTaskSlotArgs &args,
+                                       const psx::cpu::ExecutionResult &result) {
+  const std::size_t slot = args.slot;
   const std::uint32_t record = taskRecordAddress(slot);
   TaskSlot &task = tasks_[slot];
   ++task.budgetResumes;
@@ -220,11 +225,12 @@ bool GuestTaskSlots::resumeAcrossField(Core &core, std::size_t slot, const psx::
   task.resumeAddress = result.guestPc;
   core.mem_w16(record + kTaskRecordState, kTaskStateRunnable);
   lucent::info("tomba1-frame",
-               "guest task {} used its whole field budget at 0x{:08X} ({} cycles) and resumes on field {} of "
-               "{} for this call",
+               "guest task {} used its budget at 0x{:08X} ({} cycles) and resumes there {}, resume {} of {} "
+               "for this call",
                slot,
                result.guestPc,
                result.cycles,
+               args.resumesThisFrame ? "in this frame" : "on the next field",
                task.budgetResumes,
                kMaxBudgetResumesPerCall);
   return true;
@@ -257,7 +263,7 @@ bool GuestTaskSlots::runSlot(Core &core, std::size_t slot) {
     std::abort();
   }
   const R3000 loopContext = static_cast<R3000 &>(core);
-  return runTaskSlot(core, {.slot = slot, .state = state, .loopContext = loopContext});
+  return runTaskSlot(core, {.slot = slot, .state = state, .loopContext = loopContext, .resumesThisFrame = true});
 }
 
 void GuestTaskSlots::yieldTask(Core &core) {
