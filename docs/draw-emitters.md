@@ -40,9 +40,11 @@ The scenery walkers (A01, A02, A05-A08, A0L) are guest code.
 
 Still guest code, by census rank: SOP effect 0x8010BF54, A01 0x80132DC0
 and the GT3/GT4 emitter copies of the overlays not listed above
-whose bodies differ from the natives: A04 0x801175FC/0x801178A0 and 0x8013D0F8/0x8013D568, A05
-0x8013484C/0x80134B74, A07 0x8012DBB4/0x8012DE60, A0G 0x8010C3A4/0x8010C664, A0K
-0x80114F1C/0x8011562C and 0x801163E0/0x80116708.
+whose bodies differ from the natives: A04 0x801175FC/0x801178A0 (its GT3 has no screen cull, only flag hides), A05
+0x8013484C/0x80134B74, A0K 0x80114F1C/0x8011562C and 0x801163E0/0x80116708 (the flagged copy with each colour
+depth-cued by the bucket * 2). Never called, so never owned: A04 0x8013D0F8/0x8013D568 (MODE_TABLE sends area 4 to
+0x8013DAFC), A07 0x8012DBB4/0x8012DE60 and A0G 0x8010C3A4/0x8010C664 under its wrapper 0x8010C9B4, which nothing
+in the decomp references and no area 7 or 16 entry calls (`PSXPORT_OVERRIDE_DIFF` sampled 0 calls).
 
 Each per-object drawer (A01 0x80132DC0, A05 0x801362CC, A06 0x8013D568, A08 0x8012A9DC) calls one GT3/GT4
 pair per branch, so one sub-part never carries two lists of a kind (issue 0030).
