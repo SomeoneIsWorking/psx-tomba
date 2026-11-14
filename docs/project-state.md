@@ -52,7 +52,7 @@ and 2D layout.
 | S021 | macOS x86-64 and arm64 native/Lightrec CI builds and tests the repository | missing | — | — |
 | S022 | Android arm64-v8a native/Lightrec CI assembles and tests the repository | missing | — | — |
 | S023 | Tomba! 2 loads complete without loading-only waits or presentation | partial | — | G005 |
-| S024 | Tomba! 1 loads complete without loading-only waits or presentation | missing | — | G005 |
+| S024 | Tomba! 1 loads complete without loading-only waits or presentation | partial | — | G005 |
 | S025 | Tomba! 2 files in-app bug reports (B key) with a replayable reproduction | partial | — | — |
 | S026 | Tomba runs through psxport's multi-title host and in-window picker | partial | — | — |
 | S027 | Tomba! 2 pit void-out mod: death-floor falls void out like water (setting, default off) | verified | — | — |
@@ -158,7 +158,11 @@ Measured 2026-11-14, `scratch/s023b/` (the RE is the decomp's `docs/notes/scene-
 - `FUN_80127798`'s node[5] = 3 path is an in-area event (a jingle, Tomba's action 0x71 and a camera fly-to), not a load: it writes neither the pending byte nor the transition type. Out of scope.
 ### S024 — Tomba! 1 loads complete without loading-only waits or presentation
 
-Missing capability: No load operation classified for Tomba! 1.
+Gap: Every Tomba! 1 load runs through the loader task `0x80021340` (the RE is `titles/tomba1/docs/re-frontier.md` T1-07b). Each of its steps (queue check, Setloc, CdSync, CdRead, CdReadSync, unpack, queue advance) ended in a one-field sleep that waits on the drive, so every file cost about seven fields over psxport's instant disc. `DiscLoader` wakes the loader for its next step in the same field until it exits, a step makes no progress, or its unpack uses up the field's cycles. Measured unpaced and hidden from the request to the first field-running frame (machine 1 state 1), 2026-11-14, `scratch/s024/` (before `ng0`, `w0`; after `ng1`, `w2`):
+- area change (`warp 1/0` from area 0, machine 7 like a door `0x8002CFFC`): 192 frames before (about 18 of the light-blue clear while list 9 loads, then the blinking NOW LOADING card), 41 after: frame 1 holds the field, 6 frames show the clear for the machine's own steps, 34 show the card while the area's files unpack, one is clear, then the field (`w0_sheet.png`, `w2_sheet.png`). Tomba lands at the same place (x 0x03A3, y 0xFF44, area 1 section 0) in both;
+- section change in the same area (`warp 1/1`): 24 frames; area 1 to area 0 (`warp 0/0`): 50 frames (not measured before; the first warp's plan did not wait for its landing);
+- New Game (gameplay task start to `BOY.STR`): 164 frames before (25 clear, 136 card), 51 after (7 clear, 43 card); with Start in the movie at +90 the field runs at +97, Tomba at area 0 entry 0 (`ng1_sheet.png`). The movie and the title menu's fades are the game's own and Start already ends the movie.
+The remaining card frames are the unpack's own guest cycles (LZ `0x8003EF50`, `0x8005B78C`) spending whole field budgets; issue 0012 (`titles/tomba1/docs/issues/`). The life-lost respawn holds `0x80023E44` for 120 frames with no pad test (machine 0 `0x8001B0A4` state 6) before its reload; not measured, as no title-owned route reaches a life loss. No boss or event card was found between the area machines.
 
 ### S025 — Tomba! 2 files in-app bug reports (B key) with a replayable reproduction
 

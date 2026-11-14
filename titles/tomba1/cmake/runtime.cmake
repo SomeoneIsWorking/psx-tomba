@@ -24,6 +24,7 @@ add_library(
   "${TOMBA1_ROOT}/game/core/debug/debug_menu.cpp"
   "${TOMBA1_ROOT}/game/core/frame/boot_skip.cpp"
   "${TOMBA1_ROOT}/game/core/frame/frame_driver.cpp"
+  "${TOMBA1_ROOT}/game/core/task/disc_loader.cpp"
   "${TOMBA1_ROOT}/game/core/task/guest_task_slots.cpp"
   "${TOMBA1_ROOT}/game/core/boot/native_boot.cpp"
   "${TOMBA1_ROOT}/game/core/frame/stream_field_turn.cpp"

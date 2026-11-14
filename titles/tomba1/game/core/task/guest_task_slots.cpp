@@ -105,7 +105,7 @@ void GuestTaskSlots::createTask(Core &core, std::size_t slot, std::uint32_t entr
   core.mem_w16(record + kTaskRecordState, kTaskStateRunnable);
 }
 
-void GuestTaskSlots::runTaskSlot(Core &core, const RunTaskSlotArgs &args) {
+bool GuestTaskSlots::runTaskSlot(Core &core, const RunTaskSlotArgs &args) {
   auto [slot, state, loopContext] = args;
   const std::uint32_t record = taskRecordAddress(slot);
   TaskSlot &task = tasks_[slot];
@@ -150,11 +150,11 @@ void GuestTaskSlots::runTaskSlot(Core &core, const RunTaskSlotArgs &args) {
     if (result.reason == psx::cpu::ExecutionExitReason::CooperativeYield) {
       task.resumeAddress = result.guestPc;
       task.budgetResumes = 0;
-      return;
+      return true;
     }
     if (result.reason == psx::cpu::ExecutionExitReason::BudgetExhausted) {
       if (resumeAcrossField(core, slot, result)) {
-        return;
+        return false;
       }
       std::abort();
     }
@@ -248,6 +248,16 @@ void GuestTaskSlots::runScheduledTasks(Core &core) {
       runTaskSlot(core, {.slot = slot, .state = state, .loopContext = loopContext});
     }
   }
+}
+
+bool GuestTaskSlots::runSlot(Core &core, std::size_t slot) {
+  const std::uint16_t state = core.mem_r16(taskRecordAddress(slot) + kTaskRecordState);
+  if (state != kTaskStateRunnable && state != kTaskStateRestart) {
+    lucent::error("tomba1-frame", "task slot {} run again in state {}, not runnable", slot, state);
+    std::abort();
+  }
+  const R3000 loopContext = static_cast<R3000 &>(core);
+  return runTaskSlot(core, {.slot = slot, .state = state, .loopContext = loopContext});
 }
 
 void GuestTaskSlots::yieldTask(Core &core) {

@@ -69,6 +69,13 @@ executable-grounded startup and CD facts while introducing the shared Lightrec p
 - where: `game/core/debug/dev_warp.cpp`
 - gap: Entry numbers per area are not catalogued, so every warp arrival lands on entry 0 of its section (issue 0010).
 
+### T1-07b — Disc loader and the load waits of a transition
+- status: grounded
+- deps: T1-07a
+- evidence: Ghidra on `SCUS_942.36`. Every load goes through the loader task `0x80021340` in slot 2, started by `0x80017154(2, 0x80021340)` from `0x800222B8` (load list `0x80099C44[n]`), `0x80021C24` (base list `0x800782F8[n]`, then a yield loop until `0x1F8001CE`) and `0x80021BF4`; `0x80021D70` appends a list's files to the queue (tail `0x1F80029C`, head `0x1F8002A0`, records at `0x8009E748`). The loader's record +0x48 steps 0 queue check, 1 `CdControl(Setloc)`, 2 `CdSync`, 3 `CdRead` (to `0x800A3348`, or `0x800B3188` with flag 0x10), 4 `CdReadSync`, 5 the unpack (+0x4A: LZ `0x8003EF50`, `LoadImage` `0x8005EE18`, `DrawSync` `0x8005EB54`, sound banks), 6 the head advance, which on an empty queue raises `0x1F8001CE` and exits (`0x80017208`); each step ends in `0x800171D4(1)`, a one-field sleep that `0x800173B0` wakes (record +2 from 1 to 0, state 1 to 2). The area machine 7 `0x8001CFCC`: state 0 queues list 9 (the loading card's picture), 1 waits for `0x1F8001CE`, 2 one step, 3 applies the destination, loads the area and section lists (`0x8001CB54`, `0x80021C24`, `0x8001DE24`, `0x80021CC8`) and sets the pending pair `0x1F8001DC`/`0x1F8001DE` (the section's machine from `0x80077084`, state 0), 4 (same area) waits, 5 (area change) draws the loading card `0x8001CA84` (blinking every 15 frames via `0x80023CE0`); `0x8001AC00` applies the pending pair once `0x1F8001CE` is set. New Game `0x8001A9F0` (+0x4C): 0 list 9, 1 wait, 2 `0x8001CE80(1)` (the area load), 3 the loading card until `0x1F8001CE`, 4 `BOY.STR` (stream 1), 5 Start or Cross stops it (`0x1F8001D3`), 7 the field. Machine 0 `0x8001B0A4` state 5 is the life-lost respawn: `0x80020FAC`, then state 6 holds `0x80023E44` for 120 frames (+0x5E) with no pad test before `0x8001CE80` reloads.
+- where: `game/core/task/disc_loader.cpp`
+- gap: The respawn hold is not measured (no title-owned route to a life loss).
+
 ### T1-08 — Remove the Tomba! 1 guest-source path
 - status: re-verified
 - deps: T1-03

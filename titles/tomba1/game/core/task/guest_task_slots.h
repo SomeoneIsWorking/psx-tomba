@@ -89,6 +89,15 @@ public:
   // that reaches its cooperative yield leaves its record waiting.
   void runScheduledTasks(Core &core);
 
+  // Runs one runnable slot again in this field; true when it reached its cooperative yield or exit, false on a
+  // budget exit (the slot resumes next field).
+  bool runSlot(Core &core, std::size_t slot);
+
+  // The entry the slot was started at, 0 when free.
+  std::uint32_t entry(std::size_t slot) const {
+    return tasks_[slot].entry;
+  }
+
   static void startOverride(Core *core);
   static void yieldOverride(Core *core);
   static void restartOverride(Core *core);
@@ -111,7 +120,8 @@ private:
     std::uint16_t state;
     const R3000 &loopContext;
   };
-  void runTaskSlot(Core &core, const RunTaskSlotArgs &args);
+  // True when the slot reached its cooperative yield or exit.
+  bool runTaskSlot(Core &core, const RunTaskSlotArgs &args);
 
   // Takes the EXITED task's saved context explicitly, so the report cannot be called with the frame
   // loop's own registers by mistake. `runTaskSlot` already copied them out of the Core before

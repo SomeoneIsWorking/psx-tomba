@@ -2,6 +2,7 @@
 
 #include "context.h"
 #include "core.h"
+#include "disc_loader.h"
 #include "execution_control.h"
 #include "execution_exit.h"
 #include "game.h"
@@ -75,6 +76,7 @@ void FrameDriver::stepFrame(Core &core, std::uint32_t frame) {
   context(core).warp.applyArmed(core, frame);
   context(core).bootSkip.beforeTasks(core);
   context(core).tasks.runScheduledTasks(core);
+  DiscLoader::finishInField(core, context(core).tasks);
   lucent::debug("tomba1-packet-pool",
                 "frame {} pass holds {} of {} bytes",
                 frame,
