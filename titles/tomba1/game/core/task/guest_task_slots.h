@@ -90,7 +90,7 @@ public:
   void runScheduledTasks(Core &core);
 
   // Runs one runnable slot again in this field; true when it reached its cooperative yield or exit, false on a
-  // budget exit (the slot resumes next field).
+  // budget exit (the slot is left runnable at the exit's pc).
   bool runSlot(Core &core, std::size_t slot);
 
   // The entry the slot was started at, 0 when free.

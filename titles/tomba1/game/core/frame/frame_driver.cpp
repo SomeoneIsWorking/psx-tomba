@@ -51,6 +51,7 @@ void FrameDriver::finishMainIteration(Core &core, std::uint32_t fields) {
     }
     psx::cpu::callGuestNow(core, __func__, kDisplaySwap);
     psx::cpu::callGuestNow(core, __func__, kTickTaskSleeps);
+    DiscLoader::finishAfterFlip(core, context(core).tasks);
   }
 }
 
@@ -76,7 +77,6 @@ void FrameDriver::stepFrame(Core &core, std::uint32_t frame) {
   context(core).warp.applyArmed(core, frame);
   context(core).bootSkip.beforeTasks(core);
   context(core).tasks.runScheduledTasks(core);
-  DiscLoader::finishInField(core, context(core).tasks);
   lucent::debug("tomba1-packet-pool",
                 "frame {} pass holds {} of {} bytes",
                 frame,
