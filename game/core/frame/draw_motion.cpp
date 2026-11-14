@@ -49,6 +49,9 @@ constexpr std::array kTombaFields{
     MotionField{.offset = 0x88, .motion = Motion::Halves},
     MotionField{.offset = 0x8C, .motion = Motion::Low16},
 };
+// The word holding his pan +0x14E in its high half, then the one holding the +0x177 flags.
+constexpr std::array kTombaPanFields{MotionField{.offset = 0x14C}, MotionField{.offset = 0x174}};
+constexpr std::uint32_t kTombaPanned = 1u << 24;
 // The typed node pools of FUN_800798F8, live while +1 is set.
 struct NodePool {
   std::uint32_t base = 0;
@@ -119,6 +122,7 @@ DrawMotion::DrawMotion(world::RenderRecordPool &records) {
   tracks_[at++] = {.name = "view", .address = kView, .fields = kViewFields, .rule = &view_};
   tracks_[at++] = {.name = "view angles", .address = kViewAngles, .fields = kViewAngleFields};
   tracks_[at++] = {.name = "tomba", .address = kTomba, .fields = kTombaFields};
+  tracks_[at++] = {.name = "tomba pan", .address = kTomba, .fields = kTombaPanFields, .rule = &tombaPan_};
   tracks_[at++] = {.name = "effect nodes",
                    .address = kEffectNodes.base,
                    .fields = kEffectNodeFields,
@@ -175,6 +179,17 @@ DrawMotion::DrawMotion(world::RenderRecordPool &records) {
                    .fields = kWord,
                    .rule = &a0fScroll_,
                    .records = {.liveness = &a0f_}};
+}
+
+void TombaPan::blend(const Samples &samples, float t, std::span<std::uint32_t> out) const {
+  out[0] = samples.to[0];
+  out[1] = samples.to[1];
+  if ((samples.to[1] & kTombaPanned) == 0) {
+    return;
+  }
+  const std::uint32_t from = (samples.from[1] & kTombaPanned) != 0 ? samples.from[0] >> 16 : 0u;
+  const std::uint32_t pan = psx::present::blendedWord(Motion::Angle12Low, from, samples.to[0] >> 16, t) & 0xFFFFu;
+  out[0] = (samples.to[0] & 0xFFFFu) | pan << 16;
 }
 
 std::optional<std::array<float, 2>> DrawMotion::gridScrollPast(const psx::present::MotionSet &motion, float t) const {

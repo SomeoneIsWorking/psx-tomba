@@ -12,6 +12,12 @@
 
 namespace tomba {
 
+// Tomba's pan +0x14E, a 12-bit angle FUN_800597AC turns him by only while +0x177 bit 0 is set, and by 0 otherwise.
+class TombaPan final : public psx::present::MotionRule {
+public:
+  void blend(const Samples &samples, float t, std::span<std::uint32_t> out) const override;
+};
+
 class DrawMotion {
 public:
   explicit DrawMotion(world::RenderRecordPool &records);
@@ -28,9 +34,10 @@ public:
                                                                    float t) const;
 
 private:
-  static constexpr std::size_t kTracks = 21;
+  static constexpr std::size_t kTracks = 22;
 
   psx::present::TransformRule transform_;
+  TombaPan tombaPan_;
   psx::present::TransformRule view_{psx::present::TransformRule::Rows::Rotation,
                                     psx::present::TransformRule::Translation::View};
   psx::present::RingRule gridScroll_;

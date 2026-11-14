@@ -255,8 +255,8 @@ missing; `presentseq` advances 0.5 per simulated vblank; `replay:warn` 0; no `No
 2. Resolved: Tomba's part angles are an absolute pose each tick (M:80076904 loads a keyframe's 12-bit angles,
    M:80075F0C adds the delta without masking), so the short-way blend crosses keyframes and animation switches; the
    replay writes their halfway value at both (`external/tomba2-decomp/docs/notes/tomba-draw-transform.md`, issue 0068).
-   The draw also reads the root offset +0x88, now tracked, and the pan +0x14E while +0x177 bit 0 is set, which only
-   area events write (MAIN 0x80024660, A04, A05, A06, A0I) and no run has reached.
+   The draw also reads the root offset +0x88 and the pan +0x14E while +0x177 bit 0 is set, both tracked; the pan is
+   the idle sequence's (FUN_8005A39C), blended the short way from 0 when the earlier tick did not pan (`TombaPan`).
 3. Resolved: node +0x38 is not a particle pool but the current frame of the sprite set at +0x3C (M:8003C8F4 reads
    `[+0x3C] + [[+0x38]] * 4` for a quad count and offset, M:8003B220 builds each quad from the set's static entry),
    so billboards move by their node.
@@ -264,7 +264,8 @@ missing; `presentseq` advances 0.5 per simulated vblank; `replay:warn` 0; no `No
 5. Resolved: no limit. The shake (`CutsceneCamera::shakeTail`, FUN_8006C988) jitters the eye 0x1F8000D2/D6/DA by at
    most 16 units around an anchor it captures and restores, and it reaches the picture through the view the update
    builds, so it blends with the view; the camera's jumps are the re-place M:8006EA00 (a declared cut, `FrameCut`)
-   and scene changes. No shake has been reached and judged in frames.
+   and scene changes. Reached and judged: the idle stomp's height pulse (issue 0071). Its in-betweens sit at the
+   midpoint of two jittered views, not at the blended unshaken camera plus the newer tick's shake.
 6. The A03 (`0x80113050`) and A0C (`0x8011AD44`) closures name call targets with no body (`0x89B3FDE0`,
    `0x8CF3A880`); likely data decoded as `jal`, not checked.
 
