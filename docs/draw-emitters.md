@@ -34,17 +34,19 @@ The native GT3/GT4 model emitters and where guest code reaches them. In-betweens
 | 0x80110094 | A03 | `UnlitModelEmitter` gt3 (`kA03`: SOP's projection, always averaged, its band picked from depth - 0xE9 (`kA03BandBias`), two-sided on flag bit 0); its GT4 is `SubdividedGround` | drawer 0x801109D4 |
 | 0x80114A5C / 0x80114E70 | A0F | `UnlitModelEmitter` gt3 / gt4 (`kA0f`: kA0a with the first matching scroll only, each with its own bucket) | not traced |
 | 0x80113AEC / 0x80113DE0 | A0E | `UnlitModelEmitter` gt3 / gt4 (`kA0eArena`: SOP's body plus the west-record hide by model x while 0x1F80009C is set) | arena walker 0x80114320 |
+| 0x801163E0 / 0x80116708 | A0K | `UnlitModelEmitter` gt3 / gt4 (`kA0kCue`: the flagged copy, each colour cued by the bucket * 2) | drawer 0x80116B14 while 0x800BF871 >= 4 |
+| 0x80114F1C / 0x8011562C | A0K | `UnlitModelEmitter` gt3 / gt4 (`kA0kDistance`: A0G's near clamp on every record's farthest SZ, each colour cued by its vertex's distance from 0x1F800160) | drawer 0x80115F1C |
 | 0x8010BC40 / 0x8010BF28 (A0G), 0x8010B3DC / 0x8010B6C4 (A0I), 0x8010AF58 / 0x8010B240 (A0H), 0x8010A3AC / 0x8010A69C (A0J) | A0G-A0J | `UnlitModelEmitter` gt3 / gt4 (`kSopNear`, `kSopNearWide`, `kSopNearLifted`) | not traced |
 
 The scenery walkers (A01, A02, A05-A08, A0L) are guest code.
 
-Still guest code, by census rank: SOP effect 0x8010BF54, A01 0x80132DC0
-and the GT3/GT4 emitter copies of the overlays not listed above
-whose bodies differ from the natives: A04 0x801175FC/0x801178A0 (its GT3 has no screen cull, only flag hides), A05
-0x8013484C/0x80134B74, A0K 0x80114F1C/0x8011562C and 0x801163E0/0x80116708 (the flagged copy with each colour
-depth-cued by the bucket * 2). Never called, so never owned: A04 0x8013D0F8/0x8013D568 (MODE_TABLE sends area 4 to
-0x8013DAFC), A07 0x8012DBB4/0x8012DE60 and A0G 0x8010C3A4/0x8010C664 under its wrapper 0x8010C9B4, which nothing
-in the decomp references and no area 7 or 16 entry calls (`PSXPORT_OVERRIDE_DIFF` sampled 0 calls).
+Still guest code: A04 0x801175FC/0x801178A0 (its GT3 has no screen cull, only flag hides; reached from the drawer
+0x801185F0, whose packets in area 4 entries 0-3 the census could not split between the GT4 and its other callees) and
+A05 0x8013484C/0x80134B74. SOP's 0x8010BF54 writes nothing itself (two calls of 0x80027768), and 0x80027768 wrote no packet in four
+narration samples (frames 1192-2098 of a new game). A01's drawer 0x80132DC0 has no screen test: every branch calls a native emitter. Never called, so never
+owned: A04 0x8013D0F8/0x8013D568 (MODE_TABLE sends area 4 to 0x8013DAFC), A07 0x8012DBB4/0x8012DE60 and A0G
+0x8010C3A4/0x8010C664 under its wrapper 0x8010C9B4, which nothing in the decomp references and no area 7 or 16 entry
+calls (`PSXPORT_OVERRIDE_DIFF` sampled 0 calls).
 
-Each per-object drawer (A01 0x80132DC0, A05 0x801362CC, A06 0x8013D568, A08 0x8012A9DC) calls one GT3/GT4
+Each per-object drawer (A01 0x80132DC0, A05 0x801362CC, A06 0x8013D568, A08 0x8012A9DC, A0K 0x80116B14, 0x80115F1C) calls one GT3/GT4
 pair per branch, so one sub-part never carries two lists of a kind (issue 0030).

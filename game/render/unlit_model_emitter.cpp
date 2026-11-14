@@ -17,12 +17,16 @@ namespace {
 
 using psx::present::ScreenCull;
 
+constexpr std::uint32_t kOtArgument = 4u; // a1's slot in the caller's argument area
+
 ModelDepth depthOf(const UnlitModelEmitter::DepthRule &rule, std::uint32_t flags) {
   switch (rule.code) {
   case UnlitModelEmitter::ModeCode::ZeroAverage:
     return ModelPacket::flaggedDepth(flags);
   case UnlitModelEmitter::ModeCode::LowBits:
     return ModelPacket::litDepth(flags);
+  case UnlitModelEmitter::ModeCode::Farthest:
+    return ModelDepth::Farthest;
   case UnlitModelEmitter::ModeCode::OneFarTwoNear:
     break;
   }
@@ -35,6 +39,24 @@ scrollAmount(const psx::present::EmitMemory &memory, UnlitModelEmitter::ScrollRe
     return 0u;
   }
   return read == UnlitModelEmitter::ScrollRead::Byte ? memory.mem_r8(word) : memory.mem_r16(word) >> 4;
+}
+
+void cue(const ModelPacket &packet, const ModelShape &shape, UnlitModelEmitter::Cue cue, std::uint32_t staged) {
+  for (int corner = 0; corner < shape.cornerCount; ++corner) {
+    switch (cue) {
+    case UnlitModelEmitter::Cue::None:
+      return;
+    case UnlitModelEmitter::Cue::StagedDepth:
+      packet.cueByDepth(corner, staged);
+      break;
+    case UnlitModelEmitter::Cue::Bucket:
+      packet.cueByBucket(corner);
+      break;
+    case UnlitModelEmitter::Cue::FocusDistance:
+      packet.cueByFocusDistance(corner);
+      break;
+    }
+  }
 }
 
 void scrollUv(const psx::present::EmitMemory &memory,
@@ -137,6 +159,8 @@ constexpr const auto &kA0a = UnlitModelEmitter::kA0a;
 constexpr const auto &kA0f = UnlitModelEmitter::kA0f;
 constexpr const auto &kA0d = UnlitModelEmitter::kA0d;
 constexpr const auto &kA03 = UnlitModelEmitter::kA03;
+constexpr const auto &kA0kCue = UnlitModelEmitter::kA0kCue;
+constexpr const auto &kA0kDistance = UnlitModelEmitter::kA0kDistance;
 
 constexpr Copy kCopies[] = {
     {{}, 0x8007FDB0u, 0x8008007Cu, &emitAt<0x8007FDB0u, false, kResident>, &emitAt<0x8008007Cu, true, kResident>},
@@ -173,6 +197,12 @@ constexpr Copy kCopies[] = {
      0x8010A69Cu,
      &emitAt<0x8010A3ACu, false, kSopNearLifted>,
      &emitAt<0x8010A69Cu, true, kSopNearLifted>},
+    {"A0K", 0x801163E0u, 0x80116708u, &emitAt<0x801163E0u, false, kA0kCue>, &emitAt<0x80116708u, true, kA0kCue>},
+    {"A0K",
+     0x80114F1Cu,
+     0x8011562Cu,
+     &emitAt<0x80114F1Cu, false, kA0kDistance>,
+     &emitAt<0x8011562Cu, true, kA0kDistance>},
 };
 
 } // namespace
@@ -184,6 +214,9 @@ std::uint32_t UnlitModelEmitter::emit(const psx::present::EmitMemory &memory,
                                       bool quad) {
   const ModelShape &shape = quad ? kModelGt4 : kModelGt3;
   const std::uint32_t frame = call.sp - (quad ? variant.gt4FrameBytes : variant.gt3FrameBytes);
+  if (quad && variant.gt4StoresOt) {
+    memory.mem_w32(call.sp + kOtArgument, call.ot);
+  }
   return emitModelList(memory, call, shape, variant.stage, [&](const ModelPacket &packet) {
     if (packet.hiddenByX(variant.xHide)) {
       return false;
@@ -225,11 +258,7 @@ std::uint32_t UnlitModelEmitter::emit(const psx::present::EmitMemory &memory,
     if (packet.bucket(rule.bandBias) < 0) {
       return false;
     }
-    if (variant.cue) {
-      for (int corner = 0; corner < shape.cornerCount; ++corner) {
-        packet.cueByDepth(corner, staged);
-      }
-    }
+    cue(packet, shape, variant.cue, staged);
     packet.storeLastUv();
     scrollUv(memory, packet, variant.uvScroll);
     wave(memory, packet, shape, variant.wave, call.list);

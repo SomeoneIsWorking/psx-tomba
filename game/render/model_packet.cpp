@@ -4,9 +4,12 @@
 #include "core/overrides/guest_jal.h"
 #include "horizontal_visibility_cull.h"
 
+#include <algorithm>
 #include <array>
 #include <cstddef>
+#include <cstdlib>
 #include <span>
+#include <utility>
 
 namespace tomba::render {
 namespace {
@@ -16,6 +19,18 @@ using psx::present::CornerDomain;
 constexpr std::int32_t kBucketCap = 0x800;
 constexpr std::uint32_t kRcos = 0x80083F50u;
 constexpr std::uint32_t kRsin = 0x80083E80u;
+constexpr std::uint32_t kFocus = 0x1F800160u;      // s16 x, y, z
+constexpr std::uint32_t kFocusAngle = 0x1F8000C0u; // s16 -rcos, -rsin of the drawer's angle
+constexpr std::int32_t kFocusLift = 0x100;
+constexpr int kQ12 = 12;
+
+// The guest's 32-bit mult/mflo and addu, which wrap.
+std::int32_t mul32(std::int32_t a, std::int32_t b) {
+  return static_cast<std::int32_t>(static_cast<std::uint32_t>(static_cast<std::int64_t>(a) * b));
+}
+std::int32_t add32(std::int32_t a, std::int32_t b) {
+  return static_cast<std::int32_t>(static_cast<std::uint32_t>(a) + static_cast<std::uint32_t>(b));
+}
 
 } // namespace
 
@@ -255,6 +270,33 @@ void ModelPacket::shade(const ShadeArgs &args) const {
 void ModelPacket::cueByDepth(int corner, std::uint32_t staged) const {
   const auto depth = static_cast<std::int32_t>(mMemory.mem_r32(staged + static_cast<std::uint32_t>(corner) * 4u));
   shade({.corner = corner, .intensity = depth >> 2});
+}
+
+void ModelPacket::cueByBucket(int corner) const {
+  shade({.corner = corner, .intensity = static_cast<std::int32_t>(mMemory.mem_r32(mStage.bucket) << 1)});
+}
+
+void ModelPacket::cueByFocusDistance(int corner) const {
+  const ModelCorner &vertex = mShape.corners[static_cast<std::size_t>(corner)];
+  const std::int32_t cosine = mMemory.mem_r16s(kFocusAngle);
+  const std::int32_t sine = mMemory.mem_r16s(kFocusAngle + 2u);
+  const std::int32_t dx = mMemory.mem_r16s(mRecord + vertex.x) - mMemory.mem_r16s(kFocus);
+  const std::int32_t dz = mMemory.mem_r16s(mRecord + vertex.z) - mMemory.mem_r16s(kFocus + 4u);
+  const std::int32_t along = (add32(mul32(dx, sine), mul32(dz, cosine)) >> kQ12) * 2;
+  std::int32_t across = (add32(mul32(-dx, cosine), mul32(dz, sine)) >> kQ12) * 2;
+  if (across < 0) {
+    across *= 2;
+  }
+  std::int32_t major = std::abs(add32(mul32(along, sine), -mul32(across, cosine)) >> kQ12);
+  std::int32_t minor = std::abs(add32(mul32(along, cosine), mul32(across, sine)) >> kQ12);
+  if (major < minor) {
+    std::swap(major, minor);
+  }
+  const std::int32_t side = minor + (minor >> 1);
+  std::int32_t length = major - (major >> 5) - (major >> 7) + (side >> 2) + (side >> 6);
+  length -= length >> 2;
+  const std::int32_t dy = mMemory.mem_r16s(mRecord + vertex.y) - mMemory.mem_r16s(kFocus + 2u) - kFocusLift;
+  shade({.corner = corner, .intensity = std::max(length + std::abs(dy), 0)});
 }
 
 void ModelPacket::link(std::uint32_t orderingTable) const {

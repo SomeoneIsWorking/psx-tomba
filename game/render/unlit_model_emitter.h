@@ -22,7 +22,10 @@
 //   - A03 0x80110094, the drawer 0x801109D4's GT3 (its GT4 is subdivided_ground.h): SOP's projection, always
 //     averaged, its band picked from depth - 0xE9, two-sided on flag bit 0;
 //   - A02 0x80124DB8/0x80125100, the drawer 0x8012555C's pair: the resident body with flagged depth taken
-//     from the SZ registers and a U scroll picked by flag bit 4, 3 or 2.
+//     from the SZ registers and a U scroll picked by flag bit 4, 3 or 2;
+//   - A0K 0x801163E0/0x80116708, the drawer 0x80116B14's pair: the flagged copy cued by the bucket * 2;
+//   - A0K 0x80114F1C/0x8011562C, the drawer 0x80115F1C's pair: A0G's near clamp on every record's farthest SZ, cued by
+//     each vertex's distance from the focus point.
 // Each takes (a0 = record list, a1 = OT base, a2 = count) and returns the address past the list in v0.
 // The screen cull goes through horizontal_visibility_cull.h, so at 4:3 the packets are the guest's.
 #pragma once
@@ -52,6 +55,7 @@ public:
     OneFarTwoNear, // 1 farthest, 2 nearest, anything else average
     ZeroAverage,   // 0 average, 1 farthest, anything else nearest
     LowBits,       // the low 2 bits: 0 average, 2 nearest, 1 and 3 farthest
+    Farthest,      // every record by its farthest SZ
   };
   // Where the farthest/nearest modes stage the SZ words: per mode at the frame base (farthest) or right
   // after it (nearest), at the frame base for every record, at the frame base for those two modes only, or
@@ -98,6 +102,10 @@ public:
   static constexpr std::uint32_t kA02Band = 0x8012C92Cu;
   static constexpr std::uint32_t kA0fScrollU = 0x8012092Eu;
   static constexpr std::uint32_t kA0dWavePhase = 0x8011CC68u;
+  // How each corner's colour is depth-cued (DPCS toward the far colour) once the bucket is known: by its staged SZ / 4
+  // (A01), by the OT bucket * 2 (A0K's flagged copy) or by its model vertex's squashed distance from the focus point
+  // (A0K).
+  enum class Cue : std::uint8_t { None, StagedDepth, Bucket, FocusDistance };
   struct Variant {
     ModelStage stage;
     std::uint32_t colourMask;
@@ -107,11 +115,12 @@ public:
     std::uint32_t gt4FrameBytes;
     DepthRule depth;
     std::uint32_t hideFlag; // hides the record while 0x1F80009C is set; 0 for none
-    bool cue;
+    Cue cue;
     UvScroll uvScroll;
     ModelXHide xHide;
     ScreenWave wave;
     std::uint32_t twoSidedFlag; // a GT3 with this flag bit skips the back-face test; 0 for none
+    bool gt4StoresOt;           // the GT4 spills a1 to the caller's argument area at sp + 4
   };
   static constexpr Variant kResident{kResidentStage,
                                      kColourCodeMask,
@@ -121,11 +130,12 @@ public:
                                      0x20u,
                                      {ModeCode::OneFarTwoNear, 3u, Staging::PerMode, kNoNearClamp, false, 0},
                                      0u,
-                                     false,
+                                     Cue::None,
                                      kNoScroll,
                                      kNoXHide,
                                      kNoWave,
-                                     0u};
+                                     0u,
+                                     false};
   static constexpr Variant kSop{kOverlayStage,
                                 kColourMask,
                                 kColourCodeMask,
@@ -134,11 +144,12 @@ public:
                                 0x20u,
                                 {ModeCode::OneFarTwoNear, 0xFFu, Staging::PerMode, kNoNearClamp, false, 0},
                                 0u,
-                                false,
+                                Cue::None,
                                 kNoScroll,
                                 kNoXHide,
                                 kNoWave,
-                                0u};
+                                0u,
+                                false};
   static constexpr Variant kA01Cue{kOverlayStage,
                                    kColourCodeMask,
                                    kColourCodeMask,
@@ -147,11 +158,12 @@ public:
                                    0x10u,
                                    {ModeCode::OneFarTwoNear, 0xFFu, Staging::Always, kNoNearClamp, false, 0},
                                    0u,
-                                   true,
+                                   Cue::StagedDepth,
                                    kNoScroll,
                                    kNoXHide,
                                    kNoWave,
-                                   0u};
+                                   0u,
+                                   false};
   static constexpr Variant kFlagged{kOverlayStage,
                                     kColourMask,
                                     kColourCodeMask,
@@ -160,11 +172,12 @@ public:
                                     0x10u,
                                     {ModeCode::ZeroAverage, 0xFFu, Staging::Unaveraged, kNoNearClamp, true, 0},
                                     0u,
-                                    false,
+                                    Cue::None,
                                     kNoScroll,
                                     kNoXHide,
                                     kNoWave,
-                                    0u};
+                                    0u,
+                                    false};
   // SOP's body with the bucket depth pulled to the near depth from `reach` in front of it (A0G, A0I),
   // further (A0H), or after a lift of 0x50 (A0J).
   static constexpr Variant kSopNear{kOverlayStage,
@@ -175,11 +188,12 @@ public:
                                     0x20u,
                                     {ModeCode::OneFarTwoNear, 0xFFu, Staging::PerMode, {0, 0x1B7u}, false, 0},
                                     0u,
-                                    false,
+                                    Cue::None,
                                     kNoScroll,
                                     kNoXHide,
                                     kNoWave,
-                                    0u};
+                                    0u,
+                                    false};
   static constexpr Variant kSopNearWide{kOverlayStage,
                                         kColourMask,
                                         kColourCodeMask,
@@ -188,11 +202,12 @@ public:
                                         0x20u,
                                         {ModeCode::OneFarTwoNear, 0xFFu, Staging::PerMode, {0, 0x27Fu}, false, 0},
                                         0u,
-                                        false,
+                                        Cue::None,
                                         kNoScroll,
                                         kNoXHide,
                                         kNoWave,
-                                        0u};
+                                        0u,
+                                        false};
   static constexpr Variant kSopNearLifted{kOverlayStage,
                                           kColourMask,
                                           kColourCodeMask,
@@ -201,11 +216,12 @@ public:
                                           0x20u,
                                           {ModeCode::OneFarTwoNear, 0xFFu, Staging::PerMode, {0x50, 0x1B7u}, false, 0},
                                           0u,
-                                          false,
+                                          Cue::None,
                                           kNoScroll,
                                           kNoXHide,
                                           kNoWave,
-                                          0u};
+                                          0u,
+                                          false};
   // SOP's body with the lit emitters' depth code, hiding flag bit 2 records while 0x1F80009C is set.
   static constexpr Variant kA06{kOverlayStage,
                                 kColourMask,
@@ -215,11 +231,12 @@ public:
                                 0x20u,
                                 {ModeCode::LowBits, 3u, Staging::PerMode, kNoNearClamp, false, 0},
                                 4u,
-                                false,
+                                Cue::None,
                                 kNoScroll,
                                 kNoXHide,
                                 kNoWave,
-                                0u};
+                                0u,
+                                false};
   // A06's third pair: A01's with flagged depth from the low 2 bits, the resident stage, the resident GT4
   // corner order and a U scroll.
   static constexpr Variant kA06Scroll{kResidentStage,
@@ -230,11 +247,12 @@ public:
                                       0x10u,
                                       {ModeCode::ZeroAverage, 3u, Staging::Unaveraged, kNoNearClamp, false, 0},
                                       0u,
-                                      false,
+                                      Cue::None,
                                       {ScrollRead::HalfShift4, true, {{{8u, kA06ScrollU, 0u, 0}}}},
                                       kNoXHide,
                                       kNoWave,
-                                      0u};
+                                      0u,
+                                      false};
 
   // SOP's body hiding by model x while 0x1F80009C is set: A0E's boss arena, drawn by the walker 0x80114320.
   static constexpr Variant kA0eArena{kOverlayStage,
@@ -245,11 +263,12 @@ public:
                                      0x20u,
                                      {ModeCode::OneFarTwoNear, 0xFFu, Staging::PerMode, kNoNearClamp, false, 0},
                                      0u,
-                                     false,
+                                     Cue::None,
                                      kNoScroll,
                                      {true, 0x24EA, 0x2508},
                                      kNoWave,
-                                     0u};
+                                     0u,
+                                     false};
 
   // A02's pair: the resident projection, 0 average, 1 farthest, 2 and 3 nearest, three scroll words.
   static constexpr Variant kA02{
@@ -261,11 +280,12 @@ public:
       0u,
       {ModeCode::ZeroAverage, 3u, Staging::Registers, kNoNearClamp, false, 0},
       0u,
-      false,
+      Cue::None,
       {ScrollRead::HalfShift4, true, {{{0x10u, kA02Band, 0u, 0}, {8u, kA02ScrollV, 0u, 0}, {4u, kA02ScrollU, 0u, 0}}}},
       kNoXHide,
       kNoWave,
-      0u};
+      0u,
+      false};
 
   // A0A's pair: SOP's projection, 1 farthest, 2 nearest from the SZ registers, two U/V byte scrolls that add up.
   static constexpr Variant kA0a{
@@ -277,11 +297,12 @@ public:
       0u,
       {ModeCode::OneFarTwoNear, 3u, Staging::Registers, kNoNearClamp, false, 0},
       0u,
-      false,
+      Cue::None,
       {ScrollRead::Byte, false, {{{4u, 0x8011BF14u, 0x8011BF16u, 0}, {8u, 0x8011BF1Au, 0x8011BF16u, 0}}}},
       kNoXHide,
       kNoWave,
-      0u};
+      0u,
+      false};
   // A0F's pair: A0A's body whose scrolls exclude each other and sort the scrolled record far back.
   static constexpr Variant kA0f{
       kOverlayStage,
@@ -292,11 +313,12 @@ public:
       0u,
       {ModeCode::OneFarTwoNear, 3u, Staging::Registers, kNoNearClamp, false, 0},
       0u,
-      false,
+      Cue::None,
       {ScrollRead::Byte, true, {{{4u, kA0fScrollU, 0x80120930u, 0x7FB}, {8u, 0x80120938u, 0x8012093Au, 0x7FD}}}},
       kNoXHide,
       kNoWave,
-      0u};
+      0u,
+      false};
 
   // A0D's pair: A0A's body with a screen wave on flag bit 4 in place of its scrolls.
   static constexpr Variant kA0d{kOverlayStage,
@@ -307,7 +329,7 @@ public:
                                 0u,
                                 {ModeCode::OneFarTwoNear, 3u, Staging::Registers, kNoNearClamp, false, 0},
                                 0u,
-                                false,
+                                Cue::None,
                                 kNoScroll,
                                 kNoXHide,
                                 {4u,
@@ -315,7 +337,8 @@ public:
                                  0x80,
                                  {0x801130C0u, 0x801130E4u, 0x80113108u},
                                  {0x80113514u, 0x80113538u, 0x8011355Cu, 0x80113580u}},
-                                0u};
+                                0u,
+                                false};
   // A03's GT3 0x80110094, under the drawer 0x801109D4: SOP's projection, always averaged, compressed with
   // kA03BandBias, two-sided on flag bit 0.
   static constexpr Variant kA03{kOverlayStage,
@@ -326,11 +349,44 @@ public:
                                 0u,
                                 {ModeCode::OneFarTwoNear, 0u, Staging::PerMode, kNoNearClamp, false, kA03BandBias},
                                 0u,
-                                false,
+                                Cue::None,
                                 kNoScroll,
                                 kNoXHide,
                                 kNoWave,
-                                1u};
+                                1u,
+                                false};
+
+  // A0K 0x801163E0/0x80116708, the drawer 0x80116B14's pair: the flagged copy with each colour cued by the bucket * 2.
+  static constexpr Variant kA0kCue{kOverlayStage,
+                                   kColourMask,
+                                   kColourCodeMask,
+                                   false,
+                                   0x10u,
+                                   0x10u,
+                                   {ModeCode::ZeroAverage, 0xFFu, Staging::Unaveraged, kNoNearClamp, true, 0},
+                                   0u,
+                                   Cue::Bucket,
+                                   kNoScroll,
+                                   kNoXHide,
+                                   kNoWave,
+                                   0u,
+                                   false};
+  // A0K 0x80114F1C/0x8011562C, the drawer 0x80115F1C's pair: A0G's near clamp on the farthest SZ of every record,
+  // each colour cued by its vertex's distance from the focus point.
+  static constexpr Variant kA0kDistance{kOverlayStage,
+                                        kColourMask,
+                                        kColourCodeMask,
+                                        false,
+                                        0x38u,
+                                        0x38u,
+                                        {ModeCode::Farthest, 0xFFu, Staging::Always, {0, 0x1B7u}, false, 0},
+                                        0u,
+                                        Cue::FocusDistance,
+                                        kNoScroll,
+                                        kNoXHide,
+                                        kNoWave,
+                                        0u,
+                                        true};
 
   // The guest call: the registers in, the end of the list in v0, and the call saved under the open object.
   static void gt3(Core &core, const psx::present::ScreenCull &visible, const Variant &variant);

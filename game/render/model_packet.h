@@ -166,6 +166,12 @@ public:
   void shade(const ShadeArgs &args) const;
   // Depth cue: shades the corner by its SZ word at `staged` (one word per corner), / 4.
   void cueByDepth(int corner, std::uint32_t staged) const;
+  // Depth cue by the bucket stage * 2.
+  void cueByBucket(int corner) const;
+  // Depth cue by the corner's model vertex distance from the focus point 0x1F800160/162/164: its ground offset turned
+  // by the angle halfwords 0x1F8000C0/C2, both axes doubled and the second's negative side again, turned back, an
+  // octagonal length * 3/4, plus |dy - 0x100|.
+  void cueByFocusDistance(int corner) const;
   // Links the packet into the bucket stage's OT bucket.
   void link(std::uint32_t orderingTable) const;
 
