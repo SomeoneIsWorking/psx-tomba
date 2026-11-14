@@ -18,6 +18,7 @@
 #include "entry/session.h"
 #include "game.h" // Game — the per-Core product the Engine drives
 #include "guest_call.h"
+#include "input/pad_edges.h"
 #include "level_load.h"
 #include "math/rng.h" // class Rng
 #include "overrides/native_override_catalog.h"
@@ -207,10 +208,12 @@ void Engine::fieldRun() {
   case 9:
     eng(c).fieldFrame();
     sm = c->mem_r32(0x1f800138u);
-    if (c->mem_r8(0x800bf89cu) == 2 && (c->mem_r16(0x800e7e68u) & 8) != 0) {
+    if (c->mem_r8(0x800bf89cu) == 2 && PadEdges::startPressed(*c)) {
       c->mem_w16(sm + 0x4e, (uint16_t)(c->mem_r16(sm + 0x4e) + 1));
       c->mem_w8(0x800bf809u, 1);
-      c->mem_w8(sm + 0x6e, 0x1f);
+      // Case 10's fade-out runs only its last step: the Start that skips the opening skips its fade too.
+      c->mem_w8(sm + 0x6e, 1);
+      lucent::info("transition", "opening fade-out skipped (Start)");
     }
     break;
   case 10: {

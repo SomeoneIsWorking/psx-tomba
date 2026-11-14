@@ -39,10 +39,11 @@
 // eng(c).bgSceneTransitionSm.step())
 #include "camera/cutscene_camera.h" // class CutsceneCamera — SOP/BG cutscene camera (0x8006E3B0)
 #include "core/assets/asset.h"      // class Asset — unpackGroup / loadTexgroup (static)
-#include "render/screen_fade.h"     // class ScreenFade — the single fade driver
-#include "world/graphics_bind.h"    // ov_obj_set_xformblk (FUN_8006CBD0)
-#include "world/pool.h"             // ov_pool_init_run (FUN_8007B18C)
-#include "world/spawn.h"            // class Spawn (eng(c).spawn.dispatch)
+#include "input/pad_edges.h"
+#include "render/screen_fade.h"  // class ScreenFade — the single fade driver
+#include "world/graphics_bind.h" // ov_obj_set_xformblk (FUN_8006CBD0)
+#include "world/pool.h"          // ov_pool_init_run (FUN_8007B18C)
+#include "world/spawn.h"         // class Spawn (eng(c).spawn.dispatch)
 #include <lucent/log.h>
 
 // Named guest-RAM addresses used by the SOP field-mode subsystem. Kept
@@ -554,6 +555,15 @@ void Sop::fieldUpdate() {
   c->mem_w16(sm + 0x52, (uint16_t)(c->mem_r16(sm + 0x52) + 1));
 }
 
+// Start leaves the narration (its fade-in, crawl or fade-out) through the fade-out's own last step: state 3 with one
+// step left draws the fade at black and advances to the reset.
+void Sop::skipNarration() {
+  const uint32_t sm = core->mem_r32(0x1f800138u);
+  core->mem_w16(sm + 0x50, kNarrationFadeOut);
+  core->mem_w8(sm + 0x6c, 1);
+  lucent::info("transition", "narration skipped (Start)");
+}
+
 // SOP FIELD-MODE MACHINE — native ownership of FUN_80109450 (decomp
 // scratch/decomp/sop/80109450.c). Owns the sm[0x50] switch + every field write;
 // dispatches the heavy per-state callees (those not yet owned native).
@@ -565,6 +575,10 @@ void Sop::fieldMode() {
   Core *c = core;
   uint32_t sm = c->mem_r32(0x1f800138u);
   uint16_t st = c->mem_r16(sm + 0x50);
+  if (st >= kNarrationFadeIn && st <= kNarrationFadeOut && PadEdges::startPressed(*c)) {
+    skipNarration();
+    st = kNarrationFadeOut;
+  }
   switch (st) {
   case 0: { // LOAD — complete host-owned synchronous work in this invocation.
     fade(c).applyLeafCall(0xffffffu, ScreenFade::kSubtractive, 0);

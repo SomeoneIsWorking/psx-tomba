@@ -36,13 +36,13 @@ Frame loop: owned. `tomba::FrameDriver` runs one pass of `0x80050B08` (update `0
 | `installResidentNatives`, `Engine::frameUpdate`, `Engine::drawOTag` | `game/resident_natives.h` | Natives outside any subsystem's registration; the per-VBlank update and the OT draw |
 | guest structure types | `game/engine_types.h` | Native mirrors of the engine's in-RAM structures |
 | `tomba::DebugMenu` | `game/core/debug/debug_menu.h` | The title debug menu (psxport `TitleDebugMenu`): the warp catalogue (area, entry; sourced area names, room entries marked) and position readout, items, event flags, sound test, `tp`, and the diagnostics verbs |
-| `DevControl`, `DevWarp`, `DevItems`, `DevFlags`, `DevCameraPlace`, `DevDebris`, `DevApPopup`, `DevGate` | `game/core/debug/dev_*` | `warp` (and `door`, through the door transition's fades; `spot`, an entry with Tomba spawned at a grid sector and position through the spawn's saved-position branch), `items`, `flag`, `camplace` (an area event's camera re-place, a declared cut), `debris` (the spawner M:80027144 thrown from Tomba), `ap` (the score popup M:80071B44 over Tomba) requests: armed by the debug menu, applied by the frame driver at a frame boundary |
+| `DevControl`, `DevWarp`, `DevItems`, `DevFlags`, `DevCameraPlace`, `DevDebris`, `DevApPopup`, `DevGate` | `game/core/debug/dev_*` | `warp` (and `door`, through the door transition's fades; `leave`, through scene-transition type 1-8; `spot`, an entry with Tomba spawned at a grid sector and position through the spawn's saved-position branch), `items`, `flag`, `camplace` (an area event's camera re-place, a declared cut), `debris` (the spawner M:80027144 thrown from Tomba), `ap` (the score popup M:80071B44 over Tomba) requests: armed by the debug menu, applied by the frame driver at a frame boundary |
 | `tomba::diagnostics` | `game/core/debug/diagnostics.h` | Diagnostic verbs' bodies: `ents`, `node`, `geomblk`, `stage`, `seq`, `bgm`, `invtest`, ... |
 | `AutoDrive` | `game/core/debug/auto_drive.h` | `PSXPORT_AUTO_SKIP`: the front end driven into GAME free-roam at frame boundaries |
 | `VerificationCounters` | `game/core/debug/verification_counters.h` | Title verification tallies on the diagnostics channel |
 | `LibapiIntr` | `game/core/hle/` | libapi interrupt-mask primitives and the VBlank count mirror |
 | `Asset`, `Str` | `game/core/assets/` | LZ decompress, texture groups, VRAM upload through the GPU device, stage preloads; resident string leaves |
-| `Engine::padEdgeFence` | `game/input/pad_edge_fence.cpp` | FUN_800788AC, the per-frame pad edge fence |
+| `Engine::padEdgeFence`, `PadEdges` | `game/input/pad_edge_fence.cpp`, `game/input/pad_edges.h` | FUN_800788AC, the per-frame pad edge fence; the pressed-edge word its readers test (`PadEdges::startPressed`) |
 | `Behaviors`, `tomba::ai::*` | `game/ai/` | Per-object and per-area behaviours, one `beh_*` file per handler; `zoned_attacker_abi.h` |
 | `Actor`, `BehaviorDispatch`, `ObjectList`, `Animation` | `game/object/` | The guest object lens, behaviour dispatch, entity-list walks, animation VM, rewards, cube text |
 | `ActorTomba`, `ActorInteraction`, `Collision`, `ActorTargeting` | `game/player/` | Tomba's actor (G block), item interaction, collision grid, targeting |
@@ -60,11 +60,11 @@ Frame loop: owned. `tomba::FrameDriver` runs one pass of `0x80050B08` (update `0
 | `HazardFall` | `game/player/hazard_fall.h` | Tomba's death-floor substate FUN_800678E8; under `ModSettings::pitVoidOut` it hands the fall to the water fall FUN_8006762C (`external/tomba2-decomp/docs/notes/hazard-falls.md`) |
 | `Spawn`, `Pool`, `AreaSlots`, `ObjectTable`, `Placement`, `CollisionResolve`, `GraphicsBind`, `AreaEntries` | `game/world/` | Field object population, placement, collision resolve, render binding and the per-area entry records with their map-screen names |
 | `RenderRecordPool` | `game/world/render_record_pool.h` | The render-record free stack FUN_8007AAE8; the record run's `MotionLiveness` |
-| `Demo`, `Sop`, `StartBinStage` | `game/scene/demo.h`, `game/scene/sop.h`, `game/scene/start_bin_stage.h` | The DEMO front end (OP.STR), the SOP intro field, task-0's disc tables and boot preloads |
+| `Demo`, `Sop`, `StartBinStage` | `game/scene/demo.h`, `game/scene/sop.h`, `game/scene/start_bin_stage.h` | The DEMO front end (OP.STR), the SOP intro field and its narration (Start skips it, `Sop::skipNarration`), task-0's disc tables and boot preloads |
 | `StrMovie`, `Ending` | `game/scene/str_movie.h`, `game/scene/ending.h` | A retail STR movie sub-sequence (host player, then the retail teardown); GAME sub-mode 3, END.STR then LOGO.STR then the Quit exit |
 | `NarrationScroller` | `game/scene/narration_scroller.h` | SOP's narration crawl S:8010C79C: steps then places its lines; a replay places them at the blended scroll |
 | `ScriptInterp`, `ScriptObject` | `game/scene/script_*` | The cutscene script interpreter and its vocabulary |
-| `FieldTransition`, `SceneTransition`, `AreaFadeSequencer`, `BgSceneTransitionSm`, `TransitionState3` | `game/scene/` | The scene and area transition machines; Start skips the door corridor (`FieldTransition::skipCorridor`) |
+| `FieldTransition`, `SceneTransition`, `AreaFadeSequencer`, `BgSceneTransitionSm`, `TransitionState3` | `game/scene/` | The scene and area transition machines; Start skips the door corridor (`FieldTransition::skipCorridor`) and the boss-clear card (`FieldTransition::skipClearCard`) |
 | `loadOverlay`, `stepCardLoadMachine` | `game/scene/level_load.h`, `game/scene/card_load_machine.h` | START/DEMO/GAME into the stage slot; memory-card LOAD/SAVE pages and CRD residency |
 | `SceneEvents`, `ParallaxBg`, `ModeStateArm` | `game/scene/` | Scene-event arms, the SOP parallax background, mode-state arms |
 | `Sequencer` | `game/audio/sequencer*.cpp` | libsnd's per-VBlank sequencer and its channel leaves |

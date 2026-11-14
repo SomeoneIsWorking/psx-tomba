@@ -60,8 +60,14 @@ public:
   // Arms the request; the returned text answers the client. The debug menu checked the area and the phase; an entry
   // past the area's records (`AreaEntries::count`) is refused.
   std::string arm(Core &core, Destination destination);
-  // As arm, through FieldTransition::main's fade-out and fade-in (transition type 1), the way a door leaves.
-  std::string armThroughFade(Core &core, Destination destination);
+  // 0x1F800236: the scene-transition type FieldTransition::step dispatches on. 1-4 the door corridor
+  // (FieldTransition::main), 5 and 6 Tomba's own exits, 7 an area object's exit, 8 a boss arena's clear.
+  inline static constexpr uint32_t kTransitionType = 0x1f800236u;
+  inline static constexpr uint8_t kDoorTransition = 1;
+  inline static constexpr uint8_t kBossClearTransition = 8;
+  inline static constexpr uint8_t kLastTransition = 8;
+  // As arm, through scene-transition `type` (kDoorTransition is the door's fade-out and fade-in).
+  std::string armThrough(Core &core, Destination destination, uint8_t type);
   // As arm, with Tomba spawned at `spot` through the spawn's saved-position branch, the way a card load
   // resumes at a save point.
   std::string armAt(Core &core, Destination destination, Spot spot);
@@ -72,7 +78,7 @@ public:
 
 private:
   bool armed_ = false;
-  bool fade_ = false;
+  std::optional<uint8_t> transition_;
   bool ending_ = false;
   std::optional<Spot> spot_;
   uint32_t area_ = 0;

@@ -37,8 +37,12 @@ public:
   Core *core = nullptr;
 
   // Live-spine entry points.
-  void fieldMode();   // was ov_sop_field_mode  (per-frame outer state dispatcher)
+  void fieldMode(); // was ov_sop_field_mode  (per-frame outer state dispatcher)
+  // fieldMode's states (sm[0x50]): 1 fades in, 2 runs the crawl, 3 fades out.
+  inline static constexpr std::uint16_t kNarrationFadeIn = 1;
+  inline static constexpr std::uint16_t kNarrationFadeOut = 3;
   void fieldUpdate(); // was ov_sop_field_update (per-frame gameplay body — states 1/2/3)
+  void skipNarration();
 
   // Sync area-DATA load entry points (both mirror each other; both end with 1f80019b=1).
   // areaLoad         — owned synchronous SOP area-DATA load (replaces LAB_80109164 body).

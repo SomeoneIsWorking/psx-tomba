@@ -129,10 +129,26 @@ DebugMenu::DebugMenu() {
       .params = {DebugParam::integer("area", 0, AreaEntries::kAreaCount - 1), DebugParam::integer("entry", 0, 0xFF)},
       .run =
           [](const DebugCall &call) {
-            call.reply = devControl(call.core).warp().armThroughFade(
-                call.core, {.area = call.values.u32(0), .entry = call.values.u32(1)});
+            call.reply = devControl(call.core).warp().armThrough(
+                call.core, {.area = call.values.u32(0), .entry = call.values.u32(1)}, DevWarp::kDoorTransition);
           },
       .refusal = fieldRefusal,
+  });
+  verb({
+      .name = "leave",
+      .summary = "Warp through scene-transition type 1-8 (FieldTransition::step's variants)",
+      .params = {DebugParam::integer("area", 0, AreaEntries::kAreaCount - 1),
+                 DebugParam::integer("entry", 0, 0xFF),
+                 DebugParam::integer("type", 1, DevWarp::kLastTransition)},
+      .run =
+          [](const DebugCall &call) {
+            call.reply =
+                devControl(call.core).warp().armThrough(call.core,
+                                                        {.area = call.values.u32(0), .entry = call.values.u32(1)},
+                                                        static_cast<std::uint8_t>(call.values.u32(2)));
+          },
+      .refusal = fieldRefusal,
+      .inMenu = false,
   });
   verb({
       .name = "ending",

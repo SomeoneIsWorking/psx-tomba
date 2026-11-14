@@ -36,15 +36,16 @@
 #include "core/overrides/native_override_catalog.h"
 #include "entry/session.h"
 #include "guest_call.h"
+#include "input/pad_edges.h"
 
 #define CUR_PREV_BASE 0x800ECF54u   // +0 = cur (u16), +2 = prev (u16)
 #define POLL_FLAG 0x1F80019Au       // scratchpad u8 — gates queue-pop vs FUN_800524B4(0) path
 #define QUEUE_COUNTDOWN 0x800BED8Cu // u16 countdown to next queue pop
 #define QUEUE_CURSOR 0x800BED88u    // u32 pointer into the queue (4 bytes/entry: u16 @+0, u16 tag @+2)
-#define PRESSED_OUT 0x800E7E68u     // u16 — cur & ~prev (newly-set bits)
-#define RELEASED_OUT 0x800F23A4u    // u16 — prev & ~cur (newly-cleared bits)
-#define FN_PAD_SAMPLE 0x800524B4u   // FUN_800524B4 — un-owned (see confidence note above)
-#define FN_CD_SM 0x8005229Cu        // FUN_8005229C — un-owned CD/load sub-state-machine
+#define PRESSED_OUT PadEdges::kPressed
+#define RELEASED_OUT 0x800F23A4u  // u16 — prev & ~cur (newly-cleared bits)
+#define FN_PAD_SAMPLE 0x800524B4u // FUN_800524B4 — un-owned (see confidence note above)
+#define FN_CD_SM 0x8005229Cu      // FUN_8005229C — un-owned CD/load sub-state-machine
 
 // FUN_800788AC — per-frame input-edge fence. See the file header above for the full RE + confidence
 // notes.

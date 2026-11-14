@@ -3,6 +3,8 @@
 #include "core.h"
 #include "core/engine/task_sm.h"
 #include "debug/dev_gate.h"
+#include "frame/frame_cut.h"
+#include "scene/field_transition.h"
 
 #include <lucent/log.h>
 
@@ -21,9 +23,6 @@ constexpr uint16_t kLastAreaMachine = 6;
 constexpr uint16_t kFieldRunning = 1;
 constexpr uint16_t kOpeningScript = 9;
 constexpr uint16_t kAreaChange = 6;
-// 0x1F800236: scene-transition type; 1 runs FieldTransition::main (teardown, fade, song stop, load).
-constexpr uint32_t kTransitionType = 0x1f800236u;
-constexpr uint8_t kFullTransition = 1;
 
 } // namespace
 
@@ -61,15 +60,21 @@ std::string DevWarp::arm(Core &core, Destination destination) {
   area_ = area;
   entry_ = entry;
   armed_ = true;
-  fade_ = false;
+  transition_.reset();
   ending_ = false;
   spot_.reset();
   return lucent::format("ok: warp armed for area {} entry {}", area_, entry_);
 }
 
-std::string DevWarp::armThroughFade(Core &core, Destination destination) {
+std::string DevWarp::armThrough(Core &core, Destination destination, uint8_t type) {
+  if (type == 0 || type > kLastTransition) {
+    return lucent::format("refused: transition types are 1-{}", kLastTransition);
+  }
   std::string reply = arm(core, destination);
-  fade_ = armed_;
+  if (armed_) {
+    transition_ = type;
+    reply += lucent::format(" through transition {}", type);
+  }
   return reply;
 }
 
@@ -84,7 +89,7 @@ std::string DevWarp::armAt(Core &core, Destination destination, Spot spot) {
 
 std::string DevWarp::armEnding() {
   armed_ = true;
-  fade_ = false;
+  transition_.reset();
   ending_ = true;
   spot_.reset();
   return "ok: ending armed";
@@ -112,13 +117,16 @@ void DevWarp::applyArmed(Core &core, uint32_t frame) {
   if (now == Phase::Opening) {
     TaskSm sm(&core);
     core.mem_w8(kLoadMode, kOrdinaryPlay);
-    core.mem_w8(kTransitionType, kFullTransition);
+    core.mem_w8(kTransitionType, kDoorTransition);
     sm.setSubMode(kFieldSubMode);
     sm.setStage4c(kFieldRunMachine);
     sm.setS4e(kAreaChange);
   }
-  if (fade_) {
-    core.mem_w8(kTransitionType, kFullTransition);
+  if (transition_) {
+    core.mem_w8(kTransitionType, *transition_);
+    if (*transition_ == kBossClearTransition) {
+      core.mem_w16(FieldTransition::kClearedArena, core.mem_r8(FrameCut::kAreaByte));
+    }
   }
   if (spot_) {
     const auto fixed = [](int16_t v) {

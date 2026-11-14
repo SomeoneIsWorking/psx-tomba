@@ -46,17 +46,24 @@ public:
   // Native FUN_80044BD4(0x800452C0, area, mode, ...): seed the load's destination, then load synchronously.
   void areaLoadBd4(std::uint32_t area, std::uint32_t mode);
 
-private:
-  // 0x800E7E68: this frame's newly pressed pad bits (FUN_800788AC); 8 is Start.
-  inline static constexpr std::uint32_t kPadPressed = 0x800E7E68u;
-  inline static constexpr std::uint16_t kPadStart = 0x0008u;
+  // 0x1F800240: s16, the cleared boss arena's area, written by the arena's clear step with transition type 8.
+  inline static constexpr std::uint32_t kClearedArena = 0x1F800240u;
+  // The arena's card picture is texture group area + 0x1A.
+  inline static constexpr std::uint32_t kCardPictureGroup = 0x1Au;
 
+private:
   // FUN_80107AFC — the MAIN door/sub-scene transition (sm[0x4c]==1..4). sm[0x4e]: 0
   // teardown+fade-clear+load, 1 FADE-OUT (to black), 2 await load, 3 FADE-IN, 4 done->return to
   // field. Cases 1/2/3 run the per-frame update tail (fade frames keep the world ticking).
   // Faithful to transition.c.
   void main();
   void skipCorridor();
+  void skipClearCard();
+  void cardPictureLoadBd4(std::uint32_t set);
+
+  // 0x1F800090: FUN_8003EBE0's frame count (FUN_8003FB94 zeroes it); the card ends on the frame it reads 0x1A4.
+  inline static constexpr std::uint32_t kClearCardFrame = 0x1F800090u;
+  inline static constexpr std::uint32_t kClearCardEnd = 0x1A4u;
 
   // FUN_80107D3C — transition variant (sm[0x4c]==5/6). sm[0x4e]: 0 load, 1 effect 0x8003fb84, 2
   // await->done.

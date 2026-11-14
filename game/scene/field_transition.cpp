@@ -6,8 +6,9 @@
 #include "field_transition.h"
 
 #include "core.h"
-#include "entry/session.h"      // eng(c) / fade(c)
+#include "entry/session.h" // eng(c) / fade(c)
 #include "guest_call.h"
+#include "input/pad_edges.h"
 #include "render/screen_fade.h" // class ScreenFade — the single fade driver
 #include "sop.h"                // class Sop — transitionAreaLoad (sync FIELD transition load)
 
@@ -51,6 +52,18 @@ void FieldTransition::areaLoadBd4(std::uint32_t area, std::uint32_t mode) {
   eng(c).sop.transitionAreaLoad();
 }
 
+// Native FUN_80044BD4(0x80044F58, set, 0, 1): seed the loader's set and mode, then load the texture group
+// synchronously; the spawned loader's mode-0 end raises the load-done flag.
+void FieldTransition::cardPictureLoadBd4(std::uint32_t set) {
+  Core *c = core;
+  const uint32_t sm = c->mem_r32(0x1f800138u);
+  c->mem_w8(sm + 0x6e, static_cast<uint8_t>(set));
+  c->mem_w8(sm + 0x6d, 0);
+  c->mem_w8(0x1f80019bu, 0);
+  eng(c).asset.preloadTexgroup({.mode = 0, .set = set});
+  c->mem_w8(0x1f80019bu, 1);
+}
+
 // FUN_80107afc — the MAIN door/sub-scene transition (sm[0x4c]==1..4). sm[0x4e]:
 // 0 teardown+fade-clear+load, 1 FADE-OUT (to black), 2 await load, 3 FADE-IN, 4
 // done->return to field. Cases 1/2/3 run the per-frame update tail (fade frames
@@ -59,7 +72,7 @@ void FieldTransition::main() {
   Core *c = core;
   uint32_t sm = c->mem_r32(0x1f800138u);
   uint16_t st = c->mem_r16(sm + 0x4e);
-  if (st >= 1 && st <= 3 && c->mem_r8(0x1f80019bu) != 0 && (c->mem_r16(kPadPressed) & kPadStart) != 0) {
+  if (st >= 1 && st <= 3 && c->mem_r8(0x1f80019bu) != 0 && PadEdges::startPressed(*c)) {
     skipCorridor();
     return;
   }
@@ -131,6 +144,13 @@ void FieldTransition::skipCorridor() {
   lucent::info("transition", "door corridor skipped (Start)");
 }
 
+// Start leaves the boss-clear card (f3c case 3) through FUN_8003EBE0's own last frame: its frame count at the
+// value that ends the card, so the card draws its final picture and returns done.
+void FieldTransition::skipClearCard() {
+  core->mem_w32(kClearCardFrame, kClearCardEnd);
+  lucent::info("transition", "boss-clear card skipped (Start)");
+}
+
 // FUN_80107d3c — transition variant (sm[0x4c]==5/6). sm[0x4e]: 0 load, 1 effect
 // 0x8003fb84, 2 await->done.
 void FieldTransition::d3c() {
@@ -185,12 +205,8 @@ void FieldTransition::e20() {
   }
 }
 
-// FUN_80107f3c — transition variant (sm[0x4c]==8), a 7-state machine. NB case 0
-// uses a DIFFERENT loader: FUN_80044bd4(0x80044f58, (DAT_1f800240+0x1a)&0xff,
-// 0) where 0x80044f58 = ov_load_texgroup (a SYNC leaf, also called directly in
-// sop.cpp). So we run it inline + set 1f80019b=1 (faithful to the cooperative
-// spawn's net effect: texgroup loaded, load-done flag raised). Case 4 uses the
-// normal 0x800452c0 loader.
+// FUN_80107f3c — the boss-clear transition (sm[0x4c]==8), a 7-state machine. Case 0 loads the cleared arena's
+// card picture, texture group (0x1F800240 + 0x1A); case 3 shows it; case 4 loads the destination area.
 void FieldTransition::f3c() {
   Core *c = core;
   uint32_t sm = c->mem_r32(0x1f800138u);
@@ -201,11 +217,7 @@ void FieldTransition::f3c() {
     psx::cpu::callGuestNow(*c, __func__, 0x8003e264u);
     c->mem_w8(0x1f800234u, 1);
     c->mem_w16(sm + 0x4e, (uint16_t)(c->mem_r16(sm + 0x4e) + 1));
-    // FUN_80044bd4(0x80044f58, (DAT_1f800240+0x1a)&0xff, 0): spawn
-    // ov_load_texgroup (sync) -> run inline.
-    c->mem_w8(0x1f80019bu, 0);
-    psx::cpu::callGuestNow(*c, __func__, 0x80044f58u, (uint32_t)((c->mem_r32(0x1f800240u) + 0x1a) & 0xff));
-    c->mem_w8(0x1f80019bu, 1);
+    cardPictureLoadBd4((static_cast<std::uint32_t>(c->mem_r16s(kClearedArena)) + kCardPictureGroup) & 0xffu);
     break;
   case 1:
   case 5:
@@ -223,6 +235,9 @@ void FieldTransition::f3c() {
     }
     break;
   case 3:
+    if (PadEdges::startPressed(*c)) {
+      skipClearCard();
+    }
     psx::cpu::callGuestNow(*c, __func__, 0x8003ebe0u);
     if (c->r[2] == 0) {
       return; // still running -> stay
