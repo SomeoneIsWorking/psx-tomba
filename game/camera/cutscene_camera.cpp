@@ -457,6 +457,7 @@ void CutsceneCamera::lookAt() { // FUN_8006D02C
   w16(0x1F8000C4u, (uint16_t)(0u - (uint32_t)r16(kCamScratch + 10)));
   mathOf(c).applyMatrixLV({.mPtr = (uint32_t)M, .inPtr = 0x1F8000C0u, .out = 0x1F80010Cu}); // FUN_80084470 (native)
   guestmath::call(*c, guestmath::kCopyMatrix, (int32_t)M, (int32_t)(kCamScratch + 72));
+  sessionOf(c).drawReplay.shakenView().built(*c);
 }
 
 // ── orchestrators (per-frame camera modes) ───────────────────────────────────────────────────────
@@ -581,6 +582,13 @@ void CutsceneCamera::shakeTail() { // FUN_8006C988
   const auto drawJitter = [&](uint32_t bits) {
     return static_cast<int32_t>(rngOf(c).next() & bits);
   };
+  // The eye now sits `offset` from the anchor; the next look-at's view draws it.
+  const auto shaken = [&](const ShakenView::Units &offset) {
+    sessionOf(c).drawReplay.shakenView().jittered({static_cast<int16_t>(r16(kCamScratch + 0x02)),
+                                                   static_cast<int16_t>(r16(kCamScratch + 0x06)),
+                                                   static_cast<int16_t>(r16(kCamScratch + 0x0a))},
+                                                  offset);
+  };
   // The two height-only jitters, which differ only in amplitude, mask and effect id. These two ARE
   // the same arm, so they are one arm — unlike the axis arm above, which moves three coordinates.
   struct HeightJitter {
@@ -590,8 +598,9 @@ void CutsceneCamera::shakeTail() { // FUN_8006C988
   };
   const auto jitterHeightOnly = [&](const HeightJitter &jitter) {
     const auto [amplitude, mask, effectId] = jitter;
-    w16(kCamScratch + 0x06,
-        static_cast<uint16_t>(static_cast<int32_t>(camR16(kShakeAnchorY)) - amplitude + drawJitter(mask)));
+    const int32_t offset = -amplitude + drawJitter(mask);
+    w16(kCamScratch + 0x06, static_cast<uint16_t>(static_cast<int32_t>(camR16(kShakeAnchorY)) + offset));
+    shaken({0, static_cast<int16_t>(offset), 0});
     guestmath::call(
         *c, guestmath::kShakeFx, 0, 0, static_cast<int32_t>(effectId), static_cast<int32_t>(kShakeEffectPriority));
   };
@@ -614,6 +623,9 @@ void CutsceneCamera::shakeTail() { // FUN_8006C988
     const int32_t jitterY = drawJitter(kShakeMaskNarrow >> 1);
     w16(kCamScratch + 0x06,
         static_cast<uint16_t>(static_cast<int32_t>(camR16(kShakeAnchorY)) - kShakeYAmplitude + jitterY));
+    shaken({static_cast<int16_t>(jitterX - kShakeXAmplitude),
+            static_cast<int16_t>(jitterY - kShakeYAmplitude),
+            static_cast<int16_t>(jitterZ - kShakeXAmplitude)});
     guestmath::call(*c,
                     guestmath::kShakeFx,
                     0,

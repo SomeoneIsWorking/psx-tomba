@@ -42,6 +42,8 @@ public:
   static void registerOverrides(native::NativeOverrideCatalog &natives);
   // FUN_8006EA00, the re-place onto Tomba (snapToMasterOffsetY200).
   inline static constexpr uint32_t kSnapToMaster = 0x8006EA00u;
+  // FUN_8006D02C, the look-at (a0 the camera object).
+  inline static constexpr uint32_t kLookAt = 0x8006D02Cu;
 
   CutsceneCamera(Core *core, uint32_t cameraObject) : CameraState(*core, cameraObject), look_(*this) {}
 

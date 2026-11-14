@@ -43,6 +43,10 @@ public:
   [[nodiscard]] render::WavePhases &wavePhases() {
     return wavePhases_;
   }
+  // The camera's look-at and shake tail note the views they build and the eye offsets they leave.
+  [[nodiscard]] ShakenView &shakenView() {
+    return motion_.shakenView();
+  }
   // While a replay runs: how far past its scroll words it scrolls the tile grid, X and Y.
   [[nodiscard]] std::optional<std::array<float, 2>> gridScrollPast() const;
 
@@ -51,7 +55,7 @@ private:
   DrawMotion motion_;
   UpdateBlockDraws updateDraws_;
   render::WavePhases wavePhases_;
-  std::array<psx::present::MotionSource *, 2> sources_{&updateDraws_, &wavePhases_};
+  std::array<psx::present::MotionSource *, 3> sources_{&updateDraws_, &wavePhases_, &motion_.shakenView()};
   render::PaletteCycles paletteCycles_;
   psx::present::ReplayFrame frame_;
   std::optional<DrawSection::Selection> drawn_;

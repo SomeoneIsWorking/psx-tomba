@@ -1,10 +1,16 @@
 #include "frame/draw_motion.h"
 
+#include "camera/cutscene_camera.h"
+#include "core.h"
+#include "guest_redraw.h"
 #include "render/sway_model_emitter.h"
 #include "render/tile_grid_layer.h"
 #include "render/unlit_model_emitter.h"
 
+#include <lucent/log.h>
+
 #include <cmath>
+#include <utility>
 
 namespace tomba {
 namespace {
@@ -22,6 +28,11 @@ constexpr auto kViewFields = psx::present::transformFields(0);
 // Camera pitch and yaw, s16 each.
 constexpr std::uint32_t kViewAngles = 0x1F8000F0u;
 constexpr std::array kViewAngleFields{MotionField{.offset = 0, .motion = Motion::Angle12x2}};
+
+// The eye and target words the look-at reads the whole units of, 16.16: eye X, Y, Z at +0, +4, +8, target at +0xC.
+constexpr std::uint32_t kLookInputs = camera::kCamScratch;
+constexpr std::uint32_t kViewTranslation = kView + 0x14u;
+constexpr std::size_t kRotationWords = 5;
 
 // Node position s32 16.16 at +0x2C, angles s16 at +0x54.
 constexpr std::array kNodeFields{
@@ -190,6 +201,94 @@ void TombaPan::blend(const Samples &samples, float t, std::span<std::uint32_t> o
   const std::uint32_t from = (samples.from[1] & kTombaPanned) != 0 ? samples.from[0] >> 16 : 0u;
   const std::uint32_t pan = psx::present::blendedWord(Motion::Angle12Low, from, samples.to[0] >> 16, t) & 0xFFFFu;
   out[0] = (samples.to[0] & 0xFFFFu) | pan << 16;
+}
+
+void ShakenView::jittered(const Units &eye, const Units &offset) {
+  jitter_ = Jitter{.eye = eye, .offset = offset};
+}
+
+void ShakenView::built(Core &core) {
+  Build build;
+  for (std::size_t i = 0; i < kInputs; ++i) {
+    build.inputs[i] = core.mem_r32(kLookInputs + 4u * static_cast<std::uint32_t>(i));
+  }
+  for (std::size_t i = 0; i < build.view.size(); ++i) {
+    build.view[i] = core.mem_r32(kView + 4u * static_cast<std::uint32_t>(i));
+  }
+  Units eye{};
+  for (std::size_t axis = 0; axis < eye.size(); ++axis) {
+    eye[axis] = static_cast<std::int16_t>(build.inputs[axis] >> 16);
+  }
+  // Another step moved the eye since the tail did: the view holds no shake.
+  if (jitter_ && jitter_->eye != eye) {
+    jitter_.reset();
+  }
+  build.offset = jitter_ ? jitter_->offset : Units{};
+  build_ = build;
+}
+
+void ShakenView::sample(Core &core) {
+  core_ = &core;
+  earlier_ = std::exchange(later_, std::nullopt);
+  const std::optional<Build> build = std::exchange(build_, std::nullopt);
+  if (!build) {
+    return;
+  }
+  Tick tick{.build = *build};
+  for (std::size_t i = 0; i < kRotationWords; ++i) {
+    if (core.mem_r32(kView + 4u * static_cast<std::uint32_t>(i)) != build->view[i]) {
+      lucent::debug("replay", "shaken view: the drawn view is not the camera's look-at");
+      return;
+    }
+  }
+  for (std::size_t axis = 0; axis < tick.after.size(); ++axis) {
+    const std::uint32_t drawn = core.mem_r32(kViewTranslation + 4u * static_cast<std::uint32_t>(axis));
+    tick.after[axis] = static_cast<std::int32_t>(drawn - build->view[kRotationWords + axis]);
+  }
+  for (std::size_t i = 0; i < kInputs; ++i) {
+    tick.drawnInputs[i] = core.mem_r32(kLookInputs + 4u * static_cast<std::uint32_t>(i));
+  }
+  later_ = tick;
+}
+
+psx::present::MotionCount ShakenView::write(psx::present::GuestRedraw &redraw, float t) const {
+  if (!later_) {
+    return {};
+  }
+  if (!earlier_) {
+    return {.drawn = 1, .unpaired = 1};
+  }
+  const Build &from = earlier_->build;
+  const Build &to = later_->build;
+  if (from.offset == Units{} && to.offset == Units{}) {
+    return {.drawn = 1};
+  }
+  // The offset's whole units in the high half of an eye word.
+  const auto shake = [](std::int16_t units) {
+    return static_cast<std::uint32_t>(static_cast<std::uint16_t>(units)) << 16;
+  };
+  for (std::size_t i = 0; i < kInputs; ++i) {
+    const bool eye = i < to.offset.size();
+    const auto unshaken = [&](const Build &build) {
+      return build.inputs[i] - (eye ? shake(build.offset[i]) : 0u);
+    };
+    const std::uint32_t word =
+        psx::present::lerpWord(unshaken(from), unshaken(to), t) + (eye ? shake(to.offset[i]) : 0u);
+    redraw.writeWord(kLookInputs + 4u * static_cast<std::uint32_t>(i), word);
+  }
+  const std::array lookAt{camera::kCameraObject};
+  if (!redraw.run(camera::CutsceneCamera::kLookAt, lookAt)) {
+    return {.drawn = 1, .unpaired = 1};
+  }
+  for (std::size_t axis = 0; axis < later_->after.size(); ++axis) {
+    const std::uint32_t address = kViewTranslation + 4u * static_cast<std::uint32_t>(axis);
+    const std::int32_t after = psx::present::lerpInt(earlier_->after[axis], later_->after[axis], t);
+    redraw.writeWord(address, core_->mem_r32(address) + static_cast<std::uint32_t>(after));
+  }
+  for (std::size_t i = 0; i < kInputs; ++i) {
+    redraw.writeWord(kLookInputs + 4u * static_cast<std::uint32_t>(i), later_->drawnInputs[i]);
+  }
+  return {.drawn = 1};
 }
 
 std::optional<std::array<float, 2>> DrawMotion::gridScrollPast(const psx::present::MotionSet &motion, float t) const {

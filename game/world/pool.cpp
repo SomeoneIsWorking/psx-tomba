@@ -7,6 +7,7 @@
 // downstream content-interface reads see the same value.
 
 #include "pool.h"
+#include "camera/cutscene_camera.h"
 #include "core.h"
 #include "core/overrides/guest_jal.h"
 #include "entry/session.h"
@@ -336,7 +337,7 @@ void Pool::finalViewInit() {
   c->r[5] = a1;
   c->r[6] = a2;
   c->r[7] = a3;
-  psx::cpu::callGuestNowResult(*c, "pool", 0x8006D02Cu);
+  psx::cpu::callGuestNowResult(*c, "pool", camera::CutsceneCamera::kLookAt);
 
   uint32_t v0 = (c->mem_r8(0x800BF870u) == 3) ? 233u : 350u;
   c->mem_w16(0x801003F8u, (uint16_t)v0);
