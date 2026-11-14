@@ -40,10 +40,12 @@ The native GT3/GT4 model emitters and where guest code reaches them. In-betweens
 
 The scenery walkers (A01, A02, A05-A08, A0L) are guest code.
 
-Still guest code: A04 0x801175FC/0x801178A0 (its GT3 has no screen cull, only flag hides; reached from the drawer
-0x801185F0, whose packets in area 4 entries 0-3 the census could not split between the GT4 and its other callees) and
-A05 0x8013484C/0x80134B74. SOP's 0x8010BF54 writes nothing itself (two calls of 0x80027768), and 0x80027768 wrote no packet in four
-narration samples (frames 1192-2098 of a new game). A01's drawer 0x80132DC0 has no screen test: every branch calls a native emitter. Never called, so never
+Still guest code: A04 0x801175FC/0x801178A0 (its GT3 has no screen cull, only flag hides; the drawer 0x801185F0 calls
+the pair only while bit 4 of the area event mask 0x800BFE56 is set, else A04's fogged pair: over area 4 entries 0-3 of a
+new game the drawer ran 2264 times and neither body ran, `PSXPORT_STORE_OBSERVE`) and A05 0x8013484C/0x80134B74, both
+drawn only in story states no warp reaches. SOP's effect 0x8010BF54 runs through the new game's narration (1156 calls)
+and draws only through `PackedMesh` (0x80027768), which has no screen cull. A01's drawer 0x80132DC0 has no screen test:
+every branch calls a native emitter. Never called, so never
 owned: A04 0x8013D0F8/0x8013D568 (MODE_TABLE sends area 4 to 0x8013DAFC), A07 0x8012DBB4/0x8012DE60 and A0G
 0x8010C3A4/0x8010C664 under its wrapper 0x8010C9B4, which nothing in the decomp references and no area 7 or 16 entry
 calls (`PSXPORT_OVERRIDE_DIFF` sampled 0 calls).
