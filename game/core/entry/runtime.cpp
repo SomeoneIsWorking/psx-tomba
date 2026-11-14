@@ -168,7 +168,7 @@ const psx::present::CropUiLayers *Runtime::cropUiLayers(Core &core) const {
   return &sessionOf(&core).cropLayers;
 }
 
-std::span<const psx::present::OutlineFont> Runtime::outlineFonts() const {
+std::span<const psx::present::OutlineFont> Runtime::outlineFonts(Core & /*core*/) const {
   return text_fonts::kFonts;
 }
 
