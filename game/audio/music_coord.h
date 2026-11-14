@@ -1,14 +1,5 @@
-// class MusicCoord — DIALOG ↔ INGAME-MUSIC coordination subsystem owned by Engine.
-//
-// PROPER OOP: one instance per Core, embedded on Engine (`eng(c).musicCoord`). Back-pointer
-// `core` wired at Core construction time (same pattern as Font / Asset / Placement). Subsystem,
-// not a math library — MusicCoord owns the dialog-vs-music coordination behavior (which song-
-// index range means "a dialog is playing", how the looping area BGM ducks under it, the fade-in
-// ramp on resume) even though the class has no fields today.
-//
-// SCOPE: the four free functions previously living in game/audio/music_dialog_coord.cpp —
-// dialog_tone_active, music_fade_in, xa_music_cut_if_dialog, xa_dialog_coord — each taking Core*
-// and returning behaviour on the shared XA stream + guest fade-volume state.
+// class MusicCoord — the dialog and area-music coordination on the shared XA stream (a PC mod for instant CD
+// reads: the looping area music stays held while a dialog tone plays), and the voice-channel mixer FUN_80075824.
 #pragma once
 #include <stdint.h>
 class Core;
@@ -35,12 +26,6 @@ public:
   // A dialog tone (songs 4..7) is the current song or the one FUN_80074BF8 parked for resumption while a
   // menu song plays over it.
   bool dialogToneActive();
-
-  // musicFadeIn(): snap the game's CD-volume fade CURRENT (0x800be224) to 0 AND zero the SPU
-  //   CDVOL L/R registers directly (0x1F801DB0/DB2), so this frame's XA mix is silent and the
-  //   game's per-frame ramp then climbs volume back to target (~2s fade-in). Caller MUST only
-  //   invoke this when the music is the sole XA user — CDVOL also scales the dialog voice.
-  void musicFadeIn();
 
   // tick(): once-per-frame update (called from native_step_frame). Enforces "dialogs stop
   //   the ingame music" — stops a looping ingame-music clip while a dialog tone is up; resumes

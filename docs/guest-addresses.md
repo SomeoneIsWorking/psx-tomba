@@ -494,7 +494,6 @@ calls it. A row whose handler is file-local names the file that declares the ove
 | 0x8009A3E0 | LIVE | `ov_copyBytes` | game/core/assets/str.cpp |  |  |
 | 0x8009A640 | LIVE | `Str::compareBytes` | game/core/assets/str.cpp |  | FUN_0x8009A640 — byte compare, sibling of the memcpy already owned her… |
 | 0x800A33C8 | LIVE | `tbl_strp` | game/ai/beh_cube_text_spawn.cpp |  | string-table entry pointer: mem32(0x800a33c8 + (node[0x60]*3 << 2) + 4… |
-| 0x800BE224 | LIVE | `MusicCoord::musicFadeIn` | game/audio/music_coord.cpp |  | PC-added helper (NOT a port of any FUN_XXXX): snap the game's CD-volum… |
 | 0x800BE22A | LIVE | `MusicCoord::dialogToneActive` | game/audio/music_coord.cpp |  | FUN_80074BF8's song to resume after the current one (u8, bit 7 = interrupted) |
 | 0x800BED80 | LIVE | `MusicCoord::dialogToneActive` | game/audio/music_coord.cpp |  | FUN_80074BF8's current song (s16, -1 none); 4..7 are the dialog tones |
 | 0x800BF842 | LIVE | `Engine::postRenderTick` | game/core/engine/engine_frame_ticks.cpp |  | Engine::postRenderTick — 3-state fx-trigger + countdown on byte 0x800B… |

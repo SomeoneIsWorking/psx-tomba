@@ -34,21 +34,6 @@ bool MusicCoord::dialogToneActive() {
   return isDialogTone(c->mem_r16(kCurrentSong)) || isDialogTone(c->mem_r8(kResumeSong) & 0x7Fu);
 }
 
-// PC-added helper (NOT a port of any FUN_XXXX): snap the game's CD-volume fade CURRENT (0x800be224)
-// to 0 AND zero the SPU CDVOL L/R registers directly, so THIS frame's XA mix is silent and the
-// per-frame audio ramp (voiceMixTick above) then climbs the volume back to target (~2s fade-in).
-// Fixes "music starts too loud" on instant-CD replays — real hardware masked this because the
-// area music only started after the CD-paced scene load, by which point the fade had been armed.
-// Caller MUST only invoke when the music is the sole XA user — CDVOL also scales the dialog voice.
-// Zeroing 0x800be224 alone is NOT enough: the ramp already ran this frame with the OLD `cur` before
-// this snap, mixing one frame at full volume. So also poke the SPU CDVOL register directly here.
-void MusicCoord::musicFadeIn() {
-  Core *c = this->core;
-  c->mem_w16(0x800be224, 0); // game's fade CURRENT = 0 (its per-frame ramp climbs it back up)
-  c->mem_w16(0x1f801db0, 0); // SPU CDVOL L = 0 NOW, so THIS frame's XA mix is silent (no loud blip)
-  c->mem_w16(0x1f801db2, 0); // SPU CDVOL R = 0
-}
-
 namespace {
 
 // Typed lens over the guest voice-channel control block (the ambient/XA channel @0x800BE1F8).
@@ -115,14 +100,8 @@ constexpr uint32_t kFnSpuQueuePing = 0x800750D8u;  // FUN_800750D8(idx, 1)
 
 } // namespace
 
-// Per-frame VOICE-CHANNEL VOLUME MIXER — port of FUN_80075824 (RE'd via ghidra 2026-07-03). Called
-// from AreaSlots::updateTail (game/world/area_slots.cpp) with voice_base = 0x800BE1F8 (the
-// ambient/XA channel). Was previously — INCORRECTLY — wired to musicFadeIn() there, which merely
-// zeros the fade current + SPU CDVOL; that call was based on a wrong reading of what FUN_80075824
-// does. The RE'd body is a full ramp+boost+dialog-branch mixer (see header for the shape). SBS
-// gameplay mode surfaced the resulting divergence at 0x800BE208/A (voice[+0x10]/[+0x12], the packed
-// volume word). Both writes are done every frame; if they lag or don't fire, the audio state
-// diverges downstream.
+// FUN_80075824, the per-frame voice-channel volume mixer: ramps the CD fade 0x800BE224 toward its target 0x800BE222,
+// then the boost and dialog branches. Called from AreaSlots::updateTail with the XA channel 0x800BE1F8.
 void MusicCoord::voiceMixTick(uint32_t voice_base) {
   Core *c = this->core;
   // FUN_80075824's guest frame (abi_extract --contract): 32 B; r17@sp+20, r31@sp+24, r16@sp+16.
@@ -295,7 +274,6 @@ void MusicCoord::tick() {
     EngineCd &cd = sessionOf(c).cd;
     const EngineCd::DeferredMusic &music = cd.deferredMusic();
     cd.playClip({.channel = music.channel, .start = music.start, .end = music.end, .loop = true});
-    musicFadeIn(); // resumed music fades in from 0 (no voice now)
   }
 }
 

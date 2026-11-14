@@ -119,7 +119,7 @@ void cdInlineLoad(Core *c) {
 }
 
 // FUN_8001D2A8(chan, start, end, flags): plays a clip on the native XA streamer and holds slot 2 until
-// it ends. A looping clip is area music: held back while a dialog tone plays, faded in otherwise.
+// it ends. A looping clip is area music, held back while a dialog tone plays.
 void voicePlay(Core *c) {
   const auto channel = static_cast<std::uint8_t>(c->r[A0] & 0xFFu);
   const std::uint32_t start = c->r[A1];
@@ -134,9 +134,6 @@ void voicePlay(Core *c) {
     }
   }
   cdOf(c).playClip({.channel = channel, .start = start, .end = end, .loop = loop});
-  if (loop) {
-    engine.musicCoord.musicFadeIn();
-  }
 }
 
 // FUN_8001CF2C: stops the clip. Outside a dialog it also forgets deferred music, so a menu exit does

@@ -183,10 +183,6 @@ void AreaSlots::updateTail() {
   }
 
   // (4) Common tail leaves — both take a0 = 0x800BE1F8.
-  // Was: eng(c).musicCoord.musicFadeIn() — WRONG. FUN_80075824 was misnamed as musicFadeIn;
-  // the RE (2026-07-03, ghidra) shows it is the per-voice VOLUME MIXER tick, not a fade snap.
-  // SBS gameplay mode surfaced the divergence at 0x800BE208/A the moment we replaced the guest instruction path
-  // dispatch with musicFadeIn; the proper port is voiceMixTick(0x800BE1F8).
   c->r[4] = S5;
   c->r[31] = 0x80075C58u;             // jal-site const, kept even for the native call
   eng(c).musicCoord.voiceMixTick(S5); // FUN_80075824 (native)
