@@ -20,9 +20,10 @@ add_library(
   tomba1_runtime STATIC
   "${TOMBA1_ROOT}/game/core/boot/cd_native_startup.cpp"
   "${TOMBA1_ROOT}/game/core/state/context.cpp"
+  "${TOMBA1_ROOT}/game/core/debug/dev_life_loss.cpp"
   "${TOMBA1_ROOT}/game/core/debug/dev_warp.cpp"
   "${TOMBA1_ROOT}/game/core/debug/debug_menu.cpp"
-  "${TOMBA1_ROOT}/game/core/frame/boot_skip.cpp"
+  "${TOMBA1_ROOT}/game/core/frame/screen_skip.cpp"
   "${TOMBA1_ROOT}/game/core/frame/frame_driver.cpp"
   "${TOMBA1_ROOT}/game/core/task/disc_loader.cpp"
   "${TOMBA1_ROOT}/game/core/task/guest_task_slots.cpp"

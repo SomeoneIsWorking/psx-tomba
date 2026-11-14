@@ -2,6 +2,7 @@
 
 #include "context.h"
 #include "core.h"
+#include "dev_life_loss.h"
 #include "dev_warp.h"
 
 #include <lucent/log.h>
@@ -42,6 +43,15 @@ DebugMenu::DebugMenu() {
           [](Core &core) {
             return DevWarp::fieldRunning(core) ? std::string() : "a warp is legal only while the field is running";
           },
+  });
+  verb({
+      .name = "lose-life",
+      .summary = "Land a hit worth Tomba's whole vitality, through the game's own damage and life-loss path",
+      .run =
+          [](const psx::game::DebugCall &call) {
+            call.reply = context(call.core).lifeLoss.arm(call.core);
+          },
+      .refusal = DevLifeLoss::refusal,
   });
 }
 

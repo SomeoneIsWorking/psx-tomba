@@ -1,6 +1,7 @@
-#include "boot_skip.h"
+#include "screen_skip.h"
 
 #include "core.h"
+#include "dev_warp.h"
 #include "game.h"
 #include "guest_task_slots.h"
 #include "host_input.h"
@@ -29,23 +30,32 @@ constexpr std::uint16_t kLogoHold = 5u;
 constexpr std::uint32_t kStreamState = 0x1F8001CCu;
 constexpr std::uint32_t kStreamStop = 0x1F8001D3u;
 // The buttons 0x80019844 skips the intro movie on.
-constexpr std::uint16_t kSkipButtons = psx::input::kButtonStart | psx::input::kButtonCross;
+constexpr std::uint16_t kBootSkipButtons = psx::input::kButtonStart | psx::input::kButtonCross;
+// Machine 0 0x8001B0A4 state 6 and its countdown word in the gameplay task record; it ends after the pass that
+// reads 1.
+constexpr std::uint16_t kAreaSelectMachine = 0u;
+constexpr std::uint16_t kRespawnHold = 6u;
+constexpr std::uint32_t kRespawnCountdown = 0x5Eu;
 
 } // namespace
 
-void BootSkip::beforeTasks(Core &core) {
+void ScreenSkip::beforeTasks(Core &core) {
   Game &game = *core.game;
-  const auto held = static_cast<std::uint16_t>(~game.pad.buttons & kSkipButtons);
-  const bool pressed = (held & ~heldBefore_) != 0u;
+  const auto held = static_cast<std::uint16_t>(~game.pad.buttons & kBootSkipButtons);
+  const std::uint16_t pressed = held & ~heldBefore_;
   heldBefore_ = held;
+  bootScreens(core, pressed != 0u);
+  respawnHold(core, (pressed & psx::input::kButtonStart) != 0u);
+}
 
+void ScreenSkip::bootScreens(Core &core, bool pressed) {
   const std::uint32_t task = taskRecordAddress(0);
   const std::uint32_t entry = core.mem_r32(task + kTaskRecordEntry);
   const std::uint16_t state = core.mem_r16(task + kState);
-  const bool bootScreens = entry == kSceaCardTask || (entry == kTitleTask && state == kTitleBoot);
+  const bool boot = entry == kSceaCardTask || (entry == kTitleTask && state == kTitleBoot);
   // A press on a screen's load is kept for the screen it loads.
-  pending_ = bootScreens && (pending_ || pressed);
-  if (!pending_ && !game.session.preview()) {
+  pending_ = boot && (pending_ || pressed);
+  if (!pending_ && !core.game->session.preview()) {
     return;
   }
   const std::uint16_t sub = core.mem_r16(task + kSubState);
@@ -64,6 +74,18 @@ void BootSkip::beforeTasks(Core &core) {
     return;
   }
   pending_ = false;
+}
+
+void ScreenSkip::respawnHold(Core &core, bool pressed) {
+  const std::uint32_t record = core.mem_r32(DevWarp::kTaskRecordPointer);
+  if (!pressed || record == 0u || core.mem_r16(record + DevWarp::kMachineOffset) != kAreaSelectMachine ||
+      core.mem_r16(record + DevWarp::kStateOffset) != kRespawnHold || core.mem_r16(record + kRespawnCountdown) <= 1u) {
+    return;
+  }
+  lucent::info("respawnskip",
+               "respawn hold ends at its countdown terminal, {} frames early",
+               core.mem_r16(record + kRespawnCountdown) - 1u);
+  core.mem_w16(record + kRespawnCountdown, 1u);
 }
 
 } // namespace tomba1

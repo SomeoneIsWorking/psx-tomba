@@ -75,7 +75,8 @@ void FrameDriver::stepFrame(Core &core, std::uint32_t frame) {
   }
 
   context(core).warp.applyArmed(core, frame);
-  context(core).bootSkip.beforeTasks(core);
+  context(core).lifeLoss.applyArmed(core, frame);
+  context(core).screenSkip.beforeTasks(core);
   context(core).tasks.runScheduledTasks(core);
   lucent::debug("tomba1-packet-pool",
                 "frame {} pass holds {} of {} bytes",

@@ -1,10 +1,11 @@
 // The one per-Core owner of Tomba! 1's native subsystem state.
 #pragma once
 
-#include "boot_skip.h"
+#include "dev_life_loss.h"
 #include "dev_warp.h"
 #include "game_runtime.h"
 #include "guest_task_slots.h"
+#include "screen_skip.h"
 
 class Core;
 
@@ -17,7 +18,8 @@ public:
 
   GuestTaskSlots tasks;
   DevWarp warp;
-  BootSkip bootSkip;
+  DevLifeLoss lifeLoss;
+  ScreenSkip screenSkip;
 };
 
 Context &context(Core &core);
