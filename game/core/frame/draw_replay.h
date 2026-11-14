@@ -29,7 +29,7 @@ public:
   void endFrame(const FrameCut &cut);
   // The next draw pairs with nothing (a savestate restore).
   void forget();
-  // A ScreenFade linked after this frame's section, linked again in the next interval's replays.
+  // Before the draw: a ScreenFade this frame links after its section, which the section's replays link too.
   void noteTrailingFade(const DrawSection::TrailingFade &fade);
 
   [[nodiscard]] psx::present::ReplayFrame &frame() {

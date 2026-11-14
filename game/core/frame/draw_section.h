@@ -43,7 +43,7 @@ public:
   void select(Selection selection) {
     selection_ = selection;
   }
-  // A ScreenFade (FUN_8007E9C8) the last frame linked after its section; each replay links it after the steps.
+  // A ScreenFade (FUN_8007E9C8) the frame links after its section; each replay links it after the steps.
   struct TrailingFade {
     std::uint32_t color = 0;
     std::uint32_t blend = 0;

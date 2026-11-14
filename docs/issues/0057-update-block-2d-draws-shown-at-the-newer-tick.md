@@ -46,10 +46,11 @@ pairs only while the replay's samples pair (`DrawReplay::endFrame` forgets on a 
   pixel-identical to the later tick on 3047 of 3528 lit pixels, every lit value on the 5-bit ladder (24, 33, 41,
   49). The rebuild was deleted. An in-between level needs a raster target with more than 5 bits per channel.
   A fade linked after the section is missing from every in-between unless relinked: `Engine::fieldRun` state 10
-  (the subtractive fade-out after `fieldFrame`) notes it (`DrawReplay::noteTrailingFade`) and each replay of the next
-  interval links it after the section's steps (`DrawSection::draw`), at the older real's level. Shown on the SOP cliff
-  fade-out (bug report 2026-11-12 08:27:18, pad replay, `scratch/br2/r3f`): mean picture level per present 119, 119,
-  112, 112, 105, 105 ... 9, 9, where the in-betweens had stayed at 125.
+  (the subtractive fade-out after `fieldFrame`) notes it before the draw (`DrawReplay::noteTrailingFade`) and each
+  replay of the interval links it after the section's steps (`DrawSection::draw`) at the later tick's level, as the
+  real draw does, so the replay at t=1 is the real draw. Shown on the SOP cliff fade-out (bug report 2026-11-12
+  08:27:18, pad replay, `scratch/br2/r3f`), then at the older level: mean picture level per present 119, 119, 112,
+  112, 105, 105 ... 9, 9, where the in-betweens had stayed at 125.
 - The dialog box: the machine `0x8007D594` steps its open (state 0x5A eases y +0x56 toward +0x82, 0x5B grows the
   width +0x58 by an accelerating step and recentres x +0x54 on 0xA0) and then draws the glyphs (`0x8007CC00`) and the
   panel (`Panel::drawPanel`, `0x8005019C`) from node +0x54 in the same call. Glyphs are not drawn while it opens
