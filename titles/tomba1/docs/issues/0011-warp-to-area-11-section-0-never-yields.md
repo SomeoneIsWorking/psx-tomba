@@ -38,3 +38,6 @@ current area, so the catalogue needs each area's list counts from the disc's are
 streams from), not from RAM. Find that file and its record layout, then build the counts once when the warp
 places load. Area 16 (its section 0 is also machine 5) and the 10 to 11 fault are still untried with the stepping
 script.
+
+A warp to 15/0 (also machine 5) straight after 14/0 faults too: task 0 at `0x801268F0` (Lightrec execution fault,
+`scratch/t1ws/k4b/run.log`, 2026-11-14), not yet stepped.

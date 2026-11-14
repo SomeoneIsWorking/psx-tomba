@@ -99,7 +99,7 @@ Gap: Start at the title reaches the first field and the dev `warp` enters other 
 
 ### S011 — Tomba! 1 true widescreen works in the actual product
 
-Owned by `titles/tomba1/docs/project-state.md` S005, which holds its evidence and gaps.
+Owned by `titles/tomba1/docs/project-state.md` S005, which holds its evidence and gaps; whether to widen the gameplay object cull is open (`titles/tomba1/docs/issues/0012-object-visibility-cull-is-gameplay-state.md`).
 
 ### S012 — Tomba! 1 and Tomba! 2 game-engine implementations are isolated
 

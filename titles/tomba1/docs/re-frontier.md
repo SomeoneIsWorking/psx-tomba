@@ -86,18 +86,18 @@ executable-grounded startup and CD facts while introducing the shared Lightrec p
 ## Widescreen spine
 
 ### T1-09 — Identify projection, visibility, buffer, and layout owners
-- status: todo
+- status: grounded
 - deps: T1-08
-- evidence: `SetGeomOffset` `0x80063A34`, `SetGeomScreen` `0x80063A54`, initializer `0x80016AF4`, display construction `0x80016C4C`, and later resident `0x8002D784` ground the current 320x224 centre `(160,112)`, `H=544` projection facts.
-- where: binary-backed RE and `game/render/`
-- gap: Observe resident and loaded-code publications, distinguish visual from gameplay culling, identify wide draw-buffer placement, and classify left/right/center 2D anchors.
+- evidence: `SetGeomOffset` `0x80063A34`, `SetGeomScreen` `0x80063A54`, initializer `0x80016AF4`, display construction `0x80016C4C`, and later resident `0x8002D784` ground the 320x224 centre `(160,112)`, `H=544` projection. Visual culls: the mesh chunk submitters and drawers (`0x80024CFC`..`0x800279E8`), the sprite drawers (`0x800487A4`, `0x80048BF0`, `0x80049134`, `0x80049994`, `0x8004AA70`, `0x8004BAF0`, `0x80045AF8`), the 2D walker `0x8004DD14` and its kinds (`0x8004DFA0`; kind 4 `0x8011DA28` for area 4, while its area-12 branch `0x80116308` is unreachable because `0x8001CB54` rewrites area 12 to 4 with `0x8009EBA0` = 8, 7 to 1 with 6, 19 to 2 with 0x11), `0x8004A300`/`0x8004A6A0` (2D kind 0, category 3 kinds 13 and 16, categories 1 and 2 kind 13; matched in tombi-decomp). Gameplay culls: `ObjCullRegister` `0x80022E44`, `cullObjectToDrawList` `0x80022C08`, `cullObjectToDrawListMargin` `0x80022D3C` set the object's `+1` and push the category lists that draw and weapon collision both walk; `despawnObjectOffscreen` `0x80023020`/`0x800230BC` retire objects 160 columns out. 2D layout: the HUD pass `0x8004E468` (lives `0x8004E590`, points `0x8004E714`, vitality `0x8004E900`, weapon `0x8004ED80`, item gauges `0x8004EB10` at `0x8007EC5C`, shown by `0x8002907C`'s counters `0x800B07C8`); the loading card `0x80023CE0` (tiles `0x80023ED0`, logo `0x80024008`, buffer `0x800A1890 + 0x780 * 0x1F8001F4`); painted rooms (kind 3, block-map scrollers `0x800EB328`/`0x800ECA4C`).
+- where: `game/render/`; S005 in `project-state.md`
+- gap: Which objects reach `0x8004A300`/`0x8004A6A0` in play.
 
 ### T1-10 — Implement and verify true widescreen
-- status: todo
+- status: partial
 - deps: T1-09
-- evidence: Not started.
-- where: title-owned projection/layout modules and shared non-temporal presentation
-- gap: Preserve 4:3 and prove additional correctly projected content, visibility, edge coverage, buffer placement, and anchored UI in representative gameplay.
+- evidence: Every visual cull above except `0x8004A300`/`0x8004A6A0` culls at the record canvas through a native owner; the HUD and the loading card fill the canvas through host packets; painted rooms bound the picture (`project-state.md` S005).
+- where: `game/render/`
+- gap: `0x8004A300`/`0x8004A6A0`; the gameplay object cull awaits a decision (issue 0012).
 
 ## Explicitly excluded enhancement work
 
