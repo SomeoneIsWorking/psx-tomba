@@ -111,7 +111,7 @@ Evidence: `titles/tomba1/enhancement_scope.json` is `{"widescreen": true}`; the 
 
 ### S014 — Tomba! 2 sound effects and music work throughout the game
 
-Gap: Native audio and CD/XA owners exist; the per-vblank sequencer tick runs again on the slots its own trampoline reads, but not yet observed through representative Lightrec gameplay.
+Gap: Native audio and CD/XA owners exist; the per-vblank sequencer tick runs again on the slots its own trampoline reads, but not yet observed through representative Lightrec gameplay. The 3 s of silence between the opening narration and the first field after New Game is the game's own (2026-11-14, `scratch/s014/`): the narration clip (XA file 1 channel 7, LBA 66515..75523, requested whole) is silent on the disc from its sector 628 on (`narration_tail_levels.txt`, played off the disc by `xadump`), and the host output falls silent at sector 629 (field 2995) while the guest keeps streaming it. The SOP scene object FUN_800527C8 then counts out its own waits and sets 0x800BF839 (field 3108), the field mode fades out over 31 ticks, stops the clip (field 3172), loads area 0 and starts its music, channel 4 LBA 84515..97979 looping (field 3178); output is non-zero from field 3182 (`u1/run.log`, unpaced, the same fields as the paced `scratch/rt1114/t2`). Host output follows each guest XA request within 4 fields; the port's loads take no time, so the hardware's gap is longer.
 
 ### S015 — Tomba! 2 saves, reloads and survives a full restart
 
