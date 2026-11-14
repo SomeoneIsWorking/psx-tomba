@@ -74,11 +74,11 @@ suits and effects that may pass it; Clear Fruit's 0x200 stays worn-only. The set
 | `SQUIRREL_UPDRAFT` | Squirrel | longer reach into updrafts (0x40) |
 | `FLAME_ROBE_FREEZE` | Evil Flame Pig Robe | the ice pig battle's updraft does not freeze him (0x400) |
 
-Robe magic has no settings yet. `0x800552EC` lets a robe cast (button 0x40) while the worn word has a 0x7C00 bit and
+Robe magic stays worn-only by the user's decision (2026-11-14): a robe casts only while worn, so it has no
+setting. `0x800552EC` lets a robe cast (button 0x40) while the worn word has a 0x7C00 bit and
 magic `0x800BF87E` covers `0x800A4550[word & 0xF] >> 1`; the cast then follows the worn word's low nibble
 (`0x8005800C`, `0x8005F778`, `0x80061B58`, `0x80062630`). The game keeps only the current word (saved `0x800BF89E`),
-no history of robes worn, so with several robes owned and none worn nothing in it picks one. A robe's setting is
-faithful only while it is the one robe effect on; that rule and the four nibble readers come with the robe gates.
+no history of robes worn, so with several robes owned and none worn nothing in it picks one.
 
 Per-effect independence: with the Pig Suit owned and not worn in area 1, `PIG_JUMP` on and `PIG_STOMP` off jumps
 to Y 0xE627 and a second jump press in the air does nothing; `PIG_JUMP` off and `PIG_STOMP` on jumps to the retail
@@ -157,9 +157,9 @@ owns):
   guest only in v0/v1, which these void functions leave as scratch (0 memory bytes).
 
 Left worn-only by design: the 0x20 sites `0x8003B588` and `0x800597AC` copy `G+9` to `G+8` with the Bird suit, the
-worn suit's look, which step 2 keeps. Open design choice: the robes' 0x7C00 magic (`0x800552EC`) indexes its cost table
-`0x800A4550` by the worn suit's low nibble, so with several robes owned the mod has no single robe to pick; it stays
-worn-only until that is decided (other low-nibble readers: `0x8005800C`, `0x8005F778`, `0x80061B58`, `0x80062630`).
+worn suit's look, which step 2 keeps. The robes' 0x7C00 magic (`0x800552EC`, cost table
+`0x800A4550` by the worn suit's low nibble; other low-nibble readers `0x8005800C`, `0x8005F778`, `0x80061B58`,
+`0x80062630`) is worn-only by the user's decision.
 
 Every native gate logs its decision on the `suits` debug channel (`TombaStep::has`).
 
@@ -215,5 +215,4 @@ Still on the suit word, by the scan of every `lh/lhu 0x17E` + `andi` (MAIN and t
   grown and Clear Fruit bits: `0x80132564` (0x180) hands a worn Pig suit back to the inventory (`0x8004ED0C`) and
   clears `G+0x6F`, so an owned one has nothing to take off.
 - robe magic (0x7C00): A07 `0x8010BC9C` makes its actor a target (`0x1F800184`, `0x800BF840 = 0x4B`) only while a
-  robe is worn. It belongs to the robe cast, `0x800552EC`, and stays worn-only along with it (see the open choice
-  above).
+  robe is worn. It belongs to the robe cast, `0x800552EC`, and stays worn-only along with it.
