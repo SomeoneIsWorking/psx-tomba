@@ -17,6 +17,9 @@ namespace tomba {
 // The field run (area machines 2 and 3) takes any non-zero pending byte; the GAME-image handler of machine 4 takes 1
 // as a door and sends other values to the game-over menu, and machines 5 and 6 take only 3. The code written is the
 // one the running machine accepts.
+//
+// Story state is left as it is: an area loads the variant its `0x800BFE56` bit names (area 6 entry 7 needs area
+// 12's clear bit, issue 0070).
 class DevWarp {
 public:
   // 0x800BF839: the field machine's pending-transition request; 0 none.
