@@ -101,11 +101,22 @@ owns):
   instead of f167 (`m6_1`, `m6_0`);
 - modes 3 and 0x10 (`ActionModes::mode3`, `mode16`, FUN_8005B63C, FUN_8005C26C, 0x40): native; a grab of the
   enemy at area 1 sector 10 runs mode 3 substates 8, 9, 3, 4, 5, 7 (`grab10x`). Their 0x40 site is substate 1, entered
-  only for a target whose kind (`0x8005B5E4`) is 0; no such target is found yet, so that gate is unproven;
+  only for a target whose class (`0x8005B5E4`, jump table `0x800160CC`) is 0: every kind but 0x00, 0x10, 0x19, 0x1B,
+  0x5F (class 2), 0x01, 0x08, 0x13, 0x33 (1), 0x40 (4) and 0x41 (3), and with `G+0x181` clear (mode 0x10 sets it).
+  A grab is `0x8001FDB4`, reached from the contact owners when Tomba falls onto a target (`G+0x144 == 1`, hit class
+  below 2): `0x8001FF7C` and `0x80020364` (A00 kinds 3, 0x0F, 0x14, 0x56, 0x2F; A01 0x56). Area 0 entry 0's kind 3
+  walker (`0x800FD748`, sector 0) is one: from `spot 0 0 0 9148 -1700 5640` a jump at f48 released at f58 lands on
+  it at f82 and runs substate 1 for a frame, the gate asked once (`false` with no suit or the setting off,
+  `m3r_none`, `m3r_off`). With the Squirrel worn or owned and `SQUIRREL_GLIDE` on, the airborne step's own glide
+  slows the fall and the same input misses the walker (`m3r_worn`, `m3r_on`); jumps at f26..f52 missed too, so the
+  four-way comparison on this gate is still open;
 - swimming (`WaterEntry`, 0x100): A00's floor tick FUN_8010E408 and the water landing FUN_800665F4. Spotted over area 0
   water (sector 22, 14700 -400 10600) with the Swimming Pig Suit owned and not worn, Tomba swims (mode 0x1D); off,
-  the water fall (`swim1`, `swim0`, `swim_sheet.png`). The landing (callers `Tomba_hazardHit` 0x8006670C,
-  0x80066DE8: a hit onto water) is not reached yet.
+  the water fall (`swim1`, `swim0`, `swim_sheet.png`). The landing's other callers are hazard modes 0 and 2 of
+  `Tomba_hazardDispatch` (`0x80067CA4`, table `0x800165A4`): `Tomba_hazardHit` 0x8006670C (the knockback, substate
+  2 falling) and 0x80066DE8 (the 0x56 launch, `G+0x4A = 0xE000`), both testing the landing as they fall. They run the
+  same native `WaterEntry` landing, so the gate is shared; a knockback that lands in water is still to be found (no
+  enemy stands by area 0's water at load).
 - the Pig Suit's 0x180 (`Airborne::launch` FUN_80055F48, the jump release FUN_80056E08 inside `Airborne::step`,
   `Airborne::airActions` FUN_80057C08): with the Pig Suit owned and not worn, a held jump in area 1 starts 0x1940
   faster and peaks at Y 0xE627 instead of 0xE664, and a second jump press in the air stomps (mode 0x1C, pose 0xE5);
@@ -200,7 +211,9 @@ Still on the suit word, by the scan of every `lh/lhu 0x17E` + `andi` (MAIN and t
   0x180 predicates `0x80130CF8`, `0x80130D44`, `0x80130D80`, `0x80130DD8` choose the Circus Village people's lines
   (`0x80042354`) when Tomba wears a Pig suit. A07 `0x80121C64`/`0x80125BAC` (event steps at `0x80134158`,
   `0x801349F0`) dress him in the Pig Suit when he is not in one, and A08 `0x80132564` and `0x801219A0` (0x2210) take
-  the suit off.
+  the suit off. These are A08's only suit-word tests besides the native floor tick and waterfall (0x100) and the
+  grown and Clear Fruit bits: `0x80132564` (0x180) hands a worn Pig suit back to the inventory (`0x8004ED0C`) and
+  clears `G+0x6F`, so an owned one has nothing to take off.
 - robe magic (0x7C00): A07 `0x8010BC9C` makes its actor a target (`0x1F800184`, `0x800BF840 = 0x4B`) only while a
   robe is worn. It belongs to the robe cast, `0x800552EC`, and stays worn-only along with it (see the open choice
   above).
