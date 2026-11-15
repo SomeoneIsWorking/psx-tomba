@@ -34,12 +34,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 find_package(ZLIB REQUIRED)
-find_package(zstd CONFIG QUIET)
-if(NOT TARGET zstd::libzstd_shared)
-  find_library(ZSTD_LIBRARY zstd REQUIRED)
-  add_library(zstd::libzstd_shared SHARED IMPORTED)
-  set_target_properties(zstd::libzstd_shared PROPERTIES IMPORTED_LOCATION "${ZSTD_LIBRARY}")
-endif()
 find_package(Threads REQUIRED)
 
 # The framework static library (psxport) — builds from external/psxport via PSXPORT_ROOT (self-locating).
