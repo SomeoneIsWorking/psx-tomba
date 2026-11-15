@@ -321,10 +321,6 @@ target_compile_definitions(tomba2_port PRIVATE ${TOMBA2_IDENTITY_DEFINITIONS})
 # libpsxport's render sources include the generated shader header.
 add_dependencies(tomba2_port gen_gpu_shaders)
 
-set_target_properties(tomba2_port PROPERTIES
-  ENABLE_EXPORTS ON                                   # -rdynamic: watchdog backtrace symbol names
-  RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
-
 # GAME include dirs. The framework include dirs (RT, generated, vendored backends, SDL/freetype) are
 # inherited PUBLICly from the psxport link — only the game/* subfolders are added here.
 set(TOMBA2_GAME_INCLUDES
