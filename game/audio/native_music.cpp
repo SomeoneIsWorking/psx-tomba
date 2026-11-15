@@ -6,6 +6,7 @@
 // render runs on the audio-frame path).
 #include "native_music.h"
 #include "native_audio.h"
+#include <cstddef>
 #include <cstdlib>
 #include <cstring>
 #include <pthread.h>
