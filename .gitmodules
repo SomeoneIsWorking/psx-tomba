@@ -1,7 +1,8 @@
 [submodule "external/tombi-decomp"]
 	path = external/tombi-decomp
-	url = https://github.com/afsenovilla/Tombi-Decomp.git
+	url = https://github.com/SomeoneIsWorking/Tombi-Decomp.git
 	shallow = true
+	branch = main
 [submodule "external/psx_tomba"]
 	path = external/psx_tomba
 	url = https://github.com/hansbonini/psx_tomba.git
