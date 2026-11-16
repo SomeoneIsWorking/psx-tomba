@@ -1,9 +1,9 @@
 # Tomba port
 
-Two isolated native/dynarec ports, Tomba! 2 (`SCUS_944.54`) and Tomba! 1 (`SCUS_942.36`), over the
-shared `psxport` Lightrec runtime. Execution policy: the `dynarec-port`, `dynarec-runtime` and
-`dynarec-overrides` skills. When this repository is inside the PSX workspace, also read
-[`../AGENTS.md`](../AGENTS.md) and [`external/psxport/AGENTS.md`](external/psxport/AGENTS.md).
+Two isolated native/interpreter ports, Tomba! 2 (`SCUS_944.54`) and Tomba! 1 (`SCUS_942.36`), over the
+shared `psxport` per-`Core` interpreter (`GuestExecutor`). Execution policy: the `dynarec-port`,
+`dynarec-runtime` and `dynarec-overrides` skills. When this repository is inside the PSX workspace, also
+read [`../AGENTS.md`](../AGENTS.md) and [`external/psxport/AGENTS.md`](external/psxport/AGENTS.md).
 
 ## Docs
 
@@ -32,7 +32,7 @@ interpolation of keyed primitives; Tomba! 1 gets widescreen only.
 
 ## Ownership
 
-- `external/psxport/` owns Lightrec integration, per-`Core` CPU sync, bounded exits, image
+- `external/psxport/` owns guest execution (its per-`Core` interpreter), bounded exits, image
   generations, executable-memory invalidation, native-override and original-call dispatch, PSX
   hardware/HLE services, host devices and test infrastructure.
 - Each title owns executable/disc identity, native game behavior, title policy, frame composition,
@@ -41,7 +41,7 @@ interpolation of keyed primitives; Tomba! 1 gets widescreen only.
 ## Native code and evidence
 
 - Host work, VSync/frame suspension, interrupts, exceptions and thread completion use explicit
-  bounded executor exits. Do not unwind C++ exceptions through translated frames.
+  bounded executor exits. Do not unwind C++ exceptions through a guest segment.
 - Native code reads as game code: typed views over guest-visible state, named states and constants,
   no opaque address soup. Do not transcribe an instruction stream into C++.
 - A diagnostic reports how much it scanned and proves both positive and negative answers. Absence
@@ -72,7 +72,7 @@ audit. The SCEA card and LOGO movie are stepped frames (`frame/boot_cards.cpp`).
   rendering, diagnostics and exactly one presentation fence.
 - Guest VSync at `0x80085900` is fatal; a guest wait/query or timeout is never pacing.
 - Pre-migration runs reached GAME at frame 25, free-roam at frame 216 and 620/620 presentation
-  fences: the frontier to regain, not Lightrec evidence.
+  fences: the frontier to regain, not interpreter evidence.
 - `0x801113B4` exists in both A03 and A0B with different entry shapes: the grounded image-collision
   case for runtime dispatch and invalidation.
 

@@ -7,7 +7,7 @@
 #include "entry/session.h"
 #include "execution_control.h"
 #include "game.h"
-#include "lightrec_executor.h"
+#include "guest_executor.h"
 #include "native_dispatch.h"
 #include "sched/task_slot_layout.h"
 
@@ -22,7 +22,7 @@ namespace {
 // One JIT turn of a guest task; true when its budget ran out with `resumePc` the next instruction.
 bool executeGuestTaskTurn(Core &core, std::uint32_t &resumePc, std::uint32_t returnAddress) {
   const auto result =
-      core.lightrecExecutor().executeFunction(resumePc, returnAddress, psx::cpu::ExecutionBudget::currentTurn(core));
+      core.executor().executeFunction(resumePc, returnAddress, psx::cpu::ExecutionBudget::currentTurn(core));
   if (result.returned()) {
     return false;
   }

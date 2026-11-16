@@ -23,18 +23,16 @@ The same frame at 4:3 and 16:9: the widened view draws the catapult and the towe
 | ![Tomba launched over the seaside village](docs/media/seaside-village.png) | ![Tomba beside his hut in the village](docs/media/village-start.png) |
 | ![Tomba in the rain-soaked Water Temple](docs/media/water-temple.png) | ![A boss on the snow garden's ice peak](docs/media/snow-garden.png) |
 
-The intended product is a native/dynarec hybrid. Readable C++ subsystems and native overrides own
-deliberately ported behavior; every remaining guest instruction is translated on demand from the
-user's authenticated game image by the shared `psxport` Lightrec executor. The gameplay binary contains
-no offline-emitted guest source. Lightrec is the default; `psxport` may use its bounded, reason-counted
-interpreter fallback only for translation failure or unavailability, unsafe fetch, or a rare unsupported
-block. Forced interpreter mode is diagnostic-only, and fallback-covered execution cannot establish
-gameplay conformance or performance.
+The intended product is a native/interpreter hybrid. Readable C++ subsystems and native overrides own
+deliberately ported behavior; every remaining guest instruction runs on the shared `psxport` per-`Core`
+interpreter (`GuestExecutor`), read straight from the user's authenticated game image. The gameplay
+binary contains no offline-emitted guest source, and there is no recompiler, fallback tier or engine
+selector.
 
 The repository is at the break-first migration gate described in
 [`docs/migration.md`](docs/migration.md). Both offline guest-source products and their emission tooling are
 already removed and must not be recreated. Tomba! 2 must prove resident and colliding-overlay native
-override/original-call dispatch through Lightrec, regain its recorded free-roam frontier, and pass
+override/original-call dispatch on the interpreter, regain its recorded free-roam frontier, and pass
 representative interactive gameplay. Tomba! 1 follows with its recorded 35-field CRT0 and
 CD/movie/title frontier.
 
@@ -47,7 +45,7 @@ The two titles share only the generic PSX framework:
 
 - root `game/` is the Tomba! 2 engine;
 - `titles/tomba1/game/` is the separate Tomba! 1 engine;
-- `external/psxport/` owns Lightrec integration, PSX hardware/services, runtime image generations,
+- `external/psxport/` owns guest execution, PSX hardware/services, runtime image generations,
   native-override dispatch, scoped original calls, invalidation, and independent test infrastructure;
 - title code owns executable identity, native game behavior, rendering policy, and enhancements.
 
@@ -60,8 +58,8 @@ producer, depth, temporal-history, interpolation, or 60fps configuration surface
 For Tomba! 2, the first shipping discriminator uses one resident override and a numeric address reused
 by two overlays. Existing binary evidence identifies `0x801113B4` in both A03 and A0B with different
 entry shapes. The runtime must select by complete image generation plus address, execute the matching
-native owner normally, and execute the correct original guest body through Lightrec for a scoped
-original call. A wrong-image negative must prove that neither an override nor a translated block leaks
+native owner normally, and execute the correct original guest body on the interpreter for a scoped
+original call. A wrong-image negative must prove that neither an override nor a dispatch decision leaks
 across the overlay change.
 
 The next checkpoint regains the previously observed title-to-free-roam path with the title-owned frame
@@ -70,7 +68,7 @@ qualify the migration. Completion requires a bounded representative gameplay sce
 guest state, timing/interrupts, relevant devices, native reachability, and host performance against
 independent evidence. The generated path is already absent, so none of these checks can fall back to it.
 
-Tomba! 1 then reproduces its 35/35 CRT0 boundary through Lightrec and continues across its current
+Tomba! 1 then reproduces its 35/35 CRT0 boundary on the interpreter and continues across its current
 movie/CD frontier. Important preserved facts include public/internal `CdSync` at `0x800648C8` and
 `0x80065470`, the fatal guest-VSync call with return address `0x800654A4`, DMA callback registration at
 `0x80067E84` for callback `0x80066D80`, and prior progress beyond LBA 58739. Title-screen input and
@@ -79,17 +77,14 @@ representative gameplay remain unverified.
 ## Building
 
 There are no unit tests or gates. Build with `CC=clang CXX=clang++ uv run --frozen python
-external/psxport/tools/port/consumer_build.py --build build/agent --target tomba2_port`. Set
-`PSXPORT_LIGHTREC_DIR` and `PSXPORT_LIGHTNING_PREFIX` to the exact maintained dependencies; the
-workflow records and provisions their revisions. Representative gameplay and
-image-qualified override verification
-remain open.
+external/psxport/tools/port/consumer_build.py --build build/agent --target tomba2_port`.
+Representative gameplay and image-qualified override verification remain open.
 
 ## Intended fresh-install contract
 
 Once the migration gate lands, `./run.sh` remains the slim locked launcher. With documented native
 dependencies, `uv`, a supported C/C++ compiler, and a user-supplied disc, zero arguments select the
-native/Lightrec product, started through psxport's product host: one process and one window, with an
+native/interpreter product, started through psxport's product host: one process and one window, with an
 in-window picker over Tomba! 1 and Tomba! 2 (`tomba2_port` with an executable argument runs that title
 directly). There is no separate Tomba! 1 binary or launcher. The launcher never emits guest source or
 invokes product tests.
