@@ -3,6 +3,7 @@
 #include "core.h"
 #include "entry/mod_settings.h"
 #include "items/inventory_layout.h"
+#include "items/suit_items.h"
 #include "player/actor_tomba.h"
 
 #include <array>
@@ -14,12 +15,11 @@ namespace {
 
 constexpr std::uint32_t kSuitWord = player::ActorTomba::G_ADDR + 0x17Eu;
 
-constexpr std::uint8_t kBird = 0x0Eu;
-constexpr std::uint8_t kSquirrel = 0x0Fu;
-constexpr std::uint8_t kPig = 0x10u;
-constexpr std::uint8_t kSwimmingPig = 0x11u;
-constexpr std::uint8_t kFlameRobe = 0x12u;
-constexpr std::uint8_t kLastRobe = 0x16u; // the Evil Water Pig Robe
+using suit_items::kBird;
+using suit_items::kFlameRobe;
+using suit_items::kPig;
+using suit_items::kSquirrel;
+using suit_items::kSwimmingPig;
 
 constexpr std::uint16_t kLightClothes = 0x30u;
 
@@ -88,7 +88,7 @@ bool SuitAbilities::lightlyDressed(Core &core, SuitEffect effect) {
   if (!ModSettings::suitEffect(effect)) {
     return true;
   }
-  for (std::uint8_t item = kSquirrel; item <= kLastRobe; ++item) {
+  for (std::uint8_t item = kSquirrel; suit_items::heavier(item); ++item) {
     if (owned(core, item)) {
       return false;
     }

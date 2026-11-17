@@ -50,7 +50,6 @@ Session::Session(Core &core)
   math.core = c;
   mtx.core = c;
   inventory.core = c;
-  saveMenu.core = c;
   music_list.core = c;
   render->mCore = c;
   render->mNodeXform.core = c;

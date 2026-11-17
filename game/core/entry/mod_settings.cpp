@@ -2,9 +2,12 @@
 
 #include "config_var.h"
 #include "enhancement_gate.h"
+#include "items/suit_items.h"
 
 #include <array>
 #include <cstddef>
+#include <cstdint>
+#include <string_view>
 
 namespace tomba {
 namespace {
@@ -62,6 +65,13 @@ const std::array<psx::config::Var<long> *, 15> kSuitEffects{
 };
 
 const std::array<const char *, 2> kOffOn{"Off", "On"};
+constexpr const char *kBirdRow = "Bird Clothes";
+constexpr const char *kSquirrelRow = "Squirrel Clothes";
+constexpr const char *kPigRow = "Pig Suit";
+constexpr const char *kSwimmingPigRow = "Swimming Pig Suit";
+constexpr const char *kFlameRobeRow = "Evil Flame Pig Robe";
+constexpr const char *kHeavierRow = "Any heavier suit";
+// One row per suit, each effect a part of it; an owned suit lends the effects that are on.
 const std::array<psx::game::TitleIntSetting, 16> kTitleIntSettings{{
     {.id = "pit_void_out",
      .label = "Pits void out like water",
@@ -70,96 +80,133 @@ const std::array<psx::game::TitleIntSetting, 16> kTitleIntSettings{{
      .range = {.min = 0, .max = 1, .step = 1},
      .labels = kOffOn},
     {.id = "suit_bird_flutter",
-     .label = "Owned Bird Clothes: flutter",
+     .label = "Flutter",
      .unit = "",
      .var = &cvBirdFlutter,
      .range = {.min = 0, .max = 1, .step = 1},
-     .labels = kOffOn},
+     .labels = kOffOn,
+     .row = kBirdRow},
     {.id = "suit_bird_air_control",
-     .label = "Owned Bird Clothes: air control",
+     .label = "Air control",
      .unit = "",
      .var = &cvBirdAirControl,
      .range = {.min = 0, .max = 1, .step = 1},
-     .labels = kOffOn},
+     .labels = kOffOn,
+     .row = kBirdRow},
     {.id = "suit_squirrel_glide",
-     .label = "Owned Squirrel Clothes: glide",
+     .label = "Glide",
      .unit = "",
      .var = &cvSquirrelGlide,
      .range = {.min = 0, .max = 1, .step = 1},
-     .labels = kOffOn},
+     .labels = kOffOn,
+     .row = kSquirrelRow},
     {.id = "suit_squirrel_air_control",
-     .label = "Owned Squirrel Clothes: air control",
+     .label = "Air control",
      .unit = "",
      .var = &cvSquirrelAirControl,
      .range = {.min = 0, .max = 1, .step = 1},
-     .labels = kOffOn},
+     .labels = kOffOn,
+     .row = kSquirrelRow},
     {.id = "suit_squirrel_cold",
-     .label = "Owned Squirrel Clothes: cold immunity",
+     .label = "Cold immunity",
      .unit = "",
      .var = &cvSquirrelCold,
      .range = {.min = 0, .max = 1, .step = 1},
-     .labels = kOffOn},
-    {.id = "suit_pig_jump",
-     .label = "Owned Pig Suit: high jump",
-     .unit = "",
-     .var = &cvPigJump,
-     .range = {.min = 0, .max = 1, .step = 1},
-     .labels = kOffOn},
-    {.id = "suit_pig_stomp",
-     .label = "Owned Pig Suit: stomp",
-     .unit = "",
-     .var = &cvPigStomp,
-     .range = {.min = 0, .max = 1, .step = 1},
-     .labels = kOffOn},
-    {.id = "suit_swimming_pig_swim",
-     .label = "Owned Swimming Pig Suit: swim",
-     .unit = "",
-     .var = &cvSwimmingPigSwim,
-     .range = {.min = 0, .max = 1, .step = 1},
-     .labels = kOffOn},
-    {.id = "suit_swimming_pig_jump",
-     .label = "Owned Swimming Pig Suit: high jump",
-     .unit = "",
-     .var = &cvSwimmingPigJump,
-     .range = {.min = 0, .max = 1, .step = 1},
-     .labels = kOffOn},
-    {.id = "suit_swimming_pig_stomp",
-     .label = "Owned Swimming Pig Suit: stomp",
-     .unit = "",
-     .var = &cvSwimmingPigStomp,
-     .range = {.min = 0, .max = 1, .step = 1},
-     .labels = kOffOn},
-    {.id = "suit_flame_robe_cold",
-     .label = "Owned Evil Flame Pig Robe: cold immunity",
-     .unit = "",
-     .var = &cvFlameRobeCold,
-     .range = {.min = 0, .max = 1, .step = 1},
-     .labels = kOffOn},
-    {.id = "suit_snow_grip",
-     .label = "Owned suits grip on snow",
-     .unit = "",
-     .var = &cvSnowGrip,
-     .range = {.min = 0, .max = 1, .step = 1},
-     .labels = kOffOn},
-    {.id = "suit_freeze_guard",
-     .label = "Owned suits resist the ice monster's freeze",
-     .unit = "",
-     .var = &cvFreezeGuard,
-     .range = {.min = 0, .max = 1, .step = 1},
-     .labels = kOffOn},
+     .labels = kOffOn,
+     .row = kSquirrelRow},
     {.id = "suit_squirrel_updraft",
-     .label = "Owned Squirrel Clothes: updraft reach",
+     .label = "Updraft",
      .unit = "",
      .var = &cvSquirrelUpdraft,
      .range = {.min = 0, .max = 1, .step = 1},
-     .labels = kOffOn},
+     .labels = kOffOn,
+     .row = kSquirrelRow},
+    {.id = "suit_pig_jump",
+     .label = "Jump",
+     .unit = "",
+     .var = &cvPigJump,
+     .range = {.min = 0, .max = 1, .step = 1},
+     .labels = kOffOn,
+     .row = kPigRow},
+    {.id = "suit_pig_stomp",
+     .label = "Stomp",
+     .unit = "",
+     .var = &cvPigStomp,
+     .range = {.min = 0, .max = 1, .step = 1},
+     .labels = kOffOn,
+     .row = kPigRow},
+    {.id = "suit_swimming_pig_swim",
+     .label = "Swim",
+     .unit = "",
+     .var = &cvSwimmingPigSwim,
+     .range = {.min = 0, .max = 1, .step = 1},
+     .labels = kOffOn,
+     .row = kSwimmingPigRow},
+    {.id = "suit_swimming_pig_jump",
+     .label = "Jump",
+     .unit = "",
+     .var = &cvSwimmingPigJump,
+     .range = {.min = 0, .max = 1, .step = 1},
+     .labels = kOffOn,
+     .row = kSwimmingPigRow},
+    {.id = "suit_swimming_pig_stomp",
+     .label = "Stomp",
+     .unit = "",
+     .var = &cvSwimmingPigStomp,
+     .range = {.min = 0, .max = 1, .step = 1},
+     .labels = kOffOn,
+     .row = kSwimmingPigRow},
+    {.id = "suit_flame_robe_cold",
+     .label = "Cold immunity",
+     .unit = "",
+     .var = &cvFlameRobeCold,
+     .range = {.min = 0, .max = 1, .step = 1},
+     .labels = kOffOn,
+     .row = kFlameRobeRow},
     {.id = "suit_flame_robe_freeze",
-     .label = "Owned Evil Flame Pig Robe: freeze immunity",
+     .label = "Freeze immunity",
      .unit = "",
      .var = &cvFlameRobeFreeze,
      .range = {.min = 0, .max = 1, .step = 1},
-     .labels = kOffOn},
+     .labels = kOffOn,
+     .row = kFlameRobeRow},
+    {.id = "suit_snow_grip",
+     .label = "Snow grip",
+     .unit = "",
+     .var = &cvSnowGrip,
+     .range = {.min = 0, .max = 1, .step = 1},
+     .labels = kOffOn,
+     .row = kHeavierRow},
+    {.id = "suit_freeze_guard",
+     .label = "Freeze guard",
+     .unit = "",
+     .var = &cvFreezeGuard,
+     .range = {.min = 0, .max = 1, .step = 1},
+     .labels = kOffOn,
+     .row = kHeavierRow},
 }};
+
+// The row whose effects an owned item lends.
+struct ItemRow {
+  std::uint8_t item;
+  const char *row;
+};
+constexpr std::array<ItemRow, 5> kItemRows{{
+    {suit_items::kBird, kBirdRow},
+    {suit_items::kSquirrel, kSquirrelRow},
+    {suit_items::kPig, kPigRow},
+    {suit_items::kSwimmingPig, kSwimmingPigRow},
+    {suit_items::kFlameRobe, kFlameRobeRow},
+}};
+
+std::span<const psx::game::TitleIntSetting> rowNamed(std::string_view row) {
+  for (std::size_t i = 0; i < kTitleIntSettings.size(); ++i) {
+    if (kTitleIntSettings[i].row != nullptr && row == kTitleIntSettings[i].row) {
+      return psx::game::titleSettingRowAt(kTitleIntSettings, i).parts;
+    }
+  }
+  return {};
+}
 
 } // namespace
 
@@ -173,6 +220,19 @@ bool ModSettings::suitEffect(SuitEffect effect) {
 
 std::span<const psx::game::TitleIntSetting> ModSettings::titleIntSettings() {
   return kTitleIntSettings;
+}
+
+std::span<const psx::game::TitleIntSetting> ModSettings::suitEffects(std::uint8_t item) {
+  for (const ItemRow &entry : kItemRows) {
+    if (entry.item == item) {
+      return rowNamed(entry.row);
+    }
+  }
+  return {};
+}
+
+std::span<const psx::game::TitleIntSetting> ModSettings::heavierSuitEffects(std::uint8_t item) {
+  return suit_items::heavier(item) ? rowNamed(kHeavierRow) : std::span<const psx::game::TitleIntSetting>();
 }
 
 } // namespace tomba

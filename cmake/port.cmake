@@ -20,6 +20,7 @@ set(GAME_SRC
   game/core/debug/auto_drive.cpp
   game/core/debug/dev_camera_place.cpp
   game/core/debug/dev_ap_popup.cpp
+  game/core/debug/dev_subscreen.cpp
   game/core/debug/dev_debris.cpp
   game/core/debug/dev_control.cpp
   game/core/debug/dev_flags.cpp
@@ -202,7 +203,8 @@ set(GAME_SRC
   game/ui/dialog_text_stream.cpp
   game/items/inventory.cpp
   game/items/item_grant.cpp
-  game/ui/save_menu.cpp
+  game/ui/items_tab.cpp
+  game/ui/subscreen_hint.cpp
   game/audio/music_coord.cpp
   game/scene/startup.cpp
   game/ui/font.cpp

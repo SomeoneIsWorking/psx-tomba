@@ -5,6 +5,7 @@
 #include "debug/dev_debris.h"
 #include "debug/dev_flags.h"
 #include "debug/dev_items.h"
+#include "debug/dev_subscreen.h"
 #include "debug/dev_warp.h"
 
 #include <cstdint>
@@ -13,8 +14,8 @@ class Core;
 
 namespace tomba {
 
-// The debug menu's warp, item, flag, camera re-place, debris and AP popup requests: armed between frames and written by
-// the frame driver at its next frame boundary.
+// The debug menu's warp, item, flag, camera re-place, debris, AP popup and subscreen requests: armed between frames and
+// written by the frame driver at its next frame boundary.
 class DevControl {
 public:
   DevWarp &warp() {
@@ -35,6 +36,9 @@ public:
   DevApPopup &apPopup() {
     return apPopup_;
   }
+  DevSubscreen &subscreen() {
+    return subscreen_;
+  }
   void applyArmed(Core &core, uint32_t frame);
 
 private:
@@ -46,6 +50,7 @@ private:
   DevCameraPlace cameraPlace_;
   DevDebris debris_;
   DevApPopup apPopup_;
+  DevSubscreen subscreen_;
 };
 
 } // namespace tomba

@@ -36,6 +36,10 @@ public:
   static bool suitEffect(SuitEffect effect);
 
   static std::span<const psx::game::TitleIntSetting> titleIntSettings();
+  // The settings row of the effects an owned item lends, empty for an item that lends none.
+  static std::span<const psx::game::TitleIntSetting> suitEffects(std::uint8_t item);
+  // The row every heavier suit shares (snow grip, freeze guard), empty for an item that is not one.
+  static std::span<const psx::game::TitleIntSetting> heavierSuitEffects(std::uint8_t item);
 };
 
 } // namespace tomba

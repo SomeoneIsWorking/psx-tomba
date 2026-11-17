@@ -57,8 +57,8 @@ calls it. A row whose handler is file-local names the file that declares the ove
 | 0x80031780 | LIVE | `Collision::listScan` | game/player/collision.cpp | 0x80031780 | list-tail resolver / reset. Walks the 8-byte-stride linked list rooted… |
 | 0x800318A0 | LIVE | `ObjModelView::composeIntoGte` | game/render/obj_model_view.cpp |  | ORACLE: guest 0x800318A0 (tools/dynamic differential evidence equivale… |
 | 0x80032A44 | LIVE | `Rng::inRange` | game/math/rng.cpp |  | scaled random. Disas 0x80032A44..0x80032A84 verbatim: `sra v0, 15` on … |
-| 0x80036DFC | LIVE | `SaveMenu::runHandler` | game/ui/save_menu.cpp |  |  |
-| 0x80036DFC | LIVE | `SaveMenu::dispatchBody` | game/ui/save_menu.cpp |  |  |
+| 0x80033FF4 | LIVE | `SubscreenHint::draw` | game/ui/subscreen_hint.cpp | 0x8007E1B8 0x800368D0 | the subscreen hint box; a selected suit's lent effects replace the Items hint |
+| 0x80036DFC | LIVE | `ItemsTab::step` | game/ui/items_tab.cpp | 0x800368D0 0x80074590 | the subscreen Items tab's step; Select opens a suit's lent effects |
 | 0x80039F4C | LIVE | `ov_textLabelEmit` | game/render/text_label.cpp |  |  |
 | 0x80039F4C | LIVE | `Render::textLabelEmit` | game/render/text_label.cpp |  |  |
 | 0x8003AD48 | LIVE | `beh_cube_text_spawn` | game/ai/beh_cube_text_spawn.cpp | 0x8003A790 0x8003A9A0 0x8003ABE4 0x8009A730 |  |

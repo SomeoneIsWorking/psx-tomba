@@ -25,7 +25,7 @@
 #include "render/crop_layers.h"
 #include "render/screen_fade.h"
 #include "render/subdivided_ground.h"
-#include "ui/save_menu.h"
+#include "ui/items_tab.h"
 
 #include <memory>
 
@@ -51,7 +51,7 @@ public:
   Math math;
   Mtx mtx;
   Inventory inventory;
-  SaveMenu saveMenu;
+  ItemsTab itemsTab;
   NativeMusic native_music; // mixed over the SPU by `audio`
   MusicList music_list;     // the Sound Test catalogue and the area BGM driver
   std::unique_ptr<Render> render;
@@ -92,9 +92,6 @@ inline Mtx &mtxOf(Core *c) {
 }
 inline Inventory &inv(Core *c) {
   return sessionOf(c).inventory;
-}
-inline SaveMenu &saveMenuOf(Core *c) {
-  return sessionOf(c).saveMenu;
 }
 inline Render *rend(Core *c) {
   return sessionOf(c).render.get();

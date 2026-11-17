@@ -215,6 +215,17 @@ DebugMenu::DebugMenu() {
       .refusal = gameStageRefusal,
   });
   verb({
+      .name = "subscreen",
+      .summary = "Open the field subscreen's Items tab with the cursor on an item",
+      .params = {DebugParam::integer("item", 0, DevItems::kMaxItemId)},
+      .run =
+          [](const DebugCall &call) {
+            call.reply = devControl(call.core).subscreen().arm(call.values.u32(0));
+          },
+      .refusal = fieldRefusal,
+      .inMenu = false,
+  });
+  verb({
       .name = "flag",
       .summary = "Read or write an event flag",
       .params = {DebugParam::word("op", DebugNames::of(kFlagOps)),

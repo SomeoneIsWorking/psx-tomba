@@ -44,8 +44,10 @@
 #include "ui/dialog_glyphs.h"  // DialogGlyphs::registerOverrides — FUN_8007CC00 dialog box text
 #include "ui/font.h"           // Font::registerOverrides — drawText/glyphEmit
 #include "ui/guest_ui_draws.h" // GuestUiDraws::install — guest HUD and pause-menu draws crop shows as UI
+#include "ui/items_tab.h"      // ItemsTab — the subscreen Items tab and its suit effects
 #include "ui/options_page.h"   // OptionsPage::install — the OPTIONS page backdrop (FUN_8007FC24)
 #include "ui/panel.h"          // Panel::install — FUN_8005019C panel, FUN_8004FFB4 its fill quad
+#include "ui/subscreen_hint.h" // SubscreenHint — the subscreen hint box
 #include <stdio.h>
 #include <stdlib.h>
 // g_fps60_on retired — read g_mods.fps60 (mods.h)
@@ -183,6 +185,9 @@ void installResidentNatives(native::NativeOverrideCatalog &natives) {
   OptionsPage::install(natives);            // FUN_8007FC24 OPTIONS page backdrop packet
   GuestUiDraws::install(natives);           // HUD FUN_80025744/934/B78, pause page FUN_8007EAE4
   pad_edge_fence_install(natives);          // FUN_800788AC per-frame input-edge fence (banked draft, §9-verified)
+
+  ItemsTab::registerOverrides(natives);
+  SubscreenHint::registerOverrides(natives);
   lucent::debug("engine", "native object-list walk active (FUN_8007a904)");
 }
 
