@@ -145,9 +145,11 @@ Tomba! 2 saves only at its save points. Add an autosave on every area transition
 writes the current state to an autosave slot of its own, so a manual save is never overwritten, and a small
 autosave icon shows while the write runs. When a save exists, the title menu's first option is "Continue",
 selected by default, and it loads the newest save, autosave or manual, through the game's own load path; without
-a save the menu is unchanged. Tomba! 1 gets the same once its saving is read.
+a save the menu is unchanged. The rare prompts that ask whether to save are removed and autosave to the same slot instead, since an
+autosave there keeps everything the prompt offered; save points stay for manual saves. Tomba! 1 gets the same
+once its saving is read.
 
-Success requires every area transition found by RE writing an autosave the retail load accepts, the icon on
+Success requires every area transition and every save prompt found by RE writing an autosave the retail load accepts, the icon on
 screen for each, and "Continue" restoring the newest save's state as the retail load would.
 
 
