@@ -65,6 +65,7 @@
 #include "render/packed_mesh.h"
 #include "render/scaled_sprites.h"
 #include "render/subdivided_ground.h"
+#include "scene/card_check.h"
 #include "scene/scene_events.h" // class SceneEvents — scene-event ARM (FUN_80040B48 sole owner)
 #include "screen_fade.h"        // class ScreenFade — full-screen fade leaf (0x8007E9C8)
 #include "sop_ground.h"         // class SopGround — SOP intro ground blocks (0x80109FE0)
@@ -209,6 +210,7 @@ void register_engine_overrides(Game &game, native::NativeOverrideCatalog &native
       natives); // SOP intro-cutscene sub-tick/sub-motion/timer cluster
                 // (0x8010AF60/8010B078/8010B11C/8010B2D4/8010B44C/8010BEAC/8010B588); see issue 0015
   Demo::registerOverrides(natives); // main-menu title cursor sub-machine (0x80106AC4)
+  scene::CardCheck::registerOverrides(natives);
 }
 
 } // namespace tomba

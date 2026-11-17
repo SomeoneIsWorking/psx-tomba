@@ -229,6 +229,7 @@ set(GAME_SRC
   game/scene/str_movie.cpp
   game/scene/ending.cpp
   game/scene/card_load_machine.cpp
+  game/scene/card_check.cpp
   game/camera/cutscene_camera.cpp
   game/camera/camera_look_builder.cpp
   game/math/gte_math.cpp
