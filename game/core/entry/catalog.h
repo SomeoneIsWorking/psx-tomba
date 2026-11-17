@@ -22,7 +22,7 @@ public:
   psx::game::GameRuntime &runtime(std::size_t index) const override;
 
 private:
-  std::array<psx::host::TitleIdentity, 2> identities_{tomba1::identity(), title::bootStubIdentity()};
+  std::array<psx::host::TitleIdentity, 2> identities_{title::bootStubIdentity(), tomba1::identity()};
   // The host asks for a mutable runtime from a const catalog; each runtime is its title's one.
   mutable tomba1::Runtime tomba1_;
   mutable Runtime tomba2_;
