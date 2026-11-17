@@ -48,3 +48,11 @@ Design (coordinator, 2026-11-13; `docs/project-goals.md` G006): sea and sky and 
 one water owner. This mod decides where water is (the game's own water drawer's coverage extended over the
 backdrop); better water (G006, its own setting) decides how it is drawn. Build the sea as that owner, so a
 different draw of the same surfaces can slot in later.
+
+## User direction (2026-11-18)
+
+"I was thinking 3D clouds instead." The sky's clouds are 3D: volumetric clouds the host renders in a shader
+(ray-marched density, lit by the sky's sun direction), placed in world space so they show depth and parallax
+as the blended camera moves, instead of a flat procedural cloud layer. This replaces the "procedural clouds"
+of step 3; the gradient sky, the bucket, the draw window and the no-asset constraint stand.
+
