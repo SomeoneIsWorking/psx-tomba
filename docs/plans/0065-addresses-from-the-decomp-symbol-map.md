@@ -45,3 +45,12 @@ configure/build time into `build/`, so the headers are never committed and a map
 4. `docs/guest-addresses.md` keeps only the owner columns (address symbol, native owner); its name column is the
    map's symbol. Delete the index once `codemap.py find` can answer "who owns guest symbol X".
 5. Build with Clang; run the dynamic scan through the title's warps once at the end to show no binding moved.
+
+## Tomba! 1
+
+Tomba! 1's decomp is `external/tomba1-decomp` (MIT, ours): `config/symbols/scus_942.36.txt`, `x_shared.txt` for the
+code every X area overlay carries, and one file per overlay (`x00`..`x19`, `info`, `info2`, ...). Its map already holds
+every name `titles/tomba1/game/` uses. The same generator emits `tomba1::sym::<image>`; the hand copies it replaces
+are 112 address constants and 32 `install`/`Entry`/`Element` literals in 21 files under `titles/tomba1/game/`
+(`core/boot` 5, `core/debug` 2, `core/entry`, `core/frame` 2, `core/task` 2, `render` 9), converted after Tomba! 2's
+step 3 in the same order: `core` first, then `render`.
