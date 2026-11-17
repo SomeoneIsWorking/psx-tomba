@@ -1,11 +1,9 @@
-[submodule "external/tombi-decomp"]
-	path = external/tombi-decomp
-	url = https://github.com/SomeoneIsWorking/Tombi-Decomp.git
-	shallow = true
-	branch = main
 [submodule "external/psx_tomba"]
 	path = external/psx_tomba
 	url = https://github.com/hansbonini/psx_tomba.git
 [submodule "external/tomba2-decomp"]
 	path = external/tomba2-decomp
 	url = https://github.com/SomeoneIsWorking/tomba2-decomp.git
+[submodule "external/tomba1-decomp"]
+	path = external/tomba1-decomp
+	url = https://github.com/SomeoneIsWorking/tomba1-decomp.git

@@ -9,7 +9,7 @@ cut). In `warp 0/0` at 21:9 objects at 386, 400 and 406 columns from the camera'
 inside the canvas (`scratch/t1ws/objscan.py` over `scratch/t1ws/ob21`).
 
 ## Found (2026-11-14)
-Names and matches from tombi-decomp (`config/scus94236/symbol_addrs_scus94236.txt`):
+Names from the decomp's symbol map (`external/tomba1-decomp/config/symbols/scus_942.36.txt`):
 - `ObjCullRegister` `0x80022E44`: `+1` = 0 unless (x - `0x1F800176` + 0x40) < 0x1C1 and (`0x1F800186` - y + 0x40) < 0x171;
   then `+1` = 1 and the object is pushed on its category list (`0x1F800218`..`0x1F800230`, pushers `0x80018BC8`..). Area 4's
   overlay calls it 66 times.

@@ -10,8 +10,8 @@ read [`../AGENTS.md`](../AGENTS.md) and [`external/psxport/AGENTS.md`](external/
 - [`docs/migration.md`](docs/migration.md): title order and migration gates. The static products and
   their generator are removed.
 - [`external/tomba2-decomp`](external/tomba2-decomp): Tomba! 2's decomp repository, home of its RE (symbol map,
-  `docs/re-frontier.md`, behaviour notes, prior art); [`titles/tomba1/docs/re-frontier.md`](titles/tomba1/docs/re-frontier.md):
-  Tomba! 1's RE chain.
+  `docs/re-frontier.md`, behaviour notes, prior art); [`external/tomba1-decomp`](external/tomba1-decomp): Tomba! 1's decomp repository
+  (symbol map, `docs/re-frontier.md`, prior art).
 - [`docs/features.md`](docs/features.md): feature hops; [`docs/guest-addresses.md`](docs/guest-addresses.md):
   the Tomba! 2 guest address index; [`docs/draw-emitters.md`](docs/draw-emitters.md): the native model emitters.
 - Rendering: [`external/psxport/docs/presentation.md`](external/psxport/docs/presentation.md).
