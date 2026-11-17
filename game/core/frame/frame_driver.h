@@ -42,6 +42,8 @@ public:
 
   // The loop prologue at 0x80050C50: first packet pool, current buffer, its OT cleared.
   static void enterLoop(Core &core);
+  // The current buffer's OT head, where the present's DrawOTag walk begins.
+  static uint32_t otHead(Core &core);
 
   void stepFrame(Core &core, uint32_t frame) override;
 

@@ -71,7 +71,7 @@ void finishPass(Core &core) {
   case PresentState::Present:
     putDispEnv(core, env);
     psx::cpu::callGuestNow(core, __func__, kPutDrawEnv, env + kDrawEnvOffset);
-    eng(&core).drawOTag(env + kOtHeadOffset);
+    eng(&core).drawOTag(FrameDriver::otHead(core));
     clearOrderingTable(core, flipBuffer(core));
     return;
   case PresentState::Swap:
@@ -90,6 +90,10 @@ void finishPass(Core &core) {
 } // namespace
 
 FrameDriver::FrameDriver(Game &game) : game_(&game) {}
+
+uint32_t FrameDriver::otHead(Core &core) {
+  return currentEnv(core) + kOtHeadOffset;
+}
 
 bool FrameDriver::pastBootPrefix() const {
   return sessionOf(&game_->core).bootCards.finished();

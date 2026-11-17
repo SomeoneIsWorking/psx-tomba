@@ -1,5 +1,6 @@
 // class GuestUiDraws — the guest functions that draw only screen-space UI and stay guest bodies: crop
-// widescreen shows what they emit at its 4:3 size and place.
+// widescreen shows what they emit at its 4:3 size and place; true widescreen moves the life gauge and the piece tally
+// to the drawn picture's edge on their side of its centre (psx::present::anchorHudElement).
 //
 //   FUN_80025744  HUD life gauge (from the HUD draw FUN_80025D98)
 //   FUN_80025934  HUD piece tally (from FUN_80025D98)

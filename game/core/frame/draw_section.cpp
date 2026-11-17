@@ -77,7 +77,7 @@ std::optional<std::uint32_t> DrawSection::draw(Core &core, psx::present::GuestRe
       return std::nullopt;
     }
   }
-  return core.mem_r32(render::OrderingTable::kBasePointer) + kOtHeadOffset;
+  return FrameDriver::otHead(core);
 }
 
 bool DrawSection::linked(std::uint32_t head) const {
