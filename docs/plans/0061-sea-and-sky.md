@@ -56,3 +56,12 @@ different draw of the same surfaces can slot in later.
 as the blended camera moves, instead of a flat procedural cloud layer. This replaces the "procedural clouds"
 of step 3; the gradient sky, the bucket, the draw window and the no-asset constraint stand.
 
+## Step 1 result (2026-11-18)
+
+The sea-and-sky backdrop is A00's grid (the opening seaside and the beach town), RE'd in
+`external/tomba2-decomp/docs/notes/field-tile-grid.md` ("What each area's grid shows"). Classification from the map
+and the area's palette cycle, never pixels: sky is palette 0 (rows 0-32, the cloud band in rows 30-32), the horizon
+is row 33 (palette 1), sea is every tile whose palette A00's cycle FUN_80115B88 animates (palettes 3-5, rows 36-71);
+rows 34-35 (palette 2) are the far shore. The other grid areas (A06, A07 and the boss arenas A0A/A0B/A0D/A0F) show
+no sea or sky; A0E's sky is `GradientBackdrop`, a later candidate for the clouds alone.
+
