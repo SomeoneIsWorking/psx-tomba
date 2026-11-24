@@ -26,4 +26,4 @@ since `Timing::advanceDisplayFields` hands the first field's edge to the guest b
 
 ## Proof
 The report's state, 300 logic frames: every frame runs the trampoline exactly twice, all from `Engine::frameUpdate`
-(before: four, two of them through FUN_80085D8C), and no `frame-cadence` error; song 6 now advances 207 a frame.
+(before: four, two of them through FUN_80085D8C), and no `frame-cadence` error: two ticks a frame, 207 for song 6.
