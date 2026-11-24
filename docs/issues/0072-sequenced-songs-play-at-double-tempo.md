@@ -1,6 +1,6 @@
 # 0072 — Sequenced songs play at double tempo
 
-Status: open. Owner: `game/resident_natives.cpp` (`Engine::frameUpdate`) with psxport `runtime/psx/frame/timing.cpp`
+Status: fixed (2026-11-25). Owner: `game/resident_natives.cpp` (`Engine::frameUpdate`) with psxport `runtime/psx/frame/timing.cpp`
 (`Timing::advanceDisplayFields`).
 
 ## Observed
@@ -18,7 +18,12 @@ logic frame; one tick per field gives 207 (`384 * 97 * 10 / 3600` per field). Ti
 rate 0x80104C2C is 60.
 
 ## Fix
-One owner per field: each field's VBlank runs the trampoline exactly once, through the guest's interrupt path when
-it is deliverable and directly (acknowledged) when not, as psx-spyro's `FieldOwner::dispatchCallbacks` does.
-Dropping the hand call alone under-ticks: the two VBlanks of a logic frame are raised back to back at the present
-and the second often latches over the first (the dwell counter 0x800E809C ended at 0 or 1 on every frame).
+`FrameDriver::enterLoop` declares `Timing::titleRunsVBlankHandler()` (psxport d169129e): `Engine::frameUpdate` runs the
+trampoline once per field and a field raises no VBlank interrupt for the guest to run it again. Dropping the hand
+call instead under-ticks: the guest takes the interrupt only while its own code runs with interrupts open (twice a
+frame for frames 3..6 of the report's state, then never), and acknowledging the edges after the present is too late,
+since `Timing::advanceDisplayFields` hands the first field's edge to the guest before raising the second.
+
+## Proof
+The report's state, 300 logic frames: every frame runs the trampoline exactly twice, all from `Engine::frameUpdate`
+(before: four, two of them through FUN_80085D8C), and no `frame-cadence` error; song 6 now advances 207 a frame.

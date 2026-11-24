@@ -100,6 +100,8 @@ bool FrameDriver::pastBootPrefix() const {
 }
 
 void FrameDriver::enterLoop(Core &core) {
+  // Engine::frameUpdate runs libsnd's VBlank handler FUN_800909C0 once per field.
+  core.game->timing.titleRunsVBlankHandler();
   for (uint32_t buffer = 0; buffer < 2u; ++buffer) {
     const uint32_t base = kDisplayBufferBase + buffer * kDisplayBufferStride;
     core.otTables.name(kOtTable, base, kOtEntries, sizeof(uint32_t), psx::gpu::OtWalk::HighToLow);
