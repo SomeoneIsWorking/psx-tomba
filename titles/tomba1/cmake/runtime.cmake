@@ -18,6 +18,8 @@ endif()
 
 add_library(
   tomba1_runtime STATIC
+  "${TOMBA1_ROOT}/game/assets/gam_file.cpp"
+  "${TOMBA1_ROOT}/game/assets/title_art.cpp"
   "${TOMBA1_ROOT}/game/core/boot/cd_native_startup.cpp"
   "${TOMBA1_ROOT}/game/core/state/context.cpp"
   "${TOMBA1_ROOT}/game/core/debug/dev_life_loss.cpp"

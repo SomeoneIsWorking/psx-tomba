@@ -24,6 +24,7 @@ public:
   void deliverPad(Core &core, const psx::input::PadDelivery &delivery) override;
   void stockCdReadLanded(Core &core, const psx::cd::StockReadLanding &landing) override;
   const psx::present::GuestWidescreenProjection *guestWidescreenProjection() const override;
+  std::optional<psx::present::ArtScene> panelArt(psx::cd::Disc &disc) const override;
   const psx::game::TitleDebugMenu &debugMenu() const override {
     return debugMenu_;
   }

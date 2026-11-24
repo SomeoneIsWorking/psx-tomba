@@ -11,7 +11,7 @@ bool StrMovie::step(Core &core, const char *path) {
   Game &game = *core.game;
   if (!playing_) {
     // An unresolved movie ends at once, as the retail player's would.
-    playing_ = sessionOf(&core).playsMovies(game) && game.fmv.beginPath(path);
+    playing_ = sessionOf(&core).playsMovies() && game.fmv.beginPath(path);
   }
   if (playing_ && !game.fmv.finished()) {
     game.fmv.step(); // presents its own frames and skips on a held Start

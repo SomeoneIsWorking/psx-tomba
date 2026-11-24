@@ -56,7 +56,7 @@ void BootCards::stepScea(Core &core) {
   }
   // The host turn is ours, so the pad is read here; a held Start skips the card.
   game.pad.pollHostInput();
-  const bool skipped = (game.pad.buttons & psx::input::kButtonStart) == 0 || game.session.preview();
+  const bool skipped = (game.pad.buttons & psx::input::kButtonStart) == 0;
   if (skipped) {
     lucent::info("scea", "skipped at frame {}", sceaFrame_);
   } else {
@@ -88,7 +88,7 @@ void BootCards::stepMovie(Core &core) {
   Game &game = *core.game;
   if (!movieOpen_) {
     movieOpen_ = true;
-    if (!sessionOf(&core).playsMovies(game) || !game.fmv.beginPath(kBootMovie)) {
+    if (!sessionOf(&core).playsMovies() || !game.fmv.beginPath(kBootMovie)) {
       finish(core);
       return;
     }

@@ -17,6 +17,7 @@ set(GAME_SRC
   game/cd/engine_cd_loader.cpp
   game/cd/engine_cd.cpp
   game/core/assets/asset.cpp
+  game/core/assets/title_art.cpp
   game/core/debug/auto_drive.cpp
   game/core/debug/dev_camera_place.cpp
   game/core/debug/dev_ap_popup.cpp

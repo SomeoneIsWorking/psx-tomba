@@ -1,6 +1,7 @@
 // game/core/entry/runtime.cpp — Tomba! 2's Runtime: boot sequence and override registration.
 #include "entry/runtime.h"
 
+#include "assets/title_art.h"
 #include "cd/engine_cd.h"
 #include "core.h"
 #include "crt0_boot.h"
@@ -234,6 +235,10 @@ void Runtime::reportRun(Core &core) const {
 
 std::span<const psx::game::TitleIntSetting> Runtime::titleIntSettings() const {
   return ModSettings::titleIntSettings();
+}
+
+std::optional<psx::present::ArtScene> Runtime::panelArt(psx::cd::Disc &disc) const {
+  return titleArt(disc);
 }
 
 const psx::game::HostIdentity *Runtime::hostIdentity() const {

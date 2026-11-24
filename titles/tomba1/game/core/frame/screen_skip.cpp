@@ -55,7 +55,7 @@ void ScreenSkip::bootScreens(Core &core, bool pressed) {
   const bool boot = entry == kSceaCardTask || (entry == kTitleTask && state == kTitleBoot);
   // A press on a screen's load is kept for the screen it loads.
   pending_ = boot && (pending_ || pressed);
-  if (!pending_ && !core.game->session.preview()) {
+  if (!pending_) {
     return;
   }
   const std::uint16_t sub = core.mem_r16(task + kSubState);

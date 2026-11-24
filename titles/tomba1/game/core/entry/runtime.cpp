@@ -18,6 +18,7 @@
 #include "platform_hle.h"
 #include "sprite_parts.h"
 #include "sync_native.h"
+#include "tomba1/game/assets/title_art.h"
 
 #include <cstdlib>
 #include <cstring>
@@ -107,6 +108,10 @@ std::unique_ptr<psx::game::FrameDriver> Runtime::createFrameDriver(Game &game) {
 
 const psx::present::GuestWidescreenProjection *Runtime::guestWidescreenProjection() const {
   return &widescreenPolicy_;
+}
+
+std::optional<psx::present::ArtScene> Runtime::panelArt(psx::cd::Disc &disc) const {
+  return titleArt(disc);
 }
 
 } // namespace tomba1

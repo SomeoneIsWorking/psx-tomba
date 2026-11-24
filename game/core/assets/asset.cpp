@@ -5,6 +5,7 @@
 // via typed runtime address dispatch, not transcribed). See asset.h — instance-with-back-pointer subsystem, methods
 // take typed args directly (no MIPS taxi c->r[4..7] marshal).
 #include "assets/asset.h"
+#include "assets/lz_image.h"
 #include "cd/engine_cd_loader.h"
 #include "core.h"
 #include "entry/session.h"
@@ -13,64 +14,62 @@
 #include "guest_call.h" // rc1-4 guest-call helpers (used by the preload chain below)
 #include "overrides/native_override_catalog.h"
 #include "sched/scheduler.h"
+#include <cstdint>
 #include <lucent/log.h>
+#include <optional>
 #include <stdio.h>
 #include <stdlib.h>
 #include <vector>
 
-// PC-owned LZ image decompressor — replaces guest FUN_80044D8C (0x80044D8C). Rebuilds per-frame
-// CLUTs (0x801FCDC0) and sprite/texture data from compressed area assets. It was the source of the
-// gameplay 2D-sprite corruption: the SAME function gave correct output when guest but ZEROS
-// when flat-interpreted by the coroutine interpreter (rec_coro_run) at runtime — a recorded binary evidence-vs-
-// interpreter divergence. A pure decompressor belongs to the PC side, so we own it natively here.
-//
-// ABI (matches the MIPS at 0x80044D8C, verified by disassembly):
-//   desc=descriptor, dst=dest, src0=src bytes, srclen=len. Returns bytes written.
-//   Setup: build 8 back-ref offsets from the static table at 0x800153C8, scaled by the per-call
-//   stride at desc+4:  offset[i] = base[i] + 2*(factor[i]*stride)  (2D image predictors: mode 1 =
-//   previous byte, modes 2-7 = previous-row neighbours; row pitch = stride).
-//   Stream of control bytes: len=ctrl>>3, mode=ctrl&7.  mode==0 -> literal copy `len` bytes from
-//   src (ctrl byte 0 / len 0 terminates).  mode!=0 -> back-ref copy `len` bytes from dest+offset
-//   [mode], BYTE-granular so overlapping copies replicate (RLE), exactly as the original loop.
-#define LZ_OFFTAB_BASE 0x800153C8u
+// PC-owned LZ image decompressor — replaces guest FUN_80044D8C (0x80044D8C); the codec is lz_image.h. Its guest
+// frame holds the 8 back-reference offsets (sp+0..+28), kept as the substrate body builds them.
 namespace tomba {
+namespace {
+
+// The packed bytes in guest memory.
+struct GuestSource {
+  Core &core;
+  std::uint32_t at;
+  std::uint32_t end;
+  bool more() const {
+    return at < end;
+  }
+  std::uint8_t next() {
+    return core.mem_r8(at++);
+  }
+};
+
+// The image written into guest memory; a back-reference before `dst` reads whatever the guest holds there.
+struct GuestOutput {
+  Core &core;
+  std::uint32_t dst;
+  std::int64_t written = 0;
+  std::int64_t size() const {
+    return written;
+  }
+  std::optional<std::uint8_t> at(std::int64_t index) const {
+    return core.mem_r8(dst + static_cast<std::uint32_t>(index));
+  }
+  void push(std::uint8_t byte) {
+    core.mem_w8(dst + static_cast<std::uint32_t>(written++), byte);
+  }
+};
+
+} // namespace
 
 uint32_t Asset::lzDecompress(const LzDecompressArgs &args) {
   auto [desc, dst, src0, srclen] = args;
   Core *c = this->core;
-  const uint32_t src_end = src0 + srclen;
   const int32_t stride = c->mem_r16s(desc + 4);
-  // Frame discipline (faithful-execution model): the substrate body descends sp by 32 and builds
-  // the 8-entry back-ref offset table IN ITS GUEST FRAME (sp+0..+28) — compared task-stack bytes
-  // under strict SBS. Keep the guest-frame copy authoritative alongside the host mirror.
   c->r[29] -= 32;
-  int32_t offtab[8];
   for (int i = 0; i < 8; i++) {
-    const int32_t base = (int32_t)c->mem_r32(LZ_OFFTAB_BASE + i * 8 + 0);
-    const int32_t factor = (int32_t)c->mem_r32(LZ_OFFTAB_BASE + i * 8 + 4);
-    offtab[i] = base + 2 * (factor * stride);
-    c->mem_w32(c->r[29] + (uint32_t)i * 4, (uint32_t)offtab[i]);
+    c->mem_w32(c->r[29] + (uint32_t)i * 4, (uint32_t)lzImageOffset(i, stride));
   }
-  uint32_t src = src0, out = dst;
-  while (src < src_end) {
-    const uint8_t ctrl = c->mem_r8(src++);
-    const uint32_t len = ctrl >> 3, mode = ctrl & 7u;
-    if (mode != 0) { // back-reference into the output so far
-      uint32_t bsrc = out + (uint32_t)offtab[mode];
-      for (uint32_t k = 0; k < len; k++) {
-        c->mem_w8(out++, c->mem_r8(bsrc++));
-      }
-    } else { // literal run from the source
-      if (len == 0) {
-        break; // terminator
-      }
-      for (uint32_t k = 0; k < len; k++) {
-        c->mem_w8(out++, c->mem_r8(src++));
-      }
-    }
-  }
-  c->r[29] += 32;   // frame ascent
-  return out - dst; // total bytes written
+  GuestSource source{*c, src0, src0 + srclen};
+  GuestOutput output{*c, dst};
+  decodeLzImage(source, output, stride);
+  c->r[29] += 32;
+  return static_cast<uint32_t>(output.written);
 }
 
 // PC-owned texture-group unpacker — replaces guest FUN_80044E84 (0x80044E84). Verified by
@@ -229,7 +228,7 @@ void Asset::loadTexgroup() {
   c->r[6] = 2048;
   c->r[31] = 0x80044FD8u;
   psx::cpu::callGuestNow(*c, __func__, 0x8001DC40u); // 1. CD-load 2KB header (platform)
-  c->r[16] = HDR;                                                             // s0 = header base (live for spills)
+  c->r[16] = HDR;                                    // s0 = header base (live for spills)
   uint32_t h0 = c->mem_r32(HDR + 0), h1 = c->mem_r32(HDR + 4);
   c->r[4] = 0x8018A000u;
   sessionOf(c).nativeOverrides.retireOverlay(*c, eng(c).activeAreaOverlay);

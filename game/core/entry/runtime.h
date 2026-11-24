@@ -51,6 +51,7 @@ public:
   psx::state::NativeStatePort *nativeState(Core &core) const override;
   const psx::game::HostIdentity *hostIdentity() const override;
   std::span<const psx::game::TitleIntSetting> titleIntSettings() const override;
+  std::optional<psx::present::ArtScene> panelArt(psx::cd::Disc &disc) const override;
   void reportRun(Core &core) const override;
 
 private:
