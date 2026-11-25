@@ -14,7 +14,8 @@
 //
 // The title menu's labels (tomba2-decomp `docs/notes/ui-panel-builders.md`) are lettering, not a font: each a sprite
 // definition's one piece on the 4bpp page at (832, 256), DR_TPAGE 0x1D, white shading into the label's colour down
-// each letter (indices 0xA to 0xE) inside a dark rim (0xF). They are traced from their own bitmaps.
+// each letter (indices 0xA to 0xE) inside a dark rim (0xF) that carries a shadow one texel right and below. Each is
+// drawn as one word of Fredoka in that style, through the label's own CLUT.
 #pragma once
 
 #include "host_input.h"
@@ -131,13 +132,11 @@ constexpr psx::present::OutlineFont font(std::span<const OutlineGlyph> glyphs) {
 
 // New Game, Load Game, Start Game and Options: sprite definitions 0x8E to 0x91.
 inline constexpr std::array<OutlineGlyph, 4> kLabelGlyphs{{
-    {.u = 0, .v = 1, .width = 80, .height = 16, .face = OutlineFace::Traced},
-    {.u = 80, .v = 1, .width = 88, .height = 16, .face = OutlineFace::Traced},
-    {.u = 0, .v = 17, .width = 96, .height = 16, .face = OutlineFace::Traced},
-    {.u = 168, .v = 1, .width = 72, .height = 16, .face = OutlineFace::Traced},
+    {.u = 0, .v = 1, .width = 80, .height = 16, .text = U"New Game"},
+    {.u = 80, .v = 1, .width = 88, .height = 16, .text = U"Load Game"},
+    {.u = 0, .v = 17, .width = 96, .height = 16, .text = U"Start Game"},
+    {.u = 168, .v = 1, .width = 72, .height = 16, .text = U"Options"},
 }};
-inline constexpr std::array<int, 5> kLabelFill{0xA, 0xB, 0xC, 0xD, 0xE};
-inline constexpr std::array<int, 1> kLabelRim{0xF};
 
 // By Font.
 inline constexpr std::array<psx::present::OutlineFont, 4> kFonts{
@@ -146,7 +145,10 @@ inline constexpr std::array<psx::present::OutlineFont, 4> kFonts{
     font(kIconGlyphs),
     {.page = {.x = 832, .y = 256, .depth = psx::gpu::TexDepth::Indexed4},
      .glyphs = kLabelGlyphs,
-     .fillIndices = kLabelFill,
-     .rimIndices = kLabelRim}};
+     .textFace = "Fredoka.ttf",
+     .weight = 700,
+     .shadowX = 1,
+     .shadowY = 1,
+     .lettering = {.fillFirst = 0xA, .fillCount = 5, .rimIndex = 0xF, .rimWidth = 1.0, .lean = 0.12}}};
 
 } // namespace tomba::text_fonts
