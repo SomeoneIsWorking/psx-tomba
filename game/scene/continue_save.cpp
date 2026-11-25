@@ -10,6 +10,7 @@
 #include <array>
 #include <cstdio>
 #include <cstdlib>
+#include <utility>
 
 namespace tomba::scene {
 
@@ -47,7 +48,8 @@ std::array<char, 24> fileName(std::uint8_t number) {
 std::optional<std::uint8_t> ContinueSave::newest(Core &core) {
   Memcard &card = core.game->memcard;
   std::optional<std::uint8_t> best;
-  std::uint32_t bestTime = 0;
+  // Latest write first; a save written before stamping counts as older, then by play time.
+  std::pair<std::uint64_t, std::uint32_t> bestKey{};
   for (std::uint8_t number = 0; number < kFiles; ++number) {
     const int block = card.dirFind(fileName(number).data());
     if (block < 0) {
@@ -59,9 +61,10 @@ std::optional<std::uint8_t> ContinueSave::newest(Core &core) {
     }
     const std::uint32_t frames =
         time[0] | (time[1] << 8) | (time[2] << 16) | (static_cast<std::uint32_t>(time[3]) << 24);
-    if (!best || frames > bestTime) {
+    const std::pair<std::uint64_t, std::uint32_t> key{card.writtenAt(block).value_or(0u), frames};
+    if (!best || key > bestKey) {
       best = number;
-      bestTime = frames;
+      bestKey = key;
     }
   }
   return best;

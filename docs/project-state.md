@@ -189,4 +189,4 @@ the same area.
 
 ### S028 — Tomba! 2 autosave and title Continue
 
-Gap: Continue is built: with a Tomba! 2 save on the card the title list leads with it, selected, and it loads the save with the longest play time through CRD's own open/verify ops into GAME (`ContinueSave`); with none the list starts at New Game. The card carries no timestamp, so "newest" is the furthest played. The area-transition autosave, its slot, icon and the prompt removal are missing.
+Gap: Continue is built: with a Tomba! 2 save on the card the title list leads with it, selected, and it loads the save written last (the card stamps each write; an older unstamped save falls back to play time) through CRD's own open/verify ops into GAME (`ContinueSave`); with none the list starts at New Game. The area-transition autosave, its slot, icon and the prompt removal are missing.
