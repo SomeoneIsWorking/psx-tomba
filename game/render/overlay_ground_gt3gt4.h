@@ -50,6 +50,8 @@ public:
     ListDepth gt4;
   };
   static constexpr std::int32_t kModeBias = 0x64;
+  // View depth (SZ) one ground sort slot spans at the village's depths (band 3).
+  static constexpr float kBucketDepth = 8.0f;
   static constexpr Variant kA00{{true, 0u}, {true, 0u}};
   static constexpr Variant kFarthest{{false, 0u}, {false, 0u}};
   static constexpr Variant kA0L{{false, 1u}, {false, 2u}};
@@ -72,6 +74,8 @@ public:
   // dispatch, so wired via the overlay's own `A00 tomba::native::declareOverride` table (through the process-global
   // override registry's tomba::native::declareOverride, not a raw table poke).
   static void registerOverrides(native::NativeOverrideCatalog &natives);
+  // A00's ground cells test depth per pixel: the bucket sort misorders a ladder against the hut wall it leans on.
+  static void markDepth(Core &core);
 };
 
 } // namespace tomba

@@ -499,4 +499,9 @@ void OverlayGroundGt3Gt4::registerOverrides(native::NativeOverrideCatalog &nativ
   natives.declareOverlay("A00", 0x801401B8u, "&OverlayGroundGt3Gt4::entityLoop", &OverlayGroundGt3Gt4::entityLoop);
 }
 
+void OverlayGroundGt3Gt4::markDepth(Core &core) {
+  // The leaves run inside entityLoop, so its entry is their vertices' site; depth is SZ.
+  core.depthTest.mark(0x801401B8u, psx::present::DepthOrder::Polygon, kBucketDepth);
+}
+
 } // namespace tomba

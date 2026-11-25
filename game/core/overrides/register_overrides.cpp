@@ -122,6 +122,7 @@ void register_engine_overrides(Game &game, native::NativeOverrideCatalog &native
   OverlayGt3Gt4::registerOverrides(natives);                 // A00 and A08 plain GT3/GT4 packet emitters
   OverlayGroundGt3Gt4::registerOverrides(
       natives); // A00-overlay GROUND/SCENE GT3/GT4 + entity loop (0x8013FB88/8013FE58/801401B8)
+  OverlayGroundGt3Gt4::markDepth(game.core);
   TileGridLayer::registerOverrides(
       natives); // A00-overlay field scroll-wrap + tile-grid sprite emitter (0x8011534C/0x80115598)
   render::BackdropPlane::registerOverrides(natives);    // A0E boss arena waterfall plane (0x80110CA4)
