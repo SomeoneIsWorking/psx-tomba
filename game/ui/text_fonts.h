@@ -6,9 +6,9 @@
 // codes are ASCII - 0x20; Font::iconGlyphEmit's full-width codes on the 8x8 font). Each starts its fourth row with
 // the circle, cross, triangle and square buttons. The 16x16 icons from v 120, 16 a row, start with the same four
 // (DialogGlyphs::emit's wide codes 0x60 on, DialogGlyphs::prompt). The buttons are ringed in several colours, so under
-// a PlayStation pad they keep their bitmaps. Glyphs are CLUT index 1 with index 5 at their edges, over a shadow in
-// index 6 one texel right and below; a cell the tables leave out draws its bitmap. The letters are serifed (I, 1, l),
-// so the face keeps its own proportions at each glyph's height. The letter fonts' symbol cells (the token table's
+// a PlayStation pad they keep their bitmaps. Glyphs are CLUT index 1 with indices 3 to 5 at their edges, over a shadow
+// in index 6 one texel right and below; a cell the tables leave out draws its bitmap. The letters are serifed (I, 1,
+// l), so the face keeps its own proportions at each glyph's height. The letter fonts' symbol cells (the token table's
 // 0x64-0x98, and ASCII 0x2A drawn as the reference mark) come from Noto Sans JP; a cell filled in a second colour
 // keeps its bitmap, as do the diagonal arrows and the nested squares, which the face has no shape for.
 //
@@ -119,6 +119,7 @@ inline constexpr auto kSmallGlyphs = letterGlyphs<kHollowSymbols.size()>(kSmallG
 inline constexpr auto kIconGlyphs = iconGlyphs();
 
 inline constexpr std::array<int, 1> kShadowIndices{6};
+inline constexpr std::array<int, 3> kEdgeIndices{3, 4, 5};
 
 constexpr psx::present::OutlineFont font(std::span<const OutlineGlyph> glyphs) {
   return {.page = kPage,
@@ -127,6 +128,7 @@ constexpr psx::present::OutlineFont font(std::span<const OutlineGlyph> glyphs) {
           .symbolFace = "NotoSansJP-Symbols.ttf",
           .proportional = true,
           .shadowIndices = kShadowIndices,
+          .edgeIndices = kEdgeIndices,
           .shadowX = 1,
           .shadowY = 1};
 }
