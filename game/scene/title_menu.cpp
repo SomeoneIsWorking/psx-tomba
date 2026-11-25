@@ -3,8 +3,11 @@
 
 #include "core.h"
 #include "core/overrides/native_override_catalog.h"
+#include "entry/session.h"
 #include "guest_abi.h"
 #include "guest_call.h"
+#include "render/guest_ordering_table.h"
+#include "ui/text_fonts.h"
 
 #include <algorithm>
 #include <array>
@@ -83,7 +86,10 @@ void TitleMenu::drawItems(Core *c) {
     c->r[6] = c->mem_r32(kModelTable);
     c->r[7] = sp + kAttributes;
     c->r[31] = kReturnAfterItem;
+    // The label's one piece is the quad linked at the pool's cursor.
+    const std::uint32_t packet = render::PacketPool(*c).cursor();
     psx::cpu::callGuestNow(*c, __func__, kQuads);
+    sessionOf(c).cropLayers.glyph(packet, text_fonts::kLabels);
   }
 }
 

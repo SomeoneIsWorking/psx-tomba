@@ -11,6 +11,10 @@
 // so the face keeps its own proportions at each glyph's height. The letter fonts' symbol cells (the token table's
 // 0x64-0x98, and ASCII 0x2A drawn as the reference mark) come from Noto Sans JP; a cell filled in a second colour
 // keeps its bitmap, as do the diagonal arrows and the nested squares, which the face has no shape for.
+//
+// The title menu's labels (tomba2-decomp `docs/notes/ui-panel-builders.md`) are lettering, not a font: each a sprite
+// definition's one piece on the 4bpp page at (832, 256), DR_TPAGE 0x1D, white shading into the label's colour down
+// each letter (indices 0xA to 0xE) inside a dark rim (0xF). They are traced from their own bitmaps.
 #pragma once
 
 #include "host_input.h"
@@ -28,9 +32,10 @@ using psx::present::OutlineGlyph;
 using psx::present::OutlineGrid;
 
 enum Font : std::uint8_t {
-  kText,  // 8x16
-  kSmall, // 8x8
-  kIcons, // 16x16
+  kText,   // 8x16
+  kSmall,  // 8x8
+  kIcons,  // 16x16
+  kLabels, // the title menu's labels
 };
 
 inline constexpr psx::gpu::TexPage kPage{.x = 960, .y = 256, .depth = psx::gpu::TexDepth::Indexed4};
@@ -124,8 +129,24 @@ constexpr psx::present::OutlineFont font(std::span<const OutlineGlyph> glyphs) {
           .shadowY = 1};
 }
 
+// New Game, Load Game, Start Game and Options: sprite definitions 0x8E to 0x91.
+inline constexpr std::array<OutlineGlyph, 4> kLabelGlyphs{{
+    {.u = 0, .v = 1, .width = 80, .height = 16, .face = OutlineFace::Traced},
+    {.u = 80, .v = 1, .width = 88, .height = 16, .face = OutlineFace::Traced},
+    {.u = 0, .v = 17, .width = 96, .height = 16, .face = OutlineFace::Traced},
+    {.u = 168, .v = 1, .width = 72, .height = 16, .face = OutlineFace::Traced},
+}};
+inline constexpr std::array<int, 5> kLabelFill{0xA, 0xB, 0xC, 0xD, 0xE};
+inline constexpr std::array<int, 1> kLabelRim{0xF};
+
 // By Font.
-inline constexpr std::array<psx::present::OutlineFont, 3> kFonts{
-    font(kTextGlyphs), font(kSmallGlyphs), font(kIconGlyphs)};
+inline constexpr std::array<psx::present::OutlineFont, 4> kFonts{
+    font(kTextGlyphs),
+    font(kSmallGlyphs),
+    font(kIconGlyphs),
+    {.page = {.x = 832, .y = 256, .depth = psx::gpu::TexDepth::Indexed4},
+     .glyphs = kLabelGlyphs,
+     .fillIndices = kLabelFill,
+     .rimIndices = kLabelRim}};
 
 } // namespace tomba::text_fonts
