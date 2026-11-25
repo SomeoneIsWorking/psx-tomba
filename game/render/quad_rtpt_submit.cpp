@@ -77,10 +77,6 @@ namespace {
 using render::ListCall;
 using render::OrderingTable;
 
-constexpr std::uint32_t kTemplateWords = 10u;
-constexpr std::uint32_t kTemplateBytes = kTemplateWords * 4u;
-// Template offsets of each corner's SXY.
-constexpr std::array<std::uint32_t, 4> kScreen{8u, 0x10u, 0x18u, 0x20u};
 // The 16-byte frame: the GTE flag, AVSZ4 and the bucket as it is worked.
 constexpr std::uint32_t kFrameBytes = 16u;
 constexpr std::uint32_t kFlagLocal = 0u;
@@ -98,14 +94,23 @@ ListCall submitCall(Core &core) {
 
 void submitForGuest(Core *core) {
   const ListCall call = submitCall(*core);
-  QuadRtptSubmit::submit(*core, call, horizontal_cull::forDrawWindow(core));
+  QuadRtptSubmit::submit(*core, call, horizontal_cull::forDrawWindow(core), QuadRtptSubmit::kFt4);
+}
+
+void chainLinkForGuest(Core *core) {
+  const ListCall call = submitCall(*core);
+  core->r[2] =
+      QuadRtptSubmit::submit(*core, call, horizontal_cull::forDrawWindow(core), QuadRtptSubmit::kGt4) ? 0u : 1u;
 }
 
 } // namespace
 
-void QuadRtptSubmit::submit(const psx::present::EmitMemory &memory,
+bool QuadRtptSubmit::submit(const psx::present::EmitMemory &memory,
                             const ListCall &call,
-                            const psx::present::ScreenCull &visible) {
+                            const psx::present::ScreenCull &visible,
+                            const Layout &layout) {
+  const std::array<std::uint32_t, 4> &kScreen = layout.screen;
+  const std::uint32_t templateBytes = layout.templateWords * 4u;
   psx::cpu::Gte &gte = memory.core().gte();
   const std::uint32_t frame = call.sp - kFrameBytes;
   std::array<psx::gte::ProjectedVertex, 4> corners{};
@@ -116,22 +121,28 @@ void QuadRtptSubmit::submit(const psx::present::EmitMemory &memory,
   memory.mem_w32(frame + kFlagLocal, gte.readControl(psx::gte::kFlag));
   if (static_cast<std::int32_t>(memory.mem_r32(frame + kFlagLocal)) < 0) {
     memory.mem_w32(frame + kBucketLocal, static_cast<std::uint32_t>(OrderingTable::kNoBucket));
-    return;
+    return false;
   }
   for (std::uint32_t corner = 0; corner < 3u; ++corner) {
     corners[corner] = gte.projected(corner);
     memory.storeVertex(call.list + kScreen[corner], corners[corner]);
   }
-  // The guest stores NCLIP's MAC0 and overwrites it unread: the quad has no back face.
+  // FUN_8003B320 stores NCLIP's MAC0 and overwrites it unread: its quads have no back face.
   gte.execute(psx::gte::kNclip);
   memory.mem_w32(frame + kFlagLocal, gte.readData(psx::gte::kMac0));
+  const std::uint32_t area = gte.readData(psx::gte::kMac0);
+  // The guest's negate, so 0x80000000 stays negative and drops.
+  const auto magnitude = static_cast<std::int32_t>(static_cast<std::int32_t>(area) < 0 ? 0u - area : area);
+  if (layout.flatArea >= 0 && magnitude <= layout.flatArea) {
+    return false;
+  }
   gte.writeData(psx::gte::kVxy0, memory.mem_r32(call.a1 + 0x18u));
   gte.writeData(psx::gte::kVz0, memory.mem_r32(call.a1 + 0x1Cu));
   gte.execute(psx::gte::kRtps);
   memory.mem_w32(frame + kFlagLocal, gte.readControl(psx::gte::kFlag));
   if (static_cast<std::int32_t>(memory.mem_r32(frame + kFlagLocal)) < 0) {
     memory.mem_w32(frame + kBucketLocal, static_cast<std::uint32_t>(OrderingTable::kNoBucket));
-    return;
+    return false;
   }
   corners[3] = gte.projected(2);
   memory.storeVertex(call.list + kScreen[3], corners[3]);
@@ -140,17 +151,17 @@ void QuadRtptSubmit::submit(const psx::present::EmitMemory &memory,
   memory.mem_w32(frame + kDepthLocal, static_cast<std::uint32_t>(depth));
   memory.mem_w32(frame + kBucketLocal, static_cast<std::uint32_t>(depth));
   if (depth < 0) {
-    return;
+    return false;
   }
   const std::int32_t biased = depth + static_cast<std::int32_t>(call.count);
   memory.mem_w32(frame + kBucketLocal, static_cast<std::uint32_t>(biased));
   if (biased < 0) {
-    return;
+    return false;
   }
   const std::int32_t bucket = OrderingTable::compressDepth(biased);
   memory.mem_w32(frame + kBucketLocal, static_cast<std::uint32_t>(bucket));
   if (!OrderingTable::inDepthRange(bucket)) {
-    return;
+    return false;
   }
   std::array<std::uint32_t, 4> xs{};
   std::array<std::uint32_t, 4> ys{};
@@ -160,24 +171,26 @@ void QuadRtptSubmit::submit(const psx::present::EmitMemory &memory,
   }
   if (!visible.keepsX(xs.data(), 4, psx::present::CornerDomain::Packed16) ||
       !visible.keepsY(ys.data(), 4, psx::present::CornerDomain::Packed16)) {
-    return;
+    return false;
   }
   const render::PacketPool pool(memory);
-  const std::uint32_t packet = pool.reserve(kTemplateBytes);
+  const std::uint32_t packet = pool.reserve(templateBytes);
   OrderingTable(memory, memory.mem_r32(OrderingTable::kBasePointer))
-      .link({.packet = packet, .words = kTemplateWords - 1u, .bucket = static_cast<std::uint32_t>(bucket)});
-  for (std::uint32_t word = 1; word < kTemplateWords; ++word) {
+      .link({.packet = packet, .words = layout.templateWords - 1u, .bucket = static_cast<std::uint32_t>(bucket)});
+  for (std::uint32_t word = 1; word < layout.templateWords; ++word) {
     memory.mem_w32(packet + word * 4u, memory.mem_r32(call.list + word * 4u));
   }
   for (std::size_t corner = 0; corner < kScreen.size(); ++corner) {
     memory.storeVertex(packet + kScreen[corner], corners[corner]);
   }
-  pool.setCursor(packet + kTemplateBytes);
+  pool.setCursor(packet + templateBytes);
+  return true;
 }
 
 void QuadRtptSubmit::registerOverrides(native::NativeOverrideCatalog &natives) {
   natives.declare(0x8003B054u, "QuadRtptSubmit::rotateQuadCorners", &QuadRtptSubmit::rotateQuadCorners);
   natives.declare(kSubmit, "QuadRtptSubmit::submit", &submitForGuest);
+  natives.declareOverlay("A01", kA01ChainLink, "QuadRtptSubmit::chainLink", &chainLinkForGuest);
 }
 
 } // namespace tomba

@@ -742,6 +742,7 @@ calls it. A row whose handler is file-local names the file that declares the ove
 | 0x8013CDD4 | LIVE | `WidescreenMarginQuad::emit` | game/render/widescreen_margin_quad.cpp |  |  |
 | 0x8013CF00 | LIVE | `UnlitModelEmitter::gt3` (A06) | game/render/unlit_model_emitter.cpp |  | A06 drawer unlit GT3 with U scroll (kA06Scroll). |
 | 0x8013D1E4 | LIVE | `UnlitModelEmitter::gt4` (A06) | game/render/unlit_model_emitter.cpp |  | A06 drawer unlit GT4 with U scroll (kA06Scroll). |
+| 0x80133F38 | LIVE | `QuadRtptSubmit::chainLink` (A01) | game/render/quad_rtpt_submit.cpp |  | A01's chain link GT4 (FUN_80128B08): FUN_8003B320's submit with a GT4 template and a flat-quad drop, 1 when dropped |
 | 0x8013F418 | LIVE | `FogModelEmitter` gt3 (A04) | game/render/fog_model_emitter.cpp |  | Fogged GT3 by AVSZ3. |
 | 0x8013F6E4 | LIVE | `FogModelEmitter` gt4 (A04) | game/render/fog_model_emitter.cpp |  | Fogged GT4 by AVSZ4. |
 | 0x8013F4DC | LIVE | `GroundFootprint::gather` (A00; the same gather in every area, ground_footprint.cpp `kGathers`) | game/render/ground_footprint.cpp | its original body | the scene prepass's view triangle, its far corners opened to the draw window's width, then the original grid gather |
