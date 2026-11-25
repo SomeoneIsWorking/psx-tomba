@@ -12,6 +12,7 @@
 
 #include "card_load_machine.h"
 #include "cd/engine_cd_loader.h"
+#include "continue_save.h"
 #include "core.h"
 #include "core/assets/asset.h" // class Asset — preloadTexgroup (static, area-load sync)
 #include "core/overrides/guest_resume.h"
@@ -111,7 +112,7 @@ uint32_t Demo::s2SubMachine() {
       if ((edges & (TitleMenu::kNext | TitleMenu::kPrevious)) != 0) {
         const std::uint32_t moved = (edges & TitleMenu::kNext) != 0
                                         ? std::min<std::uint32_t>(item + 1u, TitleMenu::kOptions)
-                                        : (item > 0u ? item - 1u : 0u);
+                                        : std::max<std::uint32_t>(item, TitleMenu::first(c) + 1u) - 1u;
         if (moved != item) {
           c->r[31] = 0x80106AA4u;
           eng(c).sfx.trigger({.id = 0x15, .pan = 0, .pitchBend = 0});
@@ -409,7 +410,8 @@ static uint32_t demo_menu_machine(Core *c) {
 void Demo::s0PreYield() {
   Core *c = core;
   uint32_t sm = c->mem_r32(SM_PTR);
-  c->mem_w8(sm + 0x68, 0);
+  continueFile = tomba::scene::ContinueSave::newest(*c);
+  c->mem_w8(sm + 0x68, TitleMenu::first(c));
   c->mem_w16(sm + 0x48, 1); // sm[0x48]++ : 0 -> 1  (mirrors substrate)
   c->mem_w16(sm + 0x4a, 0);
   {
@@ -465,8 +467,9 @@ static void demo_frame_s1(Core *c) {
 
 // Substate s2 (0x80106464) — the title menu, sub-machine 0x8010696C (sets the intro timer sm[0x5a]=450, runs the
 // title input). Outcome 1 -> s7 (attract launch); outcome 2 runs the selected item (TitleMenu::Item in sm[0x68]):
-// New Game -> s5 as retail's Start Game does from s3, Load Game -> s4, Options -> s6 as retail's s3 does. Retail's
-// second list s3 (Start Game / Options) is never entered. All paths end with TAIL_REND (attract render 0x80075A80).
+// Continue -> s5 with the newest save loaded, New Game -> s5 as retail's Start Game does from s3, Load Game -> s4,
+// Options -> s6 as retail's s3 does. Retail's second list s3 (Start Game / Options) is never entered. All paths end
+// with TAIL_REND (attract render 0x80075A80).
 static void demo_tail_rend(Core *c);
 static void demo_tail_cf2c(Core *c);
 
@@ -486,6 +489,14 @@ static void demo_frame_s2(Core *c) {
       c->mem_w8(sm + 0x68, 0);
       c->mem_w8(0x1f800134u, 0);
       break;
+    case TitleMenu::kContinue: // -> s5 with the save loaded, as s4's accepted load does
+      if (const auto file = eng(c).demo.continueFile; file && tomba::scene::ContinueSave::load(*c, *file)) {
+        c->mem_w16(sm + 0x48, 5);
+        c->mem_w8(sm + 0x68, 0);
+        c->mem_w8(0x1f800134u, 1);
+        break;
+      }
+      [[fallthrough]];         // a save the game refuses: the Load Game page shows the card
     case TitleMenu::kLoadGame: // -> s4
       c->mem_w8(sm + 0x68, 0);
       c->mem_w16(sm + 0x48, 4);

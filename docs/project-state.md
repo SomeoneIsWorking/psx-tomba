@@ -56,6 +56,7 @@ and 2D layout.
 | S025 | Tomba! 2 files in-app bug reports (B key) with a replayable reproduction | partial | — | — |
 | S026 | Tomba runs through psxport's multi-title host and in-window picker | partial | — | — |
 | S027 | Tomba! 2 pit void-out mod: death-floor falls void out like water (setting, default off) | verified | — | — |
+| S028 | Tomba! 2 autosave and title Continue | partial | — | G008 |
 
 ### S001 — Tomba! 2 reaches representative gameplay as a native/Lightrec product
 
@@ -185,3 +186,7 @@ on, substate 4, vitality 4 → 3 and respawn at area 4 entry 1.
 Areas 11, 12 and 15 (the Evil Ice, Ghost and Last Evil Pig battles), through `spot` over each death floor with
 the boss intro advanced by circle: off, substate 5 and vitality 0; on, substate 4, vitality 4 → 3 and respawn in
 the same area.
+
+### S028 — Tomba! 2 autosave and title Continue
+
+Gap: Continue is built: with a Tomba! 2 save on the card the title list leads with it, selected, and it loads the save with the longest play time through CRD's own open/verify ops into GAME (`ContinueSave`); with none the list starts at New Game. The card carries no timestamp, so "newest" is the furthest played. The area-transition autosave, its slot, icon and the prompt removal are missing.

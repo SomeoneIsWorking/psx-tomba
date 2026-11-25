@@ -6,6 +6,7 @@
 #include "scene/str_movie.h"
 
 #include <cstdint>
+#include <optional>
 class Core;
 class Game;
 
@@ -23,6 +24,8 @@ public:
 
   Core *core = nullptr;
   StrMovie openingMovie; // s1's MOVIE/OP.STR
+  // The save Continue loads, found when the title starts (s0).
+  std::optional<std::uint8_t> continueFile;
 
   // Declares the title menu's sub-machine s2SubMachine (0x8010696C).
   static void registerOverrides(native::NativeOverrideCatalog &natives);

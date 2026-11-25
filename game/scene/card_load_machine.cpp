@@ -32,6 +32,11 @@ void reselectStateIndex(Core &c, std::uint32_t inGame) {
 
 } // namespace
 
+void loadCardCode(Core &core) {
+  sessionOf(&core).nativeOverrides.loadAreaSlotFile(core, eng(&core).activeAreaOverlay, kCrdFile);
+  core.mem_w8(kLoadDone, 1); // case 3 reads this
+}
+
 void stepCardLoadMachine(Core &core, const StepCardLoadMachineArgs &args) {
   auto [mode, inGame] = args;
   Core *c = &core;
@@ -39,9 +44,7 @@ void stepCardLoadMachine(Core &core, const StepCardLoadMachineArgs &args) {
   switch (state) {
   case 0: {
     psx::cpu::callGuestNow(*c, __func__, 0x8001cf2cu); // engine update
-    sessionOf(c).nativeOverrides.loadAreaSlotFile(
-        *c, eng(c).activeAreaOverlay, kCrdFile); // = FUN_80045558(1): CRD, SYNC
-    c->mem_w8(kLoadDone, 1);                     // mark the load complete (case 3 reads this)
+    loadCardCode(*c);
     c->mem_w8(kMachineState, 1);
     reselectStateIndex(*c, inGame);
     break;

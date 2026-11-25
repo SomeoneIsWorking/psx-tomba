@@ -15,7 +15,8 @@
 // The title menu's labels (tomba2-decomp `docs/notes/ui-panel-builders.md`) are lettering, not a font: each a sprite
 // definition's one piece on the 4bpp page at (832, 256), DR_TPAGE 0x1D, white shading into the label's colour down
 // each letter (indices 0xA to 0xE) inside a dark rim (0xF) that carries a shadow one texel right and below. Each is
-// drawn as one word of Sniglet ExtraBold in that style, through the label's own CLUT.
+// drawn as one word of Sniglet ExtraBold in that style, through the label's own CLUT. Continue has no label of its own:
+// it is drawn from retail's Start Game definition (0x90), whose list the port no longer shows, lettered "Continue".
 #pragma once
 
 #include "host_input.h"
@@ -130,8 +131,9 @@ constexpr psx::present::OutlineFont font(std::span<const OutlineGlyph> glyphs) {
           .shadowY = 1};
 }
 
-// New Game, Load Game and Options: sprite definitions 0x8E, 0x8F and 0x91.
-inline constexpr std::array<OutlineGlyph, 3> kLabelGlyphs{{
+// Continue, New Game, Load Game and Options: sprite definitions 0x90, 0x8E, 0x8F and 0x91.
+inline constexpr std::array<OutlineGlyph, 4> kLabelGlyphs{{
+    {.u = 0, .v = 17, .width = 96, .height = 16, .text = U"Continue"},
     {.u = 0, .v = 1, .width = 80, .height = 16, .text = U"NewGame"},
     {.u = 80, .v = 1, .width = 88, .height = 16, .text = U"LoadGame"},
     {.u = 168, .v = 1, .width = 72, .height = 16, .text = U"Options"},

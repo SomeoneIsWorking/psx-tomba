@@ -1,4 +1,5 @@
-// game/scene/title_menu.h — the title menu: one vertical list of New Game, Load Game and Options (DEMO FUN_80106824).
+// game/scene/title_menu.h — the title menu: one vertical list of Continue (with a save), New Game, Load Game and
+// Options (DEMO FUN_80106824).
 #pragma once
 
 #include <cstdint>
@@ -17,7 +18,9 @@ public:
   // Game, menu 1 Start Game / Options); the port has one, so `menu` is unused.
   static constexpr std::uint32_t kDrawItems = 0x80106824u;
   // The list's items, top to bottom, as the title's s2 keeps the selection in sm[0x68].
-  enum Item : std::uint8_t { kNewGame, kLoadGame, kOptions, kItems };
+  enum Item : std::uint8_t { kContinue, kNewGame, kLoadGame, kOptions, kItems };
+  // The top item: Continue while the card holds a save (Demo::continueFile), else New Game.
+  static Item first(Core *c);
   // The sub-machines' edges that move the selection.
   static constexpr std::uint16_t kPrevious = 0x0010u; // Up
   static constexpr std::uint16_t kNext = 0x0040u;     // Down

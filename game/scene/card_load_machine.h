@@ -24,4 +24,7 @@ struct StepCardLoadMachineArgs {
 // in-game area-asset reload overwrites it.
 void stepCardLoadMachine(Core &core, const StepCardLoadMachineArgs &args);
 
+// FUN_80045558(1): CRD into the AREA slot, synchronously, and marked loaded.
+void loadCardCode(Core &core);
+
 } // namespace tomba::scene
