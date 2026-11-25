@@ -67,7 +67,7 @@ Frame loop: owned. `tomba::FrameDriver` runs one pass of `0x80050B08` (update `0
 | `ScriptInterp`, `ScriptObject` | `game/scene/script_*` | The cutscene script interpreter and its vocabulary |
 | `FieldTransition`, `SceneTransition`, `AreaFadeSequencer`, `BgSceneTransitionSm`, `TransitionState3` | `game/scene/` | The scene and area transition machines; Start skips the door corridor (`FieldTransition::skipCorridor`) and the boss-clear card (`FieldTransition::skipClearCard`) |
 | `loadOverlay`, `stepCardLoadMachine`, `CardCheck` | `game/scene/level_load.h`, `game/scene/card_load_machine.h`, `game/scene/card_check.h` | START/DEMO/GAME into the stage slot; memory-card LOAD/SAVE pages and CRD residency; CRD's check page without its 11-frame hold |
-| `ContinueSave` | `game/scene/continue_save.h` | The title's Continue: the card's Tomba! 2 save with the longest play time, loaded through CRD's `CardLoad_openRead`/`CardLoad_verifyApply` |
+| `ContinueSave` | `game/scene/continue_save.h` | The title's Continue: the card's Tomba! 2 save written last (`Memcard::writtenAt`, else longest played), loaded through CRD's `CardLoad_openRead`/`CardLoad_verifyApply` |
 | `SceneEvents`, `ParallaxBg`, `ModeStateArm` | `game/scene/` | Scene-event arms, the SOP parallax background, mode-state arms |
 | `Sequencer` | `game/audio/sequencer*.cpp` | libsnd's per-VBlank sequencer and its channel leaves |
 | `Sfx`, `AudioDispatch`, `MusicCoord`, `MusicList` | `game/audio/` | Sound effects, field audio dispatch, music coordination, Sound Test and area BGM |
