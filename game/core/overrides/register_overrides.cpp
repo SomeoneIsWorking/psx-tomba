@@ -42,6 +42,7 @@
 #include "fx_sprite_swarm.h"
 #include "gradient_backdrop.h"
 #include "graphics_bind.h"         // class GraphicsBind — object render-bind subsystem (recordArrayInit)
+#include "ground_footprint.h"      // class GroundFootprint — every area's ground grid gather, opened to the draw window
 #include "gte_transform3.h"        // class GteTransform3 — GTE 3-vertex rotate+pack (0x80084250)
 #include "hle/libapi_intr.h"       // class LibapiIntr — kernel interrupt-mask primitives (0x80085C9C)
 #include "hud_gauge_emitter.h"     // class HudGaugeEmitter — self-contained HUD gauge emitter (0x8004FD30/0x8004FB4C)
@@ -126,6 +127,7 @@ void register_engine_overrides(Game &game, native::NativeOverrideCatalog &native
   render::BackdropPlane::registerOverrides(natives);    // A0E boss arena waterfall plane (0x80110CA4)
   render::GradientBackdrop::registerOverrides(natives); // A0E boss arena sky bands (0x80114178)
   render::BackdropSprites::registerOverrides(natives);  // A0E boss arena background sprites (0x80111E14)
+  render::GroundFootprint::registerOverrides(natives);  // every area's ground grid gather, opened to the draw window
   WidescreenMarginQuad::registerOverrides(natives); // A00-overlay widescreen-margin OT.GT4 quad emitter (0x8013CDD4)
   ObjModelView::registerOverrides(natives);         // shared effect-mesh model-view compose into GTE CR0-7 (0x800318A0)
   render::PackedMesh::registerOverrides(natives);   // packed-mesh writer (0x80027768)

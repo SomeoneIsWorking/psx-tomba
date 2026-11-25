@@ -219,6 +219,7 @@ set(GAME_SRC
   game/render/node_xform.cpp
   game/render/render_frame.cpp
   game/render/wide_window.cpp
+  game/render/ground_footprint.cpp
   game/core/engine/engine.cpp
   game/core/engine/engine_task_machine.cpp
   game/core/engine/engine_state_dispatch.cpp

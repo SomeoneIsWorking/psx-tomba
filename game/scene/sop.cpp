@@ -28,8 +28,10 @@
 #include "sched/scheduler.h"
 
 #include "game.h"
+#include "render/ground_footprint.h"
 #include "scene/narration_scroller.h"
 #include "sop.h"
+
 #include <algorithm> // std::swap / std::min / std::max used by sceneGridGather
 #include <stdio.h>
 
@@ -458,9 +460,12 @@ void Sop::scenePrepass(uint32_t table) {
   // delay-slot write).
   c->mem_w8(table + 6u, 0);
 
+  render::GroundFootprint::Cell left{.x = X1d, .z = Z1d};
+  render::GroundFootprint::Cell right{.x = X2d, .z = Z2d};
+  render::GroundFootprint::open(c, left, right);
   // Rasterize the frustum triangle into the scene grid — appends cell ids to
   // table+0x10 / +6.
-  sceneGridGather({.table = table, .x0 = X0d, .y0 = Z0d, .x1 = X1d, .y1 = Z1d, .x2 = X2d, .y2 = Z2d});
+  sceneGridGather({.table = table, .x0 = X0d, .y0 = Z0d, .x1 = left.x, .y1 = left.z, .x2 = right.x, .y2 = right.z});
 }
 
 // SOP per-frame FIELD UPDATE — native ownership of FUN_801092b4 (decomp

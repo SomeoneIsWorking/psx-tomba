@@ -744,6 +744,7 @@ calls it. A row whose handler is file-local names the file that declares the ove
 | 0x8013D1E4 | LIVE | `UnlitModelEmitter::gt4` (A06) | game/render/unlit_model_emitter.cpp |  | A06 drawer unlit GT4 with U scroll (kA06Scroll). |
 | 0x8013F418 | LIVE | `FogModelEmitter` gt3 (A04) | game/render/fog_model_emitter.cpp |  | Fogged GT3 by AVSZ3. |
 | 0x8013F6E4 | LIVE | `FogModelEmitter` gt4 (A04) | game/render/fog_model_emitter.cpp |  | Fogged GT4 by AVSZ4. |
+| 0x8013F4DC | LIVE | `GroundFootprint::gather` (A00; the same gather in every area, ground_footprint.cpp `kGathers`) | game/render/ground_footprint.cpp | its original body | the scene prepass's view triangle, its far corners opened to the draw window's width, then the original grid gather |
 | 0x8013FB88 | LIVE | `OverlayGroundGt3Gt4::gt3` | game/render/overlay_ground_gt3gt4.cpp |  | ground/scene POLY_GT3 emit. Record = 36 bytes, SAME field layout as th… |
 | 0x8013FE58 | LIVE | `OverlayGroundGt3Gt4::gt4` | game/render/overlay_ground_gt3gt4.cpp |  | ground/scene POLY_GT4 emit. Record = 44 bytes: {+0 rgb0(rgb1=rgb0<<4)\|… |
 | 0x801401B8 | LIVE | `OverlayGroundGt3Gt4::entityLoop` | game/render/overlay_ground_gt3gt4.cpp |  | the ground-entity render list walker. list=a0: +6 (u8) entry count, +1… |
