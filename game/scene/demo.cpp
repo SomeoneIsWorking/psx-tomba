@@ -5,9 +5,10 @@
 // through the table at 0x8010622C; each substate jumps to a TAIL (0x80106650 cf2c+attract / 0x80106658 attract
 // / 0x80106670 none) that bumps the frame counter 0x1F800198 and yields once through FUN_80051F80.
 //
-// Owned here: s1, s2, s3, s6 (their only sub-call is synchronous) and the s7 phase machine; the transition
-// logic is native and the inner machines stay dispatched. The deep-yielding s0 loaders, s4 and s5 stay guest
-// through the guest-continuation handshake. Prologue register state: s2reg=1, s1reg=2, s3reg=3.
+// Owned here: s1, s2, s6 (their only sub-call is synchronous; s3, retail's Start Game list, is never entered) and the
+// s7 phase machine; the transition logic is native and the inner machines stay dispatched. The deep-yielding s0
+// loaders, s4 and s5 stay guest through the guest-continuation handshake. Prologue register state: s2reg=1, s1reg=2,
+// s3reg=3.
 
 #include "card_load_machine.h"
 #include "cd/engine_cd_loader.h"
@@ -22,6 +23,7 @@
 #include "title_menu.h"
 #include "world/placement.h" // ov_place_objects (FUN_80072A78)
 #include "world/pool.h"      // ov_pool_init_run (FUN_8007B18C) + siblings
+#include <algorithm>
 #include <lucent/log.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -65,153 +67,6 @@ void Demo::s1() {
   tomba::requestGuestContinuation(*c, TAIL_NONE);
 }
 
-// s2 0x80106464 — sub-machine v0 = 0x8010696c(). Outcome 1 -> go to s7 (sm[0x48]=7, reset 0x4a/0x4c).
-// Outcome 2 -> two-phase cursor trick on sm[0x68]: first pass (==0) -> s3 (sm[0x48]=3, sm[0x68]=2);
-// second pass (!=0) -> s4 (sm[0x48]=4, sm[0x50]=0, sm[0x6b]=0, engine-update 0x8001cf2c,
-// *0x800BF84A=0). Both phases then clear sm[0x4a] and -> TAIL_REND. Other outcomes -> TAIL_REND.
-void Demo::s2() {
-  Core *c = core;
-  demo_log("s2", c);
-  psx::cpu::callGuestNow(*c, __func__, 0x8010696cu); // sub-machine (SYNC)
-  uint32_t v0 = c->r[2];
-  uint32_t sm = c->mem_r32(SM_PTR);
-  if (v0 == 1) { // s2reg: -> s7
-    c->mem_w16(sm + 0x48, 7);
-    c->mem_w16(sm + 0x4a, 0);
-    c->mem_w16(sm + 0x4c, 0);
-    tomba::requestGuestContinuation(*c, TAIL_REND);
-    return;
-  }
-  if (v0 == 2) {                     // s1reg: cursor two-phase
-    if (c->mem_r8(sm + 0x68) == 0) { // first pass
-      c->mem_w16(sm + 0x48, 3);
-      c->mem_w8(sm + 0x68, 2); // sb s1reg(=2)
-    } else {                   // second pass
-      c->mem_w8(sm + 0x68, 0);
-      c->mem_w16(sm + 0x48, 4);
-      c->mem_w16(sm + 0x50, 0);
-      c->mem_w8(sm + 0x6b, 0);
-      psx::cpu::callGuestNow(*c, __func__, 0x8001cf2cu); // engine per-frame update (SYNC)
-      c->mem_w8(0x800bf84au, 0);
-    }
-    c->mem_w16(sm + 0x4a, 0); // shared 0x801064dc: sm[0x4a]=0
-    tomba::requestGuestContinuation(*c, TAIL_REND);
-    return;
-  }
-  tomba::requestGuestContinuation(*c, TAIL_REND);
-}
-
-// s3 0x801064E8 — sub-machine v0 = 0x80106ac4() (mirror of 0x8010696c). Outcome 1 -> s7 (the same
-// SHARED block as s2's outcome-1). Outcome 2 -> phase on sm[0x68]: ==2 -> s5 (sm[0x48]=5, sm[0x68]=0,
-// *0x1F800134=0); else -> s6 (sm[0x48]=6, sm[0x6b]=0, sm[0x50]=0, page-close 0x800750d8,
-// *0x800BF808=0). Outcome 3 (back/cancel) -> s2 (sm[0x48]=2, sm[0x68]=0). All -> TAIL_REND.
-void Demo::s3() {
-  Core *c = core;
-  demo_log("s3", c);
-  psx::cpu::callGuestNow(*c, __func__, 0x80106ac4u); // sub-machine (SYNC)
-  uint32_t v0 = c->r[2];
-  uint32_t sm = c->mem_r32(SM_PTR);
-  if (v0 == 1) { // s2reg: -> s7 (shared block)
-    c->mem_w16(sm + 0x48, 7);
-    c->mem_w16(sm + 0x4a, 0);
-    c->mem_w16(sm + 0x4c, 0);
-  } else if (v0 == 2) {              // s1reg: phase on sm[0x68]
-    if (c->mem_r8(sm + 0x68) == 2) { // bne v0,s1reg(=2)
-      c->mem_w16(sm + 0x48, 5);
-      c->mem_w8(sm + 0x68, 0);
-      c->mem_w8(0x1f800134u, 0);
-    } else {
-      c->mem_w8(sm + 0x68, 0);
-      c->mem_w16(sm + 0x48, 6);
-      c->mem_w8(sm + 0x6b, 0);
-      c->mem_w16(sm + 0x50, 0);
-      psx::cpu::callGuestNow(*c, __func__, 0x800750d8u); // page close (SYNC)
-      c->mem_w8(0x800bf808u, 0);
-    }
-  } else if (v0 == 3) {       // s3reg: back/cancel -> s2
-    c->mem_w16(sm + 0x48, 2); // sh s1reg(=2)
-    c->mem_w8(sm + 0x68, 0);
-  }
-  tomba::requestGuestContinuation(*c, TAIL_REND);
-}
-
-uint32_t Demo::s3SubMachine() {
-  Core *c = core; // FUN_80106AC4
-  const uint32_t savedSp = c->r[29];
-  const uint32_t savedR16 = c->r[16];
-  const uint32_t savedR17 = c->r[17];
-  const uint32_t savedR31 = c->r[31];
-  c->r[29] -= 32u;
-  c->mem_w32(c->r[29] + 16u, savedR16);
-  c->mem_w32(c->r[29] + 20u, savedR17);
-  c->mem_w32(c->r[29] + 24u, savedR31);
-
-  uint32_t result = 0;
-  uint32_t sm = c->mem_r32(SM_PTR);
-  bool proceed = true;
-  if (c->mem_r16(sm + 0x4a) == 0) {
-    c->mem_w16(sm + 0x4a, 1);
-    c->mem_w16(sm + 0x5a, 0x1C2);
-  } else if (c->mem_r16(sm + 0x4a) != 1) {
-    proceed = false;
-  }
-
-  if (proceed) {
-    const std::uint32_t item = (c->mem_r8(sm + 0x68) != 2) ? 1u : 0u;
-    sessionOf(c).drawReplay.beforeDraw(*c, {.variant = DrawSection::Variant::Title, .menu = 1u, .item = item});
-    c->r[4] = 0;
-    psx::cpu::callGuestNow(*c, __func__, kTitleEdges);
-    c->r[4] = 1;
-    c->r[5] = item;
-    c->r[17] = 0x1F800000u;
-    psx::cpu::callGuestNow(*c, __func__, kTitleItems);
-
-    sm = c->mem_r32(SM_PTR); // reload (matches the guest instruction path's re-read)
-    int16_t timer = (int16_t)c->mem_r16(sm + 0x5a);
-    c->mem_w16(sm + 0x5a, (uint16_t)(timer - 1));
-    if (timer == 1) {
-      result = 1; // attract launch
-    } else {
-      uint16_t edges = c->mem_r16(0x800e7e68u);
-      uint8_t cursor;
-      uint8_t cmp;
-      bool haveCmp = true;
-      if (edges & TitleMenu::kNext) {
-        cursor = 3;
-        cmp = c->mem_r8(sm + 0x68);
-      } else {
-        cursor = 2;
-        if (edges & TitleMenu::kPrevious) {
-          cmp = c->mem_r8(sm + 0x68);
-        } else if (edges & 0x4008u) { // Confirm
-          eng(c).sfx.trigger({.id = 0x11, .pan = 0, .pitchBend = 0});
-          result = 2;
-          haveCmp = false;
-        } else if (edges & 0x2000u) { // Circle / back
-          eng(c).sfx.trigger({.id = 0x14, .pan = -9, .pitchBend = 0});
-          result = 3;
-          haveCmp = false;
-        } else {
-          haveCmp = false; // no relevant edge -> result stays 0
-        }
-      }
-      if (haveCmp) {
-        if (cmp != cursor) {
-          eng(c).sfx.trigger({.id = 0x15, .pan = 0, .pitchBend = 0}); // cursor-move blip
-        }
-        c->mem_w8(sm + 0x68, cursor);
-        c->mem_w16(sm + 0x4a, 0);
-      }
-    }
-  }
-
-  c->r[31] = savedR31;
-  c->r[17] = savedR17;
-  c->r[16] = savedR16;
-  c->r[29] = savedSp;
-  return result;
-}
-
 uint32_t Demo::s2SubMachine() {
   Core *c = core;
   const uint32_t savedSp = c->r[29];
@@ -234,7 +89,7 @@ uint32_t Demo::s2SubMachine() {
   }
 
   if (proceed) {
-    const std::uint32_t item = (c->mem_r8(sm + 0x68) != 0) ? 1u : 0u;
+    const std::uint32_t item = c->mem_r8(sm + 0x68);
     sessionOf(c).drawReplay.beforeDraw(*c, {.variant = DrawSection::Variant::Title, .menu = 0u, .item = item});
     c->r[4] = 0;
     c->r[31] = 0x801069B8u;
@@ -252,20 +107,16 @@ uint32_t Demo::s2SubMachine() {
       result = 1; // attract launch
     } else {
       uint16_t edges = c->mem_r16(0x800e7e68u);
-      c->r[17] = c->r[0] + 1u;        // s1 = 1 (SFX callee spills it)
-      if (edges & TitleMenu::kNext) { // select item 1 (Load Game)
-        if (c->mem_r8(sm + 0x68) != 1) {
+      c->r[17] = c->r[0] + 1u; // s1 = 1 (SFX callee spills it)
+      if ((edges & (TitleMenu::kNext | TitleMenu::kPrevious)) != 0) {
+        const std::uint32_t moved = (edges & TitleMenu::kNext) != 0
+                                        ? std::min<std::uint32_t>(item + 1u, TitleMenu::kOptions)
+                                        : (item > 0u ? item - 1u : 0u);
+        if (moved != item) {
           c->r[31] = 0x80106AA4u;
           eng(c).sfx.trigger({.id = 0x15, .pan = 0, .pitchBend = 0});
         }
-        c->mem_w8(sm + 0x68, 1);
-        c->mem_w16(sm + 0x4a, 0);
-      } else if (edges & TitleMenu::kPrevious) { // select item 0 (New Game)
-        if (c->mem_r8(sm + 0x68) != 0) {
-          c->r[31] = 0x80106A78u;
-          eng(c).sfx.trigger({.id = 0x15, .pan = 0, .pitchBend = 0});
-        }
-        c->mem_w8(sm + 0x68, 0);
+        c->mem_w8(sm + 0x68, static_cast<std::uint8_t>(moved));
         c->mem_w16(sm + 0x4a, 0);
       } else if (edges & 0x4008u) { // Confirm -> launch selected
         c->r[31] = 0x80106A44u;
@@ -284,49 +135,13 @@ uint32_t Demo::s2SubMachine() {
 }
 
 namespace {
-void ov_demoS3SubMachine(Core *c) {
-  c->r[2] = eng(c).demo.s3SubMachine();
-}
 void ov_demoS2SubMachine(Core *c) {
   c->r[2] = eng(c).demo.s2SubMachine();
 }
 } // namespace
 
 void Demo::registerOverrides(native::NativeOverrideCatalog &natives) {
-  natives.declareOverlay("DEMO", 0x80106AC4u, "Demo::s3SubMachine", ov_demoS3SubMachine);
   natives.declareOverlay("DEMO", 0x8010696Cu, "Demo::s2SubMachine", ov_demoS2SubMachine);
-}
-
-// s6 0x801065EC — page sub-machine 0x8007b45c(); if sm[0x50]==3 fire the commit pair 0x80106824(1,1)
-// + 0x80106690(1). Then on sm[0x6b]: ==1 -> s3 (sm[0x48]=3, sm[0x68]=3) + TAIL_CF2C; ==2 -> s3
-// (sm[0x48]=3, sm[0x68]=2) + TAIL_CF2C; else stay -> TAIL_REND.
-void Demo::s6() {
-  Core *c = core;
-  demo_log("s6", c);
-  psx::cpu::callGuestNow(*c, __func__, 0x8007b45cu); // page sub-machine (SYNC)
-  uint32_t sm = c->mem_r32(SM_PTR);
-  if (c->mem_r16(sm + 0x50) == 3) {
-    c->r[4] = 1;
-    c->r[5] = 1;
-    c->r[31] = 0x80106618u;
-    psx::cpu::callGuestNow(*c, __func__, 0x80106824u); // commit (a0=1,a1=1)
-    c->r[4] = 1;
-    c->r[31] = 0x80106620u;
-    psx::cpu::callGuestNow(*c, __func__, 0x80106690u); // commit2 (a0=1)
-    sm = c->mem_r32(SM_PTR);
-  }
-  uint8_t s6b = c->mem_r8(sm + 0x6b);
-  if (s6b == 1) {             // s2reg
-    c->mem_w16(sm + 0x48, 3); // sh s3reg(=3)
-    c->mem_w8(sm + 0x68, 3);  // sb v0(=3)
-    tomba::requestGuestContinuation(*c, TAIL_CF2C);
-  } else if (s6b == 2) { // s1reg
-    c->mem_w16(sm + 0x48, 3);
-    c->mem_w8(sm + 0x68, 2); // sb v0(=2)
-    tomba::requestGuestContinuation(*c, TAIL_CF2C);
-  } else {
-    tomba::requestGuestContinuation(*c, TAIL_REND);
-  }
 }
 
 // ===========================================================================================
@@ -399,7 +214,7 @@ void Demo::s0() {
 //     sm[0x4a]) is PRE-yield, plus phase2's teardown (0x80106dfc: jal 0x80074bc4 SYNC ; *0x1f80019a=0 ;
 //     sm[0x48]=0) is all-SYNC. We own phase selection + phase2 native, guest-continuation phase0/phase1 (which
 //     yield) into the guest body. REACH (the prior "confirm a menu option" assumption was WRONG): s7 is the
-//     ATTRACT-demo auto-launch — `tap 4008` (title s2->s3) then run ~455 frames so s3's intro timer sm[0x5a]
+//     ATTRACT-demo auto-launch — idle on the title menu ~455 frames so s2's intro timer sm[0x5a]
 //     (450) expires -> sm[0x48]->7 auto. Verified fires at all phases + A/B 0-diff at steady phase1 (only the
 //     coro saved-ra slot differs) + phase2 restart clean (poke sm[0x4a]=2). See ov_demo_s7_phase + later-208.
 // s0 (above) is owned because it has genuine pre-yield engine state to own (init writes + substate sel).
@@ -446,7 +261,7 @@ void Demo::s0() {
 //     the 0x80106c24 stack frame (no prologue push), so there is nothing for the guest epilogue to restore;
 //     ra at entry is already 0x8010666c (set by the trampoline's jal). 0x80106670 re-establishes its own
 //     v0/v1/a0 (frame-ctr++ then the single yield), independent of s0/s1/ra/sp — so this is correct WITHOUT
-//     replicating the s7-frame epilogue. This mirrors s2/s3/s6 redirecting to a TAIL.
+//     replicating the s7-frame epilogue. This mirrors s2/s6 redirecting to a TAIL.
 //   - phase0 / phase1 — DEEP-YIELD, so they MUST run IN-CONTEXT. We replicate the prologue's stack frame
 //     (sp-=40; sw incoming ra@32, s1@28, s0@24) so the body's eventual `jr ra` epilogue restores the
 //     incoming ra (0x8010666c) and returns to the trampoline correctly. We set s0=0x1f800000 and s1=1 (the
@@ -648,10 +463,10 @@ static void demo_frame_s1(Core *c) {
   }
 }
 
-// Substate s2 (0x80106464) — title/menu sub-machine 0x8010696C (sets the intro timer sm[0x5a]=450,
-// runs the title input). Outcome 1 -> s7 (attract launch); outcome 2 -> cursor two-phase (first pass
-// -> s3, second pass -> s4). All paths end with TAIL_REND (attract render 0x80075A80 — draws the
-// title). Mirrors ov_demo_s2 but return-based + runs the tail render inline. (Faithful to 0x80106464.)
+// Substate s2 (0x80106464) — the title menu, sub-machine 0x8010696C (sets the intro timer sm[0x5a]=450, runs the
+// title input). Outcome 1 -> s7 (attract launch); outcome 2 runs the selected item (TitleMenu::Item in sm[0x68]):
+// New Game -> s5 as retail's Start Game does from s3, Load Game -> s4, Options -> s6 as retail's s3 does. Retail's
+// second list s3 (Start Game / Options) is never entered. All paths end with TAIL_REND (attract render 0x80075A80).
 static void demo_tail_rend(Core *c);
 static void demo_tail_cf2c(Core *c);
 
@@ -664,20 +479,33 @@ static void demo_frame_s2(Core *c) {
     c->mem_w16(sm + 0x48, 7);
     c->mem_w16(sm + 0x4a, 0);
     c->mem_w16(sm + 0x4c, 0);
-  } else if (v0 == 2) { // cursor two-phase
-    if (c->mem_r8(sm + 0x68) == 0) {
-      c->mem_w16(sm + 0x48, 3);
-      c->mem_w8(sm + 0x68, 2);
-    } else {
+  } else if (v0 == 2) {
+    switch (c->mem_r8(sm + 0x68)) {
+    case TitleMenu::kNewGame: // -> s5 (start GAME)
+      c->mem_w16(sm + 0x48, 5);
+      c->mem_w8(sm + 0x68, 0);
+      c->mem_w8(0x1f800134u, 0);
+      break;
+    case TitleMenu::kLoadGame: // -> s4
       c->mem_w8(sm + 0x68, 0);
       c->mem_w16(sm + 0x48, 4);
       c->mem_w16(sm + 0x50, 0);
       c->mem_w8(sm + 0x6b, 0);
       c->r[31] = 0x801064DCu;
-      psx::cpu::callGuestNow(*c, __func__, 0x8001cf2cu);
-      c->mem_w8(0x800bf84au, 0); // engine update (SYNC)
+      psx::cpu::callGuestNow(*c, __func__, 0x8001cf2cu); // engine update (SYNC)
+      c->mem_w8(0x800bf84au, 0);
+      c->mem_w16(sm + 0x4a, 0);
+      break;
+    default: // Options -> s6 (sub-page)
+      c->mem_w8(sm + 0x68, 0);
+      c->mem_w16(sm + 0x48, 6);
+      c->mem_w8(sm + 0x6b, 0);
+      c->mem_w16(sm + 0x50, 0);
+      c->r[31] = 0x8010655Cu;
+      psx::cpu::callGuestNow(*c, __func__, 0x800750d8u); // page close (SYNC)
+      c->mem_w8(0x800bf808u, 0);
+      break;
     }
-    c->mem_w16(sm + 0x4a, 0);
   }
   demo_tail_rend(c); // 0x80075A80 — TAIL_REND (forked below)
 }
@@ -694,39 +522,6 @@ static void demo_tail_cf2c(Core *c) {
   demo_tail_75a80(c);
 }
 
-// Substate s3 (0x801064E8) — main-menu sub-machine 0x80106AC4 (mirror of 0x8010696C). Return-based
-// twin of ov_demo_s3. Outcome 1 -> s7 (attract); 2 -> phase on sm[0x68]: ==2 -> s5 (LEAVE DEMO/New
-// Game) clearing *0x1F800134; else -> s6 (sub-page); 3 (back/cancel) -> s2. All paths end TAIL_REND.
-static void demo_frame_s3(Core *c) {
-  c->r[31] = 0x801064F0u;
-  psx::cpu::callGuestNow(*c, __func__, 0x80106ac4u); // main-menu sub-machine (SYNC)
-  uint32_t v0 = c->r[2];
-  uint32_t sm = c->mem_r32(SM_PTR);
-  if (v0 == 1) { // -> s7
-    c->mem_w16(sm + 0x48, 7);
-    c->mem_w16(sm + 0x4a, 0);
-    c->mem_w16(sm + 0x4c, 0);
-  } else if (v0 == 2) {
-    if (c->mem_r8(sm + 0x68) == 2) { // -> s5 (start GAME)
-      c->mem_w16(sm + 0x48, 5);
-      c->mem_w8(sm + 0x68, 0);
-      c->mem_w8(0x1f800134u, 0);
-    } else { // -> s6 (sub-page)
-      c->mem_w8(sm + 0x68, 0);
-      c->mem_w16(sm + 0x48, 6);
-      c->mem_w8(sm + 0x6b, 0);
-      c->mem_w16(sm + 0x50, 0);
-      c->r[31] = 0x8010655Cu;
-      psx::cpu::callGuestNow(*c, __func__, 0x800750d8u);
-      c->mem_w8(0x800bf808u, 0); // page close (SYNC)
-    }
-  } else if (v0 == 3) { // back -> s2
-    c->mem_w16(sm + 0x48, 2);
-    c->mem_w8(sm + 0x68, 0);
-  }
-  demo_tail_rend(c);
-}
-
 // Substate s5 (0x801065DC) — LEAVE DEMO: the body is `jal 0x80052078(2)` (switch task 0 to stage 2 =
 // GAME). Native: call the stage transition; the scheduler detects the DEMO->GAME entry change and hands
 // off to GAME next frame (native_boot.cpp). No tail render (we are leaving the front-end).
@@ -735,8 +530,8 @@ static void demo_frame_s5(Core *c) {
 }
 
 // Substate s4 (0x80106580) — LOAD GAME. The body runs the load sub-machine 0x8007bf20(0,0) then routes
-// on sm[0x6b]: ==7 -> s5 (load complete, start GAME, *0x1f800134=1); ==1/2 -> back to s2 (cancel/back =
-// the TITLE); else stay in s4 (continue the slot browser). NB the root dispatcher 0x801062E4 prologue
+// on sm[0x6b]: ==7 -> s5 (load complete, start GAME, *0x1f800134=1); ==1/2 -> back to s2 on Load Game (retail picks
+// Load Game or New Game); else stay in s4 (continue the slot browser). NB the root dispatcher 0x801062E4 prologue
 // loads s2=1, s1=2, s3=3 — so 0x80106580's `sh s1,0x48` writes sm[0x48]=2 (TITLE), not 1 (which would
 // replay the opening movie). All transition paths run TAIL_CF2C
 // (engine update 0x8001cf2c + attract render 0x80075a80); stay-path runs TAIL_REND only.
@@ -752,17 +547,11 @@ static void demo_frame_s4(Core *c) {
   tomba::scene::stepCardLoadMachine(*c, {.mode = 0u, .inGame = 0u}); // = jal 0x8007bf20(0,0), native+sync
   uint32_t sm = c->mem_r32(SM_PTR);
   uint8_t s6b = c->mem_r8(sm + 0x6b);
-  if (s6b == 1) {
+  if (s6b == 1 || s6b == 2) { // back -> the title menu on Load Game
     c->mem_w16(sm + 0x48, 2);
-    c->mem_w8(sm + 0x68, 1);
+    c->mem_w8(sm + 0x68, TitleMenu::kLoadGame);
     demo_tail_cf2c(c);
-  } // back -> title
-  else if (s6b == 2) {
-    c->mem_w16(sm + 0x48, 2);
-    c->mem_w8(sm + 0x68, 0);
-    demo_tail_cf2c(c);
-  } // back -> title
-  else if (s6b == 7) {
+  } else if (s6b == 7) {
     c->mem_w16(sm + 0x48, 5);
     c->mem_w8(0x1f800134u, 1);
     demo_tail_cf2c(c);
@@ -772,31 +561,27 @@ static void demo_frame_s4(Core *c) {
   }
 }
 
-// Substate s6 (0x801065EC) — page sub-machine 0x8007B45C; if sm[0x50]==3 fire the commit pair
-// 0x80106824(1,1)+0x80106690(1). Then on sm[0x6b]: ==1 -> s3 (sm[0x68]=3); ==2 -> s3 (sm[0x68]=2); both
-// end TAIL_CF2C; else stay -> TAIL_REND. Return-based twin of ov_demo_s6.
+// Substate s6 (0x801065EC) — the Options page, sub-machine 0x8007B45C; if sm[0x50]==3 draw the title list with
+// Options selected and its edges (retail's 0x80106824(1,1) + 0x80106690(1)). Then on sm[0x6b] 1 or 2 (retail: s3 with
+// Options or Start Game selected) -> s2 with Options selected, TAIL_CF2C; else stay -> TAIL_REND.
 static void demo_frame_s6(Core *c) {
   c->r[31] = 0x801065F4u;
   psx::cpu::callGuestNow(*c, __func__, 0x8007b45cu); // page sub-machine (SYNC)
   uint32_t sm = c->mem_r32(SM_PTR);
   if (c->mem_r16(sm + 0x50) == 3) {
-    c->r[4] = 1;
-    c->r[5] = 1;
+    c->r[4] = 0;
+    c->r[5] = TitleMenu::kOptions;
     c->r[31] = 0x80106618u;
-    psx::cpu::callGuestNow(*c, __func__, 0x80106824u); // commit (a0=1,a1=1)
+    psx::cpu::callGuestNow(*c, __func__, Demo::kTitleItems);
     c->r[4] = 1;
     c->r[31] = 0x80106620u;
-    psx::cpu::callGuestNow(*c, __func__, 0x80106690u); // commit2 (a0=1)
+    psx::cpu::callGuestNow(*c, __func__, Demo::kTitleEdges);
     sm = c->mem_r32(SM_PTR);
   }
-  uint8_t s6b = c->mem_r8(sm + 0x6b);
-  if (s6b == 1) {
-    c->mem_w16(sm + 0x48, 3);
-    c->mem_w8(sm + 0x68, 3);
-    demo_tail_cf2c(c);
-  } else if (s6b == 2) {
-    c->mem_w16(sm + 0x48, 3);
-    c->mem_w8(sm + 0x68, 2);
+  const uint8_t s6b = c->mem_r8(sm + 0x6b);
+  if (s6b == 1 || s6b == 2) {
+    c->mem_w16(sm + 0x48, 2);
+    c->mem_w8(sm + 0x68, TitleMenu::kOptions);
     demo_tail_cf2c(c);
   } else {
     demo_tail_rend(c);
@@ -911,9 +696,6 @@ void Demo::frame() {
     break;
   case 2:
     demo_frame_s2(c);
-    break;
-  case 3:
-    demo_frame_s3(c);
     break;
   case 4:
     demo_frame_s4(c);

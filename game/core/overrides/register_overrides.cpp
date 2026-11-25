@@ -210,7 +210,7 @@ void register_engine_overrides(Game &game, native::NativeOverrideCatalog &native
   RegisterSopIntroEventOverrides(
       natives); // SOP intro-cutscene sub-tick/sub-motion/timer cluster
                 // (0x8010AF60/8010B078/8010B11C/8010B2D4/8010B44C/8010BEAC/8010B588); see issue 0015
-  Demo::registerOverrides(natives); // main-menu title cursor sub-machine (0x80106AC4)
+  Demo::registerOverrides(natives); // title menu sub-machine (0x8010696C)
   TitleMenu::registerOverrides(natives);
   scene::CardCheck::registerOverrides(natives);
 }
