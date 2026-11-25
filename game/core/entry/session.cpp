@@ -35,6 +35,7 @@ Session::Session(Core &core)
   engine.cull.core = c;
   engine.sceneEvents.core = c;
   engine.sfx.core = c;
+  engine.songSwitch.core = c;
   engine.audioDispatch.core = c;
   engine.sequencer.core = c;
   engine.areaSlots.core = c;

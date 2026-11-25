@@ -71,6 +71,7 @@ set(GAME_SRC
   game/scene/script_interp_entry.cpp
   game/scene/script_opcode.cpp
   game/audio/sfx.cpp
+  game/audio/song_switch.cpp
   game/audio/audio.cpp
   game/audio/audio_dispatch.cpp
   game/audio/sequencer.cpp

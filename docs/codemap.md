@@ -70,7 +70,7 @@ Frame loop: owned. `tomba::FrameDriver` runs one pass of `0x80050B08` (update `0
 | `ContinueSave` | `game/scene/continue_save.h` | The title's Continue: the card's Tomba! 2 save written last (`Memcard::writtenAt`, else longest played), loaded through CRD's `CardLoad_openRead`/`CardLoad_verifyApply` |
 | `SceneEvents`, `ParallaxBg`, `ModeStateArm` | `game/scene/` | Scene-event arms, the SOP parallax background, mode-state arms |
 | `Sequencer` | `game/audio/sequencer*.cpp` | libsnd's per-VBlank sequencer and its channel leaves |
-| `Sfx`, `AudioDispatch`, `MusicCoord`, `MusicList` | `game/audio/` | Sound effects, field audio dispatch, music coordination, Sound Test and area BGM |
+| `Sfx`, `AudioDispatch`, `MusicCoord`, `MusicList`, `SongSwitch` | `game/audio/` | Sound effects, field audio dispatch, music coordination, Sound Test and area BGM, the sequenced-song switcher (a tone under a pause sting resumes where it stopped) |
 | `NativeMusic` | `game/audio/native_music.h`, `game/audio/native_audio.h` | The real-time SEP/VAB music player mixed into the SPU sink |
 | `tomba::Audio` | `game/audio/audio.h` | The `TitleAudio`: mixes `NativeMusic`, names the song, plays a Sound Test entry |
 | `CutsceneCamera`, `LookAngleBuilder` | `game/camera/` | The cutscene/free camera, its look builder, mode table and guest math |

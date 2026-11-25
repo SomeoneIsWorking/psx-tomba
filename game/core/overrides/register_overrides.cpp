@@ -153,6 +153,7 @@ void register_engine_overrides(Game &game, native::NativeOverrideCatalog &native
   eng(c).bgSceneTransitionSm.registerOverrides(natives); // BG scene-transition opcode leaves (0x80042758/80042884)
   eng(c).audioDispatch.registerOverrides(natives);       // field-audio BGM start/override leaves (0x80075024/80075070)
   eng(c).sfx.registerOverrides(natives);                 // SFX trigger wrapper (0x80074810)
+  eng(c).songSwitch.registerOverrides(natives);          // song switcher (0x80074BF8, 0x80074E48)
   SceneEvents::registerOverrides(natives); // scene-event ARM FUN_80040B48 (sole owner; deduped from cube_text_ledger)
   CubeTextLedger::registerOverrides(natives); // cube-text popup ledger deactivate/spawn (0x80040C00/80040AA4)
   tomba::player::ActorTomba::registerOverrides(

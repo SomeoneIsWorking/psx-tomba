@@ -303,6 +303,8 @@ calls it. A row whose handler is file-local names the file that declares the ove
 | 0x80074A38 | LIVE | `AreaSlots::registerOverrides` | game/world/area_slots.cpp |  |  |
 | 0x80074AF0 | LIVE | `AreaSlots::ackIfMatch` | game/world/area_slots.cpp |  | AreaSlots::ackIfMatch — FUN_80074AF0 body. Pure 21-instruction primiti… |
 | 0x80074BC4 | LIVE | `AudioDispatch::settleField` | game/audio/audio_dispatch.cpp | 0x8001CF2C 0x80074B44 0x80074E48 | AudioDispatch::settleField — native ownership of FUN_80074BC4 (Ghidra … |
+| 0x80074BF8 | LIVE | `SongSwitch::play` | game/audio/song_switch.cpp | 0x800963A0 0x80091F50 0x80090560 0x80091050 0x80091910 | the sequenced-song switcher; a tone parked under a sting is paused and replayed |
+| 0x80074E48 | LIVE | `SongSwitch::stop` | game/audio/song_switch.cpp | 0x80091AF0 0x800963A0 | stops the current song and releases its slots |
 | 0x80074F24 | LIVE | `Pool::selectStateIndex` | game/world/pool.cpp |  | per-area STATE-INDEX select + apply. Early-out if scratchpad 0x1F80013… |
 | 0x80075024 | LIVE | `AudioDispatch::selectStateRemap` | game/audio/audio_dispatch.cpp | 0x800750D8 | AudioDispatch::selectStateRemap — native ownership of FUN_80075024. Ma… |
 | 0x80075070 | LIVE | `AudioDispatch::publishStateFade` | game/audio/audio_dispatch.cpp | 0x80075CEC | AudioDispatch::publishStateFade — native ownership of FUN_80075070. Pu… |

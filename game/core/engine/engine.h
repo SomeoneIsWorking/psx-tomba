@@ -26,6 +26,7 @@
 #include "audio/music_coord.h"    // Engine owns the MusicCoord dialog↔music coordination
 #include "audio/sequencer.h" // Engine owns the Sequencer libsnd tick wrapper (FUN_800909C0, wide-RE draft, unwired)
 #include "audio/sfx.h"       // Engine owns the Sfx trigger subsystem (FUN_80074590)
+#include "audio/song_switch.h"
 #include "bg_scene_transition_sm.h"   // Engine owns the BG scene-transition fade manager
 #include "core/assets/asset.h"        // Engine owns the Asset loader subsystem
 #include "core/frame/frame_cadence.h" // Engine owns FrameCadence — the one frame-rate decision
@@ -177,6 +178,7 @@ public:
   Cull cull;                                 // per-object visibility cull
   SceneEvents sceneEvents;                   // field-wide scene-event arm primitive (FUN_80040B48)
   Sfx sfx;                                   // sound-FX trigger dispatcher (FUN_80074590)
+  SongSwitch songSwitch;                     // sequenced-song switcher (FUN_80074BF8 / E48)
   AudioDispatch audioDispatch;               // field-audio dispatch/settle cluster
                                              // (FUN_800750D8 et al.)
   tomba::audio::Sequencer sequencer;         // libsnd per-VBlank tick wrapper and channel leaves
