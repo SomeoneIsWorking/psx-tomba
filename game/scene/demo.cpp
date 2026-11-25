@@ -19,6 +19,7 @@
 #include "game.h"
 #include "guest_call.h"
 #include "sched/scheduler.h"
+#include "title_menu.h"
 #include "world/placement.h" // ov_place_objects (FUN_80072A78)
 #include "world/pool.h"      // ov_pool_init_run (FUN_8007B18C) + siblings
 #include <lucent/log.h>
@@ -175,12 +176,12 @@ uint32_t Demo::s3SubMachine() {
       uint8_t cursor;
       uint8_t cmp;
       bool haveCmp = true;
-      if (edges & 0x20u) { // Right
+      if (edges & TitleMenu::kNext) {
         cursor = 3;
         cmp = c->mem_r8(sm + 0x68);
       } else {
         cursor = 2;
-        if (edges & 0x80u) { // Left
+        if (edges & TitleMenu::kPrevious) {
           cmp = c->mem_r8(sm + 0x68);
         } else if (edges & 0x4008u) { // Confirm
           eng(c).sfx.trigger({.id = 0x11, .pan = 0, .pitchBend = 0});
@@ -251,15 +252,15 @@ uint32_t Demo::s2SubMachine() {
       result = 1; // attract launch
     } else {
       uint16_t edges = c->mem_r16(0x800e7e68u);
-      c->r[17] = c->r[0] + 1u; // s1 = 1 (SFX callee spills it)
-      if (edges & 0x20u) {     // Right -> select item 1 (Load Game)
+      c->r[17] = c->r[0] + 1u;        // s1 = 1 (SFX callee spills it)
+      if (edges & TitleMenu::kNext) { // select item 1 (Load Game)
         if (c->mem_r8(sm + 0x68) != 1) {
           c->r[31] = 0x80106AA4u;
           eng(c).sfx.trigger({.id = 0x15, .pan = 0, .pitchBend = 0});
         }
         c->mem_w8(sm + 0x68, 1);
         c->mem_w16(sm + 0x4a, 0);
-      } else if (edges & 0x80u) { // Left -> select item 0 (New Game)
+      } else if (edges & TitleMenu::kPrevious) { // select item 0 (New Game)
         if (c->mem_r8(sm + 0x68) != 0) {
           c->r[31] = 0x80106A78u;
           eng(c).sfx.trigger({.id = 0x15, .pan = 0, .pitchBend = 0});

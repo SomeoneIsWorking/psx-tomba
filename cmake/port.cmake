@@ -229,6 +229,7 @@ set(GAME_SRC
   game/scene/sop.cpp
   game/scene/narration_scroller.cpp
   game/scene/demo.cpp
+  game/scene/title_menu.cpp
   game/scene/str_movie.cpp
   game/scene/ending.cpp
   game/scene/card_load_machine.cpp

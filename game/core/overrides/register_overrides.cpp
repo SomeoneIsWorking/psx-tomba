@@ -27,11 +27,11 @@
 #include "sway_schedule.h"          // class SwaySchedule — rocking-rate schedule + sway tick (0x8012D27C)
 #include "tilt_follower.h"          // class TiltFollower — half-tilt follower leaf (0x80125FE0)
                                     //   + its per-visible-frame rig pose (0x801389C8)
-#include "actor_melee_engage.h"   // class ActorMeleeEngage — A00-overlay melee-engage/reposition/arm leaf
-#include "actor_sm_reward.h"      // class ActorReward — reward/tally window actor SM family
-#include "actor_tomba.h"          // class ActorTomba — Tomba's postInteractWalk sub-handler leaves
-#include "actor_zoned_attacker.h" // class ActorZonedAttacker — 0x8014xxxx zoned-attacker sub-behavior cluster
-#include "assembly_rider.h"       // class AssemblyRider — pump arm-end rider per-frame tick (0x80118B10)
+#include "actor_melee_engage.h"     // class ActorMeleeEngage — A00-overlay melee-engage/reposition/arm leaf
+#include "actor_sm_reward.h"        // class ActorReward — reward/tally window actor SM family
+#include "actor_tomba.h"            // class ActorTomba — Tomba's postInteractWalk sub-handler leaves
+#include "actor_zoned_attacker.h"   // class ActorZonedAttacker — 0x8014xxxx zoned-attacker sub-behavior cluster
+#include "assembly_rider.h"         // class AssemblyRider — pump arm-end rider per-frame tick (0x80118B10)
 #include "backdrop_plane.h"
 #include "backdrop_sprites.h"
 #include "collision_resolve.h" // class CollisionResolve — actor-vs-object cylinder resolve (0x80023D48)
@@ -73,6 +73,7 @@
 #include "substate_edge_native.h" // class SubstateEdgeLeaves — authored child-oscillator loop (0x801316CC)
 #include "sway_model_emitter.h"   // class SwayModelEmitter — A01 sway, scroll and cue emitters
 #include "tile_grid_layer.h" // class TileGridLayer — A00-overlay field scroll-wrap + tile-grid sprite emitter (0x8011534C/0x80115598)
+#include "title_menu.h"
 #include "ui/ui_sprite.h"        // class UiSprite — 2D sprite emitters (0x8007E1B8/0x8007E6DC)
 #include "unlit_model_emitter.h" // class UnlitModelEmitter — resident and SOP/A0B/A0C GT3/GT4 emitters
 #include "widescreen_margin_quad.h" // class WidescreenMarginQuad — A00-overlay widescreen-margin OT.GT4 emitter (0x8013CDD4)
@@ -165,22 +166,22 @@ void register_engine_overrides(Game &game, native::NativeOverrideCatalog &native
   RegisterEngineAnimLeafOverrides(natives); // Engine::animTick/walkStart fallthrough native-ize (0x8004190C/80054D14)
   Trig::registerOverrides(natives); // Trig::rsin/ratan2/angleCmp fallthrough native-ize (0x80083E80/80085690/80077768)
   Mtx::registerOverrides(natives);  // MR_init identity-matrix leaf (0x80051794)
-  startup_overrides_install(natives);             // Engine::allocRecordForSelector (0x8008913C)
-  id_routed_leaves_install(natives);              // id-routed state-1 common tail (0x80122BF4)
-  PlacedPropSm::registerOverrides(natives);       // placed scene-prop behaviour handler (0x80040558)
-  ActorTargeting::registerOverrides(natives);     // acquire a target: reach, band, arc (0x8001FAE0)
-  HazardFall::registerOverrides(natives);         // death floor substate; pit void-out mod (0x800678E8)
-  Airborne::registerOverrides(natives);           // airborne step and ledge drop; suit gates (0x800574E0, 0x80056C00)
-  ActionModes::registerOverrides(natives);        // action modes 3, 6, 0x10; glide gates
-  WaterEntry::registerOverrides(natives);         // water landing, A00 floor tick; swim gates
-  RunSpeed::registerOverrides(natives);           // x speed step; winged steer and snow grip gates (0x80055FBC)
-  ColdField::registerOverrides(natives);          // A05 cold field tick and ice crust; cold gates (0x8010A854, 0x8012E454)
-  ClimbStep::registerOverrides(natives);          // climb step; winged boost (0x80062A30)
-  FreezeTouch::registerOverrides(natives);        // A04 contact loop; freeze gate (0x8010F1CC)
-  SnowFieldTick::registerOverrides(natives);      // A04 floor tick; winged-suit gate (0x8010B024)
-  UpdraftContact::registerOverrides(natives);     // A01 vents (0x8010D90C), A0B updraft (0x8010A93C)
-  PipeAreaTick::registerOverrides(natives);       // A01 floor tick; flutter sink (0x8010C7BC)
-  ActorBump::registerOverrides(natives);          // actor bump: interact / push apart / recoil (0x8010EA80)
+  startup_overrides_install(natives);         // Engine::allocRecordForSelector (0x8008913C)
+  id_routed_leaves_install(natives);          // id-routed state-1 common tail (0x80122BF4)
+  PlacedPropSm::registerOverrides(natives);   // placed scene-prop behaviour handler (0x80040558)
+  ActorTargeting::registerOverrides(natives); // acquire a target: reach, band, arc (0x8001FAE0)
+  HazardFall::registerOverrides(natives);     // death floor substate; pit void-out mod (0x800678E8)
+  Airborne::registerOverrides(natives);       // airborne step and ledge drop; suit gates (0x800574E0, 0x80056C00)
+  ActionModes::registerOverrides(natives);    // action modes 3, 6, 0x10; glide gates
+  WaterEntry::registerOverrides(natives);     // water landing, A00 floor tick; swim gates
+  RunSpeed::registerOverrides(natives);       // x speed step; winged steer and snow grip gates (0x80055FBC)
+  ColdField::registerOverrides(natives);      // A05 cold field tick and ice crust; cold gates (0x8010A854, 0x8012E454)
+  ClimbStep::registerOverrides(natives);      // climb step; winged boost (0x80062A30)
+  FreezeTouch::registerOverrides(natives);    // A04 contact loop; freeze gate (0x8010F1CC)
+  SnowFieldTick::registerOverrides(natives);  // A04 floor tick; winged-suit gate (0x8010B024)
+  UpdraftContact::registerOverrides(natives); // A01 vents (0x8010D90C), A0B updraft (0x8010A93C)
+  PipeAreaTick::registerOverrides(natives);   // A01 floor tick; flutter sink (0x8010C7BC)
+  ActorBump::registerOverrides(natives);      // actor bump: interact / push apart / recoil (0x8010EA80)
   ActorObjectContact::registerOverrides(natives); // actor-vs-object hit / proximity contact (0x8010E258)
   RopeSwing::registerOverrides(natives);          // hanging rope: spring swing + per-segment bend (0x801281B8)
   TiltFollower::registerOverrides(natives);       // pitch at half the owner sub-part's tilt (0x80125FE0)
@@ -210,6 +211,7 @@ void register_engine_overrides(Game &game, native::NativeOverrideCatalog &native
       natives); // SOP intro-cutscene sub-tick/sub-motion/timer cluster
                 // (0x8010AF60/8010B078/8010B11C/8010B2D4/8010B44C/8010BEAC/8010B588); see issue 0015
   Demo::registerOverrides(natives); // main-menu title cursor sub-machine (0x80106AC4)
+  TitleMenu::registerOverrides(natives);
   scene::CardCheck::registerOverrides(natives);
 }
 
