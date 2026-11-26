@@ -155,6 +155,8 @@ void Render::drawSync() {
 // s17=entryCount).
 void Render::clearOTagR() {
   Core *c = mCore;
+  // The table is rebuilt: packets a title linked into its last build go with it.
+  c->hostPackets.discard(c->r[4] + ((c->r[5] - 1u) * 4u));
   c->r[29] -= 32;
   c->mem_w32(c->r[29] + 16, c->r[16]);
   c->r[16] = c->r[4]; // s16 = OT

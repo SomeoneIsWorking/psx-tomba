@@ -27,6 +27,7 @@
 #include "list_job.h"
 
 #include <cstdint>
+#include <optional>
 
 struct Core;
 class Game;
@@ -49,6 +50,8 @@ public:
     ListDepth gt3;
     ListDepth gt4;
   };
+  // FUN_801401B8, the entity loop: the site of every vertex the leaves place.
+  static constexpr std::uint32_t kEntityLoop = 0x801401B8u;
   static constexpr std::int32_t kModeBias = 0x64;
   // View depth (SZ) one ground sort slot spans at the village's depths (band 3).
   static constexpr float kBucketDepth = 8.0f;
@@ -76,6 +79,36 @@ public:
   static void registerOverrides(native::NativeOverrideCatalog &natives);
   // A00's ground cells test depth per pixel: the bucket sort misorders a ladder against the hut wall it leans on.
   static void markDepth(Core &core);
+
+private:
+  // Which winding the backface gate reads: the guest's NCLIP over whole pixels, or the corners' places.
+  enum class Facing : std::uint8_t { Words, Places };
+  // A record's packet at `pool`: the bucket it links into, none when a gate drops it. `sliver`: only the whole-pixel
+  // winding dropped it, its places facing the camera.
+  struct Emitted {
+    std::optional<std::uint32_t> bucket;
+    bool sliver = false;
+  };
+  static Emitted gt3Record(const psx::present::EmitMemory &memory,
+                           std::uint32_t rec,
+                           std::uint32_t pool,
+                           std::uint32_t sp,
+                           const ListDepth &depth,
+                           Facing facing);
+  static Emitted gt4Record(const psx::present::EmitMemory &memory,
+                           std::uint32_t rec,
+                           std::uint32_t pool,
+                           std::uint32_t sp,
+                           const ListDepth &depth,
+                           Facing facing);
+  // A sliver the console's whole pixels cover and places open above native scale: the record is built over host
+  // memory and drawn first in its OT slot, the guest's RAM and GTE left as the guest's cull left them.
+  static void drawSliver(const psx::present::EmitMemory &memory,
+                         const tomba::render::ListCall &call,
+                         std::uint32_t rec,
+                         std::uint32_t pool,
+                         const ListDepth &depth,
+                         bool quad);
 };
 
 } // namespace tomba

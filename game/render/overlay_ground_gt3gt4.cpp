@@ -64,6 +64,7 @@
 #include <array>
 #include <cstdint>
 #include <lucent/log.h>
+#include <span>
 #include <string_view>
 
 // -- the two fixed SCRATCHPAD words this leaf pair uses as spilled locals (0x1F800000/0x1F800004
@@ -91,6 +92,18 @@ static int32_t ground_otz_index(int32_t z) {
   return OrderingTable::bucketOf(z);
 }
 
+namespace {
+
+// Twice the signed area of the corners RTPT left, at their places: NCLIP's MAC0 before whole pixels.
+float placedArea(Core &core) {
+  const GtePlace p0 = core.gte().projected(0).place();
+  const GtePlace p1 = core.gte().projected(1).place();
+  const GtePlace p2 = core.gte().projected(2).place();
+  return ((p1.x - p0.x) * (p2.y - p0.y)) - ((p2.x - p0.x) * (p1.y - p0.y));
+}
+
+} // namespace
+
 // Flag&3==1 takes the farthest SZ, ==2 the nearest; both end in the guest's `>> 2` before the OTZ
 // store (L_8013FD38 and L_80140100), which the AVSZ path does not have.
 // FUN_8013FB88 — ground/scene POLY_GT3 emit. Record = 36 bytes, SAME field layout as the
@@ -117,7 +130,6 @@ static int32_t ground_otz_index(int32_t z) {
 uint32_t OverlayGroundGt3Gt4::emitGt3(const psx::present::EmitMemory &memory,
                                       const tomba::render::ListCall &call,
                                       const ListDepth &depth) {
-  Core *const c = &memory.core();
   uint32_t rec = call.list, count = call.count;
   if (count == 0) {
     return rec;
@@ -129,99 +141,14 @@ uint32_t OverlayGroundGt3Gt4::emitGt3(const psx::present::EmitMemory &memory,
 
   for (; count != 0; count--, rec += 36) {
     packets.reserve(pool, tomba::render::kModelGt3.packetBytes);
-    c->gte().writeData(0, memory.mem_r32(rec + 16)); // VXY0
-    uint32_t vz01 = memory.mem_r32(rec + 20);
-    c->gte().writeData(2, memory.mem_r32(rec + 24)); // VXY1
-    c->gte().writeData(1, vz01);                     // VZ0
-    c->gte().writeData(4, memory.mem_r32(rec + 28)); // VXY2
-    c->gte().writeData(3, vz01 >> 16);               // VZ1
-    c->gte().writeData(5, memory.mem_r32(rec + 32)); // VZ2(lo)|uv2hi(hi)
-    uint32_t rgb0_code = memory.mem_r32(rec + 0);
-    memory.mem_w32(pool + 4, rgb0_code); // rgb0 -- unconditional
-    c->gte().execute(0x4A280030u);       // RTPT
-
-    // uv0/uv1 -- UNCONDITIONAL right after RTPT (gen writes these before ANY gate, including the
-    // GTE FLAG check below); see banner.
-    uint32_t uv0 = memory.mem_r32(rec + 8), uv1 = memory.mem_r32(rec + 12);
-    memory.mem_w32(pool + 12, uv0);
-    memory.mem_w32(pool + 24, uv1);
-
-    uint32_t rgb1_src = memory.mem_r32(rec + 4);
-    uint32_t flagreg = c->gte().readControl(31);
-    memory.mem_w32(SCRATCH_FLAG_TMP, flagreg);
-    if ((int32_t)memory.mem_r32(SCRATCH_FLAG_TMP) < 0) {
-      continue; // GTE FLAG error -> drop record
+    const Emitted emitted = gt3Record(memory, rec, pool, sp, depth, Facing::Words);
+    if (emitted.bucket) {
+      tomba::render::OrderingTable(memory, call.ot)
+          .link({.packet = pool, .words = TAG_WORDS_GT3, .bucket = *emitted.bucket});
+      pool += 40;
+    } else if (emitted.sliver) {
+      drawSliver(memory, call, rec, pool, depth, false);
     }
-
-    c->gte().execute(0x4B400006u); // NCLIP (backface / MAC0)
-    uint32_t rgb1 = rgb1_src & COL_MASK_GROUND;
-    memory.mem_w32(pool + 16, rgb1);
-    memory.mem_w32(SCRATCH_FLAG_TMP, c->gte().readData(24)); // MAC0
-    if ((int32_t)memory.mem_r32(SCRATCH_FLAG_TMP) <= 0) {
-      continue; // backface cull
-    }
-
-    memory.storeVertex(pool + 8, c->gte().projected(0));  // SXY0
-    memory.storeVertex(pool + 20, c->gte().projected(1)); // SXY1
-    memory.storeVertex(pool + 32, c->gte().projected(2)); // SXY2
-
-    // The recovered screen-edge cull, triangle form: OR over the three corners on each axis, the two
-    // axes AND-ed, every compare UNSIGNED so a negative projected coordinate fails it. The bound comes
-    // from the window the port draws into (see horizontal_visibility_cull.h for the census that
-    // established that no guest owner derives one); at 4:3 this is the literal 320/240 it replaced,
-    // bit for bit. The vertical half of the bound is a constant because widening OFX at unchanged OFY
-    // and H leaves the vertical field of view alone.
-    const psx::present::ScreenCull visible = tomba::horizontal_cull::forDrawWindow(c);
-    const std::uint32_t sx[3] = {memory.mem_r16(pool + 8), memory.mem_r16(pool + 20), memory.mem_r16(pool + 32)};
-    const std::uint32_t sy[3] = {memory.mem_r16(pool + 10), memory.mem_r16(pool + 22), memory.mem_r16(pool + 34)};
-    if (!visible.keeps(sx, sy, 3, psx::present::CornerDomain::Packed16)) {
-      continue;
-    }
-
-    uint32_t rgb2 = (rgb1_src << 4) & COL_MASK_GROUND;
-    memory.mem_w32(pool + 28, rgb2); // rgb2 -- LATE, after the on-screen tests (unchanged)
-
-    uint32_t flagbyte = rgb1_src >> 24;
-    int32_t z;
-    uint32_t mode = flagbyte & 3u;
-    if (mode == 1u || mode == 2u) {
-      int32_t sz1 = (int32_t)c->gte().readData(17), sz2 = (int32_t)c->gte().readData(18),
-              sz3 = (int32_t)c->gte().readData(19);
-      // Guest-stack mirror (RE: overlay guest 0x8013FB88 L_8013FD00 vs L_8013FD54) — the ORIGINAL
-      // compiler inlined the same sz-minmax computation TWICE at two DIFFERENT dead-scratch stack
-      // offsets depending on mode: mode==1 writes to (new sp)+0/4/8, mode==2 writes to (new
-      // sp)+12/16/20. A prior draft always used the mode==1 offsets, so mode==2 records never
-      // touched (new sp)+12..+23 — the exact f179 SBS residual at 0x801FE924 (task-0 stack, this
-      // function's own frame at offset +20). Mirror the REAL offset per CLAUDE.md ("MIRROR THE
-      // GUEST STACK... never exclude a slot because it looks like dead scratch").
-      const uint32_t base = (mode == 1u) ? (sp - 24 + 0) : (sp - 24 + 12);
-      memory.mem_w32(base + 0, sz1);
-      memory.mem_w32(base + 4, sz2);
-      memory.mem_w32(base + 8, sz3); // real stack mirror
-      z = tomba::render::OrderingTable::extremeDepth(mode == 1u || !depth.modeTwoNearest, std::array{sz1, sz2, sz3});
-      if (mode == depth.biasedMode) {
-        z += kModeBias;
-      }
-      memory.mem_w32(SCRATCH_OTZ_TMP, z);
-    } else {
-      c->gte().execute(0x4B58002Du); // AVSZ3
-      z = (int32_t)c->gte().readData(7);
-      memory.mem_w32(SCRATCH_OTZ_TMP, z);
-    }
-
-    int32_t idx = ground_otz_index(z);
-    memory.mem_w32(SCRATCH_OTZ_TMP, (uint32_t)idx);
-    if (idx < 0) {
-      continue;
-    }
-
-    // uv2hi (16-bit, high half of rec+32) — a real guest write the guest instruction path performs at this
-    // packet slot; see file banner re: the field leaf not currently reproducing it.
-    memory.mem_w16(pool + 36, (uint16_t)(memory.mem_r32(rec + 32) >> 16));
-
-    tomba::render::OrderingTable(memory, call.ot)
-        .link({.packet = pool, .words = TAG_WORDS_GT3, .bucket = (uint32_t)idx});
-    pool += 40;
   }
 
   packets.setCursor(pool);
@@ -258,7 +185,6 @@ uint32_t OverlayGroundGt3Gt4::emitGt3(const psx::present::EmitMemory &memory,
 uint32_t OverlayGroundGt3Gt4::emitGt4(const psx::present::EmitMemory &memory,
                                       const tomba::render::ListCall &call,
                                       const ListDepth &depth) {
-  Core *const c = &memory.core();
   uint32_t rec = call.list, count = call.count;
   if (count == 0) {
     return rec;
@@ -270,114 +196,263 @@ uint32_t OverlayGroundGt3Gt4::emitGt4(const psx::present::EmitMemory &memory,
 
   for (; count != 0; count--, rec += 44) {
     packets.reserve(pool, tomba::render::kModelGt4.packetBytes);
-    c->gte().writeData(0, memory.mem_r32(rec + 20)); // VXY0
-    uint32_t vz01 = memory.mem_r32(rec + 24);
-    c->gte().writeData(2, memory.mem_r32(rec + 28)); // VXY1
-    c->gte().writeData(1, vz01);                     // VZ0
-    c->gte().writeData(4, memory.mem_r32(rec + 32)); // VXY2
-    c->gte().writeData(3, vz01 >> 16);               // VZ1
-    uint32_t vz23 = memory.mem_r32(rec + 36);
-    c->gte().writeData(5, vz23); // VZ2
-
-    uint32_t hdr0 = memory.mem_r32(rec + 0);
-    memory.mem_w32(pool + 4, hdr0 & COL_MASK_STD); // rgb0, STANDARD mask (differs from GT3's raw + from rgb1-3 below)
-    c->gte().execute(0x4A280030u);                 // RTPT (verts 0..2)
-    memory.mem_w32(pool + 16, (hdr0 << 4) & COL_MASK_GROUND); // rgb1
-
-    uint32_t rec4 = memory.mem_r32(rec + 4); // rgb2|flag -- loaded EARLY, before any gate
-
-    uint32_t flagreg = c->gte().readControl(31);
-    memory.mem_w32(SCRATCH_FLAG_TMP, flagreg);
-    if ((int32_t)memory.mem_r32(SCRATCH_FLAG_TMP) < 0) {
-      continue;
+    const Emitted emitted = gt4Record(memory, rec, pool, sp, depth, Facing::Words);
+    if (emitted.bucket) {
+      tomba::render::OrderingTable(memory, call.ot)
+          .link({.packet = pool, .words = TAG_WORDS_GT4, .bucket = *emitted.bucket});
+      pool += 52;
+    } else if (emitted.sliver) {
+      drawSliver(memory, call, rec, pool, depth, true);
     }
-    c->gte().execute(0x4B400006u); // NCLIP
-    uint32_t uv0 = memory.mem_r32(rec + 8);
-    memory.mem_w32(pool + 12, uv0); // uv0 -- UNCONDITIONAL right after NCLIP, before the backface gate
-
-    memory.mem_w32(SCRATCH_FLAG_TMP, c->gte().readData(24)); // MAC0
-    if ((int32_t)memory.mem_r32(SCRATCH_FLAG_TMP) <= 0) {
-      continue; // backface cull
-    }
-
-    memory.storeVertex(pool + 8, c->gte().projected(0));  // SXY0
-    memory.storeVertex(pool + 20, c->gte().projected(1)); // SXY1
-    memory.storeVertex(pool + 32, c->gte().projected(2)); // SXY2
-
-    c->gte().writeData(0, memory.mem_r32(rec + 40)); // VXY3
-    c->gte().writeData(1, vz23 >> 16);               // VZ3
-
-    memory.mem_w32(pool + 28, rec4 & COL_MASK_GROUND);        // rgb2
-    c->gte().execute(0x4A180001u);                            // RTPS (4th point)
-    memory.mem_w32(pool + 40, (rec4 << 4) & COL_MASK_GROUND); // rgb3
-    uint32_t uv1 = memory.mem_r32(rec + 12);
-    memory.mem_w32(pool + 24, uv1); // uv1
-
-    uint32_t flagreg2 = c->gte().readControl(31);
-    memory.mem_w32(SCRATCH_FLAG_TMP, flagreg2);
-    if ((int32_t)memory.mem_r32(SCRATCH_FLAG_TMP) < 0) {
-      continue;
-    }
-    memory.storeVertex(pool + 44, c->gte().projected(2)); // SXY3
-
-    // The same recovered predicate in its quad form: four corners, OR over corners per axis, the axes
-    // AND-ed, compares unsigned. Bound from the draw window, not a literal — see the triangle site
-    // above and horizontal_visibility_cull.h for why that is the same decision at 4:3.
-    const psx::present::ScreenCull visible = tomba::horizontal_cull::forDrawWindow(c);
-    const std::uint32_t sx[4] = {
-        memory.mem_r16(pool + 8), memory.mem_r16(pool + 20), memory.mem_r16(pool + 32), memory.mem_r16(pool + 44)};
-    const std::uint32_t sy[4] = {
-        memory.mem_r16(pool + 10), memory.mem_r16(pool + 22), memory.mem_r16(pool + 34), memory.mem_r16(pool + 46)};
-    if (!visible.keeps(sx, sy, 4, psx::present::CornerDomain::Packed16)) {
-      continue;
-    }
-
-    uint32_t flagbyte = rec4 >> 24;
-    int32_t z;
-    uint32_t mode = flagbyte & 3u;
-    if (mode == 1u || mode == 2u) {
-      int32_t sz1 = (int32_t)c->gte().readData(16), sz2 = (int32_t)c->gte().readData(17),
-              sz3 = (int32_t)c->gte().readData(18), sz4 = (int32_t)c->gte().readData(19);
-      // Guest-stack mirror (RE: overlay guest 0x8013FE58, same duplicated-inline shape as gt3 above) —
-      // mode==1 writes to (new sp)+0/4/8/12, mode==2 writes to (new sp)+16/20/24/28. A prior draft
-      // always used the mode==1 offsets; mirror the real per-mode offset (CLAUDE.md "MIRROR THE
-      // GUEST STACK").
-      const uint32_t base = (mode == 1u) ? (sp - 32 + 0) : (sp - 32 + 16);
-      memory.mem_w32(base + 0, sz1);
-      memory.mem_w32(base + 4, sz2);
-      memory.mem_w32(base + 8, sz3);
-      memory.mem_w32(base + 12, sz4); // real stack mirror
-      z = tomba::render::OrderingTable::extremeDepth(mode == 1u || !depth.modeTwoNearest,
-                                                     std::array{sz1, sz2, sz3, sz4});
-      if (mode == depth.biasedMode) {
-        z += kModeBias;
-      }
-      memory.mem_w32(SCRATCH_OTZ_TMP, z);
-    } else {
-      c->gte().execute(0x4B68002Eu); // AVSZ4
-      z = (int32_t)c->gte().readData(7);
-      memory.mem_w32(SCRATCH_OTZ_TMP, z);
-    }
-
-    int32_t idx = ground_otz_index(z);
-    memory.mem_w32(SCRATCH_OTZ_TMP, (uint32_t)idx);
-    if (idx < 0) {
-      continue;
-    }
-
-    // uv2/uv3 -- LATEST: only once the record has cleared every gate including this OTZ range
-    // check (matches gen's placement immediately before the OT-link below).
-    uint32_t uv23 = memory.mem_r32(rec + 16);
-    memory.mem_w32(pool + 36, uv23);       // uv2 (lo half)
-    memory.mem_w32(pool + 48, uv23 >> 16); // uv3 (hi half)
-
-    tomba::render::OrderingTable(memory, call.ot)
-        .link({.packet = pool, .words = TAG_WORDS_GT4, .bucket = (uint32_t)idx});
-    pool += 52;
   }
 
   packets.setCursor(pool);
   return rec;
+}
+
+OverlayGroundGt3Gt4::Emitted OverlayGroundGt3Gt4::gt3Record(const psx::present::EmitMemory &memory,
+                                                            uint32_t rec,
+                                                            uint32_t pool,
+                                                            uint32_t sp,
+                                                            const ListDepth &depth,
+                                                            Facing facing) {
+  Core *const c = &memory.core();
+  c->gte().writeData(0, memory.mem_r32(rec + 16)); // VXY0
+  uint32_t vz01 = memory.mem_r32(rec + 20);
+  c->gte().writeData(2, memory.mem_r32(rec + 24)); // VXY1
+  c->gte().writeData(1, vz01);                     // VZ0
+  c->gte().writeData(4, memory.mem_r32(rec + 28)); // VXY2
+  c->gte().writeData(3, vz01 >> 16);               // VZ1
+  c->gte().writeData(5, memory.mem_r32(rec + 32)); // VZ2(lo)|uv2hi(hi)
+  uint32_t rgb0_code = memory.mem_r32(rec + 0);
+  memory.mem_w32(pool + 4, rgb0_code); // rgb0 -- unconditional
+  c->gte().execute(0x4A280030u);       // RTPT
+
+  // uv0/uv1 -- UNCONDITIONAL right after RTPT (gen writes these before ANY gate, including the
+  // GTE FLAG check below); see banner.
+  uint32_t uv0 = memory.mem_r32(rec + 8), uv1 = memory.mem_r32(rec + 12);
+  memory.mem_w32(pool + 12, uv0);
+  memory.mem_w32(pool + 24, uv1);
+
+  uint32_t rgb1_src = memory.mem_r32(rec + 4);
+  uint32_t flagreg = c->gte().readControl(31);
+  memory.mem_w32(SCRATCH_FLAG_TMP, flagreg);
+  if ((int32_t)memory.mem_r32(SCRATCH_FLAG_TMP) < 0) {
+    return {}; // GTE FLAG error -> drop record
+  }
+
+  c->gte().execute(0x4B400006u); // NCLIP (backface / MAC0)
+  uint32_t rgb1 = rgb1_src & COL_MASK_GROUND;
+  memory.mem_w32(pool + 16, rgb1);
+  memory.mem_w32(SCRATCH_FLAG_TMP, c->gte().readData(24)); // MAC0
+  const bool front = facing == Facing::Words ? (int32_t)memory.mem_r32(SCRATCH_FLAG_TMP) > 0 : placedArea(*c) > 0.0f;
+  if (!front) {
+    return {.sliver = facing == Facing::Words && placedArea(*c) > 0.0f}; // backface cull
+  }
+
+  memory.storeVertex(pool + 8, c->gte().projected(0));  // SXY0
+  memory.storeVertex(pool + 20, c->gte().projected(1)); // SXY1
+  memory.storeVertex(pool + 32, c->gte().projected(2)); // SXY2
+
+  // The recovered screen-edge cull, triangle form: OR over the three corners on each axis, the two
+  // axes AND-ed, every compare UNSIGNED so a negative projected coordinate fails it. The bound comes
+  // from the window the port draws into (see horizontal_visibility_cull.h for the census that
+  // established that no guest owner derives one); at 4:3 this is the literal 320/240 it replaced,
+  // bit for bit. The vertical half of the bound is a constant because widening OFX at unchanged OFY
+  // and H leaves the vertical field of view alone.
+  const psx::present::ScreenCull visible = tomba::horizontal_cull::forDrawWindow(c);
+  const std::uint32_t sx[3] = {memory.mem_r16(pool + 8), memory.mem_r16(pool + 20), memory.mem_r16(pool + 32)};
+  const std::uint32_t sy[3] = {memory.mem_r16(pool + 10), memory.mem_r16(pool + 22), memory.mem_r16(pool + 34)};
+  if (!visible.keeps(sx, sy, 3, psx::present::CornerDomain::Packed16)) {
+    return {};
+  }
+
+  uint32_t rgb2 = (rgb1_src << 4) & COL_MASK_GROUND;
+  memory.mem_w32(pool + 28, rgb2); // rgb2 -- LATE, after the on-screen tests (unchanged)
+
+  uint32_t flagbyte = rgb1_src >> 24;
+  int32_t z;
+  uint32_t mode = flagbyte & 3u;
+  if (mode == 1u || mode == 2u) {
+    int32_t sz1 = (int32_t)c->gte().readData(17), sz2 = (int32_t)c->gte().readData(18),
+            sz3 = (int32_t)c->gte().readData(19);
+    // Guest-stack mirror (RE: overlay guest 0x8013FB88 L_8013FD00 vs L_8013FD54) — the ORIGINAL
+    // compiler inlined the same sz-minmax computation TWICE at two DIFFERENT dead-scratch stack
+    // offsets depending on mode: mode==1 writes to (new sp)+0/4/8, mode==2 writes to (new
+    // sp)+12/16/20. A prior draft always used the mode==1 offsets, so mode==2 records never
+    // touched (new sp)+12..+23 — the exact f179 SBS residual at 0x801FE924 (task-0 stack, this
+    // function's own frame at offset +20). Mirror the REAL offset per CLAUDE.md ("MIRROR THE
+    // GUEST STACK... never exclude a slot because it looks like dead scratch").
+    const uint32_t base = (mode == 1u) ? (sp - 24 + 0) : (sp - 24 + 12);
+    memory.mem_w32(base + 0, sz1);
+    memory.mem_w32(base + 4, sz2);
+    memory.mem_w32(base + 8, sz3); // real stack mirror
+    z = tomba::render::OrderingTable::extremeDepth(mode == 1u || !depth.modeTwoNearest, std::array{sz1, sz2, sz3});
+    if (mode == depth.biasedMode) {
+      z += kModeBias;
+    }
+    memory.mem_w32(SCRATCH_OTZ_TMP, z);
+  } else {
+    c->gte().execute(0x4B58002Du); // AVSZ3
+    z = (int32_t)c->gte().readData(7);
+    memory.mem_w32(SCRATCH_OTZ_TMP, z);
+  }
+
+  int32_t idx = ground_otz_index(z);
+  memory.mem_w32(SCRATCH_OTZ_TMP, (uint32_t)idx);
+  if (idx < 0) {
+    return {};
+  }
+
+  // uv2hi (16-bit, high half of rec+32) — a real guest write the guest instruction path performs at this
+  // packet slot; see file banner re: the field leaf not currently reproducing it.
+  memory.mem_w16(pool + 36, (uint16_t)(memory.mem_r32(rec + 32) >> 16));
+
+  return {.bucket = (uint32_t)idx};
+}
+
+OverlayGroundGt3Gt4::Emitted OverlayGroundGt3Gt4::gt4Record(const psx::present::EmitMemory &memory,
+                                                            uint32_t rec,
+                                                            uint32_t pool,
+                                                            uint32_t sp,
+                                                            const ListDepth &depth,
+                                                            Facing facing) {
+  Core *const c = &memory.core();
+  c->gte().writeData(0, memory.mem_r32(rec + 20)); // VXY0
+  uint32_t vz01 = memory.mem_r32(rec + 24);
+  c->gte().writeData(2, memory.mem_r32(rec + 28)); // VXY1
+  c->gte().writeData(1, vz01);                     // VZ0
+  c->gte().writeData(4, memory.mem_r32(rec + 32)); // VXY2
+  c->gte().writeData(3, vz01 >> 16);               // VZ1
+  uint32_t vz23 = memory.mem_r32(rec + 36);
+  c->gte().writeData(5, vz23); // VZ2
+
+  uint32_t hdr0 = memory.mem_r32(rec + 0);
+  memory.mem_w32(pool + 4, hdr0 & COL_MASK_STD); // rgb0, STANDARD mask (differs from GT3's raw + from rgb1-3 below)
+  c->gte().execute(0x4A280030u);                 // RTPT (verts 0..2)
+  memory.mem_w32(pool + 16, (hdr0 << 4) & COL_MASK_GROUND); // rgb1
+
+  uint32_t rec4 = memory.mem_r32(rec + 4); // rgb2|flag -- loaded EARLY, before any gate
+
+  uint32_t flagreg = c->gte().readControl(31);
+  memory.mem_w32(SCRATCH_FLAG_TMP, flagreg);
+  if ((int32_t)memory.mem_r32(SCRATCH_FLAG_TMP) < 0) {
+    return {};
+  }
+  c->gte().execute(0x4B400006u); // NCLIP
+  uint32_t uv0 = memory.mem_r32(rec + 8);
+  memory.mem_w32(pool + 12, uv0); // uv0 -- UNCONDITIONAL right after NCLIP, before the backface gate
+
+  memory.mem_w32(SCRATCH_FLAG_TMP, c->gte().readData(24)); // MAC0
+  const bool front = facing == Facing::Words ? (int32_t)memory.mem_r32(SCRATCH_FLAG_TMP) > 0 : placedArea(*c) > 0.0f;
+  if (!front) {
+    return {.sliver = facing == Facing::Words && placedArea(*c) > 0.0f}; // backface cull
+  }
+
+  memory.storeVertex(pool + 8, c->gte().projected(0));  // SXY0
+  memory.storeVertex(pool + 20, c->gte().projected(1)); // SXY1
+  memory.storeVertex(pool + 32, c->gte().projected(2)); // SXY2
+
+  c->gte().writeData(0, memory.mem_r32(rec + 40)); // VXY3
+  c->gte().writeData(1, vz23 >> 16);               // VZ3
+
+  memory.mem_w32(pool + 28, rec4 & COL_MASK_GROUND);        // rgb2
+  c->gte().execute(0x4A180001u);                            // RTPS (4th point)
+  memory.mem_w32(pool + 40, (rec4 << 4) & COL_MASK_GROUND); // rgb3
+  uint32_t uv1 = memory.mem_r32(rec + 12);
+  memory.mem_w32(pool + 24, uv1); // uv1
+
+  uint32_t flagreg2 = c->gte().readControl(31);
+  memory.mem_w32(SCRATCH_FLAG_TMP, flagreg2);
+  if ((int32_t)memory.mem_r32(SCRATCH_FLAG_TMP) < 0) {
+    return {};
+  }
+  memory.storeVertex(pool + 44, c->gte().projected(2)); // SXY3
+
+  // The same recovered predicate in its quad form: four corners, OR over corners per axis, the axes
+  // AND-ed, compares unsigned. Bound from the draw window, not a literal — see the triangle site
+  // above and horizontal_visibility_cull.h for why that is the same decision at 4:3.
+  const psx::present::ScreenCull visible = tomba::horizontal_cull::forDrawWindow(c);
+  const std::uint32_t sx[4] = {
+      memory.mem_r16(pool + 8), memory.mem_r16(pool + 20), memory.mem_r16(pool + 32), memory.mem_r16(pool + 44)};
+  const std::uint32_t sy[4] = {
+      memory.mem_r16(pool + 10), memory.mem_r16(pool + 22), memory.mem_r16(pool + 34), memory.mem_r16(pool + 46)};
+  if (!visible.keeps(sx, sy, 4, psx::present::CornerDomain::Packed16)) {
+    return {};
+  }
+
+  uint32_t flagbyte = rec4 >> 24;
+  int32_t z;
+  uint32_t mode = flagbyte & 3u;
+  if (mode == 1u || mode == 2u) {
+    int32_t sz1 = (int32_t)c->gte().readData(16), sz2 = (int32_t)c->gte().readData(17),
+            sz3 = (int32_t)c->gte().readData(18), sz4 = (int32_t)c->gte().readData(19);
+    // Guest-stack mirror (RE: overlay guest 0x8013FE58, same duplicated-inline shape as gt3 above) —
+    // mode==1 writes to (new sp)+0/4/8/12, mode==2 writes to (new sp)+16/20/24/28. A prior draft
+    // always used the mode==1 offsets; mirror the real per-mode offset (CLAUDE.md "MIRROR THE
+    // GUEST STACK").
+    const uint32_t base = (mode == 1u) ? (sp - 32 + 0) : (sp - 32 + 16);
+    memory.mem_w32(base + 0, sz1);
+    memory.mem_w32(base + 4, sz2);
+    memory.mem_w32(base + 8, sz3);
+    memory.mem_w32(base + 12, sz4); // real stack mirror
+    z = tomba::render::OrderingTable::extremeDepth(mode == 1u || !depth.modeTwoNearest, std::array{sz1, sz2, sz3, sz4});
+    if (mode == depth.biasedMode) {
+      z += kModeBias;
+    }
+    memory.mem_w32(SCRATCH_OTZ_TMP, z);
+  } else {
+    c->gte().execute(0x4B68002Eu); // AVSZ4
+    z = (int32_t)c->gte().readData(7);
+    memory.mem_w32(SCRATCH_OTZ_TMP, z);
+  }
+
+  int32_t idx = ground_otz_index(z);
+  memory.mem_w32(SCRATCH_OTZ_TMP, (uint32_t)idx);
+  if (idx < 0) {
+    return {};
+  }
+
+  // uv2/uv3 -- LATEST: only once the record has cleared every gate including this OTZ range
+  // check (matches gen's placement immediately before the OT-link below).
+  uint32_t uv23 = memory.mem_r32(rec + 16);
+  memory.mem_w32(pool + 36, uv23);       // uv2 (lo half)
+  memory.mem_w32(pool + 48, uv23 >> 16); // uv3 (hi half)
+
+  return {.bucket = (uint32_t)idx};
+}
+
+void OverlayGroundGt3Gt4::drawSliver(const psx::present::EmitMemory &memory,
+                                     const tomba::render::ListCall &call,
+                                     uint32_t rec,
+                                     uint32_t pool,
+                                     const ListDepth &depth,
+                                     bool quad) {
+  Core &core = memory.core();
+  const uint32_t words = quad ? TAG_WORDS_GT4 : TAG_WORDS_GT3;
+  const uint32_t frame = quad ? 32u : 24u;
+  psx::present::HostMemory host;
+  host.zero(pool, (words + 1u) * 4u);
+  host.zero(SCRATCH_FLAG_TMP, 8u);
+  host.zero(call.sp - frame, frame);
+  const psx::present::EmitMemory hosted(core, host);
+  const GteRawState gte = core.gte().saveRaw();
+  const Emitted placed = quad ? gt4Record(hosted, rec, pool, call.sp, depth, Facing::Places)
+                              : gt3Record(hosted, rec, pool, call.sp, depth, Facing::Places);
+  core.gte().restoreRaw(gte);
+  if (!placed.bucket) {
+    return;
+  }
+  std::array<uint32_t, TAG_WORDS_GT4> body{};
+  std::array<psx::gte::WordPlace, TAG_WORDS_GT4> places{};
+  hosted.readWords(pool + 4u, std::span(body).first(words));
+  hosted.readPlaces(pool + 4u, std::span(places).first(words));
+  const tomba::render::OrderingTable table(memory, call.ot);
+  core.hostPackets.insertAfter(core,
+                               table.slot(tomba::render::OrderingTable::kFarthestBucket),
+                               table.slot(*placed.bucket),
+                               {std::span(body).first(words), std::span(places).first(words)},
+                               kEntityLoop);
 }
 
 #define CAMERA_GTE_CTRL 0x1F8000F8u
@@ -496,12 +571,12 @@ void OverlayGroundGt3Gt4::registerOverrides(native::NativeOverrideCatalog &nativ
     natives.declareOverlay(copy.image, copy.gt4, "OverlayGroundGt3Gt4::gt4", copy.gt4Body);
   }
   // Each listed table slot is the drawn object; gt3/gt4 name its records.
-  natives.declareOverlay("A00", 0x801401B8u, "&OverlayGroundGt3Gt4::entityLoop", &OverlayGroundGt3Gt4::entityLoop);
+  natives.declareOverlay("A00", kEntityLoop, "&OverlayGroundGt3Gt4::entityLoop", &OverlayGroundGt3Gt4::entityLoop);
 }
 
 void OverlayGroundGt3Gt4::markDepth(Core &core) {
   // The leaves run inside entityLoop, so its entry is their vertices' site; depth is SZ.
-  core.depthTest.mark(0x801401B8u, psx::present::DepthOrder::Polygon, kBucketDepth);
+  core.depthTest.mark(kEntityLoop, psx::present::DepthOrder::Polygon, kBucketDepth);
 }
 
 } // namespace tomba
