@@ -7,9 +7,9 @@
 namespace tomba {
 namespace {
 
-// Catalog order is the selector's: Tomba! 2 first.
-constexpr std::size_t kTomba2 = 0;
-constexpr std::size_t kTomba1 = 1;
+// Catalog order is the selector's: release order.
+constexpr std::size_t kTomba1 = 0;
+constexpr std::size_t kTomba2 = 1;
 
 } // namespace
 
